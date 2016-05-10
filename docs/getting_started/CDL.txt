@@ -1,0 +1,32 @@
+Command Definition Language (Rev 0.1):
+
+{
+    "Network" : <String>                    # NetCDF, JSON Object, or service object containing network
+    "Command" : <String>                    # Command to execute "Train", "Predict"
+    "RandomSeed" : <Integer>                # Initializes RNG for reproducible runs (default -1, sets from time of day)
+    "TrainingParameters" : {
+        "Epochs" : <Integer>                # Number of training epochs (Mandatory)
+        "MiniBatch" : <Integer>             # Mini-batch size (default 500, use 0 for entire dataset)
+        "Alpha" : <float>                   # Learning rate (default 0.1)
+        "Lambda" : <float>                  # Regularization/Weight Decay weight (default 0.001)
+        "mu" : <float>                      # Momentum update parameter (default 0.9)
+        "AlphaInterval" : <float>           # Interval between learning rate updates (default 0: constant)
+        "AlphaMultiplier" : <float>         # Amount by which to multiply learning rate per above interval (default: 0.5)
+        "Optimizer" : <String>              # Optimization method, either "SGD", "Momentum", "RMSPROP", or "Nesterov" (default "SGD")
+        "CheckPoint" : {
+            "Name" : <String>               # Location to write checkpoint information
+            "Interval" : <Integer>          # Number of minutes between writing checkpoint data (default 30)
+        },
+        "ShuffleIndices" : <Boolean>        # Shuffle training examples once per epoch? (default false)
+    },
+    "PredictionParameters" : {
+        "MiniBatch" : <Integer>             # Mini-batch size (default 500, use 0 for entire dataset)
+    },
+    "Data" : [                              # List of data sources
+        <String>
+        .
+        .
+        .
+    ],
+    "Results" : <String>                    # Location to write results (File or S3 Object)
+}

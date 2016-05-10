@@ -1,0 +1,152 @@
+Neural network Layer Definition Language (Rev 0.8):
+
+{
+    "Version"           : <String>                      # Indicates version (by default uses latest)
+    "Name"              : <String>                      # Optional name for network
+    "WeightData"        : <String>                      # Optional NetCDF dataset file containing weights
+    "Kind"              : <String>                      # Either AutoEncoder or FeedForward (default)
+    "ShuffleIndices"    : <Boolean>                     # Shuffle data ordering during training (Default true)
+    "LocalResponseNormalization" : 
+    { 
+        "k"             : <float>,                      # Local Response Normalization offset (default 2)
+        "n"             : <Integer>,                    # Local Response Normalization spread (default 5)
+        "alpha"         : <float>,                      # Local Response Normalization scaling (default 0.0001)
+        "beta"          : <float>                       # Local Response Normalization exponent (default 0.75) 
+    },       
+    "SparsenessPenalty" : 
+    {
+        "p"             : <float>,                      # Target sparseness probability for sparse hidden units (default 0.0)
+        "beta"          : <float>                       # Sparse penalty weight on sparse hidden units (default 0.0)
+    },
+    "Denoising" : 
+    {
+        "p"             : <float>,                      # Probability of denoising inputs (for sparse input layers, only denoise on > 0)
+    },
+    "DeltaBoost" :                                      # Scales gradient when using a binary crossentropy loss function
+    {                                    
+        "one"           : <float>                       # Scaling factor for non-zero target values (Default 1.0)     
+        "zero"          : <float>                       # Scaling factor for zero target values (Default 1.0)
+    },
+    "ScaledMarginalCrossEntropy" : {                    # Parameters for binary scaled marginal cross entropy loss function
+        "oneTarget" : <float>                           # Relaxed target for non-zero target values (Default 0.9)
+        "zeroTarget" : <float>                          # Relaxed target for zero target values (Default 0.1)
+        "oneScale" : <float>                            # Scaling factor for non-zero target values (Default 1.0)     
+        "zeroScale" : <float>                           # Scaling factor for zero target values (Default 1.0)
+    },
+    "Layers" : <Array>                                  # List of input, hidden, and output units.  There must
+                                                        # be at least one input and one output layer for this
+                                                        # for this to be a valid neural network
+    [
+        # Input layer definition
+        {
+            "Kind" : "Input"                            # Indicates this layer is an input layer                                   
+            "Name" : <String>,                          # Provides ASCII identifier for complex topologies (optional)
+            "DataSet" : <String>,                       # Name of dataset that provides input values
+            "N" : <Integer> or <Array> or "auto",       # Input unit dimensions, use "auto" to base them on DataSet dimensions
+            "Sparse" : <Boolean>,                       # Indicates whether layer is sparse (default false)
+            "pDropout" : <float>                        # Droput probability (default 0.0)
+        },
+        .
+        .
+        .
+        # Hidden layer definition
+        {
+            "Kind" : "Hidden"                           # Indicates this is a hidden layer
+            "Name" : <String>                           # Provides an ASCII identifier for a layer (optional)
+            "Source" : <String> or <Array>              # Specifies source layer for hidden/output or source data set for input layers 
+            "Type" : <String>,                          # FullyConnected or Convolution layer (default FullyConnected)
+            "N" : <Integer>,                            # Number of output units (Mandatory)
+            "WeightInit" : <Object>                     # Incoming weight initialization scheme, default Xavier
+            {
+                "Scheme" : <String>                     # Xavier, CaffeXavier, Gaussian, Uniform, Constant, UnitBall (default Xavier)
+                "Scale" : <float>                       # Scaling factor for all initializations (default 1)
+                "Bias" : <float>                        # Bias initialization value (default 0)
+            }          
+            "Activation" : <String>,                    # Sigmoid, Relu, Tanh, Linear, PRelu, LinearMax, MaxOut (default sigmoid)
+            "Kernel" : <Integer> or <Array>,            # kernel dimensions X, [X], [X, Y], or [X, Y, Z] (default 1 for each)
+            "KernelStride" : <Integer> or <Array>,      # kernel stride X, [X], [X, Y], or [X, Y, Z] (default 1 for each)
+            "pDropout" : <float>                        # Droput probability (default 0.0)
+            "WeightNorm": <float>                       # Indicates maximum allowable length of individual incoming weight vectors (default 0, unconstrained)
+            "DeltaNorm" : <float>                       # Indicates maximum allowable length of delta vectors for backpropagation (default 0, unconstrained)
+            "BatchNormalization" : <Boolean>            # Indicates whether output should be rescaled to N(0,1) (default false)
+            "Sparse" : <Boolean>,                       # Indicates whether layer is sparse (default false)
+            "SparsenessPenalty" : <Boolean>             # Indicates whether sparseness penalty should be applied (default false)
+            "L1Penalty" : <float>                       # L1 penalty factor to apply to activations (default 0.0, off)
+            "Recurrent" : <String>                      # Makes layer recurrent: "LSTM", "SRN", "SCRN", "FSMN", or "None" (default "None")
+            "SharedWeights" : <Array> or <Object>       # Indicates whether to re-use weights from a previous layer (optional)
+            [
+                    { "InputLayer"        : <String>,   # Input to this layer from which to attach shared weights
+                      "SourceInputLayer"  : <String>,   # SourceInputLayer and SourceOutputLayer collectively
+                      "SourceOutputLayer" : <String>,   # specify which weight matrix will be shared here
+                      "Transposed"        : <Boolean>   # Use transpose of matrix? (default false)
+                    },
+                    .
+                    .
+            ],
+        },
+        
+        # Pooling Layer Definition
+        {
+            "Kind" : "Pooling",                         # Indicates this is a pooling layer
+            "Name" : <String>,                          # Provides an ASCII identifier for the layer (optional)
+            "Source" : <String>,                        # Pooling layers process a single hidden or input layer
+            "Function" : <String>,                      # Max, Stochastic, LocalContrastNormalization, LocalResponseNormalization, GlobalTemporal
+            "Kernel" : <Integer> or <Array>,            # kernel dimensions X, [X], [X, Y], or [X, Y, Z] (default 1 for each)
+            "KernelStride" : <String>,                  # kernel stride X, [X], [X, Y], or [X, Y, Z] (default 1 for each)
+            "pDropout" : <float>                        # Droput probability (default 0.0)
+        },
+        
+        # Target Layer Definition
+        {
+            "Kind" : "Target",                          # Indicates this is a target layer
+            "Name" : <String>,                          # Provides an ASCII identifier for the layer (optional)
+            "Target" : <String>,                        # Indicates layer that serves as source data and provides dimensions
+            "WeightInit" : <Object>                     # Incoming weight initialization scheme, default Xavier
+            {
+                "Scheme" : <String>                     # Xavier, CaffeXavier, Gaussian, Uniform, Constant, UnitBall (default Xavier)
+                "Scale" : <float>                       # Scaling factor for all but Xavier Initializations (default 1)
+                "Bias" : <String> or <float>            # Bias initialization either drawn from N(0,1) or a constant (default 0)
+            }             
+            "ErrorFunction" : <String>,                 # Either SMCE, L1, L2, or CrossEntropy (default)
+        }, 
+        .
+        .
+        .
+        # Output layer definition
+        {  
+            "Kind" : "Output",                          # Indicates this is an output layer
+            "Name" : <String>,                          # Provides an ASCII identifier for a layer (optional)
+            "DataSet" : <String>,                       # Name of dataset that provides target values (optional)
+            "Source" : <String> or <Array>,             # Specifies input(s) to this layer by name (default hidden layer or first input)
+            "Type" : <String>,                          # FullyConnected or Convolution layer (default FullyConnected)
+            "N" : <Integer> or "auto",                  # Number of output units, use "auto" to base them on DataSet dimensions
+            "Activation" : <String>,                    # Sigmoid, Relu, Tanh, Linear, SoftMax, ReluMax, LinearMax (default sigmoid)
+            "Kernel" : <Integer> or <Array>,            # kernel dimensions X, [X], [X, Y], or [X, Y, Z] (default 1 for each)
+            "KernelStride" : <String>,                  # kernel stride X, [X], [X, Y], or [X, Y, Z] (default 1 for each)
+            "WeightInit" : <Object>                     # Incoming weight initialization scheme, default Xavier
+            {
+                "Scheme" : <String>                     # Xavier, CaffeXavier, Gaussian, Uniform, Constant, UnitBall (default Xavier)
+                "Scale" : <float>                       # Scaling factor for all but Xavier Initializations (default 1)
+                "Bias" : <String> or <float>            # Bias initialization either drawn from N(0,1) or a constant (default 0)
+            }             
+            "WeightNorm" : <float>,                     # Indicates maximum allowable length of individual incoming weight vectors (default 0, unconstrained)
+            "DeltaNorm" : <float>,                      # Indicates maximum allowable length of delta vectors for backpropagation (default 0, unconstrained)
+            "pDropout" : <float>                        # Droput probability (default 0.0)
+            "Sparse" : <Boolean>,                       # Indicates whether layer is sparse (default false)
+            "SparsenessPenalty" : <Boolean>             # Indicates whether sparseness penalty should be applied (default false)
+            "SharedWeights" : <Array> or <Object>       # Indicates whether to re-use weights from a previous layer (optional)
+            [
+                    { "InputLayer"        : <String>,   # Input to this layer from which to attach shared weights
+                      "SourceInputLayer"  : <String>,   # SourceInputLayer and SourceOutputLayer collectively
+                      "SourceOutputLayer" : <String>,   # specify which weight matrix will be shared here
+                      "Transpose"         : <Boolean>   # Use transpose of matrix? (default false)
+                    },
+                    .
+                    .
+            ],
+        },
+    ]
+
+    "ErrorFunction" : <String>                          # Either SMCE, L1, L2, or CrossEntropy (default)
+}
+

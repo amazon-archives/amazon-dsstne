@@ -1,0 +1,58 @@
+NetCDF Binary data file format 0.2
+
+NetCDF variables
+datasets (int)                      # of datasets in file
+
+Remainder of variables are formatted with the name followed by 0 to datasets - 1 for indexing
+
+nameN (string)                      # Name of dataset n
+attributesN (uint)                  # Attributes of dataset defined below
+kindN (uint)                        # Specifies whether data is image, numeric, or audio
+dimensionN (uint)                   # Dimensionality of data points (1-3)
+widthN (int)                        # Width of a single data point 
+heightN (int)                       # Height of a single data point 
+lengthN (int)                       # Length of a single data point
+examplesDimN (int)                  # Number of datapoints in dataset
+dataDimN (int)                      # Size of raw data
+dataN (data)                        # Raw data if present
+sparseDataDimN (int)                # Total sparse datapoint count
+sparseStartN (uint64)               # Variable containing starting offsets into sparse data per data point
+sparseEndN (uint64)                 # Variable containing end offsets per data point
+sparseIndexN (uint32)               # Raw sparse indices
+sparseDataN (data)                  # Raw sparse values if data is not categorical
+
+
+JSON Image/Audio Data format
+{
+    "N" : <Integer>                 # Number of data points
+    "Sparse" : <Boolean>            # Indicates whether output is sparse or not
+    "Boolean" : <Boolean>           # Indicates whether non-zero values are 1/0 or continuous
+    "Categorical" : <Boolean>       # Indicates whether data is 1 of n or not
+    "Data : <Array>
+    [
+        { 
+            "File" : <String>       # Filename for source data
+            "Output" : <Array>      # Either NOutput distinct values or indices to non-zero values if sparse
+        }
+        .
+        .
+        .
+    ]
+}
+
+
+CSV Data format
+Name of data set, N, width, Sparse Flag, Categorical Flag
+Followed by N rows of:
+width comma-separated data points
+
+
+Attribute Definitions
+
+Sparse                              # Signifies data is mostly 0, therefore only non-zero indices are saved
+Boolean                             # Signifies data has binary (0/1) values rather than continuous
+
+
+The output of any layer of any neural network can be dumped in either format
+
+The weights of a neural network can be dumped as a multi-dataset file

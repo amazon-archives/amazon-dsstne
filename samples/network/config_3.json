@@ -1,0 +1,22 @@
+{
+    "Version" : 0.7,
+    "Name" : "AutoEncoder Test",
+    "Kind" : "FeedForward",  
+    "SparsenessPenalty" : {
+        "p" : 0.5,
+        "beta" : 2.0
+    },
+
+    "DeltaBoost" : {
+        "one" : 30.0,
+        "zero" : 1.0
+    }, 
+    "Layers" : [
+        { "Name" : "Input", "Kind" : "Input", "N" : "auto", "DataSet" : "input", "Sparse" : true }, 
+        { "Name" : "Hidden1", "Kind" : "Hidden", "Type" : "FullyConnected", "N" : 128, "Activation" : "Sigmoid", "Sparse" : true},
+        { "Name" : "Output", "Kind" : "Output", "Type" : "FullyConnected", "DataSet" : "input", "N" : "auto", "Activation" : "Sigmoid", "Sparse" : true, 
+        }
+    ],
+        
+    "ErrorFunction" : "CrossEntropy"
+}

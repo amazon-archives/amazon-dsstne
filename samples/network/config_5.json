@@ -1,0 +1,29 @@
+{
+    "Version" : 0.8,
+    "Name" : "One layer Sigmoid",
+    "Kind" : "FeedForward",  
+    "SparsenessPenalty" : {
+        "p" : 0.5,
+        "beta" : 2.0
+    },
+
+    "ShuffleIndices" : false,
+
+    "Denoising" : {
+        "p" : 0.4
+    },
+
+    "ScaledMarginalCrossEntropy" : {
+        "oneTarget" : 1.0,
+        "zeroTarget" : 0.0,
+        "oneScale" : 30.0,
+        "zeroScale" : 1.0
+    },
+    "Layers" : [
+        { "Name" : "Input", "Kind" : "Input", "N" : "auto", "DataSet" : "input", "Sparse" : true }, 
+        { "Name" : "Hidden", "Kind" : "Hidden", "Type" : "FullyConnected", "Source" : [ "Input" ], "N" : 256, "Activation" : "Sigmoid", "Sparse" : true },      
+        { "Name" : "Output", "Kind" : "Output", "Type" : "FullyConnected", "Source" : [ "Hidden" ], "DataSet" : "output", "N" : "auto", "Activation" : "Sigmoid", "Sparse" : true }
+    ],
+        
+    "ErrorFunction" : "ScaledMarginalCrossEntropy"
+}

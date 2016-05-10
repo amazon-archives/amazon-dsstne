@@ -1,0 +1,23 @@
+{
+    "Version" : 0.8,
+    "Name" : "2 Hidden Layer",
+    "Kind" : "FeedForward",  
+
+    "ShuffleIndices" : false,
+
+
+    "ScaledMarginalCrossEntropy" : {
+        "oneTarget" : 1.0,
+        "zeroTarget" : 0.0,
+        "oneScale" : 1.0,
+        "zeroScale" : 1.0
+    },
+    "Layers" : [
+        { "Name" : "Input", "Kind" : "Input", "N" : "auto", "DataSet" : "input", "Sparse" : true }, 
+        { "Name" : "Hidden1", "Kind" : "Hidden", "Type" : "FullyConnected", "Source" : "Input", "N" : 1024, "Activation" : "Relu", "Sparse" : false, "pDropout" : 0.5, "WeightInit" : { "Scheme" : "Gaussian", "Scale" : 0.01 } },
+        { "Name" : "Hidden2", "Kind" : "Hidden", "Type" : "FullyConnected", "Source" : ["Hidden1"], "N" : 1024, "Activation" : "Relu", "Sparse" : false, "pDropout" : 0.5, "WeightInit" : { "Scheme" : "Gaussian", "Scale" : 0.01 } },  
+        { "Name" : "Output", "Kind" : "Output", "Type" : "FullyConnected", "DataSet" : "output", "N" : "auto", "Activation" : "Sigmoid", "Sparse" : true , "WeightInit" : { "Scheme" : "Gaussian", "Scale" : 0.01, "Bias" : -10.2 }}
+    ],
+        
+    "ErrorFunction" : "ScaledMarginalCrossEntropy"
+}
