@@ -84,7 +84,7 @@ sudo make install
 NetCDF is the format which is supported inherently from DSSTNE engine. It is required to install:
 * [Setup Hdf5](#hdf5-setup)
 * [Setup Zlib](#zlib-setup)
-* [Setup NetCDF](#netcdf-setup)
+* [Setup NetCDF](#netcdf-setup-1)
 * [Setup NetCDFC++](#netcdfc-setup)
 
 #### HDF5 Setup
