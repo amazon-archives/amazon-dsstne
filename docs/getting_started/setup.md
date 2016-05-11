@@ -1,20 +1,20 @@
 # Setup
-DSSTNE requires a GPU to run.  You can setup and run DSSTNE in several different ways
+DSSTNE requires a GPU to run. You can setup and run DSSTNE in several different ways:
 
 * [Setting up with Docker](#setup-on-docker)
 * [Setting up on AWS](#setup-on-aws)
 * [Setting up on a dev machine](#setup-on-a-dev-machine)
 
-##Setup on Docker
+## Setup on Docker
 [Docker](http://docker.com/) helps to containerize your installation without effecting any builds locally. The [Dockerfile](../../Dockerfile) is provided for DSSTNE and you can build a docker out of that.
 
 ### Matching GPU driver versions
 **The NVIDIA driver version in your Docker image must exactly match the version installed on the host**
-The `Dockerfile` uses CUDA 7.0 with driver version 346.72.  You can verify the installed version on your
+The `Dockerfile` uses CUDA 7.0 with driver version 346.72. You can verify the installed version on your
 machine by running the `nvidia-smi` tool.
 
 ```bash
-nvidia-smi|grep Version
+nvidia-smi | grep Version
 | NVIDIA-SMI 346.72     Driver Version: 346.72
 ```
 
@@ -22,7 +22,7 @@ If your machine does not have 346.72 installed, then you must update the `Docker
 same driver that your host machine has.
 Note that we have only fully tested installation with CUDA 7.0.28 and driver 346.72 on the host system.
 
-###Creating the Docker image
+### Creating the Docker image
  Download the code.
 ```bash
 git clone https://github.com/amznlabs/amazon-dsstne.git
@@ -38,17 +38,17 @@ Once the Docker Image has been created ensure that you start the docker with *pr
 docker run -it --privileged amazon/dsstne /bin/bash
 ```
 
-##Setup on AWS
-You can also launch a [GPU based AWS  instance](http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/using_cluster_computing.html) from *ami-d6f2e6bc* which has all the prerequisites build in properly. The image is currently available in us-east-1 region (N.Virginia in AWS Console). [Download the code and build](#download-the-code-and-build)
+## Setup on AWS
+You can also launch a [GPU based AWS instance](http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/using_cluster_computing.html) from *ami-d6f2e6bc* which has all the prerequisites build in properly. The image is currently available in us-east-1 region (N.Virginia in AWS Console). [Download the code and build](#download-the-code-and-build)
 
-##Setup on a dev machine
+## Setup on a dev machine
 Instructions are provided for installation on Ubuntu Linux machines.
 
-### Prerequistes
-* [Setup GCC](#gcc-setup):GCC compiler with C++11 is required .
-* [Setup CuBLAS](#cublas-setup): Blas Libraries
-* Cuda Toolkit >= 7.0 is  required
-* [Setup OpenMPI](#openmpi-setup) :CUDA aware OpenMPI is required .
+### Prerequisites
+* [Setup GCC](#gcc-setup) : GCC compiler with C++11 is required.
+* [Setup CuBLAS](#cublas-setup) : Blas Libraries
+* Cuda Toolkit >= 7.0 is required
+* [Setup OpenMPI](#openmpi-setup) : CUDA aware OpenMPI is required.
 * [Setup NetCDF](#netcdf-setup) : NetCDF is the native format which DSSTNE engine supports
 * [Setup JsonCPP](#jsoncpp-setup) : Configurations are parsed through Json
 * [Setup CUB](#cub-setup) : Dependent CUDA libraries which is required by DSSTNE
@@ -63,11 +63,12 @@ sudo apt-get install g++
 #### Cublas Setup
 ```bash
 # Ubuntu/Linux 64-bit
-sudo apt-get install -y  libatlas-base-dev
+sudo apt-get install -y libatlas-base-dev
 ```
 
 #### OpenMPI Setup
-MPI is used across in DSTTNE to allow multi GPU modeling. OpenMPI package is used as the MPI Platform
+MPI is used across in DSTTNE to allow multi GPU modeling. OpenMPI package is used as the MPI Platform.
+
 ```bash
 # Ubuntu/Linux 64-bit
 sudo apt-get -y install make
@@ -80,11 +81,11 @@ sudo make install
 ```
 
 #### NetCDF Setup
-NetCDF is the format which is supported inherently from DSSTNE engine. It is required to install
+NetCDF is the format which is supported inherently from DSSTNE engine. It is required to install:
 * [Setup Hdf5](#hdf5-setup)
 * [Setup Zlib](#zlib-setup)
 * [Setup NetCDF](#netcdf-setup)
-* [Setup NetCDFC++](#netcdfc++-setup)
+* [Setup NetCDFC++](#netcdfc-setup)
 
 #### HDF5 Setup
 ```bash
@@ -146,7 +147,7 @@ sudo make install
 ```bash
 # Ubuntu/Linux 64-bit
 wget https://github.com/NVlabs/cub/archive/1.5.2.zip
-sudo apt-get install -y  unzip
+sudo apt-get install -y unzip
 unzip 1.5.2.zip
 sudo cp -rf cub-1.5.2/cub/ /usr/local/include/
 ```
