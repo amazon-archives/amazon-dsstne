@@ -1,6 +1,6 @@
 # Amazon DSSTNE: Deep Scalable Sparse Tensor Network Engine
 
-DSSTNE is an open source software library for training and deploying deep neural 
+DSSTNE (pronounced "Destiny") is an open source software library for training and deploying deep neural 
 networks using GPUs.  Amazon engineers built DSSTNE to solve deep learning 
 problems at Amazon's scale.  DSSTNE is built for production deployment of real-world 
 deep learning applications, emphasizing speed and scale over experimental flexibility.
