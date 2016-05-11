@@ -78,6 +78,12 @@ We will train the model for 256 batch side for 10 epochs and the model file will
 ```bash
 train -c config.json -i gl_input.nc -o gl_output.nc -n gl.nc -b 256 -e 10
 ```
+
+We can also train the model across multiple gpus in the same machine and it will model parallelism automatically for you. If you are using g2.8xlarge instance which has 4 GPUs you can run as follows
+
+```bash
+mpirun -np 4 train -c config.json -i gl_input.nc -o gl_output.nc -n gl.nc -b 256 -e 10
+```
 ## Predict
 
 Once you have finished training now you can start predicting. Since DSSTNE is mostly used for recommendations we also added support for post filtering. The filter follows the same format as the standard DSSTNE format but for each example you can decide which features to remove when we predict. In the following example we will remove all the features which were triggered in the input layer for predicting.
