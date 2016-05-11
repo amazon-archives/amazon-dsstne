@@ -7,9 +7,6 @@ After you have followed [setup](setup.md) we should be able to start neural netw
 
 You can check [Summary](#summary) for a quick script to run all the steps.
 
-**MultiGPU Modeling COMING SOON**
-
-
 
 ## Convert Data
 For this example we will use the movie lens data which was transformed into the [format](userguide.md) which DSSTNE recognizes.
@@ -79,7 +76,7 @@ We will train the model for 256 batch side for 10 epochs and the model file will
 train -c config.json -i gl_input.nc -o gl_output.nc -n gl.nc -b 256 -e 10
 ```
 
-We can also train the model across multiple gpus in the same machine and it will model parallelism automatically for you. If you are using g2.8xlarge instance which has 4 GPUs you can run as follows
+We can use model parallel training across the GPUs in the same host. You can run the following on a g2.8xlarge which has 4 GPUs
 
 ```bash
 mpirun -np 4 train -c config.json -i gl_input.nc -o gl_output.nc -n gl.nc -b 256 -e 10
