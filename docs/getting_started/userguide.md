@@ -1,8 +1,8 @@
 #
- DSSTNE currently only supports Fully Connected layers and the network structure for training is defined though a  config json representation. 
+ DSSTNE currently only supports Fully Connected layers and the network structure for training is defined through a config json representation. 
 
 #Data Formats
-DSSTNE Engine takes in  Data only in NetCDF Format. There are some wrappers which converts the following format  to NetCDF. The separator between the example and features is TAB
+DSSTNE Engine takes in data only in NetCDF Format. There are some wrappers which convert the following format to NetCDF. The separator between the example and features is TAB
 ```bash
 Example1	Feature1:Feature2:Feature3
 Example2	Feature5:Feature2:Feature4
@@ -10,7 +10,7 @@ Example3	Feature6:Feature7:Feature8
 ```
 
 #Neural Network Layer Definition Language
-The definitions for the Neural Network fed into DSSTNE is represented in a Json Format. All the Supported feature can be found at [LDL.txt](LDL.txt). Sample one is given below
+The definitions for the Neural Network fed into DSSTNE is represented in a Json Format. All the supported feature can be found at [LDL.txt](LDL.txt). Sample one is given below
 ```bash
 {
     "Version" : 0.8,
@@ -46,16 +46,16 @@ The definitions for the Neural Network fed into DSSTNE is represented in a Json 
         { "Name" : "Output", "Kind" : "Output", "Type" : "FullyConnected", "DataSet" : "gl_output", "N" : "auto", "Activation" : "Sigmoid", "Sparse" : true , "WeightInit" : { "Scheme" : "Gaussian", "Scale" : 0.01, "Bias" : -10.2 }}
     ],
 ```
-Neural Network is represented in Layers in a configuraton json. We only support Fully Connected layers and the layer can be of 3 different kinds
+Neural Network is represented in Layers in a configuration json. We only support Fully Connected layers and the layer can be of 3 different kinds
 
 1. Input
-   This is the input layer for the Neural Network  and atleast one Input layer is *required* for training. There should be a  *DataSet* required for the input layer. 
+   This is the input layer for the Neural Network  and at least one Input layer is *required* for training. There should be a  *DataSet* required for the input layer. 
 
 2. Hidden
    Hidden Layers are Layers which connect between layers. It Does require a DataSet but rather a *Source*. If *Source* is not mentioned then the previous Layer is taken as Source
 
 3. Output
-   Output Layer is the layer where the truths are compared against. Atleast one Output Layer is required and there should be a DataSet also for the Output Layer. 
+   Output Layer is the layer where the truths are compared against. At least one Output Layer is required and there should be a DataSet also for the Output Layer. 
 
 #Activation
 ```bash
@@ -105,7 +105,7 @@ Weight Initialization between the Layers are defined  by *WeightInit* filed in t
     pNetwork->SetTrainingMode(mode)
 ```
 
-  Optimization for the Network is currently passed through the code . Currently Supported optimizers are 
+  Optimization for the Network is currently passed through the code. Currently supported optimizers are 
 * SGD
 * Momentum
 * AdaGrad

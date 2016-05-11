@@ -39,10 +39,10 @@ docker run -it --privileged amazon/dsstne /bin/bash
 ```
 
 ##Setup on AWS
-You can also launch a [GPU based AWS  instance](http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/using_cluster_computing.html) from *ami-d6f2e6bc* which has all the prerequisites build in properly. The image is currently availble in us-east-1 region (N.Virginia in AWS Console). [Download the code and build](#download-the-code-and-build)
+You can also launch a [GPU based AWS  instance](http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/using_cluster_computing.html) from *ami-d6f2e6bc* which has all the prerequisites build in properly. The image is currently available in us-east-1 region (N.Virginia in AWS Console). [Download the code and build](#download-the-code-and-build)
 
 ##Setup on a dev machine
-Instructions are provided for installation on Ubuntu linux machines.
+Instructions are provided for installation on Ubuntu Linux machines.
 
 ### Prerequistes
 * [Setup GCC](#gcc-setup):GCC compiler with C++11 is required .
@@ -67,7 +67,7 @@ sudo apt-get install -y  libatlas-base-dev
 ```
 
 #### OpenMPI Setup
-MPI is used across in DSTTNE to allow multi gpu modelling. OpenMPI package is used as the MPI Platform
+MPI is used across in DSTTNE to allow multi GPU modeling. OpenMPI package is used as the MPI Platform
 ```bash
 # Ubuntu/Linux 64-bit
 sudo apt-get -y install make
