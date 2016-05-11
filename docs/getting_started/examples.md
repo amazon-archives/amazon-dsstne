@@ -82,7 +82,7 @@ train -c config.json -i gl_input.nc -o gl_output.nc -n gl.nc -b 256 -e 10
 ```
 ## Predict
 
-Once you have finished training not you can start predicting. Since DSSTNE is mostly used for recommendations we also added support for post filtering. The filler follows the same format as the standard DSSTNE format but for each example you can decide which features to remove when we predict. In the following example we will remove all the features which were triggered in the input layer for predicting
+Once you have finished training now you can start predicting. Since DSSTNE is mostly used for recommendations we also added support for post filtering. The filter follows the same format as the standard DSSTNE format but for each example you can decide which features to remove when we predict. In the following example we will remove all the features which were triggered in the input layer for predicting
 ```bash
 predict -b 1024 -d gl -i features_input -o features_output -k 10 -n gl.nc -f ml20m-all -s recs -r ml20m-all
 ```
