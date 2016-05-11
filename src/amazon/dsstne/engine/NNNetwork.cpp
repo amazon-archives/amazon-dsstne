@@ -2303,9 +2303,7 @@ void NNNetwork::AllocatePeerBuffers()
    
             maxMemory                       = _examples;
 	}
-        if (maxMemory == 131072 ) {
-	    maxMemory = 138943;
-	}
+      
         
         // Allocate local data
         for (size_t i = 0; i < 2; i++)
