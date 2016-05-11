@@ -239,6 +239,7 @@ static const bool bShadowedOutputBuffers                        = false;    // T
 #define RTERROR(status, s) \
     if (status != cudaSuccess) { \
         printf("%s %s\n", s, cudaGetErrorString(status)); \
+        assert(0); \
         cudaThreadExit(); \
         exit(-1); \
     }

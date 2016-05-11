@@ -873,9 +873,10 @@ template<typename T> bool NNDataSet<T>::CalculateSparseDatapointCounts()
         for (size_t i = 0; i < _vSparseStart.size(); i++)
         {
             uint64_t count                      = _vSparseEnd[i] - _vSparseStart[i];
-            if (count > _maxSparseDatapoints) {
+            if (count > _maxSparseDatapoints) 
+            {
                 _maxSparseDatapoints            = count;
- 	    }
+ 	        }
         }
         MPI_Allreduce(MPI_IN_PLACE, &_maxSparseDatapoints, 1, MPI_UINT32_T, MPI_MAX, MPI_COMM_WORLD);
 

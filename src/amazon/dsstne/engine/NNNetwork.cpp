@@ -2299,10 +2299,10 @@ void NNNetwork::AllocatePeerBuffers()
         }
         // Calculate maximum memory
         uint64_t maxMemory                  = _maxStride * _batch;
-        if (maxMemory < _examples) {
-   
+        if (maxMemory < _examples) 
+        {
             maxMemory                       = _examples;
-	}
+	    }
       
         
         // Allocate local data
