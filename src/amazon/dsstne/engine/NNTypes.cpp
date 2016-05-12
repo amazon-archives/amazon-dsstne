@@ -885,7 +885,7 @@ template<typename T> bool NNDataSet<T>::CalculateSparseDatapointCounts()
         {
             if (getGpu()._id == 0)
             {
-                printf("NNDataSet::CalculateSparseDatapointCounts: Maximum sparse datapoints (%u) per example in daatset %s too large for fast sparse kernels.\n", _maxSparseDatapoints, _name.c_str());
+                printf("NNDataSet::CalculateSparseDatapointCounts: Maximum sparse datapoints (%u) per example in dataset %s too large for fast sparse kernels.\n", _maxSparseDatapoints, _name.c_str());
             }
         }
         
