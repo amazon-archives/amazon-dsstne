@@ -245,6 +245,7 @@ int listFiles(const string &dirname, const bool recursive, vector<string> &files
                     files.push_back(absoluteChildFilePath);
                 }
             }
+	    closedir(dp);
         } else {
             std::cerr << "Error(" << errno << ") opening " << dirname << std::endl;
             return errno;
