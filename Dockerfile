@@ -3,12 +3,12 @@
 # DESCRIPTION:    Docker image for Amazon DSSTNE
 FROM ubuntu:14.04
 RUN apt-get update && apt-get install -y make \
-   build-essential
+   build-essential \
    cmake \
    g++  \
    gcc \
    libatlas-base-dev \
-   wget \
+   wget
 
 ENV CUDA_MAJOR=7.0 \
   CUDA_VERSION=7.0.28 \
