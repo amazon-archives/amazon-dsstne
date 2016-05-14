@@ -20,3 +20,8 @@ DSSTNE instead uses “model-parallel training”, where each layer of the netwo
 
 ## What is the license associated with DSSTNE? Restrictions? Attributions? Requirements?
 DSSTNE is licensed with the business-friendly Apache 2.0 license
+
+
+
+## Can DSSTNE be run on multiple instances working on the same data set?
+Yes, it can be run on cluster with multiple instances (like EMR). If a MPI cluster is set up, the framework detects the lack of Peer-to-Peer connectivity between the GPUs in play and automagically switches to MPI system memory collectives. That being said, please ensure that all your nodes are in the same placement group connected by Elastic File System, so that you can share the data across the instances
