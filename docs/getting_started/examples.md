@@ -1,6 +1,6 @@
 # Sample Neural Network Modeling using DSSTNE
 
-After you have followed [setup](setup.md) we should be able to start neural network modeling using DSSTNE. As with any modeling we will go through the 3 basics steps and walk you though the wrappers which will be used to interact with the DSSTNE Engine.
+After you have followed [setup](setup.md) we should be able to start neural network modeling using DSSTNE. As with any modeling we will go through the 3 basics steps and walk you through the wrappers which will be used to interact with the DSSTNE Engine.
 * [Convert Data](#convert-data)
 * [Train](#train)
 * [Predict](#predict)
