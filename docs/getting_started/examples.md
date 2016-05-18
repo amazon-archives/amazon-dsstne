@@ -21,8 +21,8 @@ generateNetCDF -d gl_input -i ml20m-all -o gl_input.nc -f features_input -s samp
 ```
  This will create the following files:
 * gl_input.nc : NetCDF file in the format which DSSTNE Engine understand
-* features_input : A index file with the indexes of each neuron
-* samples_input : A index file with the indexes of all samples
+* features_input : An index file with the indexes of each neuron
+* samples_input : An index file with the indexes of all samples
 
 You can always run **generateNetCDF -h** for more help.
 
