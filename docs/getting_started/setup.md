@@ -6,7 +6,7 @@ DSSTNE requires a GPU to run. You can setup and run DSSTNE in several different 
 * [Setting up on a dev machine](#setup-on-a-dev-machine)
 
 ## Setup on Docker
-[Docker](http://docker.com/) helps to containerize your installation without effecting any builds locally. The [Dockerfile](../../Dockerfile) is provided for DSSTNE and you can build a docker out of that.
+[Docker](http://docker.com/) helps to containerize your installation without affecting any builds locally. The [Dockerfile](../../Dockerfile) is provided for DSSTNE and you can build a docker out of that.
 
 ### Matching GPU driver versions
 **The NVIDIA driver version in your Docker image must exactly match the version installed on the host**
