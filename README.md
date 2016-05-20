@@ -26,5 +26,7 @@ are possible with a single GPU.
 ## Examples
 * Check [Examples](docs/getting_started/examples.md) to start trying your first Neural Network Modeling using DSSTNE
 
+## Benchmarks
+* Check [Benchmarks](benchmarks/Benchmark.md) for benchmarks which we performed
 ## Q&A
 [FAQ](FAQ.md)
