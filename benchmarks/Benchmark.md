@@ -5,6 +5,9 @@ We ran the benchmark of DSSTNE using the Movielens data set. Training Parameter 
 * RMSProp learner
 * 256 Batchsize
 
+Time taken to run one epoch is considered for performance comparison
+
+
 #DSSTNE
 Use the Config at [config.json](dsstne/config.json). Follow the [example](../docs/getting_started/examples.md) and change the traning command
 ```bash
