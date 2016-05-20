@@ -1,0 +1,24 @@
+{
+    "Version" : 0.8,
+    "Name" : "AIV NNC",
+    "Kind" : "FeedForward",
+
+    "ShuffleIndices" : false,
+
+
+    "ScaledMarginalCrossEntropy" : {
+        "oneTarget" : 1.0,
+        "zeroTarget" : 0.0,
+        "oneScale" : 1.0,
+        "zeroScale" : 1.0
+    },
+    "Layers" : [
+        { "Name" : "Input", "Kind" : "Input", "N" : "auto", "DataSet" : "gl_input", "Sparse" : true },
+        { "Name" : "Hidden1", "Kind" : "Hidden", "Type" : "FullyConnected", "Source" : "Input", "N" : 1024, "Activation" : "Sigmoid", "Sparse" : false, "pDropout" : 0.5, "WeightInit" : { "Scheme" : "Gaussian", "Scale" : 0.01 } },
+        { "Name" : "Hidden2", "Kind" : "Hidden", "Type" : "FullyConnected", "Source" : ["Hidden1"], "N" : 1024, "Activation" : "Sigmoid", "Sparse" : false, "pDropout" : 0.5, "WeightInit" : { "Scheme" : "Gaussian", "Scale" : 0.01 } },
+        { "Name" : "Hidden3", "Kind" : "Hidden", "Type" : "FullyConnected", "Source" : ["Hidden2"], "N" : 1024, "Activation" : "Sigmoid", "Sparse" : false, "pDropout" : 0.5, "WeightInit" : { "Scheme" : "Gaussian", "Scale" : 0.01 } },
+        { "Name" : "Output", "Kind" : "Output", "Type" : "FullyConnected", "DataSet" : "gl_output", "N" : "auto", "Activation" : "Sigmoid", "Sparse" : true , "WeightInit" : { "Scheme" : "Gaussian", "Scale" : 0.01, "Bias" : -10.2 }}
+    ],
+
+    "ErrorFunction" : "ScaledMarginalCrossEntropy"
+}
