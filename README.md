@@ -27,6 +27,7 @@ are possible with a single GPU.
 * Check [Examples](docs/getting_started/examples.md) to start trying your first Neural Network Modeling using DSSTNE
 
 ## Benchmarks
+* 14.8x speed up vs Tensorflow reported by scottlegrand@ (https://medium.com/@scottlegrand/first-dsstne-benchmarks-tldr-almost-15x-faster-than-tensorflow-393dbeb80c0f#.ghe74fu1q)
 * Check [Benchmarks](benchmarks/Benchmark.md) for benchmarks which we performed
 
 
