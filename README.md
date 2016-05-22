@@ -14,6 +14,10 @@ and storage in a model-parallel fashion for each layer.
 are possible with a single GPU.
 * **Sparse Data**: DSSTNE is optimized for fast performance on sparse datasets. Custom GPU kernels perform sparse computation on the GPU, without filling in lots of zeroes.
 
+## Benchmarks
+* scottlegrand@ reported a [14.8x speed up vs Tensorflow](https://medium.com/@scottlegrand/first-dsstne-benchmarks-tldr-almost-15x-faster-than-tensorflow-393dbeb80c0f#.ghe74fu1q)
+* Directions on how to run a benchmark can be found in [here](benchmarks/Benchmark.md)
+
 ## License
 [License](LICENSE)
 
@@ -25,11 +29,6 @@ are possible with a single GPU.
 
 ## Examples
 * Check [Examples](docs/getting_started/examples.md) to start trying your first Neural Network Modeling using DSSTNE
-
-## Benchmarks
-* 14.8x speed up vs Tensorflow reported by scottlegrand@ (https://medium.com/@scottlegrand/first-dsstne-benchmarks-tldr-almost-15x-faster-than-tensorflow-393dbeb80c0f#.ghe74fu1q)
-* Check [Benchmarks](benchmarks/Benchmark.md) for benchmarks which we performed
-
 
 ## Q&A
 [FAQ](FAQ.md)
