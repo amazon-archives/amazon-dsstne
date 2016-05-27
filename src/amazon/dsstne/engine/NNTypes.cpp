@@ -1219,10 +1219,13 @@ template<typename T> bool NNDataSet<T>::Shard(NNDataSetBase::Sharding sharding)
                         vLocalSparseStart[j]    = vLocalSparseIndex.size();
                         for (uint64_t k = _vSparseStart[j]; k < _vSparseEnd[j]; k++)
                         {
-                            if ((_vSparseIndex[k] >= xmin) && (_vSparseIndex[k] < xmax))
+                            if ((_vSparseIndex[k] >= xmin) && (_vSparseIndex[k] < xmax)) {
                                 vLocalSparseIndex.push_back(_vSparseIndex[k] - xmin);
-                            if (!(_attributes & Boolean))
-                                vLocalSparseData.push_back(_vSparseData[k]);
+                                if (!(_attributes & Boolean)) {
+                                    vLocalSparseData.push_back(_vSparseData[k]);
+                                }
+                            }
+
                         }               
                         vLocalSparseEnd[j]          = vLocalSparseIndex.size(); 
                     }
@@ -1255,10 +1258,12 @@ template<typename T> bool NNDataSet<T>::Shard(NNDataSetBase::Sharding sharding)
                     _vSparseStart[j]                = _vSparseIndex.size();
                     for (uint64_t k = vTempSparseStart[j]; k < vTempSparseEnd[j]; k++)
                     {
-                        if ((vTempSparseIndex[k] >= _minX) && (vTempSparseIndex[k] < _maxX))
+                        if ((vTempSparseIndex[k] >= _minX) && (vTempSparseIndex[k] < _maxX)) {
                             _vSparseIndex.push_back(vTempSparseIndex[k]);
-                        if (!(_attributes & Boolean))
-                            _vSparseData.push_back(vTempSparseData[k]); 
+                            if (!(_attributes & Boolean)) {
+                                _vSparseData.push_back(vTempSparseData[k]);
+                            }
+                        }
                     }               
                     _vSparseEnd[j]                  = _vSparseIndex.size(); 
                 }
