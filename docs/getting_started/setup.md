@@ -59,11 +59,19 @@ Instructions are provided for installation on Ubuntu Linux machines.
 sudo apt-get -y update
 sudo apt-get install gcc
 sudo apt-get install g++
+
+#Fedora 64-bit
+sudo dnf check-update
+sudo dnf install gcc
+sudo dnf install gcc-c++
 ```
 #### Cublas Setup
 ```bash
 # Ubuntu/Linux 64-bit
 sudo apt-get install -y libatlas-base-dev
+
+#Fedora 64-bit
+sudo dnf install atlas-devel
 ```
 
 #### OpenMPI Setup
