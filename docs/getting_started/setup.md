@@ -22,6 +22,14 @@ If your machine does not have 346.72 installed, then you must update the `Docker
 same driver that your host machine has.
 Note that we have only fully tested installation with CUDA 7.0.28 and driver 346.72 on the host system.
 
+### Loading the nVidia driver on the host 
+We have to make sure the nVidia kernel driver is loaded in the host before running the docker for the first time. In the AWS AMI run the following command 
+```bash
+cd NVIDIA_CUDA-7.0_Samples/1_Utilities/deviceQuery
+make
+./deviceQuery
+```
+
 ### Creating the Docker image
  Download the code.
 ```bash
