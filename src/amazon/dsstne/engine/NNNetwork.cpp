@@ -2302,8 +2302,7 @@ void NNNetwork::AllocatePeerBuffers()
         if (maxMemory < _examples) 
         {
             maxMemory                       = _examples;
-	    }
-      
+        }
         
         // Allocate local data
         for (size_t i = 0; i < 2; i++)
@@ -2980,7 +2979,21 @@ NNNetwork* LoadNeuralNetworkJSON(const string& fname, const uint32_t batch, cons
                             // Hidden layer-specific features
                             if (ldl._kind == NNLayer::Kind::Hidden)
                             {
-                                // Temporarily empty
+                                // Layer-specific sparse penalty
+                                if (lname.compare("sparsenesspenalty") == 0)
+                                {
+                                    for (Json::ValueIterator pitr = lvalue.begin(); pitr != lvalue.end() ; pitr++)
+                                    {
+                                        string pname                = pitr.memberName();
+                                        std::transform(pname.begin(), pname.end(), pname.begin(), ::tolower);
+                                        Json::Value pkey            = pitr.key();
+                                        Json::Value pvalue          = *pitr;
+                                        if (pname.compare("p") == 0)
+                                            ldl._sparsenessPenalty_p = pvalue.asFloat();
+                                        else if (pname.compare("beta") == 0)
+                                            ldl._sparsenessPenalty_beta  = pvalue.asFloat();
+                                    }
+                                }                                
                             }
 
 
@@ -2994,7 +3007,18 @@ NNNetwork* LoadNeuralNetworkJSON(const string& fname, const uint32_t batch, cons
                                 }
 
                             }
+                            
+                            // Non-Input layer-specific features
+                            if (ldl._kind != NNLayer::Kind::Input)
+                            {
+                                // Skips
+                            }
+                            
+                            // Output layer-specific features
+                            if (ldl._kind == NNLayer::Kind::Output)
+                            {
 
+                            }
 
                             // If we reach here, we didn't recognize the field
                             printf("LoadNeuralNetworkJSON: Unknown neural network layer field: %s\n", lname.c_str());

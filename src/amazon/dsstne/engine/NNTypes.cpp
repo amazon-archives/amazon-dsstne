@@ -27,6 +27,7 @@ static std::pair<TrainingMode, string> sTrainingModePair[] =
     std::pair<TrainingMode, string>(TrainingMode::Nesterov, "Nesterov"),
     std::pair<TrainingMode, string>(TrainingMode::RMSProp,  "RMSProp"),
     std::pair<TrainingMode, string>(TrainingMode::AdaDelta, "AdaDelta"),  
+    std::pair<TrainingMode, string>(TrainingMode::Adam,     "Adam"),  
 };
 
 static std::map<TrainingMode, string> sTrainingModeMap =
@@ -1221,9 +1222,11 @@ template<typename T> bool NNDataSet<T>::Shard(NNDataSetBase::Sharding sharding)
                         for (uint64_t k = _vSparseStart[j]; k < _vSparseEnd[j]; k++)
                         {
                             if ((_vSparseIndex[k] >= xmin) && (_vSparseIndex[k] < xmax))
+                            {
                                 vLocalSparseIndex.push_back(_vSparseIndex[k] - xmin);
-                            if (!(_attributes & Boolean))
-                                vLocalSparseData.push_back(_vSparseData[k]);
+                                if (!(_attributes & Boolean))
+                                    vLocalSparseData.push_back(_vSparseData[k]);
+                            }
                         }               
                         vLocalSparseEnd[j]          = vLocalSparseIndex.size(); 
                     }
@@ -1257,9 +1260,11 @@ template<typename T> bool NNDataSet<T>::Shard(NNDataSetBase::Sharding sharding)
                     for (uint64_t k = vTempSparseStart[j]; k < vTempSparseEnd[j]; k++)
                     {
                         if ((vTempSparseIndex[k] >= _minX) && (vTempSparseIndex[k] < _maxX))
+                        {
                             _vSparseIndex.push_back(vTempSparseIndex[k]);
-                        if (!(_attributes & Boolean))
-                            _vSparseData.push_back(vTempSparseData[k]); 
+                            if (!(_attributes & Boolean))
+                                _vSparseData.push_back(vTempSparseData[k]);
+                        }
                     }               
                     _vSparseEnd[j]                  = _vSparseIndex.size(); 
                 }

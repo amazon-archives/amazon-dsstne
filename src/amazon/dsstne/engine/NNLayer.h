@@ -92,6 +92,8 @@ private:
     const NNFloat               _pDropout;                  // Dropout probability
     const bool                  _bSparse;                   // Is layer sparse
     bool                        _bFastSparse;               // Is layer capable of using fast sparse kernels
+    NNFloat                     _sparsenessPenalty_p;       // Layer-specific sparseness target
+    NNFloat                     _sparsenessPenalty_beta;    // Layer-specific sparseness penalty weight
     const bool                  _bDenoising;                // Is layer utilizing Denoising?       
     NNFloat                     _weightNorm;                // Maximum weight vector length
     NNFloat                     _deltaNorm;                 // Maximum delta vector length                         
@@ -105,6 +107,7 @@ private:
     vector<NNWeight*>           _vIncomingLargerWeight;     // Incoming weights
     vector<NNLayer*>            _vOutgoingLargerLayer;      // Destination larger layers
     vector<NNWeight*>           _vOutgoingLargerWeight;     // Destination larger weights
+    vector<NNLayer*>            _vSkip;                     // List of skip layers
     vector<NNFloat>             _vUnit;                     // Layer's units
     vector<NNFloat>             _vDelta;                    // Layer's deltas
     GpuBuffer<NNFloat>*         _pbUnit;                    // GPU memory for unit activations
@@ -179,6 +182,8 @@ struct NNLayerDescriptor
     NNFloat                 _deltaNorm;                 // Maximum delta vector length
     NNFloat                 _pDropout;                  // Dropout probability
     Activation              _activation;                // Activation function
+    NNFloat                 _sparsenessPenalty_p;       // Layer-specific sparseness target
+    NNFloat                 _sparsenessPenalty_beta;    // Layer-specific sparseness penalty weight    
     uint32_t                _attributes;                // Specific layer properties
     NNLayerDescriptor();
 };

@@ -50,6 +50,8 @@ _deltaNorm(d._deltaNorm),
 _pDropout(d._pDropout),
 _activation(d._activation),
 _bSparse(d._attributes & NNLayer::Attributes::Sparse),
+_sparsenessPenalty_p(d._sparsenessPenalty_p),
+_sparsenessPenalty_beta(d._sparsenessPenalty_beta),
 _bDenoising(d._attributes & NNLayer::Attributes::Denoising),
 _bFastSparse(false),
 _bDirty(true),
@@ -80,21 +82,13 @@ void NNLayer::Deallocate()
     if (getGpu()._id == 0)
         printf("NNLayer::Allocate: Deallocating all data for layer %s\n", _name.c_str());
 
-    if (_pbUnit)
-    {
-        delete _pbUnit;
-        _pbUnit                     = NULL;
-    }
-    if (_pbDelta)
-    {
-        delete _pbDelta;
-        _pbDelta                    = NULL;
-    }
-    if (_pbDropout)
-    {
-        delete _pbDropout;
-        _pbDropout                  = NULL;
-    }
+    // Recklessly delete everything because the standard says you can...
+    delete _pbUnit;
+    _pbUnit                     = NULL;
+    delete _pbDelta;
+    _pbDelta                    = NULL;
+    delete _pbDropout;
+    _pbDropout                  = NULL;
 }
 
 tuple<uint32_t, uint32_t, uint32_t> NNLayer::GetDimensions()
@@ -386,6 +380,8 @@ void NNLayer::ForwardPropagate(uint32_t position, uint32_t batch, bool bTraining
                     }
                 }
             }
+
+            // Copy data from incoming skip layers
            
             // Calculate activation
             CalculateActivation(batch);
@@ -748,7 +744,9 @@ void NNLayer::BackPropagate(uint32_t position, uint32_t batch, NNFloat alpha)
         {
             if (_bSparse && getGpu()._data._bSparsenessPenalty)
             {
-                kCalculateSparsenessPenalty(batch, _localStride, _pbUnit->_pDevData, _pbDelta->_pDevData);
+                NNFloat p       = (_sparsenessPenalty_p > (NNFloat)0.0)   ? _sparsenessPenalty_p     : getGpu()._pNetwork->_sparsenessPenalty_p;
+                NNFloat beta    = (_sparsenessPenalty_beta > (NNFloat)0.0) ? _sparsenessPenalty_beta : getGpu()._pNetwork->_sparsenessPenalty_beta;
+                kCalculateSparsenessPenalty(batch, _localStride, _pbUnit->_pDevData, _pbDelta->_pDevData, p, beta);
             }   
 
             // Account for dropout when calculating deltas (100% local calculation)
@@ -1031,7 +1029,9 @@ void NNLayer::BackPropagate(uint32_t position, uint32_t batch, NNFloat alpha)
         {
             if (_bSparse && getGpu()._data._bSparsenessPenalty)
             {
-                kCalculateSparsenessPenalty(batch, _localStride, _pbUnit->_pDevData, _pbDelta->_pDevData);
+                NNFloat p       = (_sparsenessPenalty_p > (NNFloat)0.0)   ? _sparsenessPenalty_p     : getGpu()._pNetwork->_sparsenessPenalty_p;
+                NNFloat beta    = (_sparsenessPenalty_beta > (NNFloat)0.0) ? _sparsenessPenalty_beta : getGpu()._pNetwork->_sparsenessPenalty_beta;
+                kCalculateSparsenessPenalty(batch, _localStride, _pbUnit->_pDevData, _pbDelta->_pDevData, p, beta);                
             }   
 
             // Account for dropout when calculating deltas (100% local calculation)
@@ -1051,7 +1051,9 @@ void NNLayer::BackPropagate(uint32_t position, uint32_t batch, NNFloat alpha)
                     kNormalizeDeltaMagnitudes(_deltaNorm, batch, _localStride, _pbDelta->_pDevData, pMagnitude);            
                 }                       
             }
-        }    
+        }
+
+        // Copy deltas to incoming skip layers    
 
         // Gather delta(L) to contribute to delta and dW of incoming larger layers
         if (_vIncomingLargerLayer.size() > 0)
@@ -1506,6 +1508,8 @@ _weightNorm((NNFloat)0.0),
 _deltaNorm((NNFloat)0.0),
 _pDropout((NNFloat)0.0),
 _activation(Activation::Sigmoid),
+_sparsenessPenalty_p((NNFloat)0.0),
+_sparsenessPenalty_beta((NNFloat)0.0),
 _attributes(NNLayer::Attributes::None)
 {
 
@@ -1686,6 +1690,30 @@ bool LoadNNLayerDescriptorNetCDF(const string& fname, netCDF::NcFile& nc, uint32
                 throw NcException("NcException", "NNLayer::NNLayer: No activation supplied in NetCDF input file " + fname, __FILE__, __LINE__);
             }
             activationAtt.getValues(&ld._activation);  
+            
+            // Added in version 0.81, supply default values here if not present, eventually throw exception            
+            NcGroupAtt sparsenessPenalty_pAtt   = nc.getAtt("sparsenessPenalty_p");   
+            if (sparsenessPenalty_pAtt.isNull())
+            {
+                //throw NcException("NcException", "NNLayer::NNLayer: No sparsenessPenalty_p supplied in NetCDF input file " + fname, __FILE__, __LINE__);
+                ld._sparsenessPenalty_p = (NNFloat)0.0;
+            }
+            else
+            {
+                sparsenessPenalty_pAtt.getValues(&(ld._sparsenessPenalty_p));
+            }
+
+            // Added in version 0.81, supply default values here if not present, eventually throw exception     
+            NcGroupAtt sparsenessPenalty_betaAtt= nc.getAtt("sparsenessPenalty_beta");
+            if (sparsenessPenalty_betaAtt.isNull())
+            {
+                //throw NcException("NcException", "NNLayer::NNLayer: No sparsenessPenalty_beta supplied in NetCDF input file " + fname, __FILE__, __LINE__);
+                ld._sparsenessPenalty_p = (NNFloat)0.0;
+            }
+            else
+            {
+                sparsenessPenalty_betaAtt.getValues(&(ld._sparsenessPenalty_beta));
+            }
 
             NcGroupAtt attributesAtt            = nc.getAtt(lstring + "attributes");
             if (attributesAtt.isNull())
@@ -1728,28 +1756,35 @@ bool LoadNNLayerDescriptorNetCDF(const string& fname, netCDF::NcFile& nc, uint32
 
 ostream& operator<< (ostream& out, NNLayerDescriptor& d)
 {
-    out << "Name:               " << d._name << endl;
-    out << "Kind:               " << d._kind << endl;
-    out << "Type:               " << d._type << endl;
-    out << "Pooling Function:   " << d._poolingFunction << endl;
-    out << "Nx:                 " << d._Nx << endl;
-    out << "Ny:                 " << d._Ny << endl;
-    out << "Nz:                 " << d._Nz << endl;
-    out << "kernelX:            " << d._kernelX << endl;
-    out << "kernelY:            " << d._kernelY << endl;
-    out << "kernelZ:            " << d._kernelZ << endl;
-    out << "kernelXStride:      " << d._kernelStrideX << endl;
-    out << "kernelYStride:      " << d._kernelStrideY << endl;
-    out << "kernelZStride:      " << d._kernelStrideZ << endl;
-    out << "pDropout:           " << d._pDropout << endl;
-    out << "weightInit:         " << d._weightInit << endl;
-    out << "weightInitScale:    " << d._weightInitScale << endl;
-    out << "biasInit:           " << d._biasInit << endl;
-    out << "weightNorm:         " << d._weightNorm << endl;
-    out << "deltaNorm:          " << d._deltaNorm << endl;
-    out << "activation:         " << d._activation << endl;
-    out << "Sparse:             " << ((d._attributes & NNLayer::Attributes::Sparse) != 0) << endl;
-    out << "DataSet:            " << d._dataSet << endl;
+    out << "Name:                  " << d._name << endl;
+    out << "Kind:                  " << d._kind << endl;
+    out << "Type:                  " << d._type << endl;
+    out << "Pooling Function:      " << d._poolingFunction << endl;
+    out << "Nx:                    " << d._Nx << endl;
+    out << "Ny:                    " << d._Ny << endl;
+    out << "Nz:                    " << d._Nz << endl;
+    out << "kernelX:               " << d._kernelX << endl;
+    out << "kernelY:               " << d._kernelY << endl;
+    out << "kernelZ:               " << d._kernelZ << endl;
+    out << "kernelXStride:         " << d._kernelStrideX << endl;
+    out << "kernelYStride:         " << d._kernelStrideY << endl;
+    out << "kernelZStride:         " << d._kernelStrideZ << endl;
+    out << "pDropout:              " << d._pDropout << endl;
+    out << "weightInit:            " << d._weightInit << endl;
+    out << "weightInitScale:       " << d._weightInitScale << endl;
+    out << "biasInit:              " << d._biasInit << endl;
+    out << "weightNorm:            " << d._weightNorm << endl;
+    out << "deltaNorm:             " << d._deltaNorm << endl;
+    out << "activation:            " << d._activation << endl;
+    out << "Sparse:                " << ((d._attributes & NNLayer::Attributes::Sparse) != 0) << endl;
+    if (d._kind == NNLayer::Kind::Hidden)
+    {
+        if (d._sparsenessPenalty_p > (NNFloat)0.0)
+            out << "sparsenessPenalty_p    " << d._sparsenessPenalty_p << endl;
+        if (d._sparsenessPenalty_beta > (NNFloat)0.0)
+            out << "sparsenessPenalty_beta " << d._sparsenessPenalty_beta << endl;
+        out << "DataSet:            " << d._dataSet << endl;
+    }
     for (uint32_t i = 0 ; i < d._vSource.size(); i++)
     {
         out << "source " << setw(3) << i << ":         " << d._vSource[i] << endl;
@@ -1780,6 +1815,8 @@ uint32_t MPI_Bcast_NNLayerDescriptor(NNLayerDescriptor& d)
     MPI_Bcast(&d._weightNorm, 1, MPI_FLOAT, 0, MPI_COMM_WORLD);
     MPI_Bcast(&d._deltaNorm, 1, MPI_FLOAT, 0, MPI_COMM_WORLD);
     MPI_Bcast(&d._activation, 1, MPI_UINT32_T, 0, MPI_COMM_WORLD);
+    MPI_Bcast(&d._sparsenessPenalty_p, 1, MPI_FLOAT, 0, MPI_COMM_WORLD);
+    MPI_Bcast(&d._sparsenessPenalty_beta, 1, MPI_FLOAT, 0, MPI_COMM_WORLD);    
     MPI_Bcast(&d._attributes, 1, MPI_UINT32_T, 0, MPI_COMM_WORLD);
     MPI_Bcast_string(d._dataSet);
     uint32_t size                       = d._vSource.size();
@@ -1818,6 +1855,8 @@ bool NNLayer::WriteNetCDF(NcFile& nc, uint32_t index)
         nc.putAtt(lstring + "weightNorm", ncFloat, _weightNorm);
         nc.putAtt(lstring + "deltaNorm", ncFloat, _deltaNorm);
         nc.putAtt(lstring + "activation", ncUint, _activation);
+        nc.putAtt(lstring + "sparsenessPenalty_p", ncFloat, _sparsenessPenalty_p);
+        nc.putAtt(lstring + "sparsenessPenalty_beta", ncFloat, _sparsenessPenalty_beta);
 
         uint32_t attributes         = 0;
         if (_bSparse)

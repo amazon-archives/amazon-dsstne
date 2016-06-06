@@ -484,45 +484,66 @@ kCalculateSparseNonZeroSoftMaxOutputDelta_kernel(uint32_t position, uint32_t bat
     }
 }
 
-void kCalculateSparseOutputDelta(Activation activation, uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex)
+void kCalculateSparseOutputDelta(Activation activation, uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, bool bSparseIgnoreZero)
 {
     uint64_t size               = (uint64_t)batch * (uint64_t)stride;
     dim3 grid1(CalculateBlocks(size));
     dim3 grid2(CalculateBlocks(batch * getGpu()._data._warpSize));
     
+    // Clear entire delta if ignoring zero outputs
+    if (bSparseIgnoreZero)
+    {
+        cudaMemset(pDelta, 0, size * sizeof(NNFloat));
+    }
+    
     switch (activation)
     {
         case Sigmoid:
-            kCalculateSparseRawSigmoidOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(size, pUnit, pDelta);
-            LAUNCHERROR("kCalculateSparseRawSigmoidOutputDelta_kernel");
+            if (!bSparseIgnoreZero)
+            {
+                kCalculateSparseRawSigmoidOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(size, pUnit, pDelta);
+                LAUNCHERROR("kCalculateSparseRawSigmoidOutputDelta_kernel");
+            }
             kCalculateSparseNonZeroSigmoidOutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pSparseStart, pSparseEnd, pSparseIndex);
             LAUNCHERROR("kCalculateSparseNonZeroSigmoidSparseOutputDelta_kernel");
             break;
         
         case Tanh:
-            kCalculateSparseRawTanhOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(size, pUnit, pDelta);
-            LAUNCHERROR("kCalculateSparseRawTanhOutputDelta_kernel");
+            if (!bSparseIgnoreZero)
+            {
+                kCalculateSparseRawTanhOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(size, pUnit, pDelta);
+                LAUNCHERROR("kCalculateSparseRawTanhOutputDelta_kernel");
+            }
             kCalculateSparseNonZeroTanhOutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pSparseStart, pSparseEnd, pSparseIndex);
             LAUNCHERROR("kCalculateSparseNonZeroTanhOutputDelta_kernel");
             break;
 
         case Linear:
-            kCalculateSparseRawLinearOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(size, pUnit, pDelta);
-            LAUNCHERROR("kCalculateSparseRawLinearOutputDelta_kernel");
+            if (!bSparseIgnoreZero)
+            {
+                kCalculateSparseRawLinearOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(size, pUnit, pDelta);
+                LAUNCHERROR("kCalculateSparseRawLinearOutputDelta_kernel");
+            }
             kCalculateSparseNonZeroLinearOutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pSparseStart, pSparseEnd, pSparseIndex);
             LAUNCHERROR("kCalculateSparseNonZeroLinearOutputDelta_kernel");
             break;
 
         case RectifiedLinear:
-            kCalculateSparseRawReluOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(size, pUnit, pDelta);
-            LAUNCHERROR("kCalculateSparseRawReluOutputDelta_kernel");
+            if (!bSparseIgnoreZero)
+            {
+                kCalculateSparseRawReluOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(size, pUnit, pDelta);
+                LAUNCHERROR("kCalculateSparseRawReluOutputDelta_kernel");
+            }
             kCalculateSparseNonZeroReluOutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pSparseStart, pSparseEnd, pSparseIndex);
             LAUNCHERROR("kCalculateSparseNonZeroReluOutputDelta_kernel");
             break;
             
         case SoftMax:
-            kCalculateSparseRawSoftMaxOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(size, pUnit, pDelta);
-            LAUNCHERROR("kCalculateSparseRawSoftMaxOutputDelta_kernel");
+            if (!bSparseIgnoreZero)
+            {
+                kCalculateSparseRawSoftMaxOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(size, pUnit, pDelta);
+                LAUNCHERROR("kCalculateSparseRawSoftMaxOutputDelta_kernel");
+            }
             kCalculateSparseNonZeroSoftMaxOutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pSparseStart, pSparseEnd, pSparseIndex);
             LAUNCHERROR("kCalculateSparseNonZeroSoftMaxOutputDelta_kernel");
             break;                        
@@ -875,45 +896,66 @@ kCalculateSparseAnalogNonZeroSoftMaxOutputDelta_kernel(uint32_t position, uint32
 }
 
 template<typename T>
-void kCalculateSparseAnalogOutputDelta(Activation activation, uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, T* pSparseData)
+void kCalculateSparseAnalogOutputDelta(Activation activation, uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, T* pSparseData, bool bSparseIgnoreZero)
 {
     uint64_t size               = (uint64_t)batch * (uint64_t)stride;
     dim3 grid1(CalculateBlocks(size));
     dim3 grid2(CalculateBlocks(batch * getGpu()._data._warpSize));
     
+    // Clear entire delta if ignoring zero outputs
+    if (bSparseIgnoreZero)
+    {
+        cudaMemset(pDelta, 0, size * sizeof(NNFloat));
+    }    
+    
     switch (activation)
     {
         case Sigmoid:
-            kCalculateSparseRawSigmoidOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(size, pUnit, pDelta);
-            LAUNCHERROR("kCalculateSparseRawSigmoidOutputDelta_kernel");
+            if (!bSparseIgnoreZero)
+            {
+                kCalculateSparseRawSigmoidOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(size, pUnit, pDelta);
+                LAUNCHERROR("kCalculateSparseRawSigmoidOutputDelta_kernel");
+            }
             kCalculateSparseAnalogNonZeroSigmoidOutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pSparseStart, pSparseEnd, pSparseIndex, pSparseData);
             LAUNCHERROR("kCalculateSparseAnalogNonZeroSigmoidSparseOutputDelta_kernel");
             break;
         
         case Tanh:
-            kCalculateSparseRawTanhOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(size, pUnit, pDelta);
-            LAUNCHERROR("kCalculateSparseRawTanhOutputDelta_kernel");
+            if (!bSparseIgnoreZero)
+            {
+                kCalculateSparseRawTanhOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(size, pUnit, pDelta);
+                LAUNCHERROR("kCalculateSparseRawTanhOutputDelta_kernel");
+            }
             kCalculateSparseAnalogNonZeroTanhOutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pSparseStart, pSparseEnd, pSparseIndex, pSparseData);
             LAUNCHERROR("kCalculateSparseAnalogNonZeroTanhOutputDelta_kernel");
             break;
 
         case Linear:
-            kCalculateSparseRawLinearOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(size, pUnit, pDelta);
-            LAUNCHERROR("kCalculateSparseRawLinearOutputDelta_kernel");
+            if (!bSparseIgnoreZero)
+            {
+                kCalculateSparseRawLinearOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(size, pUnit, pDelta);
+                LAUNCHERROR("kCalculateSparseRawLinearOutputDelta_kernel");
+            }
             kCalculateSparseAnalogNonZeroLinearOutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pSparseStart, pSparseEnd, pSparseIndex, pSparseData);
             LAUNCHERROR("kCalculateSparseAnalogNonZeroLinearOutputDelta_kernel");
             break;
 
         case RectifiedLinear:
-            kCalculateSparseRawReluOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(size, pUnit, pDelta);
-            LAUNCHERROR("kCalculateSparseRawReluOutputDelta_kernel");
+            if (!bSparseIgnoreZero)
+            {
+                kCalculateSparseRawReluOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(size, pUnit, pDelta);
+                LAUNCHERROR("kCalculateSparseRawReluOutputDelta_kernel");
+            }
             kCalculateSparseAnalogNonZeroReluOutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pSparseStart, pSparseEnd, pSparseIndex, pSparseData);
             LAUNCHERROR("kCalculateSparseAnalogNonZeroReluOutputDelta_kernel");
             break;
             
         case SoftMax:
-            kCalculateSparseRawSoftMaxOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(size, pUnit, pDelta);
-            LAUNCHERROR("kCalculateSparseRawSoftMaxOutputDelta_kernel");
+            if (!bSparseIgnoreZero)
+            {
+                kCalculateSparseRawSoftMaxOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(size, pUnit, pDelta);
+                LAUNCHERROR("kCalculateSparseRawSoftMaxOutputDelta_kernel");
+            }
             kCalculateSparseAnalogNonZeroSoftMaxOutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pSparseStart, pSparseEnd, pSparseIndex, pSparseData);
             LAUNCHERROR("kCalculateSparseAnalogNonZeroSoftMaxOutputDelta_kernel");
             break;         
@@ -1014,24 +1056,36 @@ kCalculateSparseNonZeroSigmoidCrossEntropyOutputDelta_kernel(uint32_t position, 
     }
 }
 
-void kCalculateSparseCrossEntropyOutputDelta(Activation activation, uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex)
+void kCalculateSparseCrossEntropyOutputDelta(Activation activation, uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, bool bSparseIgnoreZero)
 {
     uint64_t size               = (uint64_t)batch * (uint64_t)stride;
     dim3 grid1(CalculateBlocks(size));
     dim3 grid2(CalculateBlocks(batch * getGpu()._data._warpSize));
-    
+
+    // Clear entire delta if ignoring zero outputs
+    if (bSparseIgnoreZero)
+    {
+        cudaMemset(pDelta, 0, size * sizeof(NNFloat));
+    }
+
     switch (activation)
     {
         case SoftMax:
-            kCalculateSparseRawSoftMaxOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(size, pUnit, pDelta);
-            LAUNCHERROR("kCalculateSparseRawSoftMaxOutputDelta_kernel");
+            if (!bSparseIgnoreZero)
+            {
+                kCalculateSparseRawSoftMaxOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(size, pUnit, pDelta);
+                LAUNCHERROR("kCalculateSparseRawSoftMaxOutputDelta_kernel");
+            }
             kCalculateSparseNonZeroSoftMaxOutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pSparseStart, pSparseEnd, pSparseIndex);
             LAUNCHERROR("kCalculateSparseNonZeroSoftMaxOutputDelta_kernel");
             break;    
 
         case Sigmoid:
-            kCalculateSparseRawSigmoidCrossEntropyOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(size, pUnit, pDelta);
-            LAUNCHERROR("kCalculateSparseRawSigmoidCrossEntropyOutputDelta_kernel");
+            if (!bSparseIgnoreZero)
+            {
+                kCalculateSparseRawSigmoidCrossEntropyOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(size, pUnit, pDelta);
+                LAUNCHERROR("kCalculateSparseRawSigmoidCrossEntropyOutputDelta_kernel");
+            }
             kCalculateSparseNonZeroSigmoidCrossEntropyOutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pSparseStart, pSparseEnd, pSparseIndex);
             LAUNCHERROR("kCalculateSparseNonzeroSigmoidCrossEntropyOutputDelta_kernel");
             break;
@@ -1062,18 +1116,27 @@ kCalculateSparseAnalogNonZeroSigmoidCrossEntropyOutputDelta_kernel(uint32_t posi
 }
 
 template<typename T>
-void kCalculateSparseAnalogCrossEntropyOutputDelta(Activation activation, uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, T* pSparseData)
+void kCalculateSparseAnalogCrossEntropyOutputDelta(Activation activation, uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, T* pSparseData, bool bSparseIgnoreZero)
 {
     uint64_t size               = (uint64_t)batch * (uint64_t)stride;
     dim3 grid1(CalculateBlocks(size));
     dim3 grid2(CalculateBlocks(batch * getGpu()._data._warpSize));
+ 
+    // Clear entire delta if ignoring zero outputs
+    if (bSparseIgnoreZero)
+    {
+        cudaMemset(pDelta, 0, size * sizeof(NNFloat));
+    } 
     
     switch (activation)
     {
         case SoftMax:
         case Sigmoid:
-            kCalculateSparseRawSigmoidCrossEntropyOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(size, pUnit, pDelta);
-            LAUNCHERROR("kCalculateSparseRawSigmoidCrossEntropyOutputDelta_kernel");
+            if (!bSparseIgnoreZero)
+            {
+                kCalculateSparseRawSigmoidCrossEntropyOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(size, pUnit, pDelta);
+                LAUNCHERROR("kCalculateSparseRawSigmoidCrossEntropyOutputDelta_kernel");
+            }
             kCalculateSparseAnalogNonZeroSigmoidCrossEntropyOutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pSparseStart, pSparseEnd, pSparseIndex, pSparseData);
             LAUNCHERROR("kCalculateSparseAnalogNonzeroSigmoidCrossEntropyOutputDelta_kernel");
             break;
@@ -1309,24 +1372,36 @@ kCalculateSparseNonZeroSoftMaxScaledMarginalCrossEntropyOutputDelta_kernel(uint3
 
 
 
-void kCalculateSparseScaledMarginalCrossEntropyOutputDelta(Activation activation, uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint64_t* pSparseStart, uint64_t *pSparseEnd, uint32_t *pSparseIndex)
+void kCalculateSparseScaledMarginalCrossEntropyOutputDelta(Activation activation, uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint64_t* pSparseStart, uint64_t *pSparseEnd, uint32_t *pSparseIndex, bool bSparseIgnoreZero)
 {
     uint64_t size               = (uint64_t)batch * (uint64_t)stride;
     dim3 grid1(CalculateBlocks(size));
     dim3 grid2(CalculateBlocks(batch * getGpu()._data._warpSize));
     
+    // Clear entire delta if ignoring zero outputs
+    if (bSparseIgnoreZero)
+    {
+        cudaMemset(pDelta, 0, size * sizeof(NNFloat));
+    }
+    
     switch (activation)
     {
         case Sigmoid:
-            kCalculateSparseRawSigmoidScaledMarginalCrossEntropyOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(size, pUnit, pDelta);
-            LAUNCHERROR("kCalculateSparseRawSigmoidScaledMarginalCrossEntropyOutputDelta_kernel");
+            if (!bSparseIgnoreZero)
+            {
+                kCalculateSparseRawSigmoidScaledMarginalCrossEntropyOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(size, pUnit, pDelta);
+                LAUNCHERROR("kCalculateSparseRawSigmoidScaledMarginalCrossEntropyOutputDelta_kernel");
+            }
             kCalculateSparseNonZeroSigmoidScaledMarginalCrossEntropyOutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pSparseStart, pSparseEnd, pSparseIndex);
             LAUNCHERROR("kCalculateSparseNonZeroScaleMarginalCrossEntropyOutputDelta_kernel");
             break;
 
         case SoftMax:
-            kCalculateSparseRawSoftMaxScaledMarginalCrossEntropyOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(size, pUnit, pDelta);
-            LAUNCHERROR("kCalculateSparseRawSoftMaxScaledMarginalCrossEntropyOutputDelta_kernel");
+            if (!bSparseIgnoreZero)
+            {
+                kCalculateSparseRawSoftMaxScaledMarginalCrossEntropyOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(size, pUnit, pDelta);
+                LAUNCHERROR("kCalculateSparseRawSoftMaxScaledMarginalCrossEntropyOutputDelta_kernel");
+            }
             kCalculateSparseNonZeroSoftMaxScaledMarginalCrossEntropyOutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pSparseStart, pSparseEnd, pSparseIndex);
             LAUNCHERROR("kCalculateSparseNonZeroSoftMaxScaledMarginalCrossEntropyOutputDelta_kernel");
             break;            
@@ -1688,38 +1763,56 @@ kCalculateSparseNonZeroReluL1OutputDelta_kernel(uint32_t position, uint32_t batc
     }
 }
 
-void kCalculateSparseL1OutputDelta(Activation activation, uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint64_t* pSparseStart, uint64_t *pSparseEnd, uint32_t *pSparseIndex)
+void kCalculateSparseL1OutputDelta(Activation activation, uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint64_t* pSparseStart, uint64_t *pSparseEnd, uint32_t *pSparseIndex, bool bSparseIgnoreZero)
 {
     uint64_t size               = (uint64_t)batch * (uint64_t)stride;
     dim3 grid1(CalculateBlocks(size));
     dim3 grid2(CalculateBlocks(batch * getGpu()._data._warpSize));
+
+    // Clear entire delta if ignoring zero outputs
+    if (bSparseIgnoreZero)
+    {
+        cudaMemset(pDelta, 0, size * sizeof(NNFloat));
+    }
     
     switch (activation)
     {
         case Sigmoid:
-            kCalculateSparseRawSigmoidL1OutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(size, pUnit, pDelta);
-            LAUNCHERROR("kCalculateRawSigmoidL1OutputDelta_kernel");
+            if (!bSparseIgnoreZero)
+            {
+                kCalculateSparseRawSigmoidL1OutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(size, pUnit, pDelta);
+                LAUNCHERROR("kCalculateRawSigmoidL1OutputDelta_kernel");
+            }
             kCalculateSparseNonZeroSigmoidL1OutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pSparseStart, pSparseEnd, pSparseIndex);
             LAUNCHERROR("kCalculateNonZeroSigmoidL1OutputDelta_kernel");
             break;
         
         case Tanh:
-            kCalculateSparseRawTanhL1OutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(size, pUnit, pDelta);
-            LAUNCHERROR("kCalculateRawTanhL1OutputDelta_kernel");
+            if (!bSparseIgnoreZero)
+            {
+                kCalculateSparseRawTanhL1OutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(size, pUnit, pDelta);
+                LAUNCHERROR("kCalculateRawTanhL1OutputDelta_kernel");
+            }
             kCalculateSparseNonZeroTanhL1OutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pSparseStart, pSparseEnd, pSparseIndex);
             LAUNCHERROR("kCalculateNonZeroTanhL1OutputDelta_kernel");
             break;
 
         case Linear:
-            kCalculateSparseRawLinearL1OutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(size, pUnit, pDelta);
-            LAUNCHERROR("kCalculateRawLinearL1OutputDelta_kernel");
+            if (!bSparseIgnoreZero)
+            {
+                kCalculateSparseRawLinearL1OutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(size, pUnit, pDelta);
+                LAUNCHERROR("kCalculateRawLinearL1OutputDelta_kernel");
+            }
             kCalculateSparseNonZeroLinearL1OutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pSparseStart, pSparseEnd, pSparseIndex);
             LAUNCHERROR("kCalculateNonZeroLinearL1OutputDelta_kernel");
             break;
 
         case RectifiedLinear:
-            kCalculateSparseRawReluL1OutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(size, pUnit, pDelta);
-            LAUNCHERROR("kCalculateRawReluL1OutputDelta_kernel");
+            if (!bSparseIgnoreZero)
+            {
+                kCalculateSparseRawReluL1OutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(size, pUnit, pDelta);
+                LAUNCHERROR("kCalculateRawReluL1OutputDelta_kernel");
+            }
             kCalculateSparseNonZeroReluL1OutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pSparseStart, pSparseEnd, pSparseIndex);
             LAUNCHERROR("kCalculateNonZeroL1OutputDelta_kernel");
             break;
@@ -1728,7 +1821,7 @@ void kCalculateSparseL1OutputDelta(Activation activation, uint32_t position, uin
 
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateSparsenessPenalty_kernel(uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta)
+kCalculateSparsenessPenalty_kernel(uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, NNFloat p, NNFloat beta)
 {
     uint64_t pos                = blockIdx.x * blockDim.x + threadIdx.x;
 
@@ -1745,7 +1838,7 @@ kCalculateSparsenessPenalty_kernel(uint32_t batch, uint32_t stride, NNFloat* pUn
         // Calculate sparseness penalty
         pi                     /= (NNFloat)batch;
         pi                      = max(MIN_ACTIVATION, min(MAX_ACTIVATION, pi));
-        NNFloat penalty         = cData._sparsenessPenalty_beta * (-cData._sparsenessPenalty_p / pi + ((NNFloat)1.0 - cData._sparsenessPenalty_p) / ((NNFloat)1.0 - pi));
+        NNFloat penalty         = beta * (-p / pi + ((NNFloat)1.0 - p) / ((NNFloat)1.0 - pi));
         
         // Apply sparseness penalty to deltas
         pos                     = blockIdx.x * blockDim.x + threadIdx.x;
@@ -1760,10 +1853,10 @@ kCalculateSparsenessPenalty_kernel(uint32_t batch, uint32_t stride, NNFloat* pUn
 
 
 // Calculates and applies sparseness penalty to hidden layers
-void kCalculateSparsenessPenalty(uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta)
+void kCalculateSparsenessPenalty(uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, NNFloat p, NNFloat beta)
 {
     dim3 grid1(CalculateBlocks(stride));
-    kCalculateSparsenessPenalty_kernel<<<grid1, getGpu()._threadsPerBlock>>>(batch, stride, pUnit, pDelta);
+    kCalculateSparsenessPenalty_kernel<<<grid1, getGpu()._threadsPerBlock>>>(batch, stride, pUnit, pDelta, p, beta);
     LAUNCHERROR("kCalculateSparsenessPenalty_kernel");
 }
 
@@ -2008,15 +2101,15 @@ void KDeltaTempFunction()
     kCalculateScaledMarginalCrossEntropyOutputDelta<int64_t>(Sigmoid, 0, 0, 0, NULL, NULL, NULL);
     kCalculateScaledMarginalCrossEntropyOutputDelta<long>(Sigmoid, 0, 0, 0, NULL, NULL, NULL);
 
-    kCalculateSparseAnalogOutputDelta<NNFloat>(Linear, 0, 0, 0, NULL,  NULL, NULL, NULL, NULL, NULL);
-    kCalculateSparseAnalogOutputDelta<double>(Linear, 0, 0, 0, NULL,  NULL, NULL, NULL, NULL, NULL);
-    kCalculateSparseAnalogOutputDelta<unsigned char>(Linear, 0, 0, 0, NULL,  NULL, NULL, NULL, NULL, NULL);
-    kCalculateSparseAnalogOutputDelta<char>(Linear, 0, 0, 0, NULL,  NULL, NULL, NULL, NULL, NULL);
-    kCalculateSparseAnalogOutputDelta<uint32_t>(Linear, 0, 0, 0, NULL,  NULL, NULL, NULL, NULL, NULL);
-    kCalculateSparseAnalogOutputDelta<uint64_t>(Linear, 0, 0, 0, NULL,  NULL, NULL, NULL, NULL, NULL);
-    kCalculateSparseAnalogOutputDelta<int32_t>(Linear, 0, 0, 0, NULL,  NULL, NULL, NULL, NULL, NULL);
-    kCalculateSparseAnalogOutputDelta<int64_t>(Linear, 0, 0, 0, NULL,  NULL, NULL, NULL, NULL, NULL);
-    kCalculateSparseAnalogOutputDelta<long>(Linear, 0, 0, 0, NULL,  NULL, NULL, NULL, NULL, NULL);
+    kCalculateSparseAnalogOutputDelta<NNFloat>(Linear, 0, 0, 0, NULL,  NULL, NULL, NULL, NULL, NULL, false);
+    kCalculateSparseAnalogOutputDelta<double>(Linear, 0, 0, 0, NULL,  NULL, NULL, NULL, NULL, NULL, false);
+    kCalculateSparseAnalogOutputDelta<unsigned char>(Linear, 0, 0, 0, NULL,  NULL, NULL, NULL, NULL, NULL, false);
+    kCalculateSparseAnalogOutputDelta<char>(Linear, 0, 0, 0, NULL,  NULL, NULL, NULL, NULL, NULL, false);
+    kCalculateSparseAnalogOutputDelta<uint32_t>(Linear, 0, 0, 0, NULL,  NULL, NULL, NULL, NULL, NULL, false);
+    kCalculateSparseAnalogOutputDelta<uint64_t>(Linear, 0, 0, 0, NULL,  NULL, NULL, NULL, NULL, NULL, false);
+    kCalculateSparseAnalogOutputDelta<int32_t>(Linear, 0, 0, 0, NULL,  NULL, NULL, NULL, NULL, NULL, false);
+    kCalculateSparseAnalogOutputDelta<int64_t>(Linear, 0, 0, 0, NULL,  NULL, NULL, NULL, NULL, NULL, false);
+    kCalculateSparseAnalogOutputDelta<long>(Linear, 0, 0, 0, NULL,  NULL, NULL, NULL, NULL, NULL, false);
 }
 
 
