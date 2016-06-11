@@ -16,26 +16,28 @@ class NNWeight {
     friend class NNNetwork;
     friend class NNLayer;
     friend NNNetwork* LoadNeuralNetworkNetCDF(const string& fname, uint32_t batch);
-    const NNLayer&          _inputLayer;            // Source of activations
-    const NNLayer&          _outputLayer;           // Output destination/Delta sources
-    const bool              _bShared;               // Are we using another set of shard weights
-    const bool              _bTransposed;           // Use tranpose of shared weights?
-    bool                    _bLocked;               // Prevent updates to this set of weights
-    NNWeight*               _pSharedWeight;         // Pointer to shared weight
-    uint32_t                _sharingCount;          // Number of layers utilizing weight matrix
-    uint32_t                _updateCount;           // Indicates number of times a shared weight matrix has been updated
-    uint64_t                _width;                 // Number of output units in outgoing FC layer or width of convolution for Convolutional layer
-    uint64_t                _height;                // Number of input units in incoming FC layer or height of convolution for 2D/3D Convolutional layer
-    uint64_t                _length;                // Length of 3D convolution for Convolutional layer
-    uint64_t                _size;                  // Total size of weights
-    NNFloat                 _norm;                  // Maximum allowable weight vector length (default 0, unconstrained)
-    vector<NNFloat>         _vWeight;               // CPU weight array
-    vector<NNFloat>         _vBias;                 // CPU bias array
-    GpuBuffer<NNFloat>*     _pbWeight;              // GPU weight array 
-    GpuBuffer<NNFloat>*     _pbBias;                // GPU bias array
-    GpuBuffer<NNFloat>*     _pbWeightGradient;      // Accumulated gradient per batch
-    GpuBuffer<NNFloat>*     _pbWeightVelocity;      // Velocity used for momentum and RMSProp
-    GpuBuffer<NNFloat>*     _pbBiasVelocity;        // Velocity used for momentum and RMSProp
+    const NNLayer&          _inputLayer;                // Source of activations
+    const NNLayer&          _outputLayer;               // Output destination/Delta sources
+    const bool              _bShared;                   // Are we using another set of shard weights
+    const bool              _bTransposed;               // Use tranpose of shared weights?
+    bool                    _bLocked;                   // Prevent updates to this set of weights
+    NNWeight*               _pSharedWeight;             // Pointer to shared weight
+    uint32_t                _sharingCount;              // Number of layers utilizing weight matrix
+    uint32_t                _updateCount;               // Indicates number of times a shared weight matrix has been updated
+    uint64_t                _width;                     // Number of output units in outgoing FC layer or width of convolution for Convolutional layer
+    uint64_t                _height;                    // Number of input units in incoming FC layer or height of convolution for 2D/3D Convolutional layer
+    uint64_t                _length;                    // Length of 3D convolution for Convolutional layer
+    uint64_t                _size;                      // Total size of weights
+    NNFloat                 _norm;                      // Maximum allowable weight vector length (default 0, unconstrained)
+    vector<NNFloat>         _vWeight;                   // CPU weight array
+    vector<NNFloat>         _vBias;                     // CPU bias array
+    GpuBuffer<NNFloat>*     _pbWeight;                  // GPU weight array 
+    GpuBuffer<NNFloat>*     _pbBias;                    // GPU bias array
+    GpuBuffer<NNFloat>*     _pbWeightGradient;          // Accumulated gradient per batch
+    GpuBuffer<NNFloat>*     _pbWeightVelocity;          // Velocity used for momentum and RMSProp
+    GpuBuffer<NNFloat>*     _pbBiasVelocity;            // Velocity used for momentum and RMSProp
+    GpuBuffer<NNFloat>*     _pbWeightGradientVelocity;  // Gradient velocity used for AdaDelta and Adam
+    GpuBuffer<NNFloat>*     _pbBiasGradientVelocity;    // Gradient velocity used for AdaDelta and Adam    
     NNWeight(NNLayer& inputLayer, NNLayer& outputLayer, bool bShared = false, bool bTransposed = false, bool bLocked = false, NNFloat maxNorm = 0.0f);
     ~NNWeight();
     void ClearSharedGradient();

@@ -223,7 +223,9 @@ _pbWeight(NULL),
 _pbBias(NULL),
 _pbWeightGradient(NULL),
 _pbWeightVelocity(NULL),
-_pbBiasVelocity(NULL)
+_pbBiasVelocity(NULL),
+_pbWeightGradientVelocity(NULL),
+_pbBiasGradientVelocity(NULL)
 {
     // Add to input and output layer lists
     inputLayer._vOutgoingLayer.push_back(&outputLayer);
@@ -274,15 +276,19 @@ NNWeight::~NNWeight()
         delete _pbWeight;
         delete _pbWeightVelocity;
         delete _pbWeightGradient;
+        delete _pbWeightGradientVelocity;
     }
     delete _pbBias;
     delete _pbBiasVelocity;
+    delete _pbBiasGradientVelocity;
 }
 
 void NNWeight::ClearVelocity()
 {
     cudaMemset(_pbWeightVelocity->_pDevData, 0, _size * sizeof(NNFloat));
     cudaMemset(_pbBiasVelocity->_pDevData, 0, _outputLayer._localStride * sizeof(NNFloat));
+    cudaMemset(_pbWeightGradientVelocity->_pDevData, 0, _size * sizeof(NNFloat));
+    cudaMemset(_pbBiasGradientVelocity->_pDevData, 0, _outputLayer._localStride * sizeof(NNFloat));
 }
 
 void NNWeight::ClearGradient()
@@ -363,16 +369,36 @@ void NNWeight::RefreshState(TrainingMode mode)
     if (mode != TrainingMode::SGD)
     {
         if (!_pbWeightVelocity)
-            _pbWeightVelocity   = new GpuBuffer<NNFloat>(_size);
+            _pbWeightVelocity               = new GpuBuffer<NNFloat>(_size);
         if (!_pbBiasVelocity)
-            _pbBiasVelocity     = new GpuBuffer<NNFloat>(_outputLayer._localStride);
+            _pbBiasVelocity                 = new GpuBuffer<NNFloat>(_outputLayer._localStride);
+            
+        // Add additional buffers for AdaDelta and Adam
+        if (mode == TrainingMode::AdaDelta)
+        {
+            if (!_pbWeightGradientVelocity)
+                _pbWeightGradientVelocity   = new GpuBuffer<NNFloat>(_size);
+            if (!_pbBiasGradientVelocity)
+                _pbBiasGradientVelocity     = new GpuBuffer<NNFloat>(_outputLayer._localStride);            
+        }
+        else
+        {
+            delete _pbWeightGradientVelocity;
+            delete _pbBiasGradientVelocity;        
+            _pbWeightGradientVelocity       = NULL;
+            _pbBiasGradientVelocity         = NULL;
+        }
     }
     else
     {
         delete _pbWeightVelocity;
         delete _pbBiasVelocity;
-        _pbWeightVelocity       = NULL;
-        _pbBiasVelocity         = NULL;
+        delete _pbWeightGradientVelocity;
+        delete _pbBiasGradientVelocity;
+        _pbWeightVelocity                   = NULL;
+        _pbBiasVelocity                     = NULL;
+        _pbWeightGradientVelocity           = NULL;
+        _pbBiasGradientVelocity             = NULL;
     }
 }
 
@@ -419,32 +445,39 @@ void NNWeight::UpdateWeights(TrainingMode trainingMode, uint32_t batch, NNFloat 
             case RMSProp:
                 kRMSPropUpdateWeights(alpha, alpha * lambda, mu, _size, _pbWeightVelocity->_pDevData, _pbWeightGradient->_pDevData, _pbWeight->_pDevData);
                 break;
+
+            case AdaDelta:
+                kAdaDeltaUpdateWeights(alpha, mu, alpha * lambda, _size, _pbWeightVelocity->_pDevData, _pbWeightGradient->_pDevData, _pbWeightGradientVelocity->_pDevData, _pbWeight->_pDevData);
+                break;     
         }
     }  
 
     // Biases are unshared so always update them
     switch (trainingMode)
     {
-       case SGD:
+        case SGD:
             kSGDUpdateBiases(-alpha / (NNFloat)batch, batch, _outputLayer._localStride, _outputLayer._pbDelta->_pDevData, _pbBias->_pDevData);
             break;
 
-       case Momentum:
+        case Momentum:
             kMomentumUpdateBiases(alpha / (NNFloat)batch, mu, batch, _outputLayer._localStride, _outputLayer._pbDelta->_pDevData, _pbBiasVelocity->_pDevData, _pbBias->_pDevData);
             break;
                 
-       case AdaGrad:
+        case AdaGrad:
             kAdaGradUpdateBiases(alpha / (NNFloat)batch, batch, _outputLayer._localStride, _outputLayer._pbDelta->_pDevData, _pbBiasVelocity->_pDevData, _pbBias->_pDevData);
             break;
                 
-       case Nesterov:
+        case Nesterov:
             kNesterovUpdateBiases(alpha / (NNFloat)batch, mu, batch, _outputLayer._localStride, _outputLayer._pbDelta->_pDevData, _pbBiasVelocity->_pDevData, _pbBias->_pDevData);
             break;
                 
-       case RMSProp:
+        case RMSProp:
             kRMSPropUpdateBiases(alpha / (NNFloat)batch, mu, batch, _outputLayer._localStride, _outputLayer._pbDelta->_pDevData, _pbBiasVelocity->_pDevData, _pbBias->_pDevData);
             break;
-      
+            
+        case AdaDelta:
+            kAdaDeltaUpdateBiases(alpha / (NNFloat)batch, mu, batch, _outputLayer._localStride, _outputLayer._pbDelta->_pDevData, _pbBiasVelocity->_pDevData, _pbBiasGradientVelocity->_pDevData, _pbBias->_pDevData);
+            break;              
     }
 #if 0
         if (_width < 1024)

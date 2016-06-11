@@ -64,7 +64,6 @@ enum TrainingMode
     Nesterov = 3,
     RMSProp = 4,
     AdaDelta = 5,
-    Adam = 6,
 };
 
 ostream& operator<< (ostream& out, const TrainingMode& e);
@@ -109,6 +108,7 @@ ostream& operator<< (ostream& out, const WeightInitialization& w);
 enum PoolingFunction {
     None,
     Max,
+    Average,
     Stochastic,
     LocalContrastNormalization,
     LocalResponseNormalization,

@@ -27,7 +27,6 @@ static std::pair<TrainingMode, string> sTrainingModePair[] =
     std::pair<TrainingMode, string>(TrainingMode::Nesterov, "Nesterov"),
     std::pair<TrainingMode, string>(TrainingMode::RMSProp,  "RMSProp"),
     std::pair<TrainingMode, string>(TrainingMode::AdaDelta, "AdaDelta"),  
-    std::pair<TrainingMode, string>(TrainingMode::Adam,     "Adam"),  
 };
 
 static std::map<TrainingMode, string> sTrainingModeMap =
