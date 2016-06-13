@@ -136,7 +136,7 @@ int main(int argc, char** argv)
     pNetwork->SaveNetCDF("initial_network.nc");
 
     // Set to default training mode SGD.
-    TrainingMode mode=Nesterov;
+    TrainingMode mode=SGD;
     pNetwork->SetTrainingMode(mode);
 	
     timeval trainingStart;
