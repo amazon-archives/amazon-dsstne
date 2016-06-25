@@ -2796,12 +2796,24 @@ NNNetwork* LoadNeuralNetworkJSON(const string& fname, const uint32_t batch, cons
                                 // Read source(s) if present
                                 if (lname.compare("source") == 0)
                                 {
-                                    uint32_t size           = lvalue.isArray() ? lvalue.size() : 1;
+                                    uint32_t size       = lvalue.isArray() ? lvalue.size() : 1;
                                     for (uint32_t j = 0; j < size; j++)
                                     {
-                                        Json::Value src     = lvalue.isArray() ? lvalue[j] : lvalue;
+                                        Json::Value src = lvalue.isArray() ? lvalue[j] : lvalue;
                                         ldl._vSource.push_back(src.asString());
-                                        bSource         = true;
+                                        bSource         = true;             // Signal existence of at least one source
+                                    } 
+                                    continue;
+                                }
+                                
+                                // Read skip(s) if present
+                                if (lname.compare("skip") == 0)
+                                {
+                                    uint32_t size       = lvalue.isArray() ? lvalue.size() : 1;
+                                    for (uint32_t j = 0; j < size; j++)
+                                    {
+                                        Json::Value src = lvalue.isArray() ? lvalue[j] : lvalue;
+                                        ldl._vSkip.push_back(src.asString());
                                     } 
                                     continue;
                                 }

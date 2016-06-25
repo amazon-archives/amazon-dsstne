@@ -291,6 +291,10 @@ void NNLayer::ForwardPropagate(uint32_t position, uint32_t batch, bool bTraining
             // Initialize units to bias values
             switch (_vIncomingLayer.size())
             {
+                case 0: // Only skip layers
+                    cudaMemset(_pbUnit->_pDevData, 0, _stride * batch * sizeof(NNFloat));
+                    break;
+                    
                 case 1:
                     kClearUnit(_pbUnit->_pDevData, _vIncomingWeight[0]->_pbBias->_pDevData, _stride, batch);
                     break; 
@@ -318,7 +322,7 @@ void NNLayer::ForwardPropagate(uint32_t position, uint32_t batch, bool bTraining
                     
                 default:
                     if (getGpu()._id == 0)
-                        printf("NNLayer::ForwardPropagate: Too many input layers for network layer %s\n", _name.c_str());
+                        printf("NNLayer::ForwardPropagate: Too many input layers for network layer %s\n", _name.c_str());          
                     getGpu().Shutdown();
                     exit(-1);
                     break; 
@@ -485,6 +489,9 @@ void NNLayer::ForwardPropagate(uint32_t position, uint32_t batch, bool bTraining
             // Add biases and calculate activations
             switch (_vIncomingLayer.size())
             {
+                case 0: // Only skip layers
+                    break;
+                
                 case 1:
                     kAddBias(_pbUnit->_pDevData, _vIncomingWeight[0]->_pbBias->_pDevData, _localStride, batch);
                     break; 
