@@ -20,6 +20,7 @@
 #include <cuda.h>
 #include <cublas_v2.h>
 #include <curand.h>
+#include <cudnn.h>
 #include <vector_functions.h>
 #include <cuda_runtime_api.h>
 #include <builtin_types.h>
@@ -337,6 +338,9 @@ struct GpuContext {
 
     // cuRand parameters
     curandGenerator_t                   _RNG;                       // Handle for random number generator
+    
+    // cuDNN parameters
+    cudnnHandle_t                       _cuDNNHandle;               // handle for cuDNN library   
 
     // Neural network parameters
     NNNetwork*                          _pNetwork;                  // Pointer to current neural network

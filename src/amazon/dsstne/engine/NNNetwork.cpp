@@ -553,6 +553,16 @@ _receiveIndex(1)
         }
     } 
     
+    // Add skip layers
+    for (auto l : _vLayer)
+    {
+        for (auto s : l->_vSkip)
+        {
+            NNLayer* pLayer = _mLayer[s];
+            l->_vIncomingSkip.push_back(pLayer);
+            pLayer->_vOutgoingSkip.push_back(l);
+        }
+    }
     
     CalculatePropagationOrder();
 }
@@ -2010,13 +2020,22 @@ void NNNetwork::CalculatePropagationOrder()
         int32_t priority       = pLayer->_priority + 1;
         for (auto p : pLayer->_vOutgoingLayer)
         {
-
             if (p->_priority < priority)
             {
                 p->_priority    = priority;
                 pqueue.push(p);
             }
-        }        
+        }
+
+        // Handle skip layers
+        for (auto p : pLayer->_vOutgoingSkip)
+        {
+            if (p->_priority < priority)
+            {
+                p->_priority    = priority;
+                pqueue.push(p);
+            }            
+        }
     }
 
     // Create forward propagation list
@@ -2054,7 +2073,17 @@ void NNNetwork::CalculatePropagationOrder()
                 p->_priority    = priority;
                 pqueue.push(p);
             }
-        }        
+        } 
+        
+        // Handle skip layers
+        for (auto p : pLayer->_vIncomingSkip)
+        {
+            if (p->_priority < priority)
+            {
+                p->_priority    = priority;
+                pqueue.push(p);
+            }
+        }       
     }    
     
     // Create backpropagation list

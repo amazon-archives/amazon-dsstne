@@ -51,7 +51,9 @@ class NNWeight {
     void RefreshState(TrainingMode trainingMode);
     void UpdateWeights(TrainingMode trainingMode, uint32_t batch, NNFloat alpha, NNFloat lambda, NNFloat mu);
     bool WriteNetCDF(netCDF::NcFile& nc, uint32_t index, NNFloat* pWeight = NULL, NNFloat* pBias = NULL);
-
+    NNFloat* GetWeightBuffer() { return _pbWeight ? _pbWeight->_pDevData : NULL; }
+    NNFloat* GetWeightGradientBuffer() { return _pbWeightGradient ? _pbWeightGradient->_pDevData : NULL; }
+    uint64_t GetBufferSize() { return _size; }
 public:
     bool CopyWeights(NNWeight* pWeight);
     bool SetNorm(NNFloat norm);

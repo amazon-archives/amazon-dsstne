@@ -287,8 +287,10 @@ void NNWeight::ClearVelocity()
 {
     cudaMemset(_pbWeightVelocity->_pDevData, 0, _size * sizeof(NNFloat));
     cudaMemset(_pbBiasVelocity->_pDevData, 0, _outputLayer._localStride * sizeof(NNFloat));
-    cudaMemset(_pbWeightGradientVelocity->_pDevData, 0, _size * sizeof(NNFloat));
-    cudaMemset(_pbBiasGradientVelocity->_pDevData, 0, _outputLayer._localStride * sizeof(NNFloat));
+    if (_pbWeightGradientVelocity != NULL)
+        cudaMemset(_pbWeightGradientVelocity->_pDevData, 0, _size * sizeof(NNFloat));
+    if (_pbBiasGradientVelocity != NULL)
+        cudaMemset(_pbBiasGradientVelocity->_pDevData, 0, _outputLayer._localStride * sizeof(NNFloat));
 }
 
 void NNWeight::ClearGradient()
