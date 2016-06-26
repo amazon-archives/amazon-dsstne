@@ -552,18 +552,29 @@ _receiveIndex(1)
             }           
         }
     } 
-    
+
     // Add skip layers
     for (auto l : _vLayer)
     {
         for (auto s : l->_vSkip)
         {
             NNLayer* pLayer = _mLayer[s];
+            
+            // Make sure dimensions match
+            if (pLayer->_stride != l->_stride)
+            {
+                if (getGpu()._id == 0)
+                    printf("NNNetwork::NNNetwork: Layer dimensions do not match for skip connection between layer %s and %s.\n", 
+                            l->_name.c_str(), pLayer->_name.c_str());
+                getGpu().Shutdown();
+                exit(-1);                
+            }
+            
             l->_vIncomingSkip.push_back(pLayer);
             pLayer->_vOutgoingSkip.push_back(l);
         }
     }
-    
+
     CalculatePropagationOrder();
 }
 
