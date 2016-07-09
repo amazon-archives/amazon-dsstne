@@ -19,7 +19,7 @@ are possible with a single GPU.
 * Directions on how to run a benchmark can be found in [here](benchmarks/Benchmark.md)
 
 ##Scaling up
-* [Using Spark and ECS](http://blogs.aws.amazon.com/bigdata/post/TxGEL8IJ0CAXTK/Generating-Recommendations-at-Amazon-Scale-with-Apache-Spark-and-Amazon-DSSTNE)
+* [Using Spark in AWS EMR and Dockers in AWS ECS ](http://blogs.aws.amazon.com/bigdata/post/TxGEL8IJ0CAXTK/Generating-Recommendations-at-Amazon-Scale-with-Apache-Spark-and-Amazon-DSSTNE)
     
 
 ## License
