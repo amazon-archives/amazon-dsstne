@@ -18,8 +18,16 @@ are possible with a single GPU.
 * scottlegrand@ reported a [14.8x speed up vs Tensorflow](https://medium.com/@scottlegrand/first-dsstne-benchmarks-tldr-almost-15x-faster-than-tensorflow-393dbeb80c0f#.ghe74fu1q)
 * Directions on how to run a benchmark can be found in [here](benchmarks/Benchmark.md)
 
+##Scaling up
+*[Using Spark and ECS](http://blogs.aws.amazon.com/bigdata/post/TxGEL8IJ0CAXTK/Generating-Recommendations-at-Amazon-Scale-with-Apache-Spark-and-Amazon-DSSTNE)
+    
+
 ## License
 [License](LICENSE)
+
+
+ 
+ 
 
 ## Setup
 * Follow [Setup](docs/getting_started/setup.md) for step by step instructions on installing and setting up DSSTNE
