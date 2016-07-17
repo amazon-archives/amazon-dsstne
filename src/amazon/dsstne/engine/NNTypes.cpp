@@ -290,6 +290,7 @@ _maxX(0),
 _sparseDataSize(0),
 _sparseTransposedIndices(0),
 _maxSparseDatapoints(0),
+_sparseDensity(0),
 _bDenoising(false),
 _pbSparseStart(NULL),
 _pbSparseEnd(NULL),
@@ -839,6 +840,7 @@ _pbSparseTransposedData(NULL)
     MPI_Bcast(&_width, 1, MPI_UINT32_T, 0, MPI_COMM_WORLD);
     MPI_Bcast(&_height, 1, MPI_UINT32_T, 0, MPI_COMM_WORLD);
     MPI_Bcast(&_length, 1, MPI_UINT32_T, 0, MPI_COMM_WORLD);
+    MPI_Bcast(&_sparseDataSize, 1, MPI_UINT64_T, 0, MPI_COMM_WORLD);
     
     
     // Generate sparse data lookup tables if data is sparse
@@ -886,11 +888,12 @@ template<typename T> bool NNDataSet<T>::CalculateSparseDatapointCounts()
         {
             if (getGpu()._id == 0)
             {
-                printf("NNDataSet::CalculateSparseDatapointCounts: Maximum sparse datapoints (%u) per example in daatset %s too large for fast sparse kernels.\n", _maxSparseDatapoints, _name.c_str());
+                printf("NNDataSet::CalculateSparseDatapointCounts: Maximum sparse datapoints (%u) per example in dataset %s too large for fast sparse kernels.\n", _maxSparseDatapoints, _name.c_str());
             }
         }
         
-
+        // Calculate sparse density
+        _sparseDensity = (double_t)_sparseDataSize / (double_t)(_examples * N);
         return true;
     }
     else

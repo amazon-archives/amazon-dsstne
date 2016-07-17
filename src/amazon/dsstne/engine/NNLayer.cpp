@@ -176,8 +176,15 @@ void NNLayer::RefreshState(bool validate)
                 if (getGpu()._id == 0)
                     printf("NNLayer::RefreshState: Maximum sparse datapoints per example (%u) is too high to use fast sparse kernels on input layer %s\n", _pDataSet->_maxSparseDatapoints, _name.c_str());  
             }
+            else if (_pDataSet->_sparseDensity > (NNFloat)0.1)
+            {
+                 if (getGpu()._id == 0)
+                    printf("NNLayer::RefreshState: Sparse density per (%.2f) is too high to use fast sparse kernels on input layer %s\n", _pDataSet->_sparseDensity, _name.c_str());                 
+            }
             else
+            {
                 _bFastSparse        = true;
+            }
         }
 
         Allocate(validate);

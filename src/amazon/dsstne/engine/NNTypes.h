@@ -187,6 +187,7 @@ struct NNDataSetBase {
     uint32_t                _maxX;                          // End of local X sharding for model parallel execution
     uint64_t                _sparseDataSize;                // Total sparse datapoints
     uint32_t                _maxSparseDatapoints;           // Maximum observed sparse datapoints per example
+    NNFloat                 _sparseDensity;                 // Overall sparse density (0.0 - 1.0)
     vector<uint64_t>        _vSparseStart;                  // Vector of sparse datapoint starts per example
     GpuBuffer<uint64_t>*    _pbSparseStart;                 // GPU copy of _vSparseStart
     vector<uint64_t>        _vSparseEnd;                    // Vector of sparse datapoint ends per example
