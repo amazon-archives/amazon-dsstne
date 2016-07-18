@@ -37,7 +37,7 @@ Please ensure that **samples_input** is used as we have to ensure that the examp
 ## Train
 We will train a 3 layer Neural Network with one 128 node hidden layer with Sigmoid as an activation function.
 ```bash
-wget https://s3-us-west-2.amazonaws.com/amazon-dsstne-samples/configs/config.json.
+wget https://s3-us-west-2.amazonaws.com/amazon-dsstne-samples/configs/config.json
 cat config.json
 {
     "Version" : 0.7,
@@ -101,7 +101,7 @@ generateNetCDF -d gl_input -i ml20m-all -o gl_input.nc -f features_input -s samp
 generateNetCDF -d gl_output -i ml20m-all -o gl_output.nc -f features_output -s samples_input -c
 
 # Train
-wget https://s3-us-west-2.amazonaws.com/amazon-dsstne-samples/configs/config.json.
+wget https://s3-us-west-2.amazonaws.com/amazon-dsstne-samples/configs/config.json
 train -c config.json -i gl_input.nc -o gl_output.nc -n gl.nc -b 256 -e 10
 
 # Predict
