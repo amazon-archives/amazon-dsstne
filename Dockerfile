@@ -32,9 +32,6 @@ RUN cd /tmp && \
   ./cuda-linux64-rel-*.run -noprompt && \
   rm -rf /tmp/*
 
-# Clean up
-RUN cd /tmp && \
-  rm -rf *
 # Add to path
 ENV PATH=/usr/local/cuda/bin:${PATH}
 # Configure dynamic link
