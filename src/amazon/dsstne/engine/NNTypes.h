@@ -26,7 +26,6 @@
 #endif
 #include <sys/time.h>
 #include <math.h>
-#include <values.h>
 
 class NNDataSetBase;
 class NNLayer;
