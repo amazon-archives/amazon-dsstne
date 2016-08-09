@@ -1,0 +1,21 @@
+language: cpp
+sudo: required
+dist: trusty
+
+matrix:
+  include:
+    - os: linux
+      compiler: clang
+      addons:
+        apt:
+          sources: ['ubuntu-toolchain-r-test', 'llvm-toolchain-precise-3.7']
+          packages: ['clang-3.7', 'libcppunit-dev']
+      env: COMPILER=clang++-3.7
+
+script:
+  - cd tst/unittests
+  - mkdir build
+  - cd build
+  - cmake .. && make
+  - ./unittests
+

@@ -10,6 +10,7 @@
    or in the "license" file accompanying this file. This file is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific language governing permissions and limitations under the License.
  */
 
+#include <cerrno>
 #include <iostream>
 #include <sstream>
 #include <algorithm>
@@ -129,7 +130,7 @@ This is an utility function which checks the file actually exist
 */
 bool fileExists(const std::string& fileName)
 {
-    ifstream stream(fileName);
+    ifstream stream(fileName.c_str());
     if(stream.good()) {
         return true;
     } else {
