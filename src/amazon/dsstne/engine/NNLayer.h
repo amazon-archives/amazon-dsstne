@@ -66,6 +66,7 @@ private:
     string                      _dataSet;                   // Name of data set for input and output layers
     NNDataSetBase*              _pDataSet;                  // Data set pointer for input and output layers
     vector<string>              _vSource;                   // Source layers/data sets
+    vector<string>              _vSkip;                     // Skip layer sources    
     const uint32_t              _Nx;                        // Unit X size
     const uint32_t              _Ny;                        // Unit Y size
     const uint32_t              _Nz;                        // Unit Z size
@@ -92,6 +93,8 @@ private:
     const NNFloat               _pDropout;                  // Dropout probability
     const bool                  _bSparse;                   // Is layer sparse
     bool                        _bFastSparse;               // Is layer capable of using fast sparse kernels
+    NNFloat                     _sparsenessPenalty_p;       // Layer-specific sparseness target
+    NNFloat                     _sparsenessPenalty_beta;    // Layer-specific sparseness penalty weight
     const bool                  _bDenoising;                // Is layer utilizing Denoising?       
     NNFloat                     _weightNorm;                // Maximum weight vector length
     NNFloat                     _deltaNorm;                 // Maximum delta vector length                         
@@ -105,6 +108,8 @@ private:
     vector<NNWeight*>           _vIncomingLargerWeight;     // Incoming weights
     vector<NNLayer*>            _vOutgoingLargerLayer;      // Destination larger layers
     vector<NNWeight*>           _vOutgoingLargerWeight;     // Destination larger weights
+    vector<NNLayer*>            _vIncomingSkip;             // List of incoming skip layers
+    vector<NNLayer*>            _vOutgoingSkip;             // List of outgoing skip layer targets
     vector<NNFloat>             _vUnit;                     // Layer's units
     vector<NNFloat>             _vDelta;                    // Layer's deltas
     GpuBuffer<NNFloat>*         _pbUnit;                    // GPU memory for unit activations
@@ -162,6 +167,7 @@ struct NNLayerDescriptor
     PoolingFunction         _poolingFunction;           // Pooling function for pooling layers
     string                  _dataSet;                   // Name of dataset for input and output layers
     vector<string>          _vSource;                   // Source layers/data sets
+    vector<string>          _vSkip;                     // Skip layer sources
     uint32_t                _Nx;                        // Convolution unit or input data X size
     uint32_t                _Ny;                        // Convolution unit or input data Y size
     uint32_t                _Nz;                        // Convolution unit or input data Z size
@@ -179,6 +185,8 @@ struct NNLayerDescriptor
     NNFloat                 _deltaNorm;                 // Maximum delta vector length
     NNFloat                 _pDropout;                  // Dropout probability
     Activation              _activation;                // Activation function
+    NNFloat                 _sparsenessPenalty_p;       // Layer-specific sparseness target
+    NNFloat                 _sparsenessPenalty_beta;    // Layer-specific sparseness penalty weight    
     uint32_t                _attributes;                // Specific layer properties
     NNLayerDescriptor();
 };

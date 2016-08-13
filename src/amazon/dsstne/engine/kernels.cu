@@ -1673,6 +1673,70 @@ void kAdaGradUpdateBiases(NNFloat alpha, uint32_t batch, uint32_t width, NNFloat
 
 __global__ void
 LAUNCH_BOUNDS()
+kAdaDeltaUpdateWeights_kernel(NNFloat alpha, NNFloat mu, NNFloat lambda, uint64_t size, NNFloat* pWeightVelocity, NNFloat* pWeightGradient, NNFloat* pWeightGradientVelocity, NNFloat* pWeight)
+{
+    uint64_t pos                = blockIdx.x * blockDim.x + threadIdx.x;
+    if (pos < size)
+    {
+        NNFloat g                       = pWeightGradient[pos];
+        NNFloat w                       = pWeight[pos];
+        NNFloat v                       = pWeightVelocity[pos];
+        NNFloat vg                      = pWeightGradientVelocity[pos];
+        g                              -= lambda * w;
+        v                               = mu * v + ((NNFloat)1.0 - mu) * g;
+        NNFloat dw                      = sqrt(max((NNFloat)0.000000001, vg) / max((NNFloat)0.000000001, v));
+        vg                              = mu * vg + ((NNFloat)1.0 - mu) * vg;
+        pWeightVelocity[pos]            = v;
+        pWeightGradientVelocity[pos]    = vg;
+        pWeight[pos]                    = w + alpha * g * dw;
+    }
+}
+
+void kAdaDeltaUpdateWeights(NNFloat alpha, NNFloat mu, NNFloat lambda, uint64_t size, NNFloat* pWeightVelocity, NNFloat* pWeightGradient, NNFloat* pWeightGradientVelocity, NNFloat* pWeight)
+{
+    unsigned long blocks        = CalculateBlocks(size);
+    kAdaDeltaUpdateWeights_kernel<<<blocks, getGpu()._threadsPerBlock>>>(alpha, mu, lambda, size, pWeightVelocity, pWeightGradient, pWeightGradientVelocity, pWeight);
+    LAUNCHERROR("kAdaDeltaUpdateWeights_kernel");
+}
+
+__global__ void
+LAUNCH_BOUNDS()
+kAdaDeltaUpdateBiases_kernel(NNFloat alpha, NNFloat mu, uint32_t batch, uint32_t width, NNFloat* pDelta, NNFloat* pBiasVelocity, NNFloat* pBiasGradientVelocity, NNFloat* pBias)
+{
+    uint64_t pos                    = blockIdx.x * blockDim.x + threadIdx.x;
+    if (pos < width)
+    {
+        NNFloat sum                 = (NNFloat)0.0;
+        pDelta                     += pos;
+
+        // Calculate bias gradient
+        for (uint32_t i = 0; i < batch; i++)
+        {
+            sum                    += *pDelta;
+            pDelta                 += width;
+        }
+
+        // Update velocity and bias
+        NNFloat v                   = pBiasVelocity[pos];
+        NNFloat vg                  = pBiasGradientVelocity[pos];        
+        v                           = mu * v + ((NNFloat)1.0 - mu) * sum;
+        NNFloat dw                  = sqrt(max((NNFloat)0.000000001, vg) / max((NNFloat)0.000000001, v));        
+        vg                          = mu * vg + ((NNFloat)1.0 - mu) * vg;
+        pBiasVelocity[pos]          = v;
+        pBiasGradientVelocity[pos]  = vg;        
+        pBias[pos]                 -= alpha * sum * dw;
+    }
+}
+
+void kAdaDeltaUpdateBiases(NNFloat alpha, NNFloat mu, uint32_t batch, uint32_t width, NNFloat* pDelta, NNFloat* pBiasVelocity, NNFloat* pBiasGradientVelocity, NNFloat* pBias)
+{
+    uint32_t blocks             = CalculateBlocks(width);
+    kAdaDeltaUpdateBiases_kernel<<<blocks, getGpu()._threadsPerBlock>>>(alpha, mu, batch, width, pDelta, pBiasVelocity, pBiasGradientVelocity, pBias);
+    LAUNCHERROR("kAdaDeltaUpdateBiases_kernel");
+}
+
+__global__ void
+LAUNCH_BOUNDS()
 kNesterovUpdateWeights_kernel(NNFloat lambda, NNFloat mu, uint64_t size, NNFloat* pWeightVelocity, NNFloat* pWeightGradient, NNFloat* pWeight)
 {
     uint64_t pos                = blockIdx.x * blockDim.x + threadIdx.x;

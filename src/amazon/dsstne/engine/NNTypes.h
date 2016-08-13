@@ -43,7 +43,7 @@ extern "C"
 #endif
 
 
-static const float NN_VERSION       = 0.8f;
+static const float NN_VERSION       = 0.81f;
 static const float MIN_ERROR        = 1.0e-12f;
 static const float MIN_ACTIVATION   = 0.000001f;
 static const float MAX_ACTIVATION   = 0.999999f;
@@ -108,6 +108,7 @@ ostream& operator<< (ostream& out, const WeightInitialization& w);
 enum PoolingFunction {
     None,
     Max,
+    Average,
     Stochastic,
     LocalContrastNormalization,
     LocalResponseNormalization,
@@ -136,11 +137,12 @@ struct NNDataSetDimensions
 struct NNDataSetBase {
     enum Attributes
     {
-        Sparse = 1,         // Sparse dataset
-        Boolean = 2,        // All datapoints are 0/1
-        Unused = 4,         // Reserved, was multinomial, but that might be implicit
-        Recurrent = 8,      // Data has a time dimension
-        Mutable = 16,       // Data can be modified by running network backwards
+        Sparse = 1,                 // Sparse dataset
+        Boolean = 2,                // All datapoints are 0/1
+        Unused = 4,                 // Reserved, was multinomial, but that might be implicit
+        Recurrent = 8,              // Data has a time dimension
+        Mutable = 16,               // Data can be modified by running network backwards
+        SparseIgnoreZero = 32,      // Only calculate errors and deltas on non-zero values
     };
 
     enum Kind
@@ -185,6 +187,7 @@ struct NNDataSetBase {
     uint32_t                _maxX;                          // End of local X sharding for model parallel execution
     uint64_t                _sparseDataSize;                // Total sparse datapoints
     uint32_t                _maxSparseDatapoints;           // Maximum observed sparse datapoints per example
+    NNFloat                 _sparseDensity;                 // Overall sparse density (0.0 - 1.0)
     vector<uint64_t>        _vSparseStart;                  // Vector of sparse datapoint starts per example
     GpuBuffer<uint64_t>*    _pbSparseStart;                 // GPU copy of _vSparseStart
     vector<uint64_t>        _vSparseEnd;                    // Vector of sparse datapoint ends per example
@@ -419,17 +422,20 @@ template<typename T> float NNDataSet<T>::CalculateL1Error(uint32_t position, uin
 {
     if (_attributes & Sparse)
     {
+        bool bSparseIgnoreZero = _attributes & SparseIgnoreZero;
         if (_attributes & Boolean)
            return kCalculateSparseL1Error(position, batch, stride, pUnit, 
                   _pbSparseStart->_pDevData, 
                   _pbSparseEnd->_pDevData, 
-                  _pbSparseIndex->_pDevData);
+                  _pbSparseIndex->_pDevData,
+                  bSparseIgnoreZero);
         else
            return kCalculateSparseAnalogL1Error(position, batch, stride, pUnit, 
                   _pbSparseStart->_pDevData, 
                   _pbSparseEnd->_pDevData, 
                   _pbSparseIndex->_pDevData,
-                  _pbSparseData->_pDevData);  
+                  _pbSparseData->_pDevData,
+                  bSparseIgnoreZero);  
     }
     else    
         return kCalculateL1Error(position, batch, stride, pUnit, _pbData->_pDevData);
@@ -439,17 +445,20 @@ template<typename T> float NNDataSet<T>::CalculateL2Error(uint32_t position, uin
 {
     if (_attributes & Sparse)
     {
+        bool bSparseIgnoreZero = _attributes & SparseIgnoreZero;        
         if (_attributes & Boolean)
             return kCalculateSparseL2Error(position, batch, stride, pUnit, 
                    _pbSparseStart->_pDevData, 
                    _pbSparseEnd->_pDevData, 
-                   _pbSparseIndex->_pDevData);
+                   _pbSparseIndex->_pDevData,
+                   bSparseIgnoreZero);
         else
             return kCalculateSparseAnalogL2Error(position, batch, stride, pUnit, 
                    _pbSparseStart->_pDevData, 
                    _pbSparseEnd->_pDevData, 
                    _pbSparseIndex->_pDevData,
-                   _pbSparseData->_pDevData);    
+                   _pbSparseData->_pDevData,
+                   bSparseIgnoreZero);    
     }
     else
         return kCalculateL2Error(position, batch, stride, pUnit, _pbData->_pDevData);
@@ -458,21 +467,29 @@ template<typename T> float NNDataSet<T>::CalculateL2Error(uint32_t position, uin
 template<typename T> float NNDataSet<T>::CalculateCrossEntropyError(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit)
 {
     if (_attributes & Sparse)
+    {
+        bool bSparseIgnoreZero = _attributes & SparseIgnoreZero;    
         return kCalculateSparseCrossEntropyError(position, batch, stride, pUnit,
                _pbSparseStart->_pDevData, 
                _pbSparseEnd->_pDevData, 
-               _pbSparseIndex->_pDevData);
+               _pbSparseIndex->_pDevData,
+               bSparseIgnoreZero);
+    }
     else
         return kCalculateCrossEntropyError(position, batch, stride, pUnit, _pbData->_pDevData);
 }
 
 template<typename T> float NNDataSet<T>::CalculateScaledMarginalCrossEntropyError(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit)
 {
-    if (_attributes & Sparse)   
+    if (_attributes & Sparse)
+    {
+        bool bSparseIgnoreZero = _attributes & SparseIgnoreZero;   
         return kCalculateSparseScaledMarginalCrossEntropyError(position, batch, stride, pUnit,
                _pbSparseStart->_pDevData, 
                _pbSparseEnd->_pDevData, 
-               _pbSparseIndex->_pDevData);
+               _pbSparseIndex->_pDevData,
+               bSparseIgnoreZero);
+    }
     else
         return kCalculateScaledMarginalCrossEntropyError(position, batch, stride, pUnit, _pbData->_pDevData);
 }
@@ -522,7 +539,10 @@ template<typename T> float NNDataSet<T>::CalculateMultinomialScaledMarginalCross
 template<typename T> bool NNDataSet<T>::CalculateL1OutputDelta(Activation activation, uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta)
 {
     if (_attributes & Sparse)
-        kCalculateSparseL1OutputDelta(activation, position, batch, stride, pUnit, pDelta, _pbSparseStart->_pDevData, _pbSparseEnd->_pDevData, _pbSparseIndex->_pDevData);       
+    {
+        bool bSparseIgnoreZero = _attributes & SparseIgnoreZero;
+        kCalculateSparseL1OutputDelta(activation, position, batch, stride, pUnit, pDelta, _pbSparseStart->_pDevData, _pbSparseEnd->_pDevData, _pbSparseIndex->_pDevData, bSparseIgnoreZero);
+    }
     else
         kCalculateL1OutputDelta(activation, position, batch, stride, pUnit, pDelta, _pbData->_pDevData);
     return true;
@@ -531,7 +551,10 @@ template<typename T> bool NNDataSet<T>::CalculateL1OutputDelta(Activation activa
 template<typename T> bool NNDataSet<T>::CalculateCrossEntropyOutputDelta(Activation activation, uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta)
 {
     if (_attributes & Sparse)
-        kCalculateSparseCrossEntropyOutputDelta(activation, position, batch, stride, pUnit, pDelta, _pbSparseStart->_pDevData, _pbSparseEnd->_pDevData, _pbSparseIndex->_pDevData);             
+    {
+        bool bSparseIgnoreZero = _attributes & SparseIgnoreZero;
+        kCalculateSparseCrossEntropyOutputDelta(activation, position, batch, stride, pUnit, pDelta, _pbSparseStart->_pDevData, _pbSparseEnd->_pDevData, _pbSparseIndex->_pDevData, bSparseIgnoreZero);
+    }
     else
         kCalculateCrossEntropyOutputDelta(activation, position, batch, stride, pUnit, pDelta, _pbData->_pDevData);
     return true;
@@ -540,21 +563,32 @@ template<typename T> bool NNDataSet<T>::CalculateCrossEntropyOutputDelta(Activat
 template<typename T> bool NNDataSet<T>::CalculateScaledMarginalCrossEntropyOutputDelta(Activation activation, uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta)
 {
     if (_attributes & Sparse)
-        kCalculateSparseScaledMarginalCrossEntropyOutputDelta(activation, position, batch, stride, pUnit, pDelta, _pbSparseStart->_pDevData, _pbSparseEnd->_pDevData, _pbSparseIndex->_pDevData);
+    {
+        bool bSparseIgnoreZero = _attributes & SparseIgnoreZero;
+        kCalculateSparseScaledMarginalCrossEntropyOutputDelta(activation, position, batch, stride, pUnit, pDelta, _pbSparseStart->_pDevData, _pbSparseEnd->_pDevData, _pbSparseIndex->_pDevData, bSparseIgnoreZero);
+    }
     else
+    {
         kCalculateScaledMarginalCrossEntropyOutputDelta(activation, position, batch, stride, pUnit, pDelta, _pbData->_pDevData);
+    }
     return true;
 }
 
 template<typename T> bool NNDataSet<T>::CalculateOutputDelta(Activation activation, uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta)
 {
     if (_attributes & Sparse) {
-      if (_attributes & Boolean) {
-        kCalculateSparseOutputDelta(activation, position, batch, stride, pUnit, pDelta, _pbSparseStart->_pDevData, _pbSparseEnd->_pDevData, _pbSparseIndex->_pDevData);       
-      } else {
-        kCalculateSparseAnalogOutputDelta(activation, position, batch, stride, pUnit,  pDelta, _pbSparseStart->_pDevData, _pbSparseEnd->_pDevData, _pbSparseIndex->_pDevData, _pbSparseData->_pDevData);
-      }
-    } else {
+        bool bSparseIgnoreZero = _attributes & SparseIgnoreZero;        
+        if (_attributes & Boolean) 
+        {
+            kCalculateSparseOutputDelta(activation, position, batch, stride, pUnit, pDelta, _pbSparseStart->_pDevData, _pbSparseEnd->_pDevData, _pbSparseIndex->_pDevData, bSparseIgnoreZero);       
+        } 
+        else 
+        {
+            kCalculateSparseAnalogOutputDelta(activation, position, batch, stride, pUnit,  pDelta, _pbSparseStart->_pDevData, _pbSparseEnd->_pDevData, _pbSparseIndex->_pDevData, _pbSparseData->_pDevData, bSparseIgnoreZero);
+        }
+    } 
+    else 
+    {
         kCalculateOutputDelta(activation, position, batch, stride, pUnit, pDelta, _pbData->_pDevData);
     }
     return true;

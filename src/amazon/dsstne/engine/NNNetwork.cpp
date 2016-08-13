@@ -552,8 +552,29 @@ _receiveIndex(1)
             }           
         }
     } 
-    
-    
+
+    // Add skip layers
+    for (auto l : _vLayer)
+    {
+        for (auto s : l->_vSkip)
+        {
+            NNLayer* pLayer = _mLayer[s];
+            
+            // Make sure dimensions match
+            if (pLayer->_stride != l->_stride)
+            {
+                if (getGpu()._id == 0)
+                    printf("NNNetwork::NNNetwork: Layer dimensions do not match for skip connection between layer %s and %s.\n", 
+                            l->_name.c_str(), pLayer->_name.c_str());
+                getGpu().Shutdown();
+                exit(-1);                
+            }
+            
+            l->_vIncomingSkip.push_back(pLayer);
+            pLayer->_vOutgoingSkip.push_back(l);
+        }
+    }
+
     CalculatePropagationOrder();
 }
 
@@ -2010,13 +2031,22 @@ void NNNetwork::CalculatePropagationOrder()
         int32_t priority       = pLayer->_priority + 1;
         for (auto p : pLayer->_vOutgoingLayer)
         {
-
             if (p->_priority < priority)
             {
                 p->_priority    = priority;
                 pqueue.push(p);
             }
-        }        
+        }
+
+        // Handle skip layers
+        for (auto p : pLayer->_vOutgoingSkip)
+        {
+            if (p->_priority < priority)
+            {
+                p->_priority    = priority;
+                pqueue.push(p);
+            }            
+        }
     }
 
     // Create forward propagation list
@@ -2054,7 +2084,17 @@ void NNNetwork::CalculatePropagationOrder()
                 p->_priority    = priority;
                 pqueue.push(p);
             }
-        }        
+        } 
+        
+        // Handle skip layers
+        for (auto p : pLayer->_vIncomingSkip)
+        {
+            if (p->_priority < priority)
+            {
+                p->_priority    = priority;
+                pqueue.push(p);
+            }
+        }       
     }    
     
     // Create backpropagation list
@@ -2299,11 +2339,10 @@ void NNNetwork::AllocatePeerBuffers()
         }
         // Calculate maximum memory
         uint64_t maxMemory                  = _maxStride * _batch;
-        if (maxMemory < _examples) {
-   
+        if (maxMemory < _examples) 
+        {
             maxMemory                       = _examples;
-	}
-      
+        }
         
         // Allocate local data
         for (size_t i = 0; i < 2; i++)
@@ -2768,12 +2807,24 @@ NNNetwork* LoadNeuralNetworkJSON(const string& fname, const uint32_t batch, cons
                                 // Read source(s) if present
                                 if (lname.compare("source") == 0)
                                 {
-                                    uint32_t size           = lvalue.isArray() ? lvalue.size() : 1;
+                                    uint32_t size       = lvalue.isArray() ? lvalue.size() : 1;
                                     for (uint32_t j = 0; j < size; j++)
                                     {
-                                        Json::Value src     = lvalue.isArray() ? lvalue[j] : lvalue;
+                                        Json::Value src = lvalue.isArray() ? lvalue[j] : lvalue;
                                         ldl._vSource.push_back(src.asString());
-                                        bSource         = true;
+                                        bSource         = true;             // Signal existence of at least one source
+                                    } 
+                                    continue;
+                                }
+                                
+                                // Read skip(s) if present
+                                if (lname.compare("skip") == 0)
+                                {
+                                    uint32_t size       = lvalue.isArray() ? lvalue.size() : 1;
+                                    for (uint32_t j = 0; j < size; j++)
+                                    {
+                                        Json::Value src = lvalue.isArray() ? lvalue[j] : lvalue;
+                                        ldl._vSkip.push_back(src.asString());
                                     } 
                                     continue;
                                 }
@@ -2980,7 +3031,21 @@ NNNetwork* LoadNeuralNetworkJSON(const string& fname, const uint32_t batch, cons
                             // Hidden layer-specific features
                             if (ldl._kind == NNLayer::Kind::Hidden)
                             {
-                                // Temporarily empty
+                                // Layer-specific sparse penalty
+                                if (lname.compare("sparsenesspenalty") == 0)
+                                {
+                                    for (Json::ValueIterator pitr = lvalue.begin(); pitr != lvalue.end() ; pitr++)
+                                    {
+                                        string pname                = pitr.memberName();
+                                        std::transform(pname.begin(), pname.end(), pname.begin(), ::tolower);
+                                        Json::Value pkey            = pitr.key();
+                                        Json::Value pvalue          = *pitr;
+                                        if (pname.compare("p") == 0)
+                                            ldl._sparsenessPenalty_p = pvalue.asFloat();
+                                        else if (pname.compare("beta") == 0)
+                                            ldl._sparsenessPenalty_beta  = pvalue.asFloat();
+                                    }
+                                }                                
                             }
 
 
@@ -2994,7 +3059,18 @@ NNNetwork* LoadNeuralNetworkJSON(const string& fname, const uint32_t batch, cons
                                 }
 
                             }
+                            
+                            // Non-Input layer-specific features
+                            if (ldl._kind != NNLayer::Kind::Input)
+                            {
+                                // Skips
+                            }
+                            
+                            // Output layer-specific features
+                            if (ldl._kind == NNLayer::Kind::Output)
+                            {
 
+                            }
 
                             // If we reach here, we didn't recognize the field
                             printf("LoadNeuralNetworkJSON: Unknown neural network layer field: %s\n", lname.c_str());

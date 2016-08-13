@@ -290,6 +290,7 @@ _maxX(0),
 _sparseDataSize(0),
 _sparseTransposedIndices(0),
 _maxSparseDatapoints(0),
+_sparseDensity(0),
 _bDenoising(false),
 _pbSparseStart(NULL),
 _pbSparseEnd(NULL),
@@ -839,6 +840,7 @@ _pbSparseTransposedData(NULL)
     MPI_Bcast(&_width, 1, MPI_UINT32_T, 0, MPI_COMM_WORLD);
     MPI_Bcast(&_height, 1, MPI_UINT32_T, 0, MPI_COMM_WORLD);
     MPI_Bcast(&_length, 1, MPI_UINT32_T, 0, MPI_COMM_WORLD);
+    MPI_Bcast(&_sparseDataSize, 1, MPI_UINT64_T, 0, MPI_COMM_WORLD);
     
     
     // Generate sparse data lookup tables if data is sparse
@@ -873,9 +875,10 @@ template<typename T> bool NNDataSet<T>::CalculateSparseDatapointCounts()
         for (size_t i = 0; i < _vSparseStart.size(); i++)
         {
             uint64_t count                      = _vSparseEnd[i] - _vSparseStart[i];
-            if (count > _maxSparseDatapoints) {
+            if (count > _maxSparseDatapoints) 
+            {
                 _maxSparseDatapoints            = count;
- 	    }
+            }
         }
         MPI_Allreduce(MPI_IN_PLACE, &_maxSparseDatapoints, 1, MPI_UINT32_T, MPI_MAX, MPI_COMM_WORLD);
 
@@ -889,7 +892,8 @@ template<typename T> bool NNDataSet<T>::CalculateSparseDatapointCounts()
             }
         }
         
-
+        // Calculate sparse density
+        _sparseDensity = (double_t)_sparseDataSize / (double_t)(_examples * N);
         return true;
     }
     else
@@ -1219,13 +1223,14 @@ template<typename T> bool NNDataSet<T>::Shard(NNDataSetBase::Sharding sharding)
                         vLocalSparseStart[j]    = vLocalSparseIndex.size();
                         for (uint64_t k = _vSparseStart[j]; k < _vSparseEnd[j]; k++)
                         {
-                            if ((_vSparseIndex[k] >= xmin) && (_vSparseIndex[k] < xmax)) {
+                            if ((_vSparseIndex[k] >= xmin) && (_vSparseIndex[k] < xmax)) 
+                            {
                                 vLocalSparseIndex.push_back(_vSparseIndex[k] - xmin);
-                                if (!(_attributes & Boolean)) {
+                                if (!(_attributes & Boolean))
+                                {
                                     vLocalSparseData.push_back(_vSparseData[k]);
                                 }
                             }
-
                         }               
                         vLocalSparseEnd[j]          = vLocalSparseIndex.size(); 
                     }
@@ -1258,9 +1263,11 @@ template<typename T> bool NNDataSet<T>::Shard(NNDataSetBase::Sharding sharding)
                     _vSparseStart[j]                = _vSparseIndex.size();
                     for (uint64_t k = vTempSparseStart[j]; k < vTempSparseEnd[j]; k++)
                     {
-                        if ((vTempSparseIndex[k] >= _minX) && (vTempSparseIndex[k] < _maxX)) {
+                        if ((vTempSparseIndex[k] >= _minX) && (vTempSparseIndex[k] < _maxX))
+                        {
                             _vSparseIndex.push_back(vTempSparseIndex[k]);
-                            if (!(_attributes & Boolean)) {
+                            if (!(_attributes & Boolean))
+                            {
                                 _vSparseData.push_back(vTempSparseData[k]);
                             }
                         }
