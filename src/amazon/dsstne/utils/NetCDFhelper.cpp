@@ -62,8 +62,9 @@ void indexSingleFile(const string &samplesFileName,
                      map<unsigned int, vector<float>> &mSignalValues) {
 
     ifstream inputFileStream(samplesFileName);
-    timeval ts;
-    gettimeofday(&ts, NULL);
+    timeval tBegin;
+    gettimeofday(&tBegin, NULL);
+    timeval tReported = tBegin;
     string line;
     int lineNumber = 0;
 
@@ -152,11 +153,12 @@ void indexSingleFile(const string &samplesFileName,
         mSignals[sampleIndex] = signals;
         mSignalValues[sampleIndex] = signalValue;
         if (mSampleIndex.size() % gLoggingRate == 0) {
-            timeval t2;
-            gettimeofday(&t2, NULL);
-            cout << "Progress Parsing" << mSampleIndex.size();
-            cout << "Time " << elapsed_time(t2, ts) << endl;
-            gettimeofday(&ts, NULL);
+            timeval tNow;
+            gettimeofday(&tNow, NULL);
+            cout << "Progress Parsing (Sample " << mSampleIndex.size() << ", ";
+            cout << "Time " << elapsed_time(tNow, tReported) << ", ";
+            cout << "Total " << elapsed_time(tNow, tBegin) << ")" << endl;
+            tReported = tNow;
         }
     }
 }
