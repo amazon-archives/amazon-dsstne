@@ -30,7 +30,7 @@ set(UTILS_SOURCES
 )
 
 set(TEST_SOURCES
-    TestDune.cpp
+    main.cpp
 )
 
 add_executable(unittests
