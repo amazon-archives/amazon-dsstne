@@ -13,7 +13,6 @@
 #include "GpuTypes.h"
 #include "NNTypes.h"
 #include "kernels.h"
-#include <limits>
 
 
 static const float cAcceptableError = 0.00001f;

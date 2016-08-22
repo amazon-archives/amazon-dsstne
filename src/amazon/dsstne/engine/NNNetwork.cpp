@@ -18,6 +18,7 @@
 #include <inttypes.h>
 #include <queue>
 #include <set>
+#include <cfloat>
 
 using namespace netCDF;
 using namespace netCDF::exceptions;
