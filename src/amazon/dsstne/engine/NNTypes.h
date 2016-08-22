@@ -25,7 +25,7 @@
 #include <json/json.h>
 #endif
 #include <sys/time.h>
-#include <math.h>
+#include <cmath>
 
 class NNDataSetBase;
 class NNLayer;

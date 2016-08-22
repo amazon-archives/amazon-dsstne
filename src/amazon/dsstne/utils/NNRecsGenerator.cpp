@@ -16,9 +16,8 @@
 #include<vector>
 #include<sstream>
 #include<string>
-#include<math.h>
 #include<stdio.h>
-#include<math.h>
+#include<cmath>
 
 #include"NNRecsGenerator.h"
 #include "GpuTypes.h"
