@@ -9,13 +9,21 @@ matrix:
       addons:
         apt:
           sources: ['ubuntu-toolchain-r-test', 'llvm-toolchain-precise-3.7']
-          packages: ['clang-3.7', 'libcppunit-dev']
+          packages: ['clang-3.7', 'libcppunit-dev', 'libnetcdf-dev']
       env: COMPILER=clang++-3.7
+
+install:
+  - wget http://www.unidata.ucar.edu/downloads/netcdf/ftp/netcdf-cxx4-4.2.tar.gz
+  - tar xvf netcdf-cxx4-4.2.tar.gz
+  - pushd netcdf-cxx4-4.2
+  - CXXFLAGS=-Wno-c++11-compat-deprecated-writable-strings ./configure --prefix=/usr/local
+  - make
+  - sudo make install
+  - popd
 
 script:
   - cd tst/unittests
-  - mkdir build
-  - cd build
-  - cmake .. && make
-  - ./unittests
-
+  - mkdir build && cd build
+  - cmake ..
+  - make
+  - LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/lib ./unittests
