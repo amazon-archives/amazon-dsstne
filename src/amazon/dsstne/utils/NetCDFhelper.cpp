@@ -22,9 +22,8 @@
 #include <unordered_map>
 #include <stdexcept>
 
+#include "NNEnum.h"
 #include "Utils.h"
-#include "GpuTypes.h"
-#include "NNTypes.h"
 
 using namespace std;
 using namespace netCDF;
@@ -319,9 +318,9 @@ void writeNetCDFFile(vector<unsigned int> &vSparseStart,
         }
         nc.putAtt("datasets", ncUint, 1);
         nc.putAtt("name0", datasetName);
-        nc.putAtt("attributes0", ncUint, NNDataSetBase::Attributes::Sparse);
-        nc.putAtt("kind0", ncUint, NNDataSetBase::Kind::Numeric);
-        nc.putAtt("dataType0", ncUint, NNDataSetBase::DataType::Float);
+        nc.putAtt("attributes0", ncUint, NNDataSetEnums::Sparse);
+        nc.putAtt("kind0", ncUint, NNDataSetEnums::Numeric);
+        nc.putAtt("dataType0", ncUint, NNDataSetEnums::Float);
         nc.putAtt("dimensions0", ncUint, 1);
         nc.putAtt("width0", ncUint, maxFeatureIndex);
         NcDim examplesDim = nc.addDim("examplesDim0", vSparseStart.size());
@@ -363,9 +362,9 @@ void writeNetCDFFile(vector<unsigned int> &vSparseStart,
         }
         nc.putAtt("datasets", ncUint, 1);
         nc.putAtt("name0", datasetName);
-        nc.putAtt("attributes0", ncUint, (NNDataSetBase::Attributes::Sparse + NNDataSetBase::Attributes::Boolean));
-        nc.putAtt("kind0", ncUint, NNDataSetBase::Kind::Numeric);
-        nc.putAtt("dataType0", ncUint, NNDataSetBase::DataType::UInt);
+        nc.putAtt("attributes0", ncUint, (NNDataSetEnums::Sparse + NNDataSetEnums::Boolean));
+        nc.putAtt("kind0", ncUint, NNDataSetEnums::Numeric);
+        nc.putAtt("dataType0", ncUint, NNDataSetEnums::UInt);
         nc.putAtt("dimensions0", ncUint, 1);
         nc.putAtt("width0", ncUint, maxFeatureIndex);
         NcDim examplesDim = nc.addDim("examplesDim0", vSparseStart.size());
