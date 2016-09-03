@@ -10,15 +10,43 @@
    or in the "license" file accompanying this file. This file is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific language governing permissions and limitations under the License.
  */
 
+#include <iosfwd>
 #include <string>
 #include <vector>
 #include <unordered_map>
 
 /**
- * Loads an index from the given indexFileName files, assuming an entry on each line with a 
+ * Loads an index from the given input stream, assuming an entry on each line with a 
  * tab separating label and index. Used for feature and sample indices for a dataset.
+
+ * This function performs additional error checks to ensure that the number of lines
+ * processed matches the number of entries added to the index. This is will detect
+ * data corruption issues, but will not necessarily identify the exact line that
+ * is causing the issue.
+ *
+ * @param labelsToIndices  unordered_map into which new entries will be inserted
+ * @param inputStream      input stream from which to read raw data
+ * @param outputStream     output stream to be used for any status or error messages
+ *
+ * @return \c true if all input is processed successfully; \c false otherwise
  */
-void loadIndex(std::unordered_map<std::string, unsigned int> &mLabelToIndex, std::string indexFileName);
+bool loadIndex(std::unordered_map<std::string, unsigned int> &mLabelToIndex, std::istream &inputStream,
+               std::ostream &outputStream);
+
+/**
+ * Loads an index from the given input file, assuming an entry on each line with a
+ * tab separating label and index. Used for feature and sample indices for a dataset.
+ *
+ * Error checking is as described for the loadIndex() function.
+ *
+ * @param labelsToIndices  unordered_map into which new entries will be inserted
+ * @param inputFile        path to file from which to read raw data
+ * @param outputStream     output stream to be used for any status or error messages
+ *
+ * @return  \c true if the entire input file was read successfully; \c false otherwise
+ */
+bool loadIndexFromFile(std::unordered_map<std::string, unsigned int> &labelsToIndices, const std::string &inputFile,
+                       std::ostream &outputStream);
 
 /**
  * Exports an index to the given indexFileName files, writing an entry to each line with a 
