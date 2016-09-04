@@ -12,6 +12,7 @@
 
 #include <cstdio>
 #include <algorithm>
+#include <cerrno>
 #include <cstring>
 #include <iostream>
 #include <fstream>
@@ -38,8 +39,13 @@ bool loadIndex(std::unordered_map<string, unsigned int> &labelsToIndices, std::i
     const size_t initialIndexSize = labelsToIndices.size();
     while (getline(inputStream, line)) {
         vector<string> vData = split(line, '\t');
-        labelsToIndices[vData[0]] = atoi(vData[1].c_str());
         linesProcessed++;
+        if (vData.size() == 2 && !vData[0].empty()) {
+            labelsToIndices[vData[0]] = atoi(vData[1].c_str());
+        } else {
+            outputStream << "Error: line " << linesProcessed << " contains invalid data" << endl;
+            return false;
+        }
     }
 
     const size_t numEntriesAdded = labelsToIndices.size() - initialIndexSize;
@@ -50,8 +56,8 @@ bool loadIndex(std::unordered_map<string, unsigned int> &labelsToIndices, std::i
         return false;
     }
 
-    if (inputStream.fail()) {
-        outputStream << "Error: Failed to read all data from input stream" << endl;
+    if (inputStream.bad()) {
+        outputStream << "Error: " << strerror(errno) << endl;
         return false;
     }
 
