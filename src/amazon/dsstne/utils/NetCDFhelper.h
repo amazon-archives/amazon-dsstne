@@ -10,33 +10,21 @@
    or in the "license" file accompanying this file. This file is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific language governing permissions and limitations under the License.
  */
 
-#include <cstdio>
-#include <algorithm>
-#include <cstring>
-#include <iostream>
-#include <fstream>
-#include <sstream>
+#include <string>
 #include <vector>
-#include <map>
-#include <netcdf>
-#include <sys/time.h>
 #include <unordered_map>
-
-using namespace std;
-using namespace netCDF;
-using namespace netCDF::exceptions;
 
 /**
  * Loads an index from the given indexFileName files, assuming an entry on each line with a 
  * tab separating label and index. Used for feature and sample indices for a dataset.
  */
-void loadIndex(unordered_map<string, unsigned int> &mLabelToIndex, string indexFileName);
+void loadIndex(std::unordered_map<std::string, unsigned int> &mLabelToIndex, std::string indexFileName);
 
 /**
  * Exports an index to the given indexFileName files, writing an entry to each line with a 
  * tab separating label and index. Used for feature and sample indices for a dataset.
  */
-void exportIndex(unordered_map<string, unsigned int> &mLabelToIndex, string indexFileName);
+void exportIndex(std::unordered_map<std::string, unsigned int> &mLabelToIndex, std::string indexFileName);
 
 /**
  * Updates the index information from the samplesFile into the referenced data structures.
@@ -44,16 +32,16 @@ void exportIndex(unordered_map<string, unsigned int> &mLabelToIndex, string inde
  * featureIndexUpdated and sampleIndexUpdated will be true iff feature and sample indices have been updated (respectively)
  *
  */
-void indexFile(const string &samplesPath,
+void indexFile(const std::string &samplesPath,
                const bool enableFeatureIndexUpdates,
-               unordered_map<string, unsigned int> &mFeatureIndex,
-               unordered_map<string, unsigned int> &mSampleIndex,
+               std::unordered_map<std::string, unsigned int> &mFeatureIndex,
+               std::unordered_map<std::string, unsigned int> &mSampleIndex,
                bool &featureIndexUpdated,
                bool &sampleIndexUpdated,
-               vector<unsigned int> &vSparseStart,
-               vector<unsigned int> &vSparseEnd,
-               vector<unsigned int> &vSparseIndex,
-               vector<float> &vSparseData);
+               std::vector<unsigned int> &vSparseStart,
+               std::vector<unsigned int> &vSparseEnd,
+               std::vector<unsigned int> &vSparseIndex,
+               std::vector<float> &vSparseData);
 
 /**
  * Generates a NetCDF index for a given dataset and exports them to respective files with 
@@ -68,16 +56,16 @@ void indexFile(const string &samplesPath,
  * @param outFeatureIndexFileName - the name of the file to export the feature index to.
  * @param outSampleIndexFileName - the name of tile to export the samples index to.
  */
-void generateNetCDFIndexes(const string &samplesPath,
+void generateNetCDFIndexes(const std::string &samplesPath,
                            const bool enableFeatureIndexUpdates,
-                           const string &outFeatureIndexFileName,
-                           const string &outSampleIndexFileName,
-                           unordered_map<string, unsigned int> &mFeatureIndex,
-                           unordered_map<string, unsigned int> &mSampleIndex,
-                           vector<unsigned int> &vSparseStart,
-                           vector<unsigned int> &vSparseEnd,
-                           vector<unsigned int> &vSparseIndex,
-                           vector<float> &vSparseData);
+                           const std::string &outFeatureIndexFileName,
+                           const std::string &outSampleIndexFileName,
+                           std::unordered_map<std::string, unsigned int> &mFeatureIndex,
+                           std::unordered_map<std::string, unsigned int> &mSampleIndex,
+                           std::vector<unsigned int> &vSparseStart,
+                           std::vector<unsigned int> &vSparseEnd,
+                           std::vector<unsigned int> &vSparseIndex,
+                           std::vector<float> &vSparseData);
 
 /**
  * Generates a NetCDF index for a given dataset and exports them to respective files, using 
@@ -87,37 +75,37 @@ void generateNetCDFIndexes(const string &samplesPath,
  *  - outFeatureIndexFileName = $datasetName.inputIndex
  *  - outSampleIndexFileName = $datasetName.sampleIndex
  */
-void generateNetCDFIndexes(const string &samplesFileName,
+void generateNetCDFIndexes(const std::string &samplesFileName,
                            const bool enableFeatureIndexUpdates,
-                           const string &dataSetName,
-                           unordered_map<string, unsigned int> &mFeatureIndex,
-                           unordered_map<string, unsigned int> &mSampleIndex,
-                           vector<unsigned int> &vSparseStart,
-                           vector<unsigned int> &vSparseEnd,
-                           vector<unsigned int> &vSparseIndex,
-                           vector<float> &vSparseValue);
+                           const std::string &dataSetName,
+                           std::unordered_map<std::string, unsigned int> &mFeatureIndex,
+                           std::unordered_map<std::string, unsigned int> &mSampleIndex,
+                           std::vector<unsigned int> &vSparseStart,
+                           std::vector<unsigned int> &vSparseEnd,
+                           std::vector<unsigned int> &vSparseIndex,
+                           std::vector<float> &vSparseValue);
 
 /**
  * Writes an NetCDFfile for a given sparse matrix of indices and values (start of sample, end of sample, samples array) for each sample.
  * The dataset within the file is indexed with dataset name. Note that maxFeatureIndex is the rounded up to multiple of 32.
  */
-void writeNetCDFFile(vector<unsigned int> &vSparseStart,
-                     vector<unsigned int> &vSparseEnd,
-                     vector<unsigned int> &vSparseIndex,
-                     vector<float> &vSparseValue,
-                     string fileName,
-                     string datasetName,
+void writeNetCDFFile(std::vector<unsigned int> &vSparseStart,
+                     std::vector<unsigned int> &vSparseEnd,
+                     std::vector<unsigned int> &vSparseIndex,
+                     std::vector<float> &vSparseValue,
+                     std::string fileName,
+                     std::string datasetName,
                      unsigned int maxFeatureIndex);
 
 /**
  * Writes an NetCDFfile for a given sparse matrix of indices only (start of sample, end of sample, samples array) for each sample.
  * The dataset within the file is indexed with dataset name. Note that maxFeatureIndex is the rounded up to multiple of 32.
  */
-void writeNetCDFFile(vector<unsigned int> &vSparseStart,
-                     vector<unsigned int> &vSparseEnd,
-                     vector<unsigned int> &vSparseIndex,
-                     string fileName,
-                     string datasetName,
+void writeNetCDFFile(std::vector<unsigned int> &vSparseStart,
+                     std::vector<unsigned int> &vSparseEnd,
+                     std::vector<unsigned int> &vSparseIndex,
+                     std::string fileName,
+                     std::string datasetName,
                      unsigned int maxFeatureIndex);
 
 /**
@@ -125,12 +113,8 @@ void writeNetCDFFile(vector<unsigned int> &vSparseStart,
  */
 unsigned int roundUpMaxIndex(unsigned int maxFeatureIndex);
 
-std::vector<std::string> &split(const std::string &s, char delim, std::vector<std::string> &elems);
-
-std::vector<std::string> split(const std::string &s, char delim);
-
 /**
  * Returns the absolute paths of all files in the directory. If the directory is a file, then returns a singleton
  * of the file itself.
  */
-int listFiles(const string &dirname, const bool recursive, vector<string> &files);
+int listFiles(const std::string &dirname, const bool recursive, std::vector<std::string> &files);

@@ -5,17 +5,67 @@ dist: trusty
 matrix:
   include:
     - os: linux
+      compiler: gcc
+      addons:
+        apt:
+          sources: ['ubuntu-toolchain-r-test']
+          packages: ['g++-4.8']
+      env:
+        - NETCDF_CXX4_CXXFLAGS=-Wno-write-strings
+        - OUR_CXX=g++-4.8
+        - OUR_CC=gcc-4.8
+
+    - os: linux
+      compiler: gcc
+      addons:
+        apt:
+          sources: ['ubuntu-toolchain-r-test']
+          packages: ['g++-4.9']
+      env:
+        - NETCDF_CXX4_CXXFLAGS=-Wno-write-strings
+        - OUR_CXX=g++-4.9
+        - OUR_CC=gcc-4.9
+
+    - os: linux
+      compiler: gcc
+      addons:
+        apt:
+          sources: ['ubuntu-toolchain-r-test']
+          packages: ['g++-5']
+      env:
+        - NETCDF_CXX4_CXXFLAGS=-Wno-write-strings
+        - OUR_CXX=g++-5
+        - OUR_CC=gcc-5
+
+    - os: linux
       compiler: clang
       addons:
         apt:
           sources: ['ubuntu-toolchain-r-test', 'llvm-toolchain-precise-3.7']
-          packages: ['clang-3.7', 'libcppunit-dev']
-      env: COMPILER=clang++-3.7
+          packages: ['clang-3.7']
+      env:
+        - NETCDF_CXX4_CXXFLAGS=-Wno-c++11-compat-deprecated-writable-strings
+        - OUR_CXX=clang++-3.7
+        - OUR_CC=clang-3.7
+
+before_install:
+  - sudo apt-get update -qq
+  - sudo apt-get install -qq libcppunit-dev libnetcdf-dev
+
+install:
+  - wget http://www.unidata.ucar.edu/downloads/netcdf/ftp/netcdf-cxx4-4.2.tar.gz
+  - tar xvf netcdf-cxx4-4.2.tar.gz
+  - pushd netcdf-cxx4-4.2
+  - export CC=$OUR_CC
+  - export CXX=$OUR_CXX
+  - CXXFLAGS=$NETCDF_CXX4_CXXFLAGS ./configure --prefix=/usr/local
+  - make
+  - sudo make install
+  - popd
 
 script:
   - cd tst/unittests
-  - mkdir build
-  - cd build
-  - cmake .. && make
-  - ./unittests
-
+  - mkdir build && cd build
+  - cmake ..
+  - make
+  - LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/lib ./unittests

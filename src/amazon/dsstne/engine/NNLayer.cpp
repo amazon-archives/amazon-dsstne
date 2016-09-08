@@ -165,7 +165,7 @@ void NNLayer::RefreshState(bool validate)
         _bFastSparse                = false;
         if ((_kind == Input) && (_pDataSet != NULL) && (_bSparse))
         {
-            uint32_t maxSparse      = (_pDataSet->_attributes & NNDataSetBase::Attributes::Boolean) ? getGpu()._maxSparse : getGpu()._maxSparseAnalog;
+            uint32_t maxSparse      = (_pDataSet->_attributes & NNDataSetEnums::Boolean) ? getGpu()._maxSparse : getGpu()._maxSparseAnalog;
             if (_batch > maxSparse)
             {
                 if (getGpu()._id == 0)
@@ -194,11 +194,11 @@ void NNLayer::RefreshState(bool validate)
         {
             if (_type == FullyConnected)
             {
-                _pDataSet->Shard(NNDataSetBase::Sharding::Model);
+                _pDataSet->Shard(NNDataSetEnums::Model);
             }
             else if (_type == Convolutional)
             {
-                _pDataSet->Shard(NNDataSetBase::Sharding::Data);
+                _pDataSet->Shard(NNDataSetEnums::Data);
             }
         }
         _bDirty                     = false;
