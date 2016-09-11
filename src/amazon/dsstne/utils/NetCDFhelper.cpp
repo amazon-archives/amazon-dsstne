@@ -12,6 +12,7 @@
 
 #include <cstdio>
 #include <algorithm>
+#include <cerrno>
 #include <cstring>
 #include <iostream>
 #include <fstream>
@@ -31,15 +32,47 @@ using namespace netCDF::exceptions;
 
 int gLoggingRate = 10000;
 
-void loadIndex(unordered_map<string, unsigned int> &mLabelToIndex,
-               string indexFileName) {
+bool loadIndex(std::unordered_map<string, unsigned int> &labelsToIndices, std::istream &inputStream,
+               std::ostream &outputStream) {
     string line;
-    ifstream is(indexFileName);
-    while (getline(is, line)) {
+    unsigned int linesProcessed = 0;
+    const size_t initialIndexSize = labelsToIndices.size();
+    while (getline(inputStream, line)) {
         vector<string> vData = split(line, '\t');
-        mLabelToIndex[vData[0]] = atoi(vData[1].c_str());
+        linesProcessed++;
+        if (vData.size() == 2 && !vData[0].empty()) {
+            labelsToIndices[vData[0]] = atoi(vData[1].c_str());
+        } else {
+            outputStream << "Error: line " << linesProcessed << " contains invalid data" << endl;
+            return false;
+        }
     }
-    is.close();
+
+    const size_t numEntriesAdded = labelsToIndices.size() - initialIndexSize;
+    outputStream << "Number of lines processed: " << linesProcessed << endl;
+    outputStream << "Number of entries added to index: " << numEntriesAdded << endl;
+    if (linesProcessed != numEntriesAdded) {
+        outputStream << "Error: Number of entries added to index not equal to number of lines processed" << endl;
+        return false;
+    }
+
+    if (inputStream.bad()) {
+        outputStream << "Error: " << strerror(errno) << endl;
+        return false;
+    }
+
+    return true;
+}
+
+bool loadIndexFromFile(std::unordered_map<std::string, unsigned int> &labelsToIndices, const std::string &inputFile,
+                       std::ostream &outputStream) {
+    ifstream inputStream(inputFile);
+    if (!inputStream.is_open()) {
+        outputStream << "Error: Failed to open index file" << endl;
+        return false;
+    }
+
+    return loadIndex(labelsToIndices, inputStream, outputStream);
 }
 
 void exportIndex(unordered_map<string, unsigned int> &mLabelToIndex, string indexFileName) {

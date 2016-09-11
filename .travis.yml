@@ -48,6 +48,17 @@ matrix:
         - OUR_CXX=clang++-3.7
         - OUR_CC=clang-3.7
 
+    - os: linux
+      compiler: clang
+      addons:
+        apt:
+          sources: ['ubuntu-toolchain-r-test', 'llvm-toolchain-precise-3.8']
+          packages: ['clang-3.8']
+      env:
+        - NETCDF_CXX4_CXXFLAGS=-Wno-c++11-compat-deprecated-writable-strings
+        - OUR_CXX=clang++-3.8
+        - OUR_CC=clang-3.8
+
 before_install:
   - sudo apt-get update -qq
   - sudo apt-get install -qq libcppunit-dev libnetcdf-dev

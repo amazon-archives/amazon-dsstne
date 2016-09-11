@@ -94,22 +94,20 @@ int main(int argc, char **argv) {
         cout << "Will create a new samples index file: " << sampleIndexFile << endl;
     } else {
         cout << "Loading sample index from: " << sampleIndexFile << endl;
-        loadIndex(mSampleIndex, sampleIndexFile);
-        cout << "Num entries: " << mSampleIndex.size() << endl;
+        if (!loadIndexFromFile(mSampleIndex, sampleIndexFile, cout)) {
+            exit(1);
+        }
     }
 
     if (createFeatureIndex) {
-        // create a brand new index file and export it to 
         cout << "Will create a new features index file: " << featureIndexFile << endl;
+    } else if (!fileExists(featureIndexFile)) {
+        cout << "Error: Cannnot find a valid feature index file: " << featureIndexFile << endl;
+        exit(1);
     } else {
-        // Will load an existing feature index file.
-        if (!fileExists(featureIndexFile)) {
-            cout << "Error: Cannnot find a valid feature index file: " << featureIndexFile << endl;
+        cout << "Loading feature index from: " << featureIndexFile << endl;
+        if (!loadIndexFromFile(mFeatureIndex, featureIndexFile, cout)) {
             exit(1);
-        } else {
-            cout << "Loading features index from: " << featureIndexFile << endl;
-            loadIndex(mFeatureIndex, featureIndexFile);
-            cout << "Num entries: " << mFeatureIndex.size() << endl;
         }
     }
 

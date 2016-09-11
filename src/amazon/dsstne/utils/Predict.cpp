@@ -178,9 +178,10 @@ int main(int argc, char** argv)
     gettimeofday(&timePreProcessingStart, NULL);
 
     unordered_map<string, unsigned int> mInput;
-    // Load dataset
-    loadIndex(mInput, inputIndexFileName);
-    cout << "Loaded input feature index with " << mInput.size() << " entries." << endl;
+    cout << "Loading input feature index from: " << inputIndexFileName << endl;
+    if (!loadIndexFromFile(mInput, inputIndexFileName, cout)) {
+        exit(1);
+    }
 
     // Load the dataset text file and geneate the NetCDF
     unordered_map<string, unsigned int> mSignals;
@@ -221,8 +222,11 @@ int main(int argc, char** argv)
     // For output recs, we cannot assume the input and output layers have identical
     // features or even ordering. So, we load the index for output layer.
     unordered_map<string, unsigned int> mOutput;
-    loadIndex(mOutput, outputIndexFileName);
-    cout << "Loaded output feature index with " << mOutput.size() << " entries." << endl;
+    cout << "Loading output feature index from: " << outputIndexFileName << endl;
+    if (!loadIndexFromFile(mOutput, outputIndexFileName, cout)) {
+        exit(1);
+    }
+    
     vector<string> vOutput(mOutput.size());
     extractNNMapsToVectors(vOutput, mOutput);
     FilterConfig* vFilterSet = loadFilters(filtersFileName,recsOutputFileName, mOutput, mSignals);
