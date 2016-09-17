@@ -299,31 +299,6 @@ void generateNetCDFIndexes(const string &samplesPath,
     }
 }
 
-void generateNetCDFIndexes(const string &samplesFileName,
-                           const bool enableFeatureIndexUpdates,
-                           const string &dataSetName,
-                           unordered_map<string, unsigned int> &mFeatureIndex,
-                           unordered_map<string, unsigned int> &mSampleIndex,
-                           vector<unsigned int> &vSparseStart,
-                           vector<unsigned int> &vSparseEnd,
-                           vector<unsigned int> &vSparseIndex,
-                           vector<float> &vSparseValue) {
-
-    string outFeatureIndexFileName = dataSetName + FEATURE_INDEX_FILE_SUFFIX;
-    string outSampleIndexFileName = dataSetName + SAMPLES_INDEX_FILE_SUFFIX;
-    generateNetCDFIndexes(samplesFileName,
-                          enableFeatureIndexUpdates,
-                          outFeatureIndexFileName,
-                          outSampleIndexFileName,
-                          mFeatureIndex,
-                          mSampleIndex,
-                          vSparseIndex,
-                          vSparseEnd,
-                          vSparseIndex,
-                          vSparseValue);
-
-}
-
 unsigned int roundUpMaxIndex(unsigned int maxFeatureIndex) {
     // Make the maxFeatureIndex a Multiple of 32
     // Pre- Titan-X:

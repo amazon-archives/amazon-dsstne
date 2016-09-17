@@ -96,24 +96,6 @@ void generateNetCDFIndexes(const std::string &samplesPath,
                            std::vector<float> &vSparseData);
 
 /**
- * Generates a NetCDF index for a given dataset and exports them to respective files, using 
- * the default names for feature and sample index files.
- * 
- * Same as generateNetCDFIndexes() except the default values are:
- *  - outFeatureIndexFileName = $datasetName.inputIndex
- *  - outSampleIndexFileName = $datasetName.sampleIndex
- */
-void generateNetCDFIndexes(const std::string &samplesFileName,
-                           const bool enableFeatureIndexUpdates,
-                           const std::string &dataSetName,
-                           std::unordered_map<std::string, unsigned int> &mFeatureIndex,
-                           std::unordered_map<std::string, unsigned int> &mSampleIndex,
-                           std::vector<unsigned int> &vSparseStart,
-                           std::vector<unsigned int> &vSparseEnd,
-                           std::vector<unsigned int> &vSparseIndex,
-                           std::vector<float> &vSparseValue);
-
-/**
  * Writes an NetCDFfile for a given sparse matrix of indices and values (start of sample, end of sample, samples array) for each sample.
  * The dataset within the file is indexed with dataset name. Note that maxFeatureIndex is the rounded up to multiple of 32.
  */

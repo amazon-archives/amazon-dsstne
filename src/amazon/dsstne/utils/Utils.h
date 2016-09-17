@@ -21,8 +21,6 @@ using std::vector;
 const string INPUT_DATASET_SUFFIX = "_input";
 const string OUTPUT_DATASET_SUFFIX = "_output";
 const string NETCDF_FILE_EXTENTION = ".nc";
-const string FEATURE_INDEX_FILE_SUFFIX = ".inputIndex";
-const string SAMPLES_INDEX_FILE_SUFFIX = ".sampleIndex";
 const unsigned long FIXED_SEED = 12134ull;
 
 class CWMetric
