@@ -119,7 +119,7 @@ int main(int argc, char **argv) {
 
 
     // collects indices into the provided index maps, and writes them to a file if updated
-    generateNetCDFIndexes(inputFile,
+    if (!generateNetCDFIndexes(inputFile,
                           updateFeatureIndex,
                           featureIndexFile,
                           sampleIndexFile,
@@ -128,7 +128,10 @@ int main(int argc, char **argv) {
                           vSparseStart,
                           vSparseEnd,
                           vSparseIndex,
-                          vSparseData);
+                          vSparseData,
+                          cout)) {
+        exit(1);
+    }
 
 
     if (dataType.compare(DATASET_TYPE_ANALOG) == 0) {

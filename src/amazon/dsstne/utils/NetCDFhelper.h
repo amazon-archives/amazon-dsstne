@@ -11,6 +11,7 @@
  */
 
 #include <iosfwd>
+#include <map>
 #include <string>
 #include <vector>
 #include <unordered_map>
@@ -55,21 +56,51 @@ bool loadIndexFromFile(std::unordered_map<std::string, unsigned int> &labelsToIn
 void exportIndex(std::unordered_map<std::string, unsigned int> &mLabelToIndex, std::string indexFileName);
 
 /**
- * Updates the index information from the samplesFile into the referenced data structures.
- * Use this along with exportIndex(mLabelToIndex, indexFileName).
- * featureIndexUpdated and sampleIndexUpdated will be true iff feature and sample indices have been updated (respectively)
+ * Parse sample data from the given input stream, and update the referenced sample/signal and
+ * sample/signal-value data structures.
  *
+ * Data imported into the sample/signal and sample/signal-value data structures can later be 
+ * used to seed or update a sparse data index, appropriate for generating NetCDF files.
+ *
+ * @see importSamplesFromPath() for more documentation about return variables
+ *
+ * @return  \c true if all input is processed successfully; \c false otherwise
  */
-void indexFile(const std::string &samplesPath,
-               const bool enableFeatureIndexUpdates,
-               std::unordered_map<std::string, unsigned int> &mFeatureIndex,
-               std::unordered_map<std::string, unsigned int> &mSampleIndex,
-               bool &featureIndexUpdated,
-               bool &sampleIndexUpdated,
-               std::vector<unsigned int> &vSparseStart,
-               std::vector<unsigned int> &vSparseEnd,
-               std::vector<unsigned int> &vSparseIndex,
-               std::vector<float> &vSparseData);
+bool parseSamples(std::istream &inputStream,
+                  const bool enableFeatureIndexUpdates,
+                  std::unordered_map<std::string, unsigned int> &mFeatureIndex,
+                  std::unordered_map<std::string, unsigned int> &mSampleIndex,
+                  bool &featureIndexUpdated,
+                  bool &sampleIndexUpdated,
+                  std::map<unsigned int, std::vector<unsigned int>> &mSignals,
+                  std::map<unsigned int, std::vector<float>> &mSignalValues,
+                  std::ostream &outputStream);
+
+/**
+ * Import samples from a given file or directory, and update the referenced data structures.
+ *
+ * Use this along with exportIndex(mLabelToIndex, indexFileName) to convert a raw data
+ * to NetCDF format.
+ *
+ * The output variables featureIndexUpdated and sampleIndexUpdated will be true iff feature
+ * and sample indices have been updated (respectively)
+ *
+ * If enableFeatureIndexUpdates is set, the existing feature index will be updated with any
+ * new entries found. Otherwise only the samples index will be updated.
+ *
+ * @return  \c true if the all input files were read successfully; \c false otherwise
+ */
+bool importSamplesFromPath(const std::string &samplesPath,
+                           const bool enableFeatureIndexUpdates,
+                           std::unordered_map<std::string, unsigned int> &mFeatureIndex,
+                           std::unordered_map<std::string, unsigned int> &mSampleIndex,
+                           bool &featureIndexUpdated,
+                           bool &sampleIndexUpdated,
+                           std::vector<unsigned int> &vSparseStart,
+                           std::vector<unsigned int> &vSparseEnd,
+                           std::vector<unsigned int> &vSparseIndex,
+                           std::vector<float> &vSparseData,
+                           std::ostream &outputStream);
 
 /**
  * Generates a NetCDF index for a given dataset and exports them to respective files with 
@@ -83,8 +114,11 @@ void indexFile(const std::string &samplesPath,
  * @param enableFeatureIndexUpdates - if set, well update existing feature index with new entries.
  * @param outFeatureIndexFileName - the name of the file to export the feature index to.
  * @param outSampleIndexFileName - the name of tile to export the samples index to.
+ * @param outputStream - output stream to be used for any status or error messages.
+ *
+ * @return  \c true if the all input files were read successfully; \c false otherwise
  */
-void generateNetCDFIndexes(const std::string &samplesPath,
+bool generateNetCDFIndexes(const std::string &samplesPath,
                            const bool enableFeatureIndexUpdates,
                            const std::string &outFeatureIndexFileName,
                            const std::string &outSampleIndexFileName,
@@ -93,7 +127,8 @@ void generateNetCDFIndexes(const std::string &samplesPath,
                            std::vector<unsigned int> &vSparseStart,
                            std::vector<unsigned int> &vSparseEnd,
                            std::vector<unsigned int> &vSparseIndex,
-                           std::vector<float> &vSparseData);
+                           std::vector<float> &vSparseData,
+                           std::ostream &outputStream);
 
 /**
  * Writes an NetCDFfile for a given sparse matrix of indices and values (start of sample, end of sample, samples array) for each sample.
