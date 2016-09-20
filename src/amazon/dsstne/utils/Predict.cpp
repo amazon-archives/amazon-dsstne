@@ -79,7 +79,9 @@ void convertTextToNetCDF(string inputTextFile,
     vector <unsigned int> vSparseIndex;
     vector <float> vSparseData;
 
-    generateNetCDFIndexes(inputTextFile, false, featureIndexFile, sampleIndexFile, mFeatureIndex, mSignalIndex, vSparseStart, vSparseEnd, vSparseIndex, vSparseData);
+    if (!generateNetCDFIndexes(inputTextFile, false, featureIndexFile, sampleIndexFile, mFeatureIndex, mSignalIndex, vSparseStart, vSparseEnd, vSparseIndex, vSparseData, cout)) {
+        exit(1);
+    }
 
     // Only write binary data using a single CPU
     if (getGpu()._id==0){

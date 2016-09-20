@@ -84,26 +84,25 @@ void exportIndex(unordered_map<string, unsigned int> &mLabelToIndex, string inde
     outputIndexStream.close();
 }
 
-void indexSingleFile(const string &samplesFileName,
-                     const bool enableFeatureIndexUpdates,
-                     unordered_map<string, unsigned int> &mFeatureIndex,
-                     unordered_map<string, unsigned int> &mSampleIndex,
-                     bool &featureIndexUpdated,
-                     bool &sampleIndexUpdated,
-                     map<unsigned int, vector<unsigned int>> &mSignals,
-                     map<unsigned int, vector<float>> &mSignalValues) {
-
-    ifstream inputFileStream(samplesFileName);
+bool parseSamples(std::istream &inputStream,
+                  const bool enableFeatureIndexUpdates,
+                  std::unordered_map<std::string, unsigned int> &mFeatureIndex,
+                  std::unordered_map<std::string, unsigned int> &mSampleIndex,
+                  bool &featureIndexUpdated,
+                  bool &sampleIndexUpdated,
+                  std::map<unsigned int, std::vector<unsigned int>> &mSignals,
+                  std::map<unsigned int, std::vector<float>> &mSignalValues,
+                  std::ostream &outputStream) {
     timeval tBegin;
     gettimeofday(&tBegin, NULL);
     timeval tReported = tBegin;
     string line;
     int lineNumber = 0;
 
-    while (getline(inputFileStream, line)) {
+    while (getline(inputStream, line)) {
         lineNumber++;
         // ignore empty lines - there could be new lines at the end of the file
-        if(line.empty()) {
+        if (line.empty()) {
             continue;
         }
 
@@ -112,8 +111,7 @@ void indexSingleFile(const string &samplesFileName,
         //  2) data point tuples with <feature_label>,<score|date|value>
         int index = line.find('\t');
         if (index < 0) {
-            cout << "Warning: Skipping over malformed line (" << line << ") at line " << lineNumber << " in file " << samplesFileName <<
-            endl;
+            outputStream << "Warning: Skipping over malformed line (" << line << ") at line " << lineNumber << endl;
             continue;
         }
 
@@ -140,20 +138,21 @@ void indexSingleFile(const string &samplesFileName,
             string dataPoint = dataPointTuples[i];
             vector<string> dataElems = split(dataPoint, ',');
 
-            if (dataElems.size() < 1 || dataElems[0].length() == 0) {
+            if (dataElems.empty() || dataElems[0].length() == 0) {
                 // Skip over empty elements.
                 continue;
             }
 
-            if (dataElems.size() > 2) {
-                cout << "Warning: Data point [" << dataPoint << "] at line " << lineNumber <<
-                " has more than 1 value for feature. ";
-                cout << "Keeping the first value and ignoring subsequent values." << endl;
+            const size_t numDataElems = dataElems.size();
+            if (numDataElems > 2) {
+                outputStream << "Warning: Data point [" << dataPoint << "] at line " << lineNumber << " has more "
+                             << "than 1 value for feature (actual value: " << numDataElems << "). "
+                             << "Keeping the first value and ignoring subsequent values." << endl;
             }
 
             string featureName = dataElems[0];
             float featureValue = 0.0;
-            if (dataElems.size() > 1) {
+            if (numDataElems > 1) {
                 // Look for the optional value for the feature.
                 // Since value for a feature can be int or float, its safer to parse float.
                 featureValue = stof(dataElems[1]);
@@ -187,31 +186,39 @@ void indexSingleFile(const string &samplesFileName,
         if (mSampleIndex.size() % gLoggingRate == 0) {
             timeval tNow;
             gettimeofday(&tNow, NULL);
-            cout << "Progress Parsing (Sample " << mSampleIndex.size() << ", ";
-            cout << "Time " << elapsed_time(tNow, tReported) << ", ";
-            cout << "Total " << elapsed_time(tNow, tBegin) << ")" << endl;
+            outputStream << "Progress Parsing (Sample " << mSampleIndex.size() << ", ";
+            outputStream << "Time " << elapsed_time(tNow, tReported) << ", ";
+            outputStream << "Total " << elapsed_time(tNow, tBegin) << ")" << endl;
             tReported = tNow;
         }
     }
+
+    if (inputStream.bad()) {
+        outputStream << "Error: " << strerror(errno) << endl;
+        return false;
+    }
+
+    return true;
 }
 
-void indexFile(const string &samplesPath,
-               const bool enableFeatureIndexUpdates,
-               unordered_map<string, unsigned int> &mFeatureIndex,
-               unordered_map<string, unsigned int> &mSampleIndex,
-               bool &featureIndexUpdated,
-               bool &sampleIndexUpdated,
-               vector<unsigned int> &vSparseStart,
-               vector<unsigned int> &vSparseEnd,
-               vector<unsigned int> &vSparseIndex,
-               vector<float> &vSparseData) {
+bool importSamplesFromPath(const std::string &samplesPath,
+                           const bool enableFeatureIndexUpdates,
+                           std::unordered_map<string, unsigned int> &mFeatureIndex,
+                           std::unordered_map<string, unsigned int> &mSampleIndex,
+                           bool &featureIndexUpdated,
+                           bool &sampleIndexUpdated,
+                           std::vector<unsigned int> &vSparseStart,
+                           std::vector<unsigned int> &vSparseEnd,
+                           std::vector<unsigned int> &vSparseIndex,
+                           std::vector<float> &vSparseData,
+                           std::ostream &outputStream) {
 
     featureIndexUpdated = false;
     sampleIndexUpdated = false;
 
     if (!fileExists(samplesPath)) {
-        cout << "Error: " << samplesPath << " not found. Exiting" << endl;
-        exit(1);
+        outputStream << "Error: " << samplesPath << " not found." << endl;
+        return false;
     }
 
     vector<string> files;
@@ -222,20 +229,29 @@ void indexFile(const string &samplesPath,
     map<unsigned int, vector<float>> mSignalValues;
 
     if (listFiles(samplesPath, false, files) == 0) {
-        cout << "Indexing " << files.size() << " files" << endl;
+        outputStream << "Indexing " << files.size() << " files" << endl;
 
         for (auto const &file: files) {
-            cout << "\tIndexing file: " << file << endl;
+            outputStream << "\tIndexing file: " << file << endl;
+
+            ifstream inputStream(file);
+            if (!inputStream.is_open()) {
+                outputStream << "Error: Failed to open index file" << endl;
+                return false;
+            }
 
             // read file and keep updating index maps
-            indexSingleFile(file,
-                            enableFeatureIndexUpdates,
-                            mFeatureIndex,
-                            mSampleIndex,
-                            featureIndexUpdated,
-                            sampleIndexUpdated,
-                            mSignals,
-                            mSignalValues);
+            if (!parseSamples(inputStream,
+                              enableFeatureIndexUpdates,
+                              mFeatureIndex,
+                              mSampleIndex,
+                              featureIndexUpdated,
+                              sampleIndexUpdated,
+                              mSignals,
+                              mSignalValues,
+                              outputStream)) {
+                return false;
+            }
         }
     }
 
@@ -259,24 +275,26 @@ void indexFile(const string &samplesPath,
         }
         vSparseEnd.push_back(vSparseIndex.size());
     }
+
+    return true;
 }
 
-void generateNetCDFIndexes(const string &samplesPath,
+bool generateNetCDFIndexes(const std::string &samplesPath,
                            const bool enableFeatureIndexUpdates,
-                           const string &outFeatureIndexFileName,
-                           const string &outSampleIndexFileName,
-                           unordered_map<string, unsigned int> &mFeatureIndex,
-                           unordered_map<string, unsigned int> &mSampleIndex,
-                           vector<unsigned int> &vSparseStart,
-                           vector<unsigned int> &vSparseEnd,
-                           vector<unsigned int> &vSparseIndex,
-                           vector<float> &vSparseData) {
+                           const std::string &outFeatureIndexFileName,
+                           const std::string &outSampleIndexFileName,
+                           std::unordered_map<std::string, unsigned int> &mFeatureIndex,
+                           std::unordered_map<std::string, unsigned int> &mSampleIndex,
+                           std::vector<unsigned int> &vSparseStart,
+                           std::vector<unsigned int> &vSparseEnd,
+                           std::vector<unsigned int> &vSparseIndex,
+                           std::vector<float> &vSparseData,
+                           std::ostream &outputStream) {
 
     bool featureIndexUpdated;
     bool sampleIndexUpdated;
 
-
-    indexFile(samplesPath,
+    if (!importSamplesFromPath(samplesPath,
               enableFeatureIndexUpdates,
               mFeatureIndex,
               mSampleIndex,
@@ -285,7 +303,11 @@ void generateNetCDFIndexes(const string &samplesPath,
               vSparseStart,
               vSparseEnd,
               vSparseIndex,
-              vSparseData);
+              vSparseData,
+              cout)) {
+
+        return false;
+    }
 
     // Now export the updated indices files only if they were updated.
     if (featureIndexUpdated) {
@@ -297,31 +319,8 @@ void generateNetCDFIndexes(const string &samplesPath,
         exportIndex(mSampleIndex, outSampleIndexFileName);
         cout << "Exported " << outSampleIndexFileName << " with " << mSampleIndex.size() << " entries." << endl;
     }
-}
 
-void generateNetCDFIndexes(const string &samplesFileName,
-                           const bool enableFeatureIndexUpdates,
-                           const string &dataSetName,
-                           unordered_map<string, unsigned int> &mFeatureIndex,
-                           unordered_map<string, unsigned int> &mSampleIndex,
-                           vector<unsigned int> &vSparseStart,
-                           vector<unsigned int> &vSparseEnd,
-                           vector<unsigned int> &vSparseIndex,
-                           vector<float> &vSparseValue) {
-
-    string outFeatureIndexFileName = dataSetName + FEATURE_INDEX_FILE_SUFFIX;
-    string outSampleIndexFileName = dataSetName + SAMPLES_INDEX_FILE_SUFFIX;
-    generateNetCDFIndexes(samplesFileName,
-                          enableFeatureIndexUpdates,
-                          outFeatureIndexFileName,
-                          outSampleIndexFileName,
-                          mFeatureIndex,
-                          mSampleIndex,
-                          vSparseIndex,
-                          vSparseEnd,
-                          vSparseIndex,
-                          vSparseValue);
-
+    return true;
 }
 
 unsigned int roundUpMaxIndex(unsigned int maxFeatureIndex) {
