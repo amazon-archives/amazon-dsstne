@@ -60,9 +60,9 @@ RUN cd /tmp  && \
 
 #Installing hdf5
 RUN cd /tmp && \
-    wget ftp://ftp.unidata.ucar.edu/pub/netcdf/netcdf-4/hdf5-1.8.9.tar.gz && \
-    tar xvfz hdf5-1.8.9.tar.gz && \
-    cd hdf5-1.8.9 && \
+    wget ftp://ftp.unidata.ucar.edu/pub/netcdf/netcdf-4/hdf5-1.8.12.tar.gz && \
+    tar xvfz hdf5-1.8.12.tar.gz && \
+    cd hdf5-1.8.12 && \
     ./configure --prefix=/usr/local &&\
     make && \
     make install && rm -rf /tmp/*

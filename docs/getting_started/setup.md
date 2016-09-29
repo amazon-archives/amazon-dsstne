@@ -106,9 +106,9 @@ NetCDF is the format which is supported inherently from DSSTNE engine. It is req
 #### HDF5 Setup
 ```bash
 # Ubuntu/Linux 64-bit
-wget ftp://ftp.unidata.ucar.edu/pub/netcdf/netcdf-4/hdf5-1.8.9.tar.gz
-tar xvfz hdf5-1.8.9.tar.gz
-cd hdf5-1.8.9
+wget ftp://ftp.unidata.ucar.edu/pub/netcdf/netcdf-4/hdf5-1.8.12.tar.gz
+tar xvfz hdf5-1.8.12.tar.gz
+cd hdf5-1.8.12
 ./configure --prefix=/usr/local
 make
 sudo make install
