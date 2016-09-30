@@ -1,12 +1,37 @@
 DSSTNE currently only supports Fully Connected layers and the network structure for training is defined through a config json representation.
 
 # Data Formats
-DSSTNE Engine takes in data only in NetCDF Format. There are some wrappers which convert the following format to NetCDF. The separator between the example and features is TAB
+
+DSSTNE Engine works with data only in [NetCDF format](http://www.unidata.ucar.edu/software/netcdf/).
+
+If your data is not available in NetCDF format, DSSTNE includes a utility, `generateNetCDF`, that can be used to convert data from a simple (human-readable) form to NetCDF format.
+
+## Example ##
+
+In the custom format supported by `generateNetCDF`, each line contains a sample. Each sample begins with a sample name followed by a TAB (`\t`) character, then a list of feature names associated with that sample. Feature names are delimited by a colon character (`:`).
+
+In the following example, each sample is associated with three features:
+
 ```bash
 Example1	Feature1:Feature2:Feature3
 Example2	Feature5:Feature2:Feature4
 Example3	Feature6:Feature7:Feature8
 ```
+
+Note that sample and feature names should consist only of alpha-numeric characters, underscores and periods.
+
+## Indicators and Analog Values ##
+
+In the example above, the features are all _indicators_ - that is, they represent the presence of a given feature.
+
+Our custom format also supports features with numeric, or _analog_, values. An analog value can be provided by appending a comma character (`,`) to a feature name, followed by an integer or floating point value.
+```bash
+Example1    Feature1,123
+Example2    Feature2,234
+Example3    Feature3,345:Feature4,456
+```
+
+Support for analog values in `generateNetCDF` is currently incomplete, but is [coming soon](https://github.com/amznlabs/amazon-dsstne/issues/69).
 
 # Neural Network Layer Definition Language
 The definitions for the Neural Network fed into DSSTNE is represented in a Json Format. All the supported feature can be found at [LDL.txt](LDL.txt). Sample one is given below
