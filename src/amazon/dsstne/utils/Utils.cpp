@@ -257,3 +257,61 @@ int listFiles(const string &dirname, const bool recursive, vector<string> &files
     std::sort(files.begin(), files.end());
     return 0;
 }
+
+
+template<typename Tkey, typename Tval>
+bool cmpFirst(const pair<Tkey, Tval>& left, const pair<Tkey, Tval>& right) {
+  if (left.first > right.first) { // biggest comes first
+    return true;
+  } else {
+    return false;
+  }
+}
+
+template<typename Tkey, typename Tval>
+bool cmpSecond(const pair<Tkey, Tval>& left, const pair<Tkey, Tval>& right) {
+  if (left.second > right.second) { // biggest comes first
+    return true;
+  } else {
+    return false;
+  }
+}
+
+template<typename Tkey, typename Tval>
+void topKsort(Tkey* keys, Tval* vals, const int size, Tkey* topKkeys, Tval* topKvals, const int topK, const bool sortByKey = true) {
+  if (!keys || !topKkeys || !topKvals) {
+    cout << "null input array" << endl;
+    exit(0);
+  }
+  vector<pair<Tkey, Tval> > data(size);
+  if (vals) {
+    for (int i = 0; i < size; i++) {
+      data[i].first = keys[i];
+      data[i].second = vals[i];
+    }
+  } else {
+    for (int i = 0; i < size; i++) {
+      data[i].first = keys[i];
+      data[i].second = i;
+    }
+  }
+
+  if (sortByKey) {
+    std::nth_element(data.begin(), data.begin() + topK, data.end(), cmpFirst<Tkey, Tval>);
+    std::sort(data.begin(), data.begin() + topK, cmpFirst<Tkey, Tval>);
+  } else {
+    std::nth_element(data.begin(), data.begin() + topK, data.end(), cmpSecond<Tkey, Tval>);
+    std::sort(data.begin(), data.begin() + topK, cmpSecond<Tkey, Tval>);
+  }
+  for (int i = 0; i < topK; i++) {
+    topKkeys[i] = data[i].first;
+    topKvals[i] = data[i].second;
+  }
+}
+
+template
+void topKsort<float, unsigned int>(float*, unsigned int*, const int, float*, unsigned int*, const int, const bool);
+
+template
+void topKsort<float, float>(float*, float*, const int, float*, float*, const int, const bool);
+

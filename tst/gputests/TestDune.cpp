@@ -5,6 +5,7 @@
 #include <string>
 
 #include "TestGpu.cpp"
+#include "TestSort.cpp"
 
 /**
  * In order to write a new test case, create a Test<File>.cpp and write the test
@@ -18,5 +19,6 @@
 int main() {
     CppUnit::TextUi::TestRunner runner;
     runner.addTest(TestGpu::suite());
+    runner.addTest(TestSort::suite());
     return !runner.run();
 }
