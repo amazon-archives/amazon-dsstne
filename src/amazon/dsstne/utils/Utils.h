@@ -102,3 +102,17 @@ bool isFile(const string &filename);
  */
 int listFiles(const string &dirname, const bool recursive, vector<string> &files);
 
+// sort top K by keys and return top keys with top values
+template<typename Tkey, typename Tval>
+void topKsort(Tkey* keys, Tval* vals, const int size, Tkey* topKkeys, Tval* topKvals, const int topK, const bool sortByKey = true);
+
+
+// min max - inclusive
+inline int rand(int min, int max) {
+  return rand() % (max - min + 1) + min;
+}
+
+inline float rand(float min, float max) {
+  float r = (float)rand() / (float)RAND_MAX;
+  return min + r * (max - min);
+}
