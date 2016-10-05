@@ -5,11 +5,6 @@
 // STL
 #include <string>
 
-<<<<<<< Updated upstream
-#include "Utils.h"
-
-
-=======
 #include "GpuTypes.h"
 #include "NNTypes.h"
 #include "kernels.h"
@@ -17,7 +12,6 @@
 
 
 using namespace std;
->>>>>>> Stashed changes
 
 void randData(NNFloat* pTarget, NNFloat* pOut, const size_t batch, const size_t nFeatures, const size_t stride) {
   memset(pTarget, 0, stride * batch * sizeof(NNFloat));

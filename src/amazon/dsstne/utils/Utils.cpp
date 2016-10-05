@@ -277,7 +277,7 @@ bool cmpSecond(const pair<Tkey, Tval>& left, const pair<Tkey, Tval>& right) {
 }
 
 template<typename Tkey, typename Tval>
-void topKsort(Tkey* keys, Tval* vals, const int size, Tkey* topKkeys, Tval* topKvals, const int topK, const bool sortByKey = true) {
+void topKsort(Tkey* keys, Tval* vals, const int size, Tkey* topKkeys, Tval* topKvals, const int topK, const bool sortByKey) {
   if (!keys || !topKkeys || !topKvals) {
     cout << "null input array" << endl;
     exit(0);

@@ -4,15 +4,7 @@
 // STL
 #include <string>
 
-<<<<<<< Updated upstream
-#include "TestGpu.cpp"
-<<<<<<< Updated upstream
 #include "TestSort.cpp"
-=======
-=======
-#include "TestSort.cpp"
->>>>>>> Stashed changes
->>>>>>> Stashed changes
 
 /**
  * In order to write a new test case, create a Test<File>.cpp and write the test
@@ -25,14 +17,6 @@
 
 int main() {
     CppUnit::TextUi::TestRunner runner;
-<<<<<<< Updated upstream
-    runner.addTest(TestGpu::suite());
-<<<<<<< Updated upstream
     runner.addTest(TestSort::suite());
-=======
-=======
-    runner.addTest(TestSort::suite());
->>>>>>> Stashed changes
->>>>>>> Stashed changes
     return !runner.run();
 }
