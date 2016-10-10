@@ -540,17 +540,16 @@ _receiveIndex(1)
                     bFound                      = true;
                     break;
                 }
-
+            }
                 // Complain and exit if source for shared weights wasn't located
-                if (!bFound)
-                {
-                    if (getGpu()._id == 0)
-                        printf("NNNetwork::NNNetwork: Unable to locate shared weights for connection between layers %s and %s.\n", 
-                            _vWeight[i]->_inputLayer._name.c_str(), _vWeight[i]->_outputLayer._name.c_str());
-                    getGpu().Shutdown();
-                    exit(-1);
-                }
-            }           
+            if (!bFound)
+            {
+                if (getGpu()._id == 0)
+                    printf("NNNetwork::NNNetwork: Unable to locate shared weights for connection between layers %s and %s.\n", 
+                        _vWeight[i]->_inputLayer._name.c_str(), _vWeight[i]->_outputLayer._name.c_str());
+                getGpu().Shutdown();
+                exit(-1);
+            }
         }
     } 
 
@@ -2657,10 +2656,10 @@ NNNetwork* LoadNeuralNetworkJSON(const string& fname, const uint32_t batch, cons
                 // Read input layer(s)
                 else if (name.compare("layers") == 0)
                 {
-                    vector<NNWeightDescriptor> vSharedWeight;
                     uint32_t size                   = value.isArray() ? value.size() : 1;
                     for (uint32_t i = 0; i < size; i++)
                     {
+                        vector<NNWeightDescriptor> vSharedWeight;
                         NNLayerDescriptor ldl;
                         bool bSource                = false;                      
                         Json::Value layer           = value.isArray() ? value[i] : value;
