@@ -16,7 +16,12 @@
  */
 
 int main() {
+    getGpu().Startup(0, NULL);
+    getGpu().SetRandomSeed(12345);
+    getGpu().CopyConstants();
     CppUnit::TextUi::TestRunner runner;
     runner.addTest(TestSort::suite());
-    return !runner.run();
+    const bool result = runner.run();
+    getGpu().Shutdown();
+    return result ? EXIT_SUCCESS : EXIT_FAILURE;
 }

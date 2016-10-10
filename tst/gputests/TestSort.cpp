@@ -211,9 +211,6 @@ class TestSort : public CppUnit::TestFixture
 public:             // Interface
     void            TestCPU_GPUSort()
     {
-      // Initialize GPU
-      getGpu().SetRandomSeed(12345);
-      getGpu().CopyConstants();
       {
         const size_t BATCH = 128;
         const size_t TOP_K = 128;
@@ -249,7 +246,6 @@ public:             // Interface
         bool result = testTopK(BATCH, TOP_K, N_FEATURES);
         CPPUNIT_ASSERT_MESSAGE("failed with N_FEATURES = 64, TOP_K = 32", result);
       }
-      //getGpu().Shutdown();
     }
     
 public:
