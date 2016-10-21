@@ -1,0 +1,6 @@
+/bin/
+/lib/
+/utils/encoder
+/utils/generateNetCDF
+/utils/predict
+/utils/train
