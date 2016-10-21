@@ -142,7 +142,7 @@ int main(int argc, char** argv)
         GpuBuffer<NNFloat>* pbKey           = new GpuBuffer<NNFloat>(batch * K, true);
         GpuBuffer<unsigned int>* pbUIValue  = new GpuBuffer<unsigned int>(batch * K, true);
         GpuBuffer<NNFloat>* pbFValue        = new GpuBuffer<NNFloat>(batch * K, true);
-        NNFloat* pOutputValue               = pbOutput->_pSysData;
+        NNFloat* pOutputValue               = pbOutput->SysData();
         bool bMultiGPU                      = (getGpu()._numprocs > 1);     
         GpuBuffer<NNFloat>* pbMultiKey      = NULL;
         GpuBuffer<NNFloat>* pbMultiFValue   = NULL;
@@ -185,7 +185,7 @@ int main(int argc, char** argv)
             unsigned int batch              = pNetwork->GetBatch();
             if (pos + batch > pNetwork->GetExamples())
                 batch                       = pNetwork->GetExamples() - pos;
-            NNFloat* pTarget                = pbTarget->_pSysData;
+            NNFloat* pTarget                = pbTarget->SysData();
             memset(pTarget, 0, STRIDE * batch * sizeof(NNFloat));            
             NNFloat* pOutputKey             = pNetwork->GetUnitBuffer("Output");
             NNFloat* pOut                   = pOutputValue;
@@ -246,8 +246,8 @@ int main(int argc, char** argv)
             {
                 pbKey->Download();
                 pbFValue->Download();
-                NNFloat* pKey                   = pbKey->_pSysData;
-                NNFloat* pValue                 = pbFValue->_pSysData;
+                NNFloat* pKey                   = pbKey->SysData();
+                NNFloat* pValue                 = pbFValue->SysData();
                 for (int i = 0; i < batch; i++)
                 {
                     NNFloat p                   = vDataPoints[i];

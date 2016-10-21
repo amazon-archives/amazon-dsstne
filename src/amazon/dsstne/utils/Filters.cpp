@@ -32,7 +32,7 @@ using namespace std;
 void AbstractFilter::updateRecords(float *xArray,unordered_map<int,float> *xFilter)
 {
 
-    if(xFilter != NULL && xFilter->size() >0 )
+    if (xFilter && xFilter->size() >0)
     {
         unordered_map<int,float>::iterator filterIter;
         for (filterIter = xFilter->begin(); filterIter != xFilter->end(); ++filterIter)
@@ -54,7 +54,7 @@ void AbstractFilter::updateRecords(float *xArray,unordered_map<int,float> *xFilt
     */
     
 
-    if(xFilter != NULL && xFilter->size() >0 )
+    if (xFilter && xFilter->size() >0)
     {
         unordered_map<int,float>::iterator filterIter;
         for (filterIter = xFilter->begin(); filterIter != xFilter->end(); ++filterIter)
@@ -77,12 +77,12 @@ int gSamplesLoggingInterval = 10000;
 
 void SamplesFilter::loadSingleFilter(unordered_map<string, unsigned int> &xMInput,
                                      unordered_map<string, unsigned int> &xMSamples,
-                                     vector<unordered_map<int,float>*> &sampleFilters,
+                                     vector<unique_ptr<unordered_map<int,float>>> &sampleFilters,
                                      const string &filePath) {
     ifstream samplesFile(filePath);
     timeval ts;
     gettimeofday(&ts, NULL);
-    unordered_map<int,float>* customerSampleFilter =  NULL;
+    unordered_map<int,float>* customerSampleFilter =  nullptr;
     int samplesFilterCount = 0;
     vector<string> filters;
     if(samplesFile.good())
@@ -142,7 +142,7 @@ void SamplesFilter::loadSingleFilter(unordered_map<string, unsigned int> &xMInpu
             }
             if(sample != -1)
             {
-                sampleFilters[sample] = customerSampleFilter;
+                sampleFilters[sample].reset(customerSampleFilter);
                 ++samplesFilterCount;
                 if(samplesFilterCount % gSamplesLoggingInterval ==0)
                 {
@@ -187,7 +187,7 @@ void SamplesFilter::loadFilter(unordered_map<string, unsigned int>& xMInput,
     */
 
 
-    samplefilters = new vector<unordered_map<int,float>*>(xMSamples.size()) ;
+    samplefilters.reset(new vector<unique_ptr<unordered_map<int,float>>>(xMSamples.size()));
 
     vector<string> files;
     if (listFiles(filterFilePath, false, files) == 0) {
@@ -195,7 +195,7 @@ void SamplesFilter::loadFilter(unordered_map<string, unsigned int>& xMInput,
 
         for (auto const &file: files) {
             cout << "\tLoading filter: " << file << endl;
-            loadSingleFilter(xMInput, xMSamples, *samplefilters, file);
+            loadSingleFilter(xMInput, xMSamples, *samplefilters.get(), file);
         }
     }
 
@@ -204,26 +204,18 @@ void SamplesFilter::loadFilter(unordered_map<string, unsigned int>& xMInput,
 
 void SamplesFilter::applyFilter(float *xArray,int xSamplesIndex, int offSet, int width)
 {
-    unordered_map<int,float> *filter= (*samplefilters)[xSamplesIndex];
+    unordered_map<int,float> *filter= (*samplefilters)[xSamplesIndex].get();
     updateRecords(xArray,filter, offSet, width);
 }
 
 void SamplesFilter::applyFilter(float *xArray,int xSamplesIndex)
 {
-    unordered_map<int,float> *filter= (*samplefilters)[xSamplesIndex];
+    unordered_map<int,float> *filter= (*samplefilters)[xSamplesIndex].get();
     updateRecords(xArray,filter);
 }
 
 SamplesFilter::~SamplesFilter()
 {
-    vector<unordered_map<int,float>*>::iterator samplesiter;
-    for(samplesiter = samplefilters -> begin() ; samplesiter!= samplefilters->end(); ++samplesiter)
-    {
-        delete(*samplesiter);
-    }
-    delete(samplefilters);
-
-
 }
 
 /**

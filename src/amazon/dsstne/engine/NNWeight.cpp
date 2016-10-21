@@ -219,13 +219,13 @@ _bTransposed(bTransposed),
 _bLocked(bLocked),
 _norm(norm),
 _pSharedWeight(NULL),
-_pbWeight(NULL),
-_pbBias(NULL),
-_pbWeightGradient(NULL),
-_pbWeightVelocity(NULL),
-_pbBiasVelocity(NULL),
-_pbWeightGradientVelocity(NULL),
-_pbBiasGradientVelocity(NULL)
+_pbWeight(),
+_pbBias(),
+_pbWeightGradient(),
+_pbWeightVelocity(),
+_pbBiasVelocity(),
+_pbWeightGradientVelocity(),
+_pbBiasGradientVelocity()
 {
     // Add to input and output layer lists
     inputLayer._vOutgoingLayer.push_back(&outputLayer);
@@ -261,35 +261,25 @@ _pbBiasGradientVelocity(NULL)
         if (getGpu()._id == 0)
             printf("NNWeight::NNWeight: Allocating %" PRIu64 " bytes (%" PRIu64 ", %" PRIu64 ") for weights between %s and %s\n", _size * sizeof(float), _width, _height, inputLayer._name.c_str(), outputLayer._name.c_str());
         _vWeight.resize(_size);
-        _pbWeight           = new GpuBuffer<NNFloat>((uint64_t)_size);
-        _pbWeightGradient   = new GpuBuffer<NNFloat>((uint64_t)_size);        
+        _pbWeight.reset(new GpuBuffer<NNFloat>((uint64_t)_size));
+        _pbWeightGradient.reset(new GpuBuffer<NNFloat>((uint64_t)_size));
     }
 
     _vBias.resize(outputLayer._localStride);
-    _pbBias                 = new GpuBuffer<NNFloat>((uint64_t)outputLayer._localStride);
+    _pbBias.reset(new GpuBuffer<NNFloat>((uint64_t)outputLayer._localStride));
 }
 
 NNWeight::~NNWeight()
 {
-    if (!_bShared)
-    {
-        delete _pbWeight;
-        delete _pbWeightVelocity;
-        delete _pbWeightGradient;
-        delete _pbWeightGradientVelocity;
-    }
-    delete _pbBias;
-    delete _pbBiasVelocity;
-    delete _pbBiasGradientVelocity;
 }
 
 void NNWeight::ClearVelocity()
 {
     cudaMemset(_pbWeightVelocity->_pDevData, 0, _size * sizeof(NNFloat));
     cudaMemset(_pbBiasVelocity->_pDevData, 0, _outputLayer._localStride * sizeof(NNFloat));
-    if (_pbWeightGradientVelocity != NULL)
+    if (_pbWeightGradientVelocity)
         cudaMemset(_pbWeightGradientVelocity->_pDevData, 0, _size * sizeof(NNFloat));
-    if (_pbBiasGradientVelocity != NULL)
+    if (_pbBiasGradientVelocity)
         cudaMemset(_pbBiasGradientVelocity->_pDevData, 0, _outputLayer._localStride * sizeof(NNFloat));
 }
 
@@ -371,36 +361,30 @@ void NNWeight::RefreshState(TrainingMode mode)
     if (mode != TrainingMode::SGD)
     {
         if (!_pbWeightVelocity)
-            _pbWeightVelocity               = new GpuBuffer<NNFloat>(_size);
+            _pbWeightVelocity.reset(new GpuBuffer<NNFloat>(_size));
         if (!_pbBiasVelocity)
-            _pbBiasVelocity                 = new GpuBuffer<NNFloat>(_outputLayer._localStride);
+            _pbBiasVelocity.reset(new GpuBuffer<NNFloat>(_outputLayer._localStride));
             
         // Add additional buffers for AdaDelta and Adam
         if (mode == TrainingMode::AdaDelta)
         {
             if (!_pbWeightGradientVelocity)
-                _pbWeightGradientVelocity   = new GpuBuffer<NNFloat>(_size);
+                _pbWeightGradientVelocity.reset(new GpuBuffer<NNFloat>(_size));
             if (!_pbBiasGradientVelocity)
-                _pbBiasGradientVelocity     = new GpuBuffer<NNFloat>(_outputLayer._localStride);            
+                _pbBiasGradientVelocity.reset(new GpuBuffer<NNFloat>(_outputLayer._localStride));
         }
         else
         {
-            delete _pbWeightGradientVelocity;
-            delete _pbBiasGradientVelocity;        
-            _pbWeightGradientVelocity       = NULL;
-            _pbBiasGradientVelocity         = NULL;
+            _pbWeightGradientVelocity.reset();
+            _pbBiasGradientVelocity.reset();
         }
     }
     else
     {
-        delete _pbWeightVelocity;
-        delete _pbBiasVelocity;
-        delete _pbWeightGradientVelocity;
-        delete _pbBiasGradientVelocity;
-        _pbWeightVelocity                   = NULL;
-        _pbBiasVelocity                     = NULL;
-        _pbWeightGradientVelocity           = NULL;
-        _pbBiasGradientVelocity             = NULL;
+        _pbWeightVelocity.reset();
+        _pbBiasVelocity.reset();
+        _pbWeightGradientVelocity.reset();
+        _pbBiasGradientVelocity.reset();
     }
 }
 

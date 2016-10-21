@@ -12,19 +12,22 @@
 
 #ifndef __GPUSORT_H__
 #define __GPUSORT_H__
+
+#include <memory>
+
 template<typename KeyType, typename ValueType> class GpuSort
 {
 private:
     unsigned int                    _items;
     unsigned int                    _itemStride;
-    GpuBuffer<KeyType>*             _pbKey;
+    unique_ptr<GpuBuffer<KeyType>>  _pbKey;
     KeyType*                        _pKey0;
     KeyType*                        _pKey1;
-    GpuBuffer<ValueType>*           _pbValue;
+    unique_ptr<GpuBuffer<ValueType>> _pbValue;
     ValueType*                      _pValue0;
     ValueType*                      _pValue1;
     size_t                          _tempBytes;
-    GpuBuffer<char>*                _pbTemp;
+    unique_ptr<GpuBuffer<char>>     _pbTemp;
     KeyType*                        _pKey;
     ValueType*                      _pValue;
 
@@ -40,7 +43,7 @@ public:
     _pbValue(new GpuBuffer<ValueType>(_itemStride * 2)),
     _pValue0(_pbValue->_pDevData),
     _pValue1(_pbValue->_pDevData + _itemStride),
-    _tempBytes(kInitSort(_items, _pbValue, _pbKey)),
+    _tempBytes(kInitSort(_items, _pbValue.get(), _pbKey.get())),
     _pbTemp(new GpuBuffer<char>(_tempBytes))
     {
         _pKey                       = _pKey0;
@@ -49,13 +52,10 @@ public:
 
     ~GpuSort()
     {
-        delete _pbKey;
-        delete _pbValue;
-        delete _pbTemp;
     }
     bool Sort() { return kSort(_items, _pKey0, _pKey1, _pValue0, _pValue1, _pbTemp->_pDevData, _tempBytes); }
-    GpuBuffer<KeyType>* GetKeyBuffer() { return _pbKey; }
-    GpuBuffer<ValueType>* GetValueBuffer() { return _pbValue; }
+    GpuBuffer<KeyType>* GetKeyBuffer() { return _pbKey.get(); }
+    GpuBuffer<ValueType>* GetValueBuffer() { return _pbValue.get(); }
     KeyType* GetKeyPointer() { return _pKey;}
     ValueType* GetValuePointer() { return _pValue; }
 };

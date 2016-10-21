@@ -17,6 +17,7 @@
 #include <sstream>
 #include <vector>
 #include <map>
+#include <memory>
 #include <netcdf>
 #include <sys/time.h>
 #include <values.h>
@@ -123,7 +124,7 @@ int main(int argc, char** argv)
     vDataSetInput.insert(vDataSetInput.end(), vDataSetOutput.begin(), vDataSetOutput.end());
 
     // Create a Neural network from the config
-    NNNetwork* pNetwork = LoadNeuralNetworkJSON(configFileName, batchSize, vDataSetInput);
+    unique_ptr<NNNetwork> pNetwork(LoadNeuralNetworkJSON(configFileName, batchSize, vDataSetInput));
     
     // Load training data
     pNetwork->LoadDataSets(vDataSetInput);
@@ -160,7 +161,7 @@ int main(int argc, char** argv)
     CWMetric::updateMetrics("Training_GPU_usage", totalGPUMemory);
     // Save Neural network
     pNetwork->SaveNetCDF(networkFileName);
-    delete pNetwork;
+    pNetwork.reset();
     getGpu().Shutdown();
     return 0;
 }

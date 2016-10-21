@@ -214,7 +214,7 @@ int main(int argc, char** argv)
     }
 
     vector <NNDataSetBase*> vDataSetInput = LoadNetCDF(inputNetCDFFileName);
-    NNNetwork* pNetwork = LoadNeuralNetworkNetCDF(networkFileName, batchSize);
+    unique_ptr<NNNetwork> pNetwork(LoadNeuralNetworkNetCDF(networkFileName, batchSize));
     pNetwork->LoadDataSets(vDataSetInput);
 
     // Generate an ordered vector of the signals/samples index, so that output are correctly labeled.
@@ -249,7 +249,7 @@ int main(int argc, char** argv)
     unsigned int lBatch            = pNetwork->GetBatch();
     unsigned int outputBufferSize  = pNetwork->GetBufferSize(recsGenLayerLabel);
 
-    NNRecsGenerator *nnRecsGenerator = new NNRecsGenerator(lBatch, topK, outputBufferSize, recsGenLayerLabel, scoreFormat);
+    unique_ptr<NNRecsGenerator> nnRecsGenerator(new NNRecsGenerator(lBatch, topK, outputBufferSize, recsGenLayerLabel, scoreFormat));
 
     timeval timeRecsGenerationStart;
     gettimeofday(&timeRecsGenerationStart, NULL);
@@ -262,7 +262,7 @@ int main(int argc, char** argv)
 
         pNetwork->SetPosition(pos);
         pNetwork->PredictBatch();
-        nnRecsGenerator->generateRecs(pNetwork, topK, vFilterSet, vSignals, vOutput);
+        nnRecsGenerator->generateRecs(pNetwork.get(), topK, vFilterSet, vSignals, vOutput);
         if((pos % INTERVAL_REPORT_PROGRESS) < pNetwork->GetBatch()  && (pos/INTERVAL_REPORT_PROGRESS) > 0 && getGpu()._id == 0) {
             timeval timeProgressReporterEnd;
             gettimeofday(&timeProgressReporterEnd, NULL);
@@ -279,8 +279,8 @@ int main(int argc, char** argv)
         CWMetric::updateMetrics("Prediction_Time", elapsed_time(timeRecsGenerationEnd, timeRecsGenerationStart));
         cout << "Total time for Generating recs for " << pNetwork->GetExamples() << " was " <<  elapsed_time(timeRecsGenerationEnd, timeRecsGenerationStart) << endl;}
 
-    delete(nnRecsGenerator);
-    delete pNetwork;
+    nnRecsGenerator.reset();
+    pNetwork.reset();
     getGpu().Shutdown();
     return 0;
 }
