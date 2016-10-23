@@ -589,7 +589,7 @@ _pbSparseTransposedData(NULL)
         {
             // Work around poor exception throwing design here
             NcFile nfc(fname.c_str(), NcFile::read);
-            bool bOpened                        = true;
+            bOpened                             = true;
             
             string nstring                      = to_string(n);
             string vname                        = "name" + nstring;
