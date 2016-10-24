@@ -954,7 +954,7 @@ template<typename T> bool NNDataSet<T>::GenerateSparseTransposedMatrix(uint32_t 
 
 template<typename T> bool NNDataSet<T>::SetDenoising(bool flag)
 {
-    if (!_attributes & NNDataSetEnums::Sparse)
+    if (!(_attributes & NNDataSetEnums::Sparse))
     {
         if (getGpu()._id == 0)
         {
@@ -979,7 +979,7 @@ template<typename T> bool NNDataSet<T>::SetDenoising(bool flag)
 
 template<typename T> bool NNDataSet<T>::GenerateDenoisingData()
 {
-    if (!_attributes & NNDataSetEnums::Sparse)
+    if (!(_attributes & NNDataSetEnums::Sparse))
     {
         if (getGpu()._id == 0)
         {
