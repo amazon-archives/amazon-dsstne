@@ -15,6 +15,7 @@
 #include <iostream>
 #include <fstream>
 #include <vector>
+#include <memory>
 #include <string>
 #include <unordered_map>
 #include <stdexcept>
@@ -69,17 +70,15 @@ public:
 class FilterConfig
 {
 private:
-    SamplesFilter *sampleFilter;
+    unique_ptr<SamplesFilter> sampleFilter;
     string outputFileName;
 public :
-    FilterConfig()
+    FilterConfig(): sampleFilter()
     {
-	sampleFilter = NULL;
     }
 
     ~FilterConfig()
     {
-	delete(sampleFilter);
     }
 
     void setOutputFileName(string xOutputFileName)
@@ -94,12 +93,12 @@ public :
 
     void setSamplesFilter(SamplesFilter* xSampleFilter)
     {
-        sampleFilter = xSampleFilter;
+        sampleFilter.reset(xSampleFilter);
     }
 
     void applySamplesFilter(float *xInput, int xSampleIndex, int offSet, int width)
     {
-	    if(sampleFilter != NULL) {
+	    if(sampleFilter) {
 		    sampleFilter->applyFilter(xInput, xSampleIndex, offSet, width);
 	    }
     }
