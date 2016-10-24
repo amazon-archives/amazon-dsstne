@@ -30,9 +30,9 @@ _dataSet(d._dataSet),
 _pDataSet(NULL),
 _vSource(d._vSource),
 _vSkip(d._vSkip),
-_pbUnit(NULL),
-_pbDelta(NULL),
-_pbDropout(NULL),
+_pbUnit(),
+_pbDelta(),
+_pbDropout(),
 _Nx(d._Nx),
 _Ny(d._Ny),
 _Nz(d._Nz),
@@ -168,13 +168,9 @@ void NNLayer::Deallocate()
     if (getGpu()._id == 0)
         printf("NNLayer::Allocate: Deallocating all data for layer %s\n", _name.c_str());
 
-    // Recklessly delete everything because the standard says you can...
-    delete _pbUnit;
-    _pbUnit                     = NULL;
-    delete _pbDelta;
-    _pbDelta                    = NULL;
-    delete _pbDropout;
-    _pbDropout                  = NULL;
+    _pbUnit.reset();
+    _pbDelta.reset();
+    _pbDropout.reset();
 }
 
 cudnnTensorDescriptor_t NNLayer::getTensorDescriptor(uint32_t batch)
@@ -317,7 +313,7 @@ void NNLayer::Allocate(bool validate)
     )
     {
         _vUnit.resize(size);
-        _pbUnit                     = new GpuBuffer<NNFloat>(size);    
+        _pbUnit.reset(new GpuBuffer<NNFloat>(size));
         if (getGpu()._id == 0)
             printf("NNLayer::Allocate: Allocating %" PRIu64 " bytes (%u, %u) of unit data for layer %s\n", size * sizeof(NNFloat), _maxLocalStride, _localBatch, _name.c_str());
     }
@@ -326,7 +322,7 @@ void NNLayer::Allocate(bool validate)
     if (_kind != Input)
     {
         _vDelta.resize(size);
-        _pbDelta                    = new GpuBuffer<NNFloat>(size);
+        _pbDelta.reset(new GpuBuffer<NNFloat>(size));
         if (getGpu()._id == 0)       
             printf("NNLayer::Allocate: Allocating %" PRIu64 " bytes (%u, %u) of delta data for layer %s\n", size * sizeof(NNFloat), _maxLocalStride, _localBatch, _name.c_str());        
     }
@@ -334,7 +330,7 @@ void NNLayer::Allocate(bool validate)
     // Allocate dropout data if active
     if (_pDropout > (NNFloat)0.0)
     {
-        _pbDropout                  = new GpuBuffer<NNFloat>(size);
+        _pbDropout.reset(new GpuBuffer<NNFloat>(size));
         if (getGpu()._id == 0)        
             printf("NNLayer::Allocate: Allocating %" PRIu64 " bytes (%u, %u) of dropout data for layer %s\n", size * sizeof(NNFloat), _maxLocalStride, _localBatch, _name.c_str());
     } 
