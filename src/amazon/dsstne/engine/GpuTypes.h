@@ -28,6 +28,7 @@
 #include <cstdint>
 #include <assert.h>
 #include <mpi.h>
+#include <memory>
 
 using namespace std;
 
@@ -351,7 +352,7 @@ struct GpuContext {
 
     // Neural network parameters
     NNNetwork*                          _pNetwork;                  // Pointer to current neural network
-    GpuBuffer<unsigned long long int>*  _pbAccumulator;             // Pointer to per-kernel fix point accumulator
+    unique_ptr<GpuBuffer<unsigned long long int>> _pbAccumulator;   // Pointer to per-kernel fix point accumulator
     bool                                _bCPUValidate;              // Should CPU validate GPU calculations?
     float                               _acceptableError;           // Acceptable error between CPU and GPU
         
