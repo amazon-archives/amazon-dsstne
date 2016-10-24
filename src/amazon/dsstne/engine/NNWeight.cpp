@@ -247,14 +247,14 @@ _bTransposed(bTransposed),
 _bLocked(bLocked),
 _norm(norm),
 _pSharedWeight(NULL),
-_pbWeight(NULL),
-_pbBias(NULL),
-_pbWeightGradient(NULL),
-_pbBiasGradient(NULL),
-_pbWeightVelocity(NULL),
-_pbBiasVelocity(NULL),
-_pbWeightGradientVelocity(NULL),
-_pbBiasGradientVelocity(NULL)
+_pbWeight(),
+_pbBias(),
+_pbWeightGradient(),
+_pbBiasGradient(),
+_pbWeightVelocity(),
+_pbBiasVelocity(),
+_pbWeightGradientVelocity(),
+_pbBiasGradientVelocity()
 {
     // Add to input and output layer lists
     inputLayer._vOutgoingLayer.push_back(&outputLayer);
@@ -400,42 +400,31 @@ _pbBiasGradientVelocity(NULL)
     if (!_bShared)
     {
         _vWeight.resize(_size);
-        _pbWeight           = new GpuBuffer<NNFloat>(_size);
-        _pbWeightGradient   = new GpuBuffer<NNFloat>(_size);        
+        _pbWeight.reset(new GpuBuffer<NNFloat>(_size));
+        _pbWeightGradient.reset(new GpuBuffer<NNFloat>(_size));
     }
 
     _vBias.resize(_biasSize);
-    _pbBias                 = new GpuBuffer<NNFloat>(_biasSize);
+    _pbBias.reset(new GpuBuffer<NNFloat>(_biasSize));
 
     // Add bias graident to convolutions
     if (_transform == Convolution)
     {
-        _pbBiasGradient     = new GpuBuffer<NNFloat>(_biasSize);
+        _pbBiasGradient.reset(new GpuBuffer<NNFloat>(_biasSize));
     }
 }
 
 NNWeight::~NNWeight()
 {
-    if (!_bShared)
-    {
-        delete _pbWeight;
-        delete _pbWeightVelocity;
-        delete _pbWeightGradient;
-        delete _pbWeightGradientVelocity;
-    }
-    delete _pbBias;
-    delete _pbBiasVelocity;    
-    delete _pbBiasGradient;
-    delete _pbBiasGradientVelocity;
 }
 
 void NNWeight::ClearVelocity()
 {
     cudaMemset(_pbWeightVelocity->_pDevData, 0, _size * sizeof(NNFloat));
     cudaMemset(_pbBiasVelocity->_pDevData, 0, _biasSize * sizeof(NNFloat));
-    if (_pbWeightGradientVelocity != NULL)
+    if (_pbWeightGradientVelocity)
         cudaMemset(_pbWeightGradientVelocity->_pDevData, 0, _size * sizeof(NNFloat));
-    if (_pbBiasGradientVelocity != NULL)
+    if (_pbBiasGradientVelocity)
         cudaMemset(_pbBiasGradientVelocity->_pDevData, 0, _biasSize * sizeof(NNFloat));
 }
 
@@ -517,36 +506,30 @@ void NNWeight::RefreshState(NNNetwork* pNetwork, TrainingMode mode)
     if (mode != TrainingMode::SGD)
     {
         if (!_pbWeightVelocity)
-            _pbWeightVelocity               = new GpuBuffer<NNFloat>(_size);
+            _pbWeightVelocity.reset(new GpuBuffer<NNFloat>(_size));
         if (!_pbBiasVelocity)
-            _pbBiasVelocity                 = new GpuBuffer<NNFloat>(_biasSize);
+            _pbBiasVelocity.reset(new GpuBuffer<NNFloat>(_biasSize));
             
         // Add additional buffers for AdaDelta and Adam
         if (mode == TrainingMode::AdaDelta)
         {
             if (!_pbWeightGradientVelocity)
-                _pbWeightGradientVelocity   = new GpuBuffer<NNFloat>(_size);
+                _pbWeightGradientVelocity.reset(new GpuBuffer<NNFloat>(_size));
             if (!_pbBiasGradientVelocity)
-                _pbBiasGradientVelocity     = new GpuBuffer<NNFloat>(_biasSize);            
+                _pbBiasGradientVelocity.reset(new GpuBuffer<NNFloat>(_biasSize));
         }
         else
         {
-            delete _pbWeightGradientVelocity;
-            delete _pbBiasGradientVelocity;        
-            _pbWeightGradientVelocity       = NULL;
-            _pbBiasGradientVelocity         = NULL;
+            _pbWeightGradientVelocity.reset();
+            _pbBiasGradientVelocity.reset();
         }
     }
     else
     {
-        delete _pbWeightVelocity;
-        delete _pbBiasVelocity;
-        delete _pbWeightGradientVelocity;
-        delete _pbBiasGradientVelocity;
-        _pbWeightVelocity                   = NULL;
-        _pbBiasVelocity                     = NULL;
-        _pbWeightGradientVelocity           = NULL;
-        _pbBiasGradientVelocity             = NULL;
+        _pbWeightVelocity.reset();
+        _pbBiasVelocity.reset();
+        _pbWeightGradientVelocity.reset();
+        _pbBiasGradientVelocity.reset();
     }
     
     // If convolution layer, recalculate Convolution settings
