@@ -24,6 +24,7 @@ using namespace std;
 class AbstractFilter
 {
 public:
+    virtual ~AbstractFilter();
     virtual void loadFilter(unordered_map<string, unsigned int>& ,
                             unordered_map<string, unsigned int>& ,
                             string ) = 0;
