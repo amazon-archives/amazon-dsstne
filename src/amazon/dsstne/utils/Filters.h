@@ -41,16 +41,15 @@ protected:
 class SamplesFilter : public AbstractFilter
 {
 private:
-    vector<unordered_map<int,float>*> *samplefilters;
+    unique_ptr<vector<unique_ptr<unordered_map<int,float>>>> samplefilters;
 
     void loadSingleFilter(unordered_map<string, unsigned int> &xMInput,
                           unordered_map<string, unsigned int> &xMSamples,
-                          vector<unordered_map<int,float>*>&sampleFilters,
+                          vector<unique_ptr<unordered_map<int,float>>>&sampleFilters,
                           const string &filePath);
 public:
-    SamplesFilter()
+    SamplesFilter(): samplefilters()
     {
-        samplefilters = NULL;
     }
 
     void loadFilter(unordered_map<string, unsigned int> &xMInput,
