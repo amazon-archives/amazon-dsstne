@@ -45,20 +45,20 @@ NNRecsGenerator::NNRecsGenerator(unsigned int xBatchSize,
                                  unsigned int xOutputBufferSize,
                                  string layer,
 				 string precision)
+    : pbKey(new GpuBuffer<NNFloat>(xBatchSize* xK * TOPK_SCALAR, true)),
+    pbUIValue(new GpuBuffer<unsigned int>(xBatchSize* xK * TOPK_SCALAR, true)),
+    pFilteredOutput(new GpuBuffer<NNFloat>(xOutputBufferSize, true))
 {
     
-    pbKey           = new GpuBuffer<NNFloat>(xBatchSize* xK * TOPK_SCALAR, true);
-    pbUIValue       = new GpuBuffer<unsigned int>(xBatchSize* xK * TOPK_SCALAR, true);
-    pFilteredOutput = new GpuBuffer<NNFloat>(xOutputBufferSize, true);
     recsGenLayerLabel = layer;
     scorePrecision = precision;
 }
 
 void NNRecsGenerator::reset()
 {
-    delete(pbKey);
-    delete(pbUIValue);
-    delete(pFilteredOutput);
+    pbKey.reset();
+    pbUIValue.reset();
+    pFilteredOutput.reset();
 }
 
 void NNRecsGenerator::generateRecs(NNNetwork *xNetwork,
@@ -77,9 +77,9 @@ void NNRecsGenerator::generateRecs(NNNetwork *xNetwork,
 
     // Variables for multi GPU memory copy and sorting 
     bool bMultiGPU                           = (getGpu()._numprocs > 1);
-    GpuBuffer<NNFloat>* pbMultiKey           = NULL;
-    GpuBuffer<unsigned int>* pbMultiUIValue  = NULL;
-    GpuBuffer<unsigned int>* pbUIValueCache  = NULL;
+    unique_ptr<GpuBuffer<NNFloat>> pbMultiKey;
+    unique_ptr<GpuBuffer<unsigned int>> pbMultiUIValue;
+    unique_ptr<GpuBuffer<unsigned int>> pbUIValueCache;
     NNFloat* pMultiKey                       = NULL;
     unsigned int* pMultiUIValue              = NULL;
     unsigned int* pUIValueCache              = NULL;
@@ -109,8 +109,8 @@ void NNRecsGenerator::generateRecs(NNNetwork *xNetwork,
     {
         if (getGpu()._id == 0)
             {
-                pbMultiKey                  = new GpuBuffer<NNFloat>(getGpu()._numprocs * lBatch * xK * TOPK_SCALAR, true);
-                pbMultiUIValue              = new GpuBuffer<unsigned int>(getGpu()._numprocs * lBatch * xK * TOPK_SCALAR, true);
+                pbMultiKey.reset(new GpuBuffer<NNFloat>(getGpu()._numprocs * lBatch * xK * TOPK_SCALAR, true));
+                pbMultiUIValue.reset(new GpuBuffer<unsigned int>(getGpu()._numprocs * lBatch * xK * TOPK_SCALAR, true));
                 pMultiKey                   = pbMultiKey->_pDevData;
                 pMultiUIValue               = pbMultiUIValue->_pDevData;
                 cudaError_t status          = cudaIpcGetMemHandle(&keyMemHandle, pMultiKey);
@@ -173,7 +173,7 @@ void NNRecsGenerator::generateRecs(NNNetwork *xNetwork,
 		    kCalculateTopK(pbMultiKey->_pDevData, pbKey->_pDevData, pbUIValue->_pDevData, lBatch, kstride, xK * TOPK_SCALAR);
 
 		    // Buffer for local Indices
-		    pbUIValueCache              = new GpuBuffer<unsigned int>(getGpu()._numprocs * lBatch * xK * TOPK_SCALAR, true);
+		    pbUIValueCache.reset(new GpuBuffer<unsigned int>(getGpu()._numprocs * lBatch * xK * TOPK_SCALAR, true));
 
 		    // pbUIValueCache for local index of FEATUREs in its GPU
 		    kCalculateTopK(pbMultiKey->_pDevData, pbMultiUIValue->_pDevData, pbKey->_pDevData, pbUIValueCache->_pDevData, lBatch, kstride, xK * TOPK_SCALAR);
@@ -250,9 +250,6 @@ void NNRecsGenerator::generateRecs(NNNetwork *xNetwork,
 		    status                          = cudaIpcCloseMemHandle(pMultiUIValue);
 		    RTERROR(status, "cudaIpcCloseMemHandle: Error closing MultiFValue IpcMemHandle");
             }
-        delete pbMultiKey;
-        delete pbMultiUIValue;
-        delete pbUIValueCache;
      } 
 }
 
