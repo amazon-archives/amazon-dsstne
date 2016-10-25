@@ -11,7 +11,7 @@ You can check [Summary](#summary) for a quick script to run all the steps.
 ## Convert Data
 For this example we will use the movie lens data which was transformed into the [format](userguide.md) which DSSTNE recognizes.
 ```bash
-wget https://s3-us-west-2.amazonaws.com/amazon-dsstne-samples/data/ml20m-all
+wget https://s3.amazonaws.com/amazon-dsstne-data/movielens/ml20m-all
 ```
 Once you have downloaded the data we will convert to the NetCDF format. We will try to run an Auto Encoder with the given data set.
 
@@ -37,7 +37,7 @@ Please ensure that **samples_input** is used as we have to ensure that the examp
 ## Train
 We will train a 3 layer Neural Network with one 128 node hidden layer with Sigmoid as an activation function.
 ```bash
-wget https://s3-us-west-2.amazonaws.com/amazon-dsstne-samples/configs/config.json
+wget https://s3.amazonaws.com/amazon-dsstne-data/movielens/config.json
 cat config.json
 {
     "Version" : 0.7,
@@ -95,13 +95,13 @@ You can run the full pipeline with the following commands or check at [run_movie
 ```bash
 #!/bin/bash
 # Get the Movie lens Dataset
-wget https://s3-us-west-2.amazonaws.com/amazon-dsstne-samples/data/ml20m-all
+wget https://s3.amazonaws.com/amazon-dsstne-data/movielens/ml20m-all
 # Generate Input layer and Output Layer
 generateNetCDF -d gl_input -i ml20m-all -o gl_input.nc -f features_input -s samples_input -c
 generateNetCDF -d gl_output -i ml20m-all -o gl_output.nc -f features_output -s samples_input -c
 
 # Train
-wget https://s3-us-west-2.amazonaws.com/amazon-dsstne-samples/configs/config.json
+wget https://s3.amazonaws.com/amazon-dsstne-data/movielens/config.json
 train -c config.json -i gl_input.nc -o gl_output.nc -n gl.nc -b 256 -e 10
 
 # Predict
