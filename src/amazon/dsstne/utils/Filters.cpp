@@ -25,6 +25,10 @@
 using namespace Json;
 using namespace std;
 
+AbstractFilter::~AbstractFilter()
+{
+}
+
 /**
         Updates the records in the array with the filters
         x[Index] =  x[Index] * (filterValue for that index)
