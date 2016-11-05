@@ -1,0 +1,6 @@
+/src/amazon/dsstne/bin/
+/src/amazon/dsstne/lib/
+/src/amazon/dsstne/utils/encoder
+/src/amazon/dsstne/utils/generateNetCDF
+/src/amazon/dsstne/utils/predict
+/src/amazon/dsstne/utils/train
