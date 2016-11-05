@@ -46,7 +46,8 @@ _SMCE_zeroScale((NNFloat)1.0),
 _name(""),
 _checkpoint_name("checkpoint"),
 _checkpoint_interval(0),
-_checkpoint_epochs(0)
+_checkpoint_epochs(0),
+_bConvLayersCalculated(false)
 {
 
 }
@@ -89,7 +90,6 @@ ostream& operator<< (ostream& out, NNNetworkDescriptor& d)
     {
         out << "Weight " << i << endl << d._vWeightDescriptor[i];
     }
-
     return out;
 }
 
@@ -163,6 +163,14 @@ NNFloat* NNNetwork::GetScratchBuffer(size_t size)
     
     }
     return _pbScratchBuffer->_pDevData;
+}
+
+void NNNetwork::SetCUDNNWorkspace(size_t size)
+{
+    if (size > _maxCUDNNWorkspaceSize)
+    {
+        _maxCUDNNWorkspaceSize = size;
+    }
 }
 
 NNFloat* NNNetwork::GetP2PSendBuffer()
@@ -353,7 +361,9 @@ _kind(d._kind),
 _mode(Prediction),
 _trainingMode(SGD),
 _batch(batch),
+_localBatch(batch),
 _position(0),
+_localPosition(0),  
 _bShuffleIndices(d._bShuffleIndices),
 _shuffleIndices(0),
 _pShuffleIndex(NULL),
@@ -392,7 +402,10 @@ _pPeerBuffer{NULL, NULL},
 _pbP2PBuffer{NULL, NULL},
 _pCPUBuffer(NULL),
 _sendIndex(0),
-_receiveIndex(1)
+_receiveIndex(1),
+_CUDNNWorkspaceSize(0),
+_maxCUDNNWorkspaceSize(0),
+_pbCUDNNWorkspace(NULL)
 {
 
     // Allocate layers
@@ -419,6 +432,43 @@ _receiveIndex(1)
         cout << "NNNetwork::NNNetwork: " << _vOutputLayer.size() << " output layer" << (_vOutputLayer.size() > 1 ? "s" : "") << endl;
     }
 
+    // Add skip layers and pooling connections
+    for (auto l : _vLayer)
+    {
+        
+        // Handle skip connections
+        for (auto s : l->_vSkip)
+        {
+            NNLayer* pLayer = _mLayer[s];
+            
+            // Make sure dimensions match
+            if (pLayer->_stride != l->_stride)
+            {
+                if (getGpu()._id == 0)
+                    printf("NNNetwork::NNNetwork: Layer dimensions do not match for skip connection between layer %s and %s.\n", 
+                            l->_name.c_str(), pLayer->_name.c_str());
+                getGpu().Shutdown();
+                exit(-1);                
+            }
+            
+            l->_vIncomingSkip.push_back(pLayer);
+            pLayer->_vOutgoingSkip.push_back(l);
+        }
+        
+        // Add pooling connections
+        if (l->_type == NNLayer::Type::Pooling)
+        {
+            for (auto s: l->_vSource)
+            {
+                NNLayer* pLayer = _mLayer[s]; 
+                l->_vIncomingLayer.push_back(pLayer);
+                pLayer->_vOutgoingLayer.push_back(l);  
+                
+                // BUG Multi-GPU              
+            }
+        }
+    }
+
     // Allocate weights between layers
     for (auto wd: d._vWeightDescriptor)
     {
@@ -434,7 +484,7 @@ _receiveIndex(1)
             pWeight->Randomize();
         }
 
-        // Copy weights if unshared and values are supplied (sharded across input layer if multi-GPU)
+        // Copy weights if unshared and values are supplied (sharded across input layer if model parallel multi-GPU)
         if (!wd._bShared && (wd._vWeight.size() != 0))
         {
             if (getGpu()._numprocs > 1)
@@ -541,40 +591,19 @@ _receiveIndex(1)
                     break;
                 }
             }
-                // Complain and exit if source for shared weights wasn't located
+            
+            // Complain and exit if source for shared weights wasn't located
             if (!bFound)
             {
                 if (getGpu()._id == 0)
                     printf("NNNetwork::NNNetwork: Unable to locate shared weights for connection between layers %s and %s.\n", 
-                        _vWeight[i]->_inputLayer._name.c_str(), _vWeight[i]->_outputLayer._name.c_str());
+                    _vWeight[i]->_inputLayer._name.c_str(), _vWeight[i]->_outputLayer._name.c_str());
                 getGpu().Shutdown();
                 exit(-1);
-            }
+            }        
         }
     } 
-
-    // Add skip layers
-    for (auto l : _vLayer)
-    {
-        for (auto s : l->_vSkip)
-        {
-            NNLayer* pLayer = _mLayer[s];
-            
-            // Make sure dimensions match
-            if (pLayer->_stride != l->_stride)
-            {
-                if (getGpu()._id == 0)
-                    printf("NNNetwork::NNNetwork: Layer dimensions do not match for skip connection between layer %s and %s.\n", 
-                            l->_name.c_str(), pLayer->_name.c_str());
-                getGpu().Shutdown();
-                exit(-1);                
-            }
-            
-            l->_vIncomingSkip.push_back(pLayer);
-            pLayer->_vOutgoingSkip.push_back(l);
-        }
-    }
-
+    
     CalculatePropagationOrder();
 }
 
@@ -597,12 +626,12 @@ void NNNetwork::SetBatch(uint32_t batch)
     if (batch != _batch)
     {
         _batch                  = batch;
-        for (auto pl: _vLayer)
+        for (auto pL: _vLayer)
         {
-            pl->SetBatch(batch);
+            pL->SetBatch(batch);
         }       
-        _bDirty                 = true;
 
+        _bDirty                 = true;
         if (getGpu()._id == 0)
             printf("NNNetwork::SetBatch: Batch size set to %d.\n", _batch);
     }
@@ -844,23 +873,19 @@ void NNNetwork::RefreshState()
 
     if (_bDirty)
     {
-    
         // Reallocate layers if batch size doesn't match
         for (auto l: _vLayer)
         {
             if (l->_bDirty)
             {
-                l->RefreshState(_mode == Validation);
+                l->RefreshState(this, _mode == Validation);
             }
         }
 
         // Add weight gradients and velocity if needed
-        if ((_trainingMode != SGD) || (_mode == Validation))
+        for (auto w: _vWeight)
         {
-            for (auto w: _vWeight)
-            {
-                w->RefreshState(_trainingMode);
-            }
+            w->RefreshState(this, _trainingMode);
         }
 
         // Allocate index shuffle buffers
@@ -874,6 +899,15 @@ void NNNetwork::RefreshState()
         AllocatePeerBuffers();
     }
     
+    // Increase size of CUDNN workspace if necessary
+    if (_maxCUDNNWorkspaceSize > _CUDNNWorkspaceSize)
+    {
+        if (getGpu()._id == 0)
+            cout << "NNNetwork::RefreshState: Setting cuDNN workspace size to " << _maxCUDNNWorkspaceSize << " bytes." << endl;
+        delete _pbCUDNNWorkspace;
+        _CUDNNWorkspaceSize                     = _maxCUDNNWorkspaceSize;
+        _pbCUDNNWorkspace = new GpuBuffer<uint8_t>(_CUDNNWorkspaceSize);
+    }
 
     // Update GPU state if dirty or GPU context is set for
     // different network
@@ -1707,7 +1741,7 @@ void NNNetwork::CalculateTopK(const string& layer, uint32_t k, GpuBuffer<NNFloat
 bool NNNetwork::SaveNetCDF(const string& fname)
 {
     bool bResult                            = true;     
-          
+    
     // Unshard weights and biases to local copy
     vector< vector<NNFloat> > vvWeight;
     vector< vector<NNFloat> > vvBias;
@@ -1717,6 +1751,7 @@ bool NNNetwork::SaveNetCDF(const string& fname)
         vector<NNFloat> vWeight;
         vector<NNFloat> vBias;
 
+        // BUG need to account for multi-GPU conv layers and biases
         if (!w->_bShared)
         {
             w->_pbWeight->Download(w->_vWeight.data());
@@ -1778,7 +1813,7 @@ bool NNNetwork::SaveNetCDF(const string& fname)
                 }
             }
         }
- 
+
         // Download biases to local copy on process 0
         w->_pbBias->Download(w->_vBias.data());
         if (getGpu()._id == 0)
@@ -1801,7 +1836,7 @@ bool NNNetwork::SaveNetCDF(const string& fname)
             MPI_Send(&size, 1, MPI_UINT64_T, 0, 0, MPI_COMM_WORLD);
             MPI_Send(w->_vBias.data(), size, MPI_FLOAT, 0, 0, MPI_COMM_WORLD);
         }
-    
+
         // Add to growing weight and bias lists
         vvWeight.push_back(vWeight);
         vvBias.push_back(vBias);
@@ -1995,6 +2030,183 @@ NNNetwork::~NNNetwork()
     
     // Delete scratch buffer
     delete _pbScratchBuffer;
+    
+    // Delete CUDNN workspace
+    delete _pbCUDNNWorkspace;
+}
+
+uint32_t CalculateConvolutionDimensions(uint32_t width, uint32_t filter, uint32_t stride)
+{
+    if (width <= filter)
+        return 1;
+    else if (stride == 1)
+        return width;
+    else
+        return (width - filter) / stride + 1;
+}
+
+// Automagically calculates convolution and pooling layer dimensions from inputs
+void CalculateConvolutionLayerDimensions(NNNetworkDescriptor& d)
+{
+    map <NNLayerDescriptor*, bool> mbDimensionsCalculated;                      // Holds flag indicated whether dimensions are known
+    map <string, NNLayerDescriptor*> mLayer;                                    // Holds flag indicated whether dimensions are known    
+    
+    // Input, Output, and fully connected layers are determined from spec
+    for (size_t i = 0; i < d._vLayerDescriptor.size(); i++)
+    {
+        NNLayerDescriptor* pL               = &(d._vLayerDescriptor[i]);
+        bool bFlag                          = true;
+        if  ((pL->_kind == NNLayer::Kind::Hidden) &&
+            ((pL->_type == NNLayer::Type::Pooling) || (pL->_type == NNLayer::Type::Convolutional)))
+            bFlag = false;
+        mbDimensionsCalculated[pL]          = bFlag;
+        mLayer[pL->_name]                   = pL;
+    }
+
+    
+    
+    // Loop repeatedly until all network layers determined
+    bool bFinished;
+    do {
+        bFinished = true;
+        
+        for (size_t i = 0; i < d._vLayerDescriptor.size(); i++)
+        {
+            NNLayerDescriptor* pL               = &(d._vLayerDescriptor[i]);
+            bool bPooling                       = pL->_type == NNLayer::Type::Pooling;
+            bool bLRN                           = bPooling && (pL->_poolingFunction == PoolingFunction::LRN); 
+
+            if (!mbDimensionsCalculated[pL])
+            {
+                bool bAllInputsCalculated   = true;
+                for (auto s : pL->_vSource)
+                {
+                    NNLayerDescriptor* pS = mLayer[s];
+                    bAllInputsCalculated  &= mbDimensionsCalculated[pS];
+                }
+                
+                // Skip if not all source dimensions are known
+                if (!bAllInputsCalculated)
+                {
+                    bFinished               = false;
+                    continue;
+                }
+                
+                // Check for consistent sizing from all inputs
+                bool bSized = false;
+                uint32_t N                  = pL->_Nx;
+                uint32_t oldNx              = 0;
+                uint32_t oldNy              = 0;
+                uint32_t oldNz              = 0;
+                uint32_t nx = 1;
+                uint32_t ny = 1;
+                uint32_t nz = 1;
+                uint32_t nw = 1;
+                for (auto s : pL->_vSource)
+                {
+                    NNLayerDescriptor* pS = mLayer[s];
+                    //printf("L: %s S: %s %u %u %u %u\n", pL->_name.c_str(), pS->_name.c_str(), pS->_Nx, pS->_Ny, pS->_Nz, pS->_Nw);    
+                    if (!bLRN)
+                    {
+                        nx                      = CalculateConvolutionDimensions(pS->_Nx, pL->_kernelX, pL->_kernelStrideX);
+                        ny                      = CalculateConvolutionDimensions(pS->_Ny, pL->_kernelY, pL->_kernelStrideY);
+                        nz                      = CalculateConvolutionDimensions(pS->_Nz, pL->_kernelZ, pL->_kernelStrideZ);
+                        nw                      = pS->_Nw;
+                        if (bPooling)
+                            pL->_dimensions     = pS->_dimensions;
+                    }
+                    else
+                    {
+                        nx                      = pS->_Nx;
+                        ny                      = pS->_Ny;
+                        nz                      = pS->_Nz;
+                        nw                      = pS->_Nw;
+                        pL->_dimensions         = pS->_dimensions;
+                    }
+                    
+                    // Calculate padding
+                    switch (pL->_kernelDimensions)
+                    {
+                        case 3:
+                            if (pS->_Nz < pL->_kernelZ)
+                            {
+                                pL->_kernelPaddingZ = (pL->_kernelZ - pS->_Nz + 1) / 2;
+                            }
+                            else if (pL->_kernelStrideZ == 1)
+                            {
+                                pL->_kernelPaddingZ = pL->_kernelZ / 2;
+                            }
+                            
+                        case 2:
+                            if (pS->_Ny < pL->_kernelY)
+                            {
+                                pL->_kernelPaddingY = (pL->_kernelY - pS->_Ny + 1) / 2;
+                            }
+                            else if (pL->_kernelStrideY == 1)
+                            {
+                                pL->_kernelPaddingY = pL->_kernelY / 2;
+                            }
+                            
+                        case 1:
+                            if (pS->_Nx < pL->_kernelX)
+                            {
+                                pL->_kernelPaddingX = (pL->_kernelX - pS->_Nx + 1) / 2;
+                            }
+                            else if (pL->_kernelStrideX == 1)
+                            {
+                                pL->_kernelPaddingX = pL->_kernelX / 2;
+                            }
+                    }                    
+                    
+                    // Check for consistency
+                    if (bSized)
+                    {
+                        if ((nx != oldNx) || (ny != oldNy) || (nz != oldNz))
+                        {
+                            if (getGpu()._id == 0)
+                                printf("NNNetwork::CalculateConvolutionLayerDimensions: Inconsistent incoming data size for convolution layer %s\n", pL->_name.c_str());
+                            getGpu().Shutdown();
+                            exit(-1);
+                        }
+                    }
+                    bSized                      = true;
+                    oldNx                       = nx;
+                    oldNy                       = ny;
+                    oldNz                       = nz;
+                    mbDimensionsCalculated[pL]  = true;
+                }
+                pL->_Nx                         = nx;
+                pL->_Ny                         = ny;
+                pL->_Nz                         = nz;
+                pL->_Nw                         = nw;
+                if (!bPooling)
+                {
+                    switch (pL->_kernelDimensions)
+                    {
+                        case 1:
+                            pL->_Ny             = N;
+                            pL->_dimensions     = 2;
+                            break;
+                            
+                        case 2:
+                            pL->_Nz             = N;
+                            pL->_dimensions     = 3;
+                            break;
+                                             
+                        case 3:
+                            pL->_Nw             = N;
+                            pL->_dimensions     = 4;
+                            break;   
+                    }
+                }
+
+                //printf("L %s: %d | %d %d %d %d\n", pL->_name.c_str(), pL->_dimensions, pL->_Nx, pL->_Ny, pL->_Nz, pL->_Nw);
+                
+            }
+        }
+    }
+    while (!bFinished);
+    //exit(-1);
 }
 
 void NNNetwork::CalculatePropagationOrder()
@@ -2527,7 +2739,7 @@ NNNetwork* LoadNeuralNetworkJSON(const string& fname, const uint32_t batch, cons
                 }
 
                 // Read LRN parameters if present
-                else if (name.compare("lrnparameters") == 0)
+                else if ((name.compare("lrn") == 0) || (name.compare("localresponsenormalization") == 0))
                 {
                     for (Json::ValueIterator pitr = value.begin(); pitr != value.end() ; pitr++)
                     {
@@ -2543,6 +2755,13 @@ NNNetwork* LoadNeuralNetworkJSON(const string& fname, const uint32_t batch, cons
                             nd._LRN_alpha           = pvalue.asFloat();
                         else if (pname.compare("beta") == 0)
                             nd._LRN_beta            = pvalue.asFloat();
+                        else
+                        {
+                            name = pitr.memberName();
+                            printf("LoadNeuralNetworkJSON: Invalid LocalResponseNormalization parameter: %s\n", name.c_str());
+                            bValid                      = false;
+                            goto exit;
+                        }                               
                     }
                 }
 
@@ -2557,6 +2776,13 @@ NNNetwork* LoadNeuralNetworkJSON(const string& fname, const uint32_t batch, cons
                         Json::Value pvalue          = *pitr;
                         if (pname.compare("k") == 0)
                             nd._maxout_k            = pvalue.asFloat();
+                        else
+                        {
+                            name = pitr.memberName();
+                            printf("LoadNeuralNetworkJSON: Invalid MaxOut parameter: %s\n", name.c_str());
+                            bValid                      = false;
+                            goto exit;
+                        }                               
                     }
                 }
 
@@ -2573,6 +2799,13 @@ NNNetwork* LoadNeuralNetworkJSON(const string& fname, const uint32_t batch, cons
                             nd._sparsenessPenalty_p = pvalue.asFloat();
                         else if (pname.compare("beta") == 0)
                             nd._sparsenessPenalty_beta  = pvalue.asFloat();
+                        else
+                        {
+                            name = pitr.memberName();
+                            printf("LoadNeuralNetworkJSON: Invalid SparsenessPenalty parameter: %s\n", name.c_str());
+                            bValid                      = false;
+                            goto exit;
+                        }                               
                     }
                 }
 
@@ -2589,6 +2822,13 @@ NNNetwork* LoadNeuralNetworkJSON(const string& fname, const uint32_t batch, cons
                         {
                             nd._denoising_p         = pvalue.asFloat();
                         }
+                        else
+                        {
+                            name = pitr.memberName();
+                            printf("LoadNeuralNetworkJSON: Invalid Denoising parameter: %s\n", name.c_str());
+                            bValid                      = false;
+                            goto exit;
+                        }                           
                     }
                 }
 
@@ -2605,6 +2845,13 @@ NNNetwork* LoadNeuralNetworkJSON(const string& fname, const uint32_t batch, cons
                             nd._deltaBoost_one      = pvalue.asFloat();
                         else if (pname.compare("zero") == 0)
                             nd._deltaBoost_zero     = pvalue.asFloat();
+                        else
+                        {
+                            name = pitr.memberName();
+                            printf("LoadNeuralNetworkJSON: Invalid DeltaBoost parameter: %s\n", name.c_str());
+                            bValid                      = false;
+                            goto exit;
+                        }   
                     }
                 } 
 
@@ -2625,6 +2872,13 @@ NNNetwork* LoadNeuralNetworkJSON(const string& fname, const uint32_t batch, cons
                             nd._SMCE_oneTarget      = pvalue.asFloat();
                         else if (pname.compare("zerotarget") == 0)
                             nd._SMCE_zeroTarget     = pvalue.asFloat();
+                        else
+                        {
+                            name = pitr.memberName();
+                            printf("LoadNeuralNetworkJSON: Invalid ScaledMarginalCrossentropy parameter: %s\n", name.c_str());
+                            bValid                      = false;
+                            goto exit;
+                        }                            
                     }
                 }             
 
@@ -2653,7 +2907,7 @@ NNNetwork* LoadNeuralNetworkJSON(const string& fname, const uint32_t batch, cons
                     }
                 }
             
-                // Read input layer(s)
+                // Read layer(s)
                 else if (name.compare("layers") == 0)
                 {
                     uint32_t size                   = value.isArray() ? value.size() : 1;
@@ -2665,16 +2919,17 @@ NNNetwork* LoadNeuralNetworkJSON(const string& fname, const uint32_t batch, cons
                         Json::Value layer           = value.isArray() ? value[i] : value;
                         bool bAutoSize              = false; 
 
-                        // Determine default layer kind
+                        // Determine default layer kind and type
                         if (i == 0)
                             ldl._kind               = NNLayer::Kind::Input;
                         else if (i == size - 1)
                             ldl._kind               = NNLayer::Kind::Output;
-                        else
+                        else 
                             ldl._kind               = NNLayer::Kind::Hidden;
+                        ldl._type                   = NNLayer::Type::FullyConnected;
  
 
-                        // Search for supplied layer kind, need to know this before parsing
+                        // Search for supplied layer kind and type because we need to know this before parsing
                         // the remainder of supplied keys
                         for (Json::ValueIterator litr = layer.begin(); litr != layer.end() ; litr++)
                         {
@@ -2683,6 +2938,7 @@ NNNetwork* LoadNeuralNetworkJSON(const string& fname, const uint32_t batch, cons
                             Json::Value lkey        = litr.key();
                             Json::Value lvalue      = *litr;
 
+                            // Read kind if present (default: Hidden)
                             if (lname.compare("kind") == 0)
                             {
                                 string s            = lvalue.asString();
@@ -2691,6 +2947,8 @@ NNNetwork* LoadNeuralNetworkJSON(const string& fname, const uint32_t batch, cons
                                     ldl._kind       = NNLayer::Kind::Input;
                                 else if (s.compare("hidden") == 0)
                                     ldl._kind       = NNLayer::Kind::Hidden;
+                                else if (s.compare("target") == 0)
+                                    ldl._kind       = NNLayer::Kind::Target;
                                 else if (s.compare("output") == 0)
                                     ldl._kind       = NNLayer::Kind::Output;
                                 else
@@ -2700,6 +2958,31 @@ NNNetwork* LoadNeuralNetworkJSON(const string& fname, const uint32_t batch, cons
                                     goto exit;
                                 }
                             }
+                            
+                            // Read type if present (default: FullyConnected)
+                            else if (lname.compare("type") == 0)
+                            {
+                                string s        = lvalue.asString();
+                                std::transform(s.begin(), s.end(), s.begin(), ::tolower);
+                                if (s.compare("fullyconnected") == 0)
+                                    ldl._type   = NNLayer::Type::FullyConnected;
+                                else if (s.compare("convolutional") == 0)
+                                    ldl._type   = NNLayer::Type::Convolutional;
+                                else if (s.compare("pooling") == 0)
+                                    ldl._type = NNLayer::Type::Pooling;
+                                else
+                                {
+                                    printf("LoadNeuralNetworkJSON: Invalid layer type: %s\n", lvalue.asString().c_str());
+                                    bValid      = false;
+                                    goto exit;
+                                }
+                            }
+                        }
+                        
+                        // FullyConnected non-pooling Layers have default dimensions, others must be supplied or calculated
+                        if ((ldl._type == NNLayer::Type::Pooling) || (ldl._type == NNLayer::Type::Convolutional))
+                        {
+                            ldl._bDimensionsProvided = false;
                         }
 
                         // Determine default layer name
@@ -2716,6 +2999,10 @@ NNNetwork* LoadNeuralNetworkJSON(const string& fname, const uint32_t batch, cons
                             case NNLayer::Kind::Output:
                                 ldl._name           = "Output" + to_string(nd._vLayerDescriptor.size());
                                 break;
+                                
+                            case NNLayer::Kind::Target:
+                                ldl._name           = "Target" + to_string(nd._vLayerDescriptor.size());
+                                break;                                  
                         }
                       
                         for (Json::ValueIterator litr = layer.begin(); litr != layer.end() ; litr++)
@@ -2726,7 +3013,7 @@ NNNetwork* LoadNeuralNetworkJSON(const string& fname, const uint32_t batch, cons
                             Json::Value lvalue      = *litr;
 
                             // Skip what we already know
-                            if (lname.compare("kind") == 0)
+                            if ((lname.compare("kind") == 0) || (lname.compare("type") == 0))
                             {
                                 continue;
                             }
@@ -2755,11 +3042,13 @@ NNNetwork* LoadNeuralNetworkJSON(const string& fname, const uint32_t batch, cons
                             {
                                 if (lvalue.isArray())
                                 {
-                                    if (lvalue.size() < 4)
+                                    if (lvalue.size() < 5)
                                     {
                                         ldl._dimensions     = lvalue.size();
                                         switch (lvalue.size())
                                         {
+                                            case 4:
+                                                ldl._Nw = lvalue[3].asInt();
                                             case 3:
                                                 ldl._Nz = lvalue[2].asInt();
                                             case 2:
@@ -2767,11 +3056,12 @@ NNNetwork* LoadNeuralNetworkJSON(const string& fname, const uint32_t batch, cons
                                             case 1:
                                                 ldl._Nx = lvalue[0].asInt();
                                         }
+                                        
                                     }
                                     else
                                     {
-                                        printf("LoadNeuralNetworkJSON: >3 dimensions detect in layer: %s\n", ldl._name.c_str());
-                                        bValid      = false;
+                                        printf("LoadNeuralNetworkJSON: >4 dimensions detected in layer: %s\n", ldl._name.c_str());
+                                        bValid          = false;
                                         goto exit;
                                     }
 
@@ -2785,6 +3075,8 @@ NNNetwork* LoadNeuralNetworkJSON(const string& fname, const uint32_t batch, cons
                                     else if (nstring.compare("auto") == 0)
                                     {
                                         printf("LoadNeuralNetworkJSON: Illegal attempt to use auto for hidden layer: %s\n", ldl._name.c_str());
+                                        bValid          = false;
+                                        goto exit;
                                     }
                                 }
                                 else
@@ -2801,13 +3093,24 @@ NNNetwork* LoadNeuralNetworkJSON(const string& fname, const uint32_t batch, cons
                             }
 
 
-                            // Read types common to hidden and output layers
+                            // Read types common present in everything but input layers
                             if (ldl._kind != NNLayer::Kind::Input)
                             {
                                 // Read source(s) if present
                                 if (lname.compare("source") == 0)
                                 {
                                     uint32_t size       = lvalue.isArray() ? lvalue.size() : 1;
+                                    
+                                    // MaxPooling and LRN layers can only have one source
+#if 0                                    
+                                    if ((ldl._type == NNLayer::Type::Pooling) && (size > 1))
+                                    {
+                                            printf("LoadNeuralNetworkJSON: Pooling layer %s has multiple sources\n", ldl._name.c_str());
+                                            bValid                  = false;
+                                            goto exit;
+                                    }
+#endif
+                                    
                                     for (uint32_t j = 0; j < size; j++)
                                     {
                                         Json::Value src = lvalue.isArray() ? lvalue[j] : lvalue;
@@ -2817,6 +3120,120 @@ NNNetwork* LoadNeuralNetworkJSON(const string& fname, const uint32_t batch, cons
                                     continue;
                                 }
                                 
+                                else if ((lname.compare("kernel") == 0) || (lname.compare("kernelstride") == 0))
+                                {
+                                    uint32_t x                  = 1;
+                                    uint32_t y                  = 1;
+                                    uint32_t z                  = 1;
+                                    uint32_t dimensions         = 1;
+                                    if (lvalue.isArray())
+                                    {
+                                        if (lvalue.size() < 4)
+                                        {
+                                            dimensions          = lvalue.size();
+                                            switch (lvalue.size())
+                                            {
+                                                case 3:
+                                                    z           = lvalue[2].asInt();
+                                                case 2:
+                                                    y           = lvalue[1].asInt();
+                                                case 1:
+                                                    x           = lvalue[0].asInt();
+                                            }
+                                        }
+                                        else
+                                        {
+                                            bValid              = false;
+                                            goto exit;
+                                        }
+                                    }
+                                    else
+                                    {
+                                        x                       = lvalue.asInt();
+                                    }
+
+                                    // Copy values to kernel or kernel stride
+                                    if (lname.compare("kernel") == 0)
+                                    {
+                                        ldl._kernelX            = x;
+                                        ldl._kernelY            = y;
+                                        ldl._kernelZ            = z;
+                                        ldl._kernelDimensions   = dimensions;
+                                    }
+                                    else
+                                    {
+                                        ldl._kernelStrideX      = x;
+                                        ldl._kernelStrideY      = y;
+                                        ldl._kernelStrideZ      = z;
+                                    }
+                                    continue;      
+                                }
+                            }
+                            
+                            
+                            
+
+                            // Hidden layer-specific features
+                            if (ldl._kind == NNLayer::Kind::Hidden)
+                            {
+                                // Layer-specific sparse penalty
+                                if (lname.compare("sparsenesspenalty") == 0)
+                                {
+                                    for (Json::ValueIterator pitr = lvalue.begin(); pitr != lvalue.end() ; pitr++)
+                                    {
+                                        string pname                = pitr.memberName();
+                                        std::transform(pname.begin(), pname.end(), pname.begin(), ::tolower);
+                                        Json::Value pkey            = pitr.key();
+                                        Json::Value pvalue          = *pitr;
+                                        if (pname.compare("p") == 0)
+                                            ldl._sparsenessPenalty_p = pvalue.asFloat();
+                                        else if (pname.compare("beta") == 0)
+                                            ldl._sparsenessPenalty_beta  = pvalue.asFloat();
+                                        else
+                                        {
+                                            printf("LoadNeuralNetworkJSON: Invalid sparseness penalty parameter for hidden layer %s\n", ldl._name.c_str());
+                                            bValid                  = false;
+                                            goto exit;
+                                        }
+                                    }
+                                    continue;
+                                }                                
+                            
+                                // Pooling layer-specific features
+                                if (ldl._type == NNLayer::Type::Pooling)
+                                {
+                                    if (lname.compare("function") == 0)
+                                    {
+                                        string s          = lvalue.asString();        
+                                        std::transform(s.begin(), s.end(), s.begin(), ::tolower);
+                                        if (s.compare("max") == 0)
+                                            ldl._poolingFunction = PoolingFunction::Max;
+                                        else if (s.compare("maxout") == 0)
+                                            ldl._poolingFunction = PoolingFunction::Maxout;
+                                        else if (s.compare("average") == 0)
+                                            ldl._poolingFunction = PoolingFunction::Average;
+                                        else if ((s.compare("lrn") == 0) || (s.compare("localresponsenormalization") == 0))
+                                            ldl._poolingFunction = PoolingFunction::LRN;
+                                        else
+                                        {
+                                            printf("LoadNeuralNetworkJSON: Invalid pooling function (%s) for pooling layer %s\n", lvalue.asString().c_str(), ldl._name.c_str());
+                                            bValid                  = false;
+                                            goto exit;                                       
+                                        }
+                                        continue;
+                                    }
+                                }
+                            }
+
+                            // Output layer-specific features
+                            if (ldl._kind == NNLayer::Kind::Output)
+                            {
+
+                            }
+
+                            // Input and output layer-specific features
+                            if ((ldl._kind == NNLayer::Kind::Hidden) || (ldl._kind == NNLayer::Kind::Output))
+                            {
                                 // Read skip(s) if present
                                 if (lname.compare("skip") == 0)
                                 {
@@ -2826,24 +3243,6 @@ NNNetwork* LoadNeuralNetworkJSON(const string& fname, const uint32_t batch, cons
                                         Json::Value src = lvalue.isArray() ? lvalue[j] : lvalue;
                                         ldl._vSkip.push_back(src.asString());
                                     } 
-                                    continue;
-                                }
-
-                                // Read type if present
-                                else if (lname.compare("type") == 0)
-                                {
-                                    string s        = lvalue.asString();
-                                    std::transform(s.begin(), s.end(), s.begin(), ::tolower);
-                                    if (s.compare("fullyconnected") == 0)
-                                        ldl._type   = NNLayer::Type::FullyConnected;
-                                    else if (s.compare("convolutional") == 0)
-                                        ldl._type   = NNLayer::Type::Convolutional;
-                                    else
-                                    {
-                                        printf("LoadNeuralNetworkJSON: Invalid layer type: %s\n", lvalue.asString().c_str());
-                                        bValid      = false;
-                                        goto exit;
-                                    }
                                     continue;
                                 }
 
@@ -2878,60 +3277,23 @@ NNNetwork* LoadNeuralNetworkJSON(const string& fname, const uint32_t batch, cons
                                     }
                                     continue;
                                 }
-                                else if ((lname.compare("kernel") == 0) || (lname.compare("kernelstride") == 0))
-                                {
-                                    uint32_t x                  = 1;
-                                    uint32_t y                  = 1;
-                                    uint32_t z                  = 1;
-                                    if (lvalue.isArray())
-                                    {
-                                        if (lvalue.size() < 4)
-                                        {
-                                            switch (lvalue.size())
-                                            {
-                                                case 3:
-                                                    z           = lvalue[2].asInt();
-                                                case 2:
-                                                    y           = lvalue[1].asInt();
-                                                    x           = lvalue[0].asInt();
-                                            }
-                                        }
-                                        else
-                                        {
-                                            bValid              = false;
-                                            goto exit;
-                                        }
-                                    }
-                                    else
-                                    {
-                                        x                       = lvalue.asInt();
-                                    }
-
-                                    // Copy values to kernel or kernel stride
-                                    if (lname.compare("kernel") == 0)
-                                    {
-                                        ldl._kernelX            = x;
-                                        ldl._kernelY            = y;
-                                        ldl._kernelZ            = z;
-                                    }
-                                    else
-                                    {
-                                        ldl._kernelStrideX      = x;
-                                        ldl._kernelStrideY      = y;
-                                        ldl._kernelStrideZ      = z;
-                                    }
-                                    continue;      
-                                }
+                                
+                                
+                                // Weight normalization
                                 else if (lname.compare("weightnorm") == 0)
                                 {
                                     ldl._weightNorm             = lvalue.asFloat();
                                     continue;
                                 }
+                                
+                                // Read delta normalization cap if active 
                                 else if (lname.compare("deltanorm") == 0)
                                 {
                                     ldl._deltaNorm              = lvalue.asFloat();
                                     continue;                            
                                 }
+                                
+                                // Read weight initialization scheme
                                 else if (lname.compare("weightinit") == 0)
                                 {
                                     for (int i = 0; i < lvalue.size(); i++)
@@ -2984,6 +3346,8 @@ NNNetwork* LoadNeuralNetworkJSON(const string& fname, const uint32_t batch, cons
                                     }
                                     continue;
                                 }
+                                
+                                // Read shared weight entry
                                 else if (lname.compare("sharedweights") == 0)
                                 {
                                     uint32_t size                       = lvalue.isArray() ? lvalue.size() : 1;
@@ -3028,29 +3392,9 @@ NNNetwork* LoadNeuralNetworkJSON(const string& fname, const uint32_t batch, cons
                                 }
                             }
 
-                            // Hidden layer-specific features
-                            if (ldl._kind == NNLayer::Kind::Hidden)
-                            {
-                                // Layer-specific sparse penalty
-                                if (lname.compare("sparsenesspenalty") == 0)
-                                {
-                                    for (Json::ValueIterator pitr = lvalue.begin(); pitr != lvalue.end() ; pitr++)
-                                    {
-                                        string pname                = pitr.memberName();
-                                        std::transform(pname.begin(), pname.end(), pname.begin(), ::tolower);
-                                        Json::Value pkey            = pitr.key();
-                                        Json::Value pvalue          = *pitr;
-                                        if (pname.compare("p") == 0)
-                                            ldl._sparsenessPenalty_p = pvalue.asFloat();
-                                        else if (pname.compare("beta") == 0)
-                                            ldl._sparsenessPenalty_beta  = pvalue.asFloat();
-                                    }
-                                }                                
-                            }
-
 
                             // Input and output layer-specific features
-                            if (ldl._kind != NNLayer::Kind::Hidden)
+                            if ((ldl._kind == NNLayer::Kind::Input) || (ldl._kind == NNLayer::Kind::Output))
                             {
                                 if (lname.compare("dataset") == 0)
                                 {
@@ -3060,18 +3404,6 @@ NNNetwork* LoadNeuralNetworkJSON(const string& fname, const uint32_t batch, cons
 
                             }
                             
-                            // Non-Input layer-specific features
-                            if (ldl._kind != NNLayer::Kind::Input)
-                            {
-                                // Skips
-                            }
-                            
-                            // Output layer-specific features
-                            if (ldl._kind == NNLayer::Kind::Output)
-                            {
-
-                            }
-
                             // If we reach here, we didn't recognize the field
                             printf("LoadNeuralNetworkJSON: Unknown neural network layer field: %s\n", lname.c_str());
                             bValid                                      = false;
@@ -3108,38 +3440,49 @@ NNNetwork* LoadNeuralNetworkJSON(const string& fname, const uint32_t batch, cons
                             ldl._vSource.push_back(nd._vLayerDescriptor.back()._name);
                         }
 
-                        // Add weight descriptors
-                        uint32_t sharedWeightsFound         = 0;
-                        for (uint32_t i = 0; i < ldl._vSource.size(); i++)
+                        // Add weight descriptors to non-pooling layers
+                        if (ldl._type != NNLayer::Type::Pooling)
                         {
-                            NNWeightDescriptor wd;
-                            wd._inputLayer                  = ldl._vSource[i];
-                            wd._outputLayer                 = ldl._name;
-                            wd._norm                        = ldl._weightNorm;
-
-                            // Search for shared weights
-                            for (uint32_t j = 0; j < vSharedWeight.size(); j++)
+                        
+                            uint32_t sharedWeightsFound         = 0;
+                            for (uint32_t i = 0; i < ldl._vSource.size(); i++)
                             {
-                                // Copy shared bits if match is located
-                                if (vSharedWeight[j]._inputLayer == wd._inputLayer)
+                                NNWeightDescriptor wd;
+                                wd._inputLayer                  = ldl._vSource[i];
+                                wd._outputLayer                 = ldl._name;
+                                wd._norm                        = ldl._weightNorm;
+
+                                // Search for shared weights
+                                for (uint32_t j = 0; j < vSharedWeight.size(); j++)
                                 {
-                                    wd._bShared             = true;
-                                    wd._bTransposed         = vSharedWeight[j]._bTransposed;
-                                    wd._sourceInputLayer    = vSharedWeight[j]._sourceInputLayer;
-                                    wd._sourceOutputLayer   = vSharedWeight[j]._sourceOutputLayer; 
-                                    sharedWeightsFound++;                                   
-                                    break;
+                                    // Copy shared bits if match is located
+                                    if (vSharedWeight[j]._inputLayer == wd._inputLayer)
+                                    {
+                                        wd._bShared             = true;
+                                        wd._bTransposed         = vSharedWeight[j]._bTransposed;
+                                        wd._sourceInputLayer    = vSharedWeight[j]._sourceInputLayer;
+                                        wd._sourceOutputLayer   = vSharedWeight[j]._sourceOutputLayer; 
+                                        sharedWeightsFound++;                                
+                                        break;
+                                    }
                                 }
+                                nd._vWeightDescriptor.push_back(wd);
                             }
-                            nd._vWeightDescriptor.push_back(wd);
+                        
+                            // Guarantee all shared weights were found
+                            if (sharedWeightsFound < vSharedWeight.size())
+                            {
+                                printf("LoadNeuralNetworkJSON: Unable to locate all shared weights\n");
+                                bValid                          = false;
+                                goto exit;                           
+                            }
                         }
                         
-                        // Guarantee all shared weights were found
-                        if (sharedWeightsFound < vSharedWeight.size())
+                        // Determine if full layer dimensions have been provided or they need to
+                        // be calculated from all sources
+                        if (ldl._dimensions < ldl._kernelDimensions)
                         {
-                            printf("LoadNeuralNetworkJSON: Unable to locate all shared weights\n");
-                            bValid                          = false;
-                            goto exit;                           
+                            ldl._bDimensionsProvided = false;
                         }
 
                         nd._vLayerDescriptor.push_back(ldl);
@@ -3172,6 +3515,9 @@ NNNetwork* LoadNeuralNetworkJSON(const string& fname, const uint32_t batch, cons
             }
         }
     }
+    
+    // Calculate dimensions for unspecified convolution and pooling layers
+    CalculateConvolutionLayerDimensions(nd);
 
     // Check for success, shut down upon failure
 exit:
@@ -3195,7 +3541,6 @@ exit:
     // Now create network;
     pNetwork                                            = new NNNetwork(nd, batch);
     pNetwork->RefreshState();
-
     return pNetwork;
 }
 
@@ -3210,7 +3555,10 @@ NNNetwork* LoadNeuralNetworkNetCDF(const string& fname, const uint32_t batch)
     uint32_t layers                             = 0;
     uint32_t weights                            = 0;
     
-    MPI_Bcast_string(nd._name);   
+    MPI_Bcast_string(nd._name);
+    
+    // Turn off calculation of convolution layer dimensions in NNNetwork constructor
+    nd._bConvLayersCalculated                   = true;
 
     if (getGpu()._id == 0)
     {
@@ -3484,107 +3832,6 @@ NNNetwork* LoadNeuralNetworkNetCDF(const string& fname, const uint32_t batch)
     // Create network
     pNetwork                                    = new NNNetwork(nd, batch);
     pNetwork->RefreshState();
-    return pNetwork;
-}
-
-NNNetwork* ImportAutoEncoder(const string& fname, uint32_t batch)
-{
-    NNNetwork* pNetwork                             = NULL;
-    NNNetworkDescriptor nd;
-    Json::Value index;
-    Json::Reader reader;
-    bool bValid                                     = true;
-    bool bWeightsSupplied                           = false;
-    string wfname;
-
-    if (getGpu()._id == 0)
-    {
-        std::ifstream stream(fname, std::ifstream::binary);
-        bool parsedSuccess                          = reader.parse(stream, index, false);
-    
-
-        if (!parsedSuccess)
-        {
-            // Report failures and their locations 
-            // in the document.
-            printf("ImportAutoEncoder: Failed to parse JSON file %s, error: %s\n", fname.c_str(), reader.getFormatedErrorMessages().c_str());
-            bValid                                  = false;
-        }
-        else
-        {
-            // Iterate through network in a case-insensitive manner
-            NNFloat version                         = NN_VERSION;
-            for (Json::ValueIterator itr = index.begin(); itr != index.end() ; itr++)
-            {
-                // Extract JSON object key/value pair
-                string name                         = itr.memberName();
-                std::transform(name.begin(), name.end(), name.begin(), ::tolower);
-                Json::Value key                     = itr.key();
-                Json::Value value                   = *itr;
-                string vstring                      = value.isString() ? value.asString() : "";
-                std::transform(vstring.begin(), vstring.end(), vstring.begin(), ::tolower);
-
-                // Read layers if present
-                if (name.compare("layers") == 0)
-                {
-                    uint32_t size                   = value.isArray() ? value.size() : 1;
-                    for (uint32_t i = 0; i < size; i++)
-                    {
-                        NNLayerDescriptor ldl;
-                        bool bSource                = false;                      
-                        Json::Value layer           = value.isArray() ? value[i] : value;
-
-                        for (Json::ValueIterator litr = layer.begin(); litr != layer.end() ; litr++)
-                        {
-                            string lname        = litr.memberName();
-                            std::transform(lname.begin(), lname.end(), lname.begin(), ::tolower);
-                            Json::Value lkey    = litr.key();
-                            Json::Value lvalue  = *litr;
-
-                            // Skip what we already know
-                            if (lname.compare("b") == 0)
-                            {
-                                cout << "b size " << lvalue.size() << endl;
-                                continue;
-                            }
-                            else if (lname.compare("w") == 0)
-                            {
-                                cout << "w size " << lvalue.size() << endl;
-                            }
-                            else if (lname.compare("a") == 0)
-                            {
-
-                            }
-                        }
-                    }
-
-                    
-                }
-                cout << name << endl;
- 
-            }
-        }
-
-
-        // Calculate booleans
-        if (nd._sparsenessPenalty_p > (NNFloat)0.0)
-            nd._bSparsenessPenalty                      = true;
-        if (nd._denoising_p > (NNFloat)0.0)
-            nd._bDenoising                              = true;
-    }
-
-
-
-    MPI_Bcast_NNNetworkDescriptor(nd);
-
-
-    exit(-1);
-    
-    // Now create network;
-    pNetwork                                            = new NNNetwork(nd, batch);
-    pNetwork->RefreshState();
-
-
     return pNetwork;
 }
 

@@ -244,8 +244,8 @@ int main(int argc, char** argv)
     string recsGenLayerLabel = "Output";
     // Now ready to generate recs for the dataset
     NNLayer* pLayer = pNetwork->GetLayer(recsGenLayerLabel);
-    unsigned int lx, ly, lz;
-    tie(lx, ly, lz)                = pLayer->GetDimensions();
+    unsigned int lx, ly, lz, lw;
+    tie(lx, ly, lz, lw)            = pLayer->GetDimensions();
     unsigned int lBatch            = pNetwork->GetBatch();
     unsigned int outputBufferSize  = pNetwork->GetBufferSize(recsGenLayerLabel);
 

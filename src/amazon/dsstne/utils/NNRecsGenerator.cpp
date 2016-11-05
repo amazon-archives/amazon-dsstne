@@ -89,14 +89,14 @@ void NNRecsGenerator::generateRecs(NNNetwork *xNetwork,
     NNFloat* dOutput               = xNetwork->GetUnitBuffer(recsGenLayerLabel);
     
     NNLayer* pLayer                = xNetwork->GetLayer(recsGenLayerLabel);
-    unsigned int lx, ly, lz;
-    tie(lx, ly, lz)                = pLayer->GetDimensions();
-    int lOutputStride               =  lx * ly *lz ;
-    unsigned int llx,lly,llz;
-    tie(llx,lly,llz)               = pLayer->GetLocalDimensions();
+    unsigned int lx, ly, lz, lw;
+    tie(lx, ly, lz, lw)             = pLayer->GetDimensions();
+    int lOutputStride               =  lx * ly * lz * lw;
+    unsigned int llx,lly,llz,llw;
+    tie(llx,lly,llz,llw)            = pLayer->GetLocalDimensions();
    
     // Local Stride is how many FEATUREs actually in one GPU
-    int lLocalOutputStride         = llx * lly * llz;
+    int lLocalOutputStride         = llx * lly * llz * llw;
     unsigned int outputBufferSize  = lLocalOutputStride * lBatch;
     if(!bMultiGPU) {
 	outputBufferSize = xNetwork->GetBufferSize(recsGenLayerLabel);

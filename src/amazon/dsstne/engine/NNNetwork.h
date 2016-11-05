@@ -39,7 +39,9 @@ private:
     friend NNNetwork* ImportAutoEncoder(const string& fname, uint32_t batch);
     string                      _name;                      // ASCII name for network
     uint32_t                    _batch;                     // Overall batch size
+    uint32_t                    _localBatch;                // Local batch size for data-parallel layers
     uint32_t                    _position;                  // Current position
+    uint32_t                    _localPosition;             // Local position for data-parallel layers
     bool                        _bExamplesFound;            // Has examples count been found yet?
     bool                        _bAllDataLoaded;            // True if either all or no datasets loaded (training(all) versus prediction(none))
     uint32_t                    _examples;                  // Total examples in current dataset(s)
@@ -115,6 +117,11 @@ private:
     GpuBuffer<NNFloat>*         _pbP2PBuffer[2];            // Peer buffer for sending/calculating peer data
     NNFloat*                    _pPeerBuffer[2];            // Peer for receiving/reducing peer data
     NNFloat*                    _pCPUBuffer;                // System memory work buffer for MPI copies
+    
+    // CUDNN parameters
+    size_t                      _CUDNNWorkspaceSize;        // Current size of cuDNN workspace
+    size_t                      _maxCUDNNWorkspaceSize;     // Maximum requested size of cuDNN workspace
+    GpuBuffer<uint8_t>*         _pbCUDNNWorkspace;          // CUDNN workspace buffer
 
 
 public:
@@ -183,6 +190,7 @@ public:
 
 private:
     void CalculatePropagationOrder();
+    bool GenerateNetworkGraph();
     void AllocatePeerBuffers();
     void DeallocatePeerBuffers();
     void SwapPeerBuffers();
@@ -198,6 +206,7 @@ private:
     NNNetwork(NNNetworkDescriptor& nd, uint32_t batch = DefaultBatch);
     void RefreshState();
     void Shuffle();
+    void SetCUDNNWorkspace(size_t size);
 };
 
 ostream& operator<< (ostream& out, NNNetwork::Kind& k);
@@ -230,6 +239,7 @@ struct NNNetworkDescriptor
     string                      _checkpoint_name;           // Checkpoint file name
     int32_t                     _checkpoint_interval;       // Number of epochs between checkpoints
     int32_t                     _checkpoint_epochs;         // Number of epochs since last checkpoint
+    bool                        _bConvLayersCalculated;     // Have convolution layer dimensions been calculated?
     NNNetworkDescriptor();
 };
 

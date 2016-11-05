@@ -2050,6 +2050,33 @@ void kNormalizeDeltaMagnitudes(NNFloat norm, uint32_t batch, uint32_t stride, NN
     LAUNCHERROR("kNormalizeDeltaMagnitudes_kernel");
 }
 
+__global__ void
+LAUNCH_BOUNDS()
+kCalculateMaxoutDelta_kernel(NNFloat* pSrc, NNFloat* pSrcDelta, size_t size, NNFloat beta, NNFloat* pDst, NNFloat* pDstDelta)
+{
+    uint64_t pos                        = blockIdx.x * blockDim.x + threadIdx.x;
+    if (pos < size)
+    {
+        NNFloat s = pSrc[pos];
+        NNFloat sdelta = pSrcDelta[pos];
+        NNFloat d = pDst[pos];
+        NNFloat delta                   = (s == d) ? sdelta : (NNFloat)0;
+        
+        if (beta == (NNFloat)0)
+            pDstDelta[pos]              = delta;
+        else if (delta != (NNFloat)0.0)
+            pDstDelta[pos]              = beta * pDstDelta[pos] + delta;
+    }
+}
+
+
+void kCalculateMaxoutDelta(NNFloat* pSrc, NNFloat* pSrcDelta, size_t size, NNFloat beta, NNFloat* pDst, NNFloat* pDstDelta)
+{
+    unsigned long blocks                    = CalculateBlocks(size);
+    kCalculateMaxoutDelta_kernel<<<blocks, getGpu()._threadsPerBlock>>>(pSrc, pSrcDelta, size, beta, pDst, pDstDelta);
+    LAUNCHERROR("kCalculateMaxoutDelta_kernel");
+}
+
 // Instantiates allowable templated functions so we can hide the implementations here
 // instead of in the header file because we're mixing CUDA and C++ and that's
 // a migraine headache in the making otherwise.

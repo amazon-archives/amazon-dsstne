@@ -42,7 +42,7 @@ extern "C"
 #endif
 
 
-static const float NN_VERSION       = 0.81f;
+static const float NN_VERSION       = 0.85f;
 static const float MIN_ERROR        = 1.0e-12f;
 static const float MIN_ACTIVATION   = 0.000001f;
 static const float MAX_ACTIVATION   = 0.999999f;
@@ -88,6 +88,7 @@ enum Activation {
     SoftMax,
     ReluMax,
     LinearMax,
+    ExponentialLinear,
 };
 
 ostream& operator<< (ostream& out, const Activation& a);
@@ -108,9 +109,10 @@ enum PoolingFunction {
     None,
     Max,
     Average,
+    LRN,
+    Maxout,
     Stochastic,
-    LocalContrastNormalization,
-    LocalResponseNormalization,
+    LCN,
     GlobalTemporal,
 };
 
@@ -136,41 +138,42 @@ struct NNDataSetDimensions
 
 struct NNDataSetBase {
 
-    string                   _name;                          // Dataset name
-    NNDataSetEnums::DataType _dataType;                      // Dataset type (see above enum)
-    uint32_t                 _attributes;                    // Dataset characteristics (see NNDataSetEnum::Attributes in NNEnum.h)
-    uint32_t                 _examples;                      // Number of examples
-    uint32_t                 _dimensions;                    // Dimensionality of data set
-    uint32_t                 _width;                         // Dataset x dimension
-    uint32_t                 _height;                        // Dataset y dimension
-    uint32_t                 _length;                        // Dataset z dimension
-    uint32_t                 _stride;                        // Stride between examples
-    NNDataSetEnums::Sharding _sharding;                      // Sharding of dataset for parallel execution
-    uint32_t                 _minX;                          // Beginning of local X sharding for model parallel execution 
-    uint32_t                 _maxX;                          // End of local X sharding for model parallel execution
-    uint64_t                 _sparseDataSize;                // Total sparse datapoints
-    uint32_t                 _maxSparseDatapoints;           // Maximum observed sparse datapoints per example
-    NNFloat                  _sparseDensity;                 // Overall sparse density (0.0 - 1.0)
-    vector<uint64_t>         _vSparseStart;                  // Vector of sparse datapoint starts per example
-    GpuBuffer<uint64_t>*     _pbSparseStart;                 // GPU copy of _vSparseStart
-    vector<uint64_t>         _vSparseEnd;                    // Vector of sparse datapoint ends per example
-    GpuBuffer<uint64_t>*     _pbSparseEnd;                   // GPU copy of _vSparseEnd
-    vector<uint32_t>         _vSparseIndex;                  // Vector of sparse indices
-    GpuBuffer<uint32_t>*     _pbSparseIndex;                 // GPU copy of _vSparseIndex
-    GpuBuffer<NNFloat>*      _pbDenoisingRandom;             // Denoising randoms 
+    string                      _name;                          // Dataset name
+    NNDataSetEnums::DataType    _dataType;                      // Dataset type (see above enum)
+    uint32_t                    _attributes;                    // Dataset characteristics (see NNDataSetEnum::Attributes in NNEnum.h)
+    uint32_t                    _examples;                      // Number of examples
+    uint32_t                    _localExamples;                 // Number of local examples when data sharded
+    uint32_t                    _dimensions;                    // Dimensionality of data set
+    uint32_t                    _width;                         // Dataset x dimension
+    uint32_t                    _height;                        // Dataset y dimension
+    uint32_t                    _length;                        // Dataset z dimension
+    uint32_t                    _stride;                        // Stride between examples
+    NNDataSetEnums::Sharding    _sharding;                      // Sharding of dataset for parallel execution
+    uint32_t                    _minX;                          // Beginning of local X sharding for model parallel execution 
+    uint32_t                    _maxX;                          // End of local X sharding for model parallel execution
+    uint64_t                    _sparseDataSize;                // Total sparse datapoints
+    uint32_t                    _maxSparseDatapoints;           // Maximum observed sparse datapoints per example
+    NNFloat                     _sparseDensity;                 // Overall sparse density (0.0 - 1.0)
+    vector<uint64_t>            _vSparseStart;                  // Vector of sparse datapoint starts per example
+    GpuBuffer<uint64_t>*        _pbSparseStart;                 // GPU copy of _vSparseStart
+    vector<uint64_t>            _vSparseEnd;                    // Vector of sparse datapoint ends per example
+    GpuBuffer<uint64_t>*        _pbSparseEnd;                   // GPU copy of _vSparseEnd
+    vector<uint32_t>            _vSparseIndex;                  // Vector of sparse indices
+    GpuBuffer<uint32_t>*        _pbSparseIndex;                 // GPU copy of _vSparseIndex
+    GpuBuffer<NNFloat>*         _pbDenoisingRandom;             // Denoising randoms 
     
     // Transposed sparse lookup for sparse backpropagation
-    vector<uint64_t>         _vSparseDatapointCount;
-    vector<uint32_t>         _vSparseTransposedStart;
-    uint32_t                 _sparseTransposedIndices;
-    GpuBuffer<uint32_t>*     _pbSparseTransposedStart;
-    GpuBuffer<uint32_t>*     _pbSparseTransposedEnd;
-    GpuBuffer<uint32_t>*     _pbSparseTransposedIndex;
+    vector<uint64_t>            _vSparseDatapointCount;
+    vector<uint32_t>            _vSparseTransposedStart;
+    uint32_t                    _sparseTransposedIndices;
+    GpuBuffer<uint32_t>*        _pbSparseTransposedStart;
+    GpuBuffer<uint32_t>*        _pbSparseTransposedEnd;
+    GpuBuffer<uint32_t>*        _pbSparseTransposedIndex;
 
     // States
-    bool                     _bDenoising;
-    bool                     _bDirty;
-    uint32_t                 _batch;
+    bool                        _bDenoising;
+    bool                        _bDirty;
+    uint32_t                    _batch;
     
       
 

@@ -104,9 +104,11 @@ static std::pair<PoolingFunction, string> sPoolingFunctionPair[] =
 {
     std::pair<PoolingFunction, string>(PoolingFunction::None,                       "None"),
     std::pair<PoolingFunction, string>(PoolingFunction::Max,                        "Max"),
+    std::pair<PoolingFunction, string>(PoolingFunction::Average,                    "Average"),
+    std::pair<PoolingFunction, string>(PoolingFunction::Maxout,                     "Maxout"),
     std::pair<PoolingFunction, string>(PoolingFunction::Stochastic,                 "Stochastic"),
-    std::pair<PoolingFunction, string>(PoolingFunction::LocalContrastNormalization, "LocalContrastNormalization"),
-    std::pair<PoolingFunction, string>(PoolingFunction::LocalResponseNormalization, "LocalResponseNormalization"),
+    std::pair<PoolingFunction, string>(PoolingFunction::LCN,                        "LocalContrastNormalization"),
+    std::pair<PoolingFunction, string>(PoolingFunction::LRN,                        "LocalResponseNormalization"),
     std::pair<PoolingFunction, string>(PoolingFunction::GlobalTemporal,             "GlobalTemporal"),
 };
 
@@ -143,11 +145,14 @@ ostream& operator<< (ostream& out, NNDataSetEnums::Kind& k)
 
 static std::pair<NNDataSetEnums::Attributes, string> sAttributesPair[] =
 {
-    std::pair<NNDataSetEnums::Attributes, string>(NNDataSetEnums::Sparse,    "Sparse"),
-    std::pair<NNDataSetEnums::Attributes, string>(NNDataSetEnums::Boolean,   "Boolean"),
-    std::pair<NNDataSetEnums::Attributes, string>(NNDataSetEnums::Unused,    "Reserved"),
-    std::pair<NNDataSetEnums::Attributes, string>(NNDataSetEnums::Recurrent, "Recurrent"),
-    std::pair<NNDataSetEnums::Attributes, string>(NNDataSetEnums::Mutable,   "Mutable"),
+    std::pair<NNDataSetEnums::Attributes, string>(NNDataSetEnums::Sparse,                        "Sparse"),
+    std::pair<NNDataSetEnums::Attributes, string>(NNDataSetEnums::Boolean,                       "Boolean"),
+    std::pair<NNDataSetEnums::Attributes, string>(NNDataSetEnums::Compressed,                    "Compressed"),
+    std::pair<NNDataSetEnums::Attributes, string>(NNDataSetEnums::Recurrent,                     "Recurrent"),
+    std::pair<NNDataSetEnums::Attributes, string>(NNDataSetEnums::Mutable,                       "Mutable"),
+    std::pair<NNDataSetEnums::Attributes, string>(NNDataSetEnums::Attributes::SparseIgnoreZero,   "SparseIgnoreZero"),
+    std::pair<NNDataSetEnums::Attributes, string>(NNDataSetEnums::Attributes::Streaming,          "Streaming"),        
+
 };
 
 static std::map<NNDataSetEnums::Attributes, string> sAttributesMap =
@@ -185,8 +190,8 @@ static std::pair<NNDataSetEnums::DataType, string> sDataTypePair[] =
     std::pair<NNDataSetEnums::DataType, string>(NNDataSetEnums::ULLInt, "ULLInt"),
     std::pair<NNDataSetEnums::DataType, string>(NNDataSetEnums::Float,  "Float"),
     std::pair<NNDataSetEnums::DataType, string>(NNDataSetEnums::Double, "Double"),
-    std::pair<NNDataSetEnums::DataType, string>(NNDataSetEnums::RGBA8,  "RGBA8"),
-    std::pair<NNDataSetEnums::DataType, string>(NNDataSetEnums::RGBA16, "RGBA16"),
+    std::pair<NNDataSetEnums::DataType, string>(NNDataSetEnums::RGB8,  "RGB8"),
+    std::pair<NNDataSetEnums::DataType, string>(NNDataSetEnums::RGB16, "RGB16"),
     std::pair<NNDataSetEnums::DataType, string>(NNDataSetEnums::UChar,  "UChar"),
     std::pair<NNDataSetEnums::DataType, string>(NNDataSetEnums::Char,   "Char"),
 };
@@ -284,7 +289,7 @@ _width(0),
 _height(0),
 _length(0),
 _stride(0),
-_sharding(NNDataSetEnums::Data),
+_sharding(NNDataSetEnums::None),
 _minX(0),
 _maxX(0),
 _sparseDataSize(0),
@@ -693,7 +698,7 @@ _pbSparseTransposedData(NULL)
             }
             else
                 _length                         = 1;
-            cout << "NNDataSet<T>::NNDataSet: " << _dimensions << "-dimensional data comprised of (" << _width << ", " << _length << ", " << _height << ") datapoints." << endl;
+            cout << "NNDataSet<T>::NNDataSet: " << _dimensions << "-dimensional data comprised of (" << _width << ", " << _height << ", " << _length << ") datapoints." << endl;
             
             // Make sure all dimensions are at least 1
             if ((_width == 0) || (_height == 0) || (_length == 0))
@@ -779,6 +784,7 @@ _pbSparseTransposedData(NULL)
             else
             {
                 // Non-sparse data
+                _stride                         = _width * _height * _length;
                 vname                           = "dataDim" + nstring;
                 NcDim dataDim                   = nfc.getDim(vname); 
                 if (dataDim.isNull())
@@ -802,7 +808,7 @@ _pbSparseTransposedData(NULL)
                 }
                 else
                 {
-                    _vData.resize(dataDim.getSize());        
+                    _vData.resize(dataDim.getSize());   
                     dataVar.getVar(_vData.data());
                 }   
             }
@@ -916,9 +922,9 @@ template<typename T> bool NNDataSet<T>::GenerateSparseTransposedMatrix(uint32_t 
     }
     
     uint64_t NData                          = _width * _height * _length;
-    uint32_t Nx, Ny, Nz;
-    tie(Nx, Ny, Nz)                         = pLayer->GetLocalDimensions();
-    uint64_t NLayer                         = Nx * Ny * Nz;
+    uint32_t Nx, Ny, Nz, Nw;
+    tie(Nx, Ny, Nz, Nw)                     = pLayer->GetLocalDimensions();
+    uint64_t NLayer                         = Nx * Ny * Nz * Nw;
     uint64_t N                              = max(NData, NLayer);
     _vSparseTransposedStart.resize(N);
     if (_pbSparseTransposedStart == NULL)
@@ -1370,7 +1376,51 @@ template<typename T> bool NNDataSet<T>::Shard(NNDataSetEnums::Sharding sharding)
     }
     else if (sharding == NNDataSetEnums::Data)
     {
-    
+        // Interleave examples
+        _sharding                                   = NNDataSetEnums::Data;
+        uint32_t segment                            = _examples / getGpu()._numprocs;
+        uint32_t remainder                          = _examples % getGpu()._numprocs;  
+        _localExamples                              = segment + (remainder > getGpu()._id);         
+        if (getGpu()._id == 0)
+        {
+            // Send sharded data to other processes
+            printf("NNDataSet<T>::Shard: Data Sharding dataset %s across all GPUs.\n", _name.c_str());
+            for (size_t i = 1; i < getGpu()._numprocs; i++)
+            {
+                uint32_t localExamples          = segment + (remainder > i);
+                vector<T> vLocalData(localExamples * _stride);
+                T* pData                        = vLocalData.data();
+                uint32_t position               = i;
+                for (size_t j = position; j < _examples; j+= getGpu()._numprocs)
+                {
+                    memcpy(pData, &_vData[j * _stride], _stride * sizeof(T));
+                    pData                      += _stride;
+                }
+                
+                // Broadcast index data to appropriate process
+                uint64_t size                   = vLocalData.size();
+                MPI_Send(&size, 1, MPI_UINT64_T, i, 0, MPI_COMM_WORLD);
+                MPI_Datatype mpiType            = getMPIDataType(_dataType);
+                MPI_Send(vLocalData.data(), localExamples * _stride, mpiType, i, 0, MPI_COMM_WORLD);
+            }
+            
+            // Finally, derive local segment
+            _vData.resize(_localExamples * _stride);
+        }
+        else
+        {
+                // Receive sharded data from master process
+                uint64_t size;
+                MPI_Status status;
+                MPI_Recv(&size, 1, MPI_UINT64_T, 0, 0, MPI_COMM_WORLD, &status);
+                _vData.resize(size);
+                MPI_Datatype mpiType                = getMPIDataType(_dataType);
+                MPI_Recv(_vData.data(), size, mpiType, 0, 0, MPI_COMM_WORLD, &status);
+        }
+        
+        // Allocate space then upload data to GPU memory
+        _pbData                                 = new GpuBuffer<T>((uint64_t)_vData.size());
+        _pbData->Upload(_vData.data()); 
     }
 
     return true;
@@ -1703,8 +1753,8 @@ vector<NNDataSetBase*> LoadNetCDF(const string& fname)
                     case NNDataSetEnums::ULLInt:
                     case NNDataSetEnums::Float:
                     case NNDataSetEnums::Double:
-                    case NNDataSetEnums::RGBA8:
-                    case NNDataSetEnums::RGBA16:
+                    case NNDataSetEnums::RGB8:
+                    case NNDataSetEnums::RGB16:
                     case NNDataSetEnums::UChar:
                     case NNDataSetEnums::Char:
                         vDataType.push_back((NNDataSetEnums::DataType)dataType);
@@ -1773,7 +1823,8 @@ vector<NNDataSetBase*> LoadNetCDF(const string& fname)
                 break;
 
             case NNDataSetEnums::UChar:
-                pDataSet                    = new NNDataSet<unsigned char>(fname, i);
+            case NNDataSetEnums::RGB8:
+                pDataSet                    = new NNDataSet<uint8_t>(fname, i);
                 break;
 
             default:

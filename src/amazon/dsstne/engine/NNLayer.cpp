@@ -36,6 +36,7 @@ _pbDropout(NULL),
 _Nx(d._Nx),
 _Ny(d._Ny),
 _Nz(d._Nz),
+_Nw(d._Nw),
 _dimensions(d._dimensions),
 _weightInit(d._weightInit),
 _weightInitScale(d._weightInitScale),
@@ -46,10 +47,15 @@ _kernelZ(d._kernelZ),
 _kernelStrideX(d._kernelStrideX),
 _kernelStrideY(d._kernelStrideY),
 _kernelStrideZ(d._kernelStrideZ),
+_kernelPaddingX(d._kernelPaddingX),
+_kernelPaddingY(d._kernelPaddingY),
+_kernelPaddingZ(d._kernelPaddingZ),
+_kernelDimensions(d._kernelDimensions),
 _weightNorm(d._weightNorm),
 _deltaNorm(d._deltaNorm),
 _pDropout(d._pDropout),
 _activation(d._activation),
+_oddBatch(0),
 _bSparse(d._attributes & NNLayer::Attributes::Sparse),
 _sparsenessPenalty_p(d._sparsenessPenalty_p),
 _sparsenessPenalty_beta(d._sparsenessPenalty_beta),
@@ -62,20 +68,99 @@ _unitUpdateCount(0),
 _batch(batch),
 _localBatch(batch)
 {  
-    if (_type == Convolutional)
-        _parallelization            = Data;
-    else
-        _parallelization            = Model;
-    _stride                         = _Nx * _Ny * _Nz;
+    _stride                         = _Nx * _Ny * _Nz * _Nw;
+    _parallelization                = Serial;
+
+    // Model parallel settings
     _minX                           = ((size_t)_Nx * (size_t)getGpu()._id) / (size_t)getGpu()._numprocs;
     _maxX                           = ((size_t)_Nx * (size_t)(getGpu()._id + 1)) / (size_t)getGpu()._numprocs;
-    _localStride                    = (_maxX - _minX) * _Ny * _Nz;
-    _maxLocalStride                 = ((size_t)_Nx + getGpu()._numprocs - 1) / (size_t)getGpu()._numprocs;
+    _localStride                    = (_maxX - _minX) * _Ny * _Nz * _Nw;
+    _maxLocalStride                 = (((size_t)_Nx + getGpu()._numprocs - 1) / (size_t)getGpu()._numprocs) * _Ny * _Nz * _Nw;
+    
+    // Allocate cuDNN tensor data if convolutional or pooling layer
+    if ((_type == NNLayer::Type::Pooling) || (_type == NNLayer::Type::Convolutional))
+    {
+        cudnnStatus_t cudnnStatus   = cudnnCreateTensorDescriptor(&_tensorDescriptor);
+        CUDNNERROR(cudnnStatus, "NNLayer::NNLayer: unable to create _tensordescriptor");
+        cudnnStatus                 = cudnnCreateTensorDescriptor(&_oddBatchTensorDescriptor);
+        CUDNNERROR(cudnnStatus, "NNLayer::NNLayer: unable to create _oddBatchTensordescriptor");        
+    }
+    
+    // Allocate cuDNN pooling descriptor for pooling layers
+    if (_type == NNLayer::Type::Pooling)
+    {
+        cudnnStatus_t cudnnStatus = cudnnCreatePoolingDescriptor(&_poolingDescriptor);
+        CUDNNERROR(cudnnStatus, "NNLayer::NNLayer: unable to create pooling descriptor");
+        vector<int> vKernel(3);
+        vector<int> vKernelPadding(3);
+        vector<int> vKernelStride(3);
+        vKernel[0]                  = _kernelX;
+        vKernel[1]                  = _kernelY;
+        vKernel[2]                  = _kernelZ;
+        vKernelPadding[0]           = _kernelPaddingX;
+        vKernelPadding[1]           = _kernelPaddingY;
+        vKernelPadding[2]           = _kernelPaddingZ;
+        vKernelStride[0]            = _kernelStrideX;
+        vKernelStride[1]            = _kernelStrideY;
+        vKernelStride[2]            = _kernelStrideZ;
+        
+        switch (_poolingFunction)
+        {
+            case PoolingFunction::Max:
+                cudnnSetPoolingNdDescriptor(_poolingDescriptor,
+                                           CUDNN_POOLING_MAX,
+                                           CUDNN_PROPAGATE_NAN,
+                                           _kernelDimensions,
+                                           vKernel.data(),
+                                           vKernelPadding.data(),
+                                           vKernelStride.data());
+                CUDNNERROR(cudnnStatus, "NNLayer::NNLayer: unable to set max pooling descriptor");
+                break;
+                
+            case PoolingFunction::Average:
+                cudnnSetPoolingNdDescriptor(_poolingDescriptor,
+                                           CUDNN_POOLING_AVERAGE_COUNT_EXCLUDE_PADDING,
+                                           CUDNN_PROPAGATE_NAN,
+                                           _kernelDimensions,
+                                           vKernel.data(),
+                                           vKernelPadding.data(),
+                                           vKernelStride.data());
+                CUDNNERROR(cudnnStatus, "NNLayer::NNLayer: unable to set average pooling descriptor");            
+                
+            case PoolingFunction::LRN:
+                cudnnStatus         = cudnnCreateLRNDescriptor(&_LRNDescriptor);
+                CUDNNERROR(cudnnStatus, "NNLayer::NNLayer: unable to create LRN descriptor");
+                break;
+        }        
+    }
 }
 
 NNLayer::~NNLayer()
 {
     Deallocate();
+    // Deallocate cuDNN tensor data if convolutional or pooling layer
+    if ((_type == NNLayer::Type::Pooling) || (_type == NNLayer::Type::Convolutional))
+    {
+        // Delete tensor descriptors
+        cudnnStatus_t cudnnStatus       = cudnnDestroyTensorDescriptor(_tensorDescriptor);
+        CUDNNERROR(cudnnStatus, "NNLayer::~NNLayer: unable to delete _tensorDescriptor");        
+        cudnnStatus                     = cudnnDestroyTensorDescriptor(_oddBatchTensorDescriptor);
+        CUDNNERROR(cudnnStatus, "NNLayer::~NNLayer: unable to delete _oddBatchTensorDescriptor");  
+    }
+    
+    // Delete pooling layer-specific stuff
+    if (_type == NNLayer::Type::Pooling)
+    {
+        cudnnStatus_t cudnnStatus       = cudnnDestroyPoolingDescriptor(_poolingDescriptor);
+        CUDNNERROR(cudnnStatus, "NNLayer::~NNLayer: unable to destroy _poolingDescriptor");
+        
+        if (_poolingFunction == PoolingFunction::LRN)
+        {
+            // Delete LRN descriptor
+            cudnnStatus_t cudnnStatus   = cudnnDestroyLRNDescriptor(_LRNDescriptor);
+            CUDNNERROR(cudnnStatus, "NNLayer::~NNLayer: unable to delete _LRNDescriptor");
+        }
+    }
 }
 
 void NNLayer::Deallocate()
@@ -92,14 +177,66 @@ void NNLayer::Deallocate()
     _pbDropout                  = NULL;
 }
 
-tuple<uint32_t, uint32_t, uint32_t> NNLayer::GetDimensions()
+cudnnTensorDescriptor_t NNLayer::getTensorDescriptor(uint32_t batch)
 {
-    return make_tuple(_Nx, _Ny, _Nz);
+    // Return usual tensor descriptor if regular batch
+    if (batch == _batch)
+    {
+        return _tensorDescriptor;
+    }
+    
+    // Return odd batch for ends of epochs or resize
+    // here for a one-shot
+    else if (batch != _oddBatch)
+    {
+        cudnnStatus_t cudnnStatus;
+        vector<int> vDimensions(5, 1);
+        vector<int> vStride(5, 1);
+        switch (_dimensions)
+        {
+            case 2:
+                vDimensions[0]      = batch;
+                vDimensions[1]      = _Ny;
+                vDimensions[2]      = _Nx;
+                vStride[2]          = 1;
+                vStride[1]          = _Nx;
+                vStride[0]          = _Nx * _Ny;                
+                cudnnStatus         = cudnnSetTensorNdDescriptor(_oddBatchTensorDescriptor, CUDNN_DATA_FLOAT, _dimensions + 1, vDimensions.data(), vStride.data());
+                break;
+            
+            case 3:
+                cudnnStatus         = cudnnSetTensor4dDescriptor(_oddBatchTensorDescriptor, CUDNN_TENSOR_NCHW, CUDNN_DATA_FLOAT, batch, _Nz, _Ny, _Nx);
+                break;
+                
+            case 4:
+                vDimensions[0]      = batch;
+                vDimensions[1]      = _Nw;
+                vDimensions[2]      = _Nz;
+                vDimensions[3]      = _Ny;
+                vDimensions[4]      = _Nx;
+                vStride[4]          = 1;
+                vStride[3]          = _Nx;
+                vStride[2]          = _Nx * _Ny;
+                vStride[1]          = _Nx * _Ny * _Nz;
+                vStride[0]          = _Nx * _Ny * _Nz * _Nw;                                             
+                cudnnStatus         = cudnnSetTensorNdDescriptor(_tensorDescriptor, CUDNN_DATA_FLOAT, _dimensions + 1, vDimensions.data(), vStride.data());
+                break;
+        }
+        CUDNNERROR(cudnnStatus, "NNLayer::Allocate: Unable to set oddBatchTensorDescriptor");
+        _oddBatch = batch;
+    }
+
+    return _oddBatchTensorDescriptor;
 }
 
-tuple<uint32_t, uint32_t, uint32_t> NNLayer::GetLocalDimensions()
+tuple<uint32_t, uint32_t, uint32_t, uint32_t> NNLayer::GetDimensions()
 {
-    return make_tuple(_maxX - _minX, _Ny, _Nz);
+    return make_tuple(_Nx, _Ny, _Nz, _Nw);
+}
+
+tuple<uint32_t, uint32_t, uint32_t, uint32_t> NNLayer::GetLocalDimensions()
+{
+    return make_tuple(_maxX - _minX, _Ny, _Nz, _Nw);
 }
 
 tuple<uint32_t, uint32_t, uint32_t> NNLayer::GetKernelDimensions()
@@ -112,10 +249,67 @@ tuple<uint32_t, uint32_t, uint32_t> NNLayer::GetKernelStride()
     return make_tuple(_kernelStrideX, _kernelStrideY, _kernelStrideZ);
 }
 
+
+static void DumpTensor(cudnnTensorDescriptor_t t)
+{
+    cudnnDataType_t dataType;
+    int ndims;
+    vector<int> vDim(16);
+    vector<int> vStride(16);
+    cudnnStatus_t cudnnStatus = cudnnGetTensorNdDescriptor(t, 8, &dataType, &ndims, vDim.data(), vStride.data());
+    CUDNNERROR(cudnnStatus, "cudnnGetTensorNdDescriptor error");    
+    cout << "Tensor:   " << ndims << " dimensions" << endl;
+    cout << "DataType: " << dataType << endl;
+    for (int i = 0; i < ndims; i++)
+        cout << i << " " << vDim[i] << " " << vStride[i] << endl;
+    cout << endl;
+    
+}
+
 void NNLayer::Allocate(bool validate)
 {
     Deallocate();
-    uint64_t size                   = (uint64_t)_maxLocalStride * (uint64_t)_localBatch;
+    uint64_t size                   = (uint64_t)_maxLocalStride * (uint64_t)_localBatch; 
+        
+    // Set tensor descriptor if pooling or convolutional layer
+    if ((_type == NNLayer::Type::Pooling) || (_type == NNLayer::Type::Convolutional))
+    {
+        cudnnStatus_t cudnnStatus;
+        vector<int> vDimensions(5, 1);
+        vector<int> vStride(5, 1);
+        switch (_dimensions)
+        {
+            case 2:
+                vDimensions[0]      = _localBatch;
+                vDimensions[1]      = _Ny;
+                vDimensions[2]      = _Nx;
+                vStride[2]          = 1;
+                vStride[1]          = _Nx;
+                vStride[0]          = _Nx * _Ny;                
+                cudnnStatus         = cudnnSetTensorNdDescriptor(_tensorDescriptor, CUDNN_DATA_FLOAT, _dimensions + 1, vDimensions.data(), vStride.data());
+                break;
+            
+            case 3:
+                cudnnStatus         = cudnnSetTensor4dDescriptor(_tensorDescriptor, CUDNN_TENSOR_NCHW, CUDNN_DATA_FLOAT, _localBatch, _Nz, _Ny, _Nx);
+                break;
+                
+            case 4:
+                vDimensions[0]      = _localBatch;
+                vDimensions[1]      = _Nw;
+                vDimensions[2]      = _Nz;
+                vDimensions[3]      = _Ny;
+                vDimensions[4]      = _Nx;
+                vStride[4]          = 1;
+                vStride[3]          = _Nx;
+                vStride[2]          = _Nx * _Ny;
+                vStride[1]          = _Nx * _Ny * _Nz;
+                vStride[0]          = _Nx * _Ny * _Nz * _Nw;                           
+                cudnnStatus         = cudnnSetTensorNdDescriptor(_tensorDescriptor, CUDNN_DATA_FLOAT, _dimensions + 1, vDimensions.data(), vStride.data());
+                break;
+        }
+        CUDNNERROR(cudnnStatus, "NNLayer::Allocate: Unable to set tensor descriptor");
+        DumpTensor(_tensorDescriptor);
+    }
     
     // Allocate hidden unit data for hidden and output layers and for non-sparse input layers
     if (!_bSparse || !_bFastSparse || (_kind != Input)
@@ -144,7 +338,7 @@ void NNLayer::Allocate(bool validate)
         if (getGpu()._id == 0)        
             printf("NNLayer::Allocate: Allocating %" PRIu64 " bytes (%u, %u) of dropout data for layer %s\n", size * sizeof(NNFloat), _maxLocalStride, _localBatch, _name.c_str());
     } 
-    _bDirty                         = false;   
+    _bDirty                         = false;
 }
 
 void NNLayer::SetBatch(uint32_t batch)
@@ -152,12 +346,119 @@ void NNLayer::SetBatch(uint32_t batch)
     if (batch != _batch)
     {
         _batch                      = batch;
-        _localBatch                 = batch;
+        if (_parallelization == NNLayer::Parallelization::Data)
+            _localBatch             = batch / getGpu()._numprocs;
+        else
+            _localBatch             = batch;
         _bDirty                     = true;
     }
 }
 
-void NNLayer::RefreshState(bool validate)
+void NNLayer::RefreshParallelization()
+{
+    uint32_t convolutionalInputs = 0;
+    uint32_t fullyConnectedInputs = 0;
+    uint32_t poolingInputs = 0;
+    uint32_t convolutionalOutputs = 0;
+    uint32_t fullyConnectedOutputs = 0;
+    uint32_t poolingOutputs = 0;    
+    
+    // Count number of inputs and outputs of each type
+    for (auto l : _vIncomingLayer)
+    {
+        switch (l->_type)
+        {
+            case NNLayer::Type::Pooling:
+                poolingInputs++;
+                break;
+            
+            case NNLayer::Type::FullyConnected:
+                fullyConnectedInputs++;
+                break;
+                
+            case NNLayer::Type::Convolutional:
+                convolutionalInputs++;
+                break;
+        }
+    }
+    
+    for (auto l : _vOutgoingLayer)
+    {
+        switch (l->_type)
+        {
+            case NNLayer::Type::Pooling:
+                poolingOutputs++;
+                break;
+                
+            case NNLayer::Type::FullyConnected:
+                fullyConnectedOutputs++;
+                break;
+                
+            case NNLayer::Type::Convolutional:
+                convolutionalOutputs++;
+                break;
+        }
+    }
+    
+    switch (_kind)
+    {
+        // Input layer parallelization based on outputs
+        case NNLayer::Kind::Input:
+            if (convolutionalOutputs > 0)
+                _parallelization = NNLayer::Parallelization::Data;
+            else
+                _parallelization = NNLayer::Parallelization::Model;
+            break;
+    
+        // Output layer parallelization based on inputs
+        case NNLayer::Kind::Output:
+            if (convolutionalInputs > 0)
+                _parallelization = NNLayer::Parallelization::Data;
+            else
+                _parallelization = NNLayer::Parallelization::Model;
+            break;
+        
+        // Hidden Layer based on convolution, pooling, or fully-connected type, with possible transition post-activation
+        // and post-delta calculation if outputs are of the other type
+        case NNLayer::Hidden:
+            // Fully connected layers are always model-parallel with possible incoming transposition
+            if (_type == NNLayer::Type::FullyConnected)
+            {    
+                _parallelization = NNLayer::Parallelization::Model;
+                if (convolutionalOutputs > 0)
+                    _bTransposeParallelization = true;
+            }
+            
+            // Pooling layer based on inputs, with possible transition post-activation
+            // and post-delta calculation if outputs are of the other type
+            else if (_type == NNLayer::Type::Pooling)
+            {
+                if (convolutionalInputs > 0)
+                {
+                    _parallelization = NNLayer::Parallelization::Data;
+                    if (fullyConnectedOutputs > 0)
+                        _bTransposeParallelization = true;
+                }
+                else
+                {
+                    _parallelization = NNLayer::Parallelization::Model;
+                    if (convolutionalOutputs > 0)
+                        _bTransposeParallelization = true;                
+                }
+            }
+            
+            // Otherwise a convolution layer, data-parallel with possible incoming transposition
+            else
+            {
+                _parallelization = NNLayer::Parallelization::Data;                
+                 if (fullyConnectedOutputs > 0)
+                    _bTransposeParallelization = true;
+            }
+            break;
+    }
+}
+
+void NNLayer::RefreshState(NNNetwork* pNetwork, bool validate)
 {
     if (_bDirty)
     {
@@ -165,7 +466,7 @@ void NNLayer::RefreshState(bool validate)
         _bFastSparse                = false;
         if ((_kind == Input) && (_pDataSet != NULL) && (_bSparse))
         {
-            uint32_t maxSparse      = (_pDataSet->_attributes & NNDataSetEnums::Boolean) ? getGpu()._maxSparse : getGpu()._maxSparseAnalog;
+            uint32_t maxSparse      = (_pDataSet->_attributes & NNDataSetEnums::Attributes::Boolean) ? getGpu()._maxSparse : getGpu()._maxSparseAnalog;
             if (_batch > maxSparse)
             {
                 if (getGpu()._id == 0)
@@ -186,6 +487,10 @@ void NNLayer::RefreshState(bool validate)
                 _bFastSparse        = true;
             }
         }
+        
+        // Determine parallelization strategy
+        if (getGpu()._numprocs > 1)
+            RefreshParallelization();
 
         Allocate(validate);
 
@@ -207,6 +512,17 @@ void NNLayer::RefreshState(bool validate)
     // Turn on/off denoising if active for input layers
     if ((_kind == Input) && _pDataSet)
         _pDataSet->SetDenoising(_bDenoising);
+        
+    // Set up LRN descriptor if active
+    if ((_type == NNLayer::Type::Pooling) && (_poolingFunction == PoolingFunction::LRN))
+    {
+        cudnnStatus_t status = cudnnSetLRNDescriptor(_LRNDescriptor,
+                                                    pNetwork->_LRN_n,
+                                                    pNetwork->_LRN_alpha,
+                                                    pNetwork->_LRN_beta,
+                                                    pNetwork->_LRN_k);
+        CUDNNERROR(status, "NNLayer::RefreshState: unable to set LRN descriptor");
+    }
 }
 
 void NNLayer::ClearUpdates()
@@ -263,6 +579,10 @@ void NNLayer::LoadTrainingBatch(uint32_t position, uint32_t batch)
         else
         {
             _pDataSet->LoadInputUnit(position, batch, _localStride, _pbUnit->_pDevData);
+            
+            // Apply dropout if active
+            if (_pDropout > (NNFloat)0.0)
+                CalculateDropout(batch);    
         }
     }
 }
@@ -288,8 +608,31 @@ void NNLayer::GenerateDenoisingData()
     if (_pDataSet)
         _pDataSet->GenerateDenoisingData();
 }
+
 void NNLayer::ForwardPropagate(uint32_t position, uint32_t batch, bool bTraining)
 {
+    
+    // Will switch to class-based decision shortly once working
+    switch (_type)
+    {
+        case FullyConnected:
+            ForwardPropagateFullyConnected(position, batch, bTraining);
+            break;
+            
+        case Convolutional:
+            ForwardPropagateConvolutional(position, batch, bTraining);
+            break;
+            
+        case Pooling:
+            ForwardPropagatePooling(position, batch, bTraining);
+            break;                        
+        
+    }
+}
+    
+    
+void NNLayer::ForwardPropagateFullyConnected(uint32_t position, uint32_t batch, bool bTraining)
+{    
     // Single GPU is the simplest case
     if (getGpu()._numprocs == 1)
     {
@@ -642,6 +985,129 @@ void NNLayer::ForwardPropagate(uint32_t position, uint32_t batch, bool bTraining
 }
 
 
+void NNLayer::ForwardPropagateConvolutional(uint32_t position, uint32_t batch, bool bTraining)
+{ 
+    if (_kind != NNLayer::Kind::Input)
+    {
+        // Single GPU is the simplest case
+        if (getGpu()._numprocs == 1)
+        {
+            NNFloat alpha                   = (NNFloat)1.0;
+            NNFloat beta                    = (NNFloat)0.0;            
+            for (uint32_t i = 0; i < _vIncomingLayer.size(); i++)
+            {
+                NNLayer* pLayer             = _vIncomingLayer[i];
+                NNWeight* pWeight           = _vIncomingWeight[i]->_bShared ? 
+                                              _vIncomingWeight[i]->_pSharedWeight : 
+                                              _vIncomingWeight[i];
+
+                cudnnStatus_t cudnnStatus   = cudnnConvolutionForward(getGpu()._cuDNNHandle,
+                                                                      &alpha,
+                                                                      pLayer->getTensorDescriptor(batch),
+                                                                      pLayer->_pbUnit->_pDevData,
+                                                                      pWeight->_convFilterDesc,
+                                                                      pWeight->_pbWeight->_pDevData,
+                                                                      pWeight->_convDesc,
+                                                                      pWeight->_convFWAlgo,
+                                                                      getGpu()._pNetwork->_pbCUDNNWorkspace->_pDevData,
+                                                                      getGpu()._pNetwork->_CUDNNWorkspaceSize,
+                                                                      &beta,
+                                                                      getTensorDescriptor(batch),
+                                                                      _pbUnit->_pDevData);
+                CUDNNERROR(cudnnStatus, "NNLayer::ForwardPropagateConvolutional: cudnnConvolutionForward Failed");
+                                                                                 
+                // All weights have their own biases, so don't used those from shared weight if so
+                cudnnStatus                 = cudnnAddTensor(getGpu()._cuDNNHandle,
+                                                             &alpha,
+                                                             _vIncomingWeight[i]->_convBiasTensor,
+                                                             _vIncomingWeight[i]->_pbBias->_pDevData,
+                                                             &alpha,
+                                                             getTensorDescriptor(batch),
+                                                             _pbUnit->_pDevData);
+                CUDNNERROR(cudnnStatus, "NNLayer::ForwardPropagateConvolutional: cudnnAddTensor Failed");
+                beta                        = 1.0f;            
+            }
+            
+            // Copy data from incoming skip layers
+            for (auto l : _vIncomingSkip)
+            {
+                kAddBuffers(_pbUnit->_pDevData, l->_pbUnit->_pDevData, batch * _stride);
+            }
+           
+            // Calculate activation
+            CalculateActivation(batch);
+            
+            // Apply dropout if active
+            if (bTraining && (_pDropout > (NNFloat)0.0))
+                CalculateDropout(batch);             
+        }       
+    }
+}
+
+void NNLayer::ForwardPropagatePooling(uint32_t position, uint32_t batch, bool bTraining)
+{ 
+    if (_kind != NNLayer::Kind::Input)
+    {
+        NNFloat alpha                           = (NNFloat)1.0;
+        NNFloat beta                            = (NNFloat)0.0;
+        for (int i = 0; i < _vIncomingLayer.size(); i++)
+        {
+            NNLayer* pLayer                     = _vIncomingLayer[i];
+            cudnnStatus_t cudnnStatus;
+            switch (_poolingFunction)
+            {
+                case PoolingFunction::Max:
+                case PoolingFunction::Average:             
+                    cudnnStatus                 = cudnnPoolingForward(getGpu()._cuDNNHandle,
+                                                                  _poolingDescriptor,
+                                                                  &alpha,
+                                                                  pLayer->getTensorDescriptor(batch),
+                                                                  pLayer->_pbUnit->_pDevData,
+                                                                  &beta,
+                                                                  getTensorDescriptor(batch),
+                                                                  _pbUnit->_pDevData);
+                    CUDNNERROR(cudnnStatus, "NNLayer::ForwardPropagatePooling: cudnnPoolingForward Failed");
+                    break;
+
+                case PoolingFunction::LRN:
+                    cudnnStatus                 = cudnnLRNCrossChannelForward(getGpu()._cuDNNHandle,
+                                                                          _LRNDescriptor,
+                                                                          CUDNN_LRN_CROSS_CHANNEL_DIM1,
+                                                                          &alpha,
+                                                                          pLayer->getTensorDescriptor(batch),
+                                                                          pLayer->_pbUnit->_pDevData,
+                                                                          &beta,
+                                                                          getTensorDescriptor(batch),
+                                                                          _pbUnit->_pDevData);
+                    CUDNNERROR(cudnnStatus, "NNLayer::ForwardPropagatePooling: cudnnLRNCrossChannelForward Failed");                                                                              
+                    break;
+                    
+                    
+                case PoolingFunction::Maxout:
+                    // Will special case 4 or fewer sources into one pass, this will be for remainder of >4 sources
+                    if (beta != (NNFloat)0.0)
+                    {
+                        kCalculateMaxout(pLayer->_pbUnit->_pDevData, batch * _localStride, _pbUnit->_pDevData);
+                    }
+                    else
+                    {
+                        cudaError_t status     = cudaMemcpy(_pbUnit->_pDevData, pLayer->_pbUnit->_pDevData, batch * _localStride * sizeof(NNFloat), cudaMemcpyDefault);
+                        RTERROR(status, "NNLayer::ForwardPropagate: Error calling cudaMemcpy for maxout pooling.");
+                    }
+                    break;
+                    
+            }
+            beta                            = (NNFloat)1.0;
+        }
+
+        // Copy data from incoming skip layers
+        for (auto l : _vIncomingSkip)
+        {
+            kAddBuffers(_pbUnit->_pDevData, l->_pbUnit->_pDevData, batch * _stride);
+        }        
+    }
+}
+
 void NNLayer::CalculateActivation(uint32_t batch)
 {
     uint64_t size                   = (uint64_t)batch * (uint64_t)_localStride;
@@ -757,9 +1223,226 @@ void NNLayer::CalculateOutputDelta(uint32_t position, uint32_t batch, ErrorFunct
     }
 }
 
+
+void NNLayer::BackPropagate(uint32_t position, uint32_t batch, NNFloat alpha)
+{
+    
+    // Will switch to class-based decision shortly once working
+    switch (_type)
+    {
+        case FullyConnected:
+            BackPropagateFullyConnected(position, batch, alpha);
+            break;
+            
+        case Convolutional:
+            BackPropagateConvolutional(position, batch, alpha);
+            break;
+            
+        case Pooling:
+            BackPropagatePooling(position, batch, alpha);
+            break;                        
+        
+    }
+}
+
+void NNLayer::BackPropagateConvolutional(uint32_t position, uint32_t batch, NNFloat alpha)
+{
+    // Special case single GPU
+    if (getGpu()._numprocs == 1)
+    {
+        // Calculate average sparseness and add sparse penalty on hidden layers if active (100% local calculation)
+        if (_kind == Hidden)
+        {
+            if (_bSparse && getGpu()._data._bSparsenessPenalty)
+            {
+                NNFloat p       = (_sparsenessPenalty_p > (NNFloat)0.0)   ? _sparsenessPenalty_p     : getGpu()._pNetwork->_sparsenessPenalty_p;
+                NNFloat beta    = (_sparsenessPenalty_beta > (NNFloat)0.0) ? _sparsenessPenalty_beta : getGpu()._pNetwork->_sparsenessPenalty_beta;
+                kCalculateSparsenessPenalty(batch, _localStride, _pbUnit->_pDevData, _pbDelta->_pDevData, p, beta);
+            }   
+
+            // Account for dropout when calculating deltas (100% local calculation)
+            NNFloat scale                           = (NNFloat)1.0 / ((NNFloat)1.0 - _pDropout);
+            kCalculateHadamardProduct(_activation, batch * _localStride, scale, _pbUnit->_pDevData, _pbDelta->_pDevData);
+            
+            // Normalize deltas if desired
+            if (_deltaNorm > (NNFloat)0.0)
+            {            
+                kNormalizeDeltas(_deltaNorm, batch, _localStride, _pbDelta->_pDevData);
+            }
+        }
+
+
+        // Cycle through incoming layers and process gradient and delta contributions
+        for (uint32_t i = 0; i < _vIncomingLayer.size(); i++)
+        {
+            // Calculate gradients on weights between this and the current incoming layer
+            NNLayer* pInputLayer                = _vIncomingLayer[i];
+
+            NNWeight* pWeight                   = _vIncomingWeight[i];     
+            NNWeight* pSrcWeight                = pWeight->_bShared ? pWeight->_pSharedWeight : pWeight;
+            NNFloat gradient_alpha              = -(NNFloat)1.0 / (pSrcWeight->_sharingCount * (NNFloat)batch);            
+
+            // Skip update if weights are locked
+            cudnnStatus_t cudnnStatus;
+            if (!pWeight->_bLocked)
+            {
+                NNFloat beta                    = (pSrcWeight->_updateCount == 0) ? (NNFloat)0.0 : (NNFloat)1.0;
+                cudnnStatus                     = cudnnConvolutionBackwardFilter(getGpu()._cuDNNHandle,
+                                                                                 &gradient_alpha,
+                                                                                 pInputLayer->getTensorDescriptor(batch),
+                                                                                 pInputLayer->_pbUnit->_pDevData,
+                                                                                 getTensorDescriptor(batch),
+                                                                                 _pbDelta->_pDevData,
+                                                                                 pSrcWeight->_convDesc,
+                                                                                 pSrcWeight->_convBWWeightAlgo,
+                                                                                 getGpu()._pNetwork->_pbCUDNNWorkspace->_pDevData,
+                                                                                 getGpu()._pNetwork->_CUDNNWorkspaceSize,
+                                                                                 &beta,
+                                                                                 pSrcWeight->_convFilterDesc,
+                                                                                 pSrcWeight->_pbWeightGradient->_pDevData);
+                CUDNNERROR(cudnnStatus, "NNLayer::BackPropagateConvolutional: cudnnConvolutionBackwardFilter Failed"); 
+                
+                // Biases are unshared, so overwrite any old gradient data
+                beta                            = (NNFloat)0.0;
+                cudnnStatus                     = cudnnConvolutionBackwardBias(getGpu()._cuDNNHandle,
+                                                                           &gradient_alpha,
+                                                                           getTensorDescriptor(batch),
+                                                                           _pbDelta->_pDevData,
+                                                                           &beta,
+                                                                           pWeight->_convBiasTensor,
+                                                                           pWeight->_pbBiasGradient->_pDevData);                
+                
+
+                // Increment update count
+                pSrcWeight->_updateCount++;
+            }
+     
+            // Calculate delta contributions for incoming non-input layers
+            if (pInputLayer->_kind != Input)
+            {
+                NNFloat delta_alpha             = (NNFloat)1.0;                
+                NNFloat beta                    = (pInputLayer->_deltaUpdateCount == 0) ? (NNFloat)0.0 : (NNFloat)1.0;
+                cudnnStatus                     = cudnnConvolutionBackwardData(getGpu()._cuDNNHandle,
+                                                                               &delta_alpha,
+                                                                               pSrcWeight->_convFilterDesc,
+                                                                               pSrcWeight->_pbWeight->_pDevData,
+                                                                               getTensorDescriptor(batch),
+                                                                               _pbDelta->_pDevData,
+                                                                               pSrcWeight->_convDesc, 
+                                                                               pSrcWeight->_convBWDeltaAlgo,
+                                                                               getGpu()._pNetwork->_pbCUDNNWorkspace->_pDevData,
+                                                                               getGpu()._pNetwork->_CUDNNWorkspaceSize,
+                                                                               &beta,
+                                                                               pInputLayer->getTensorDescriptor(batch),
+                                                                               pInputLayer->_pbDelta->_pDevData);
+                CUDNNERROR(cudnnStatus, "NNLayer::BackPropagateConvolutional: cudnnConvolutionBackwardData Failed");
+
+                // Increment update count
+                pInputLayer->_deltaUpdateCount++; 
+            }
+        }    
+        
+        // Copy deltas to incoming skip layers
+        for (auto l : _vIncomingSkip)
+        {
+            if (l->_deltaUpdateCount > 0)
+            {
+                kAddBuffers(l->_pbDelta->_pDevData, _pbDelta->_pDevData, batch * _localStride);
+            }
+            else
+            {
+                cudaMemcpy(l->_pbDelta->_pDevData, _pbDelta->_pDevData, batch * _localStride * sizeof(NNFloat), cudaMemcpyDefault);
+            }
+         
+            l->_deltaUpdateCount++;
+        }
+    }
+}
+
+void NNLayer::BackPropagatePooling(uint32_t position, uint32_t batch, NNFloat alpha)
+{
+    // Special case single GPU
+    if (getGpu()._numprocs == 1)
+    {
+        // Cycle through incoming layers and process gradient and delta contributions
+        NNFloat pooling_alpha                   = (NNFloat)1.0;
+        for (uint32_t i = 0; i < _vIncomingLayer.size(); i++)
+        {
+            // Calculate gradients on weights between this and the current incoming layer
+            NNLayer* pInputLayer                = _vIncomingLayer[i];
+
+            // Calculate delta contributions for incoming non-input layers
+            if (pInputLayer->_kind != Input)
+            {
+                cudnnStatus_t cudnnStatus;
+                NNFloat beta                    = (pInputLayer->_deltaUpdateCount == 0) ? (NNFloat)0.0 : (NNFloat)1.0;
+                switch (_poolingFunction)
+                {
+                    case Max:
+                    case Average:
+                        cudnnStatus             = cudnnPoolingBackward(getGpu()._cuDNNHandle,
+                                                                       _poolingDescriptor,
+                                                                       &pooling_alpha,
+                                                                       getTensorDescriptor(batch),
+                                                                       _pbUnit->_pDevData,
+                                                                       getTensorDescriptor(batch),
+                                                                       _pbDelta->_pDevData,
+                                                                       pInputLayer->getTensorDescriptor(batch),
+                                                                       pInputLayer->_pbUnit->_pDevData,
+                                                                       &beta,
+                                                                       pInputLayer->getTensorDescriptor(batch),
+                                                                       pInputLayer->_pbDelta->_pDevData);                                                                         
+                        CUDNNERROR(cudnnStatus, "NNLayer::BackPropagatePooling: cudnnPoolingBackward Failed");
+                        break;
+
+                    case LRN:
+                        cudnnStatus             = cudnnLRNCrossChannelBackward(getGpu()._cuDNNHandle,
+                                                                                _LRNDescriptor,
+                                                                                CUDNN_LRN_CROSS_CHANNEL_DIM1,
+                                                                                &pooling_alpha,
+                                                                                getTensorDescriptor(batch),
+                                                                                _pbUnit->_pDevData,
+                                                                                getTensorDescriptor(batch),
+                                                                                _pbDelta->_pDevData,
+                                                                                pInputLayer->getTensorDescriptor(batch),
+                                                                                pInputLayer->_pbUnit->_pDevData,
+                                                                                &beta,
+                                                                                pInputLayer->getTensorDescriptor(batch),
+                                                                                pInputLayer->_pbDelta->_pDevData);                      
+                        CUDNNERROR(cudnnStatus, "NNLayer::BackPropagatePooling: cudnnLRNCrossChannelBackward Failed");
+                        break;
+                        
+                    case Maxout:
+                        kCalculateMaxoutDelta(_pbUnit->_pDevData, _pbDelta->_pDevData, batch * _localStride, beta, pInputLayer->_pbUnit->_pDevData, pInputLayer->_pbDelta->_pDevData);
+                        break;
+
+                }
+                
+                // Increment update count
+                pInputLayer->_deltaUpdateCount++; 
+            }
+        }    
+        
+        // Copy deltas to incoming layers
+        for (auto l : _vIncomingSkip)
+        {
+            if (l->_deltaUpdateCount > 0)
+            {
+                kAddBuffers(l->_pbDelta->_pDevData, _pbDelta->_pDevData, batch * _localStride);
+            }
+            else
+            {
+                cudaMemcpy(l->_pbDelta->_pDevData, _pbDelta->_pDevData, batch * _localStride * sizeof(NNFloat), cudaMemcpyDefault);
+            }
+         
+            l->_deltaUpdateCount++;
+        }
+    }
+}
+
 // Calculates all contributions to Delta(t-1) or (Delta(t) * W(t-1->t)^T) which is the product of a [batch][stride] and [stride][outgoing stride] matrix
 // And for efficiency purposes, the local contribution to dW(t-1->t), which is x(t-1)^T * Delta(t)
-void NNLayer::BackPropagate(uint32_t position, uint32_t batch, NNFloat alpha)
+void NNLayer::BackPropagateFullyConnected(uint32_t position, uint32_t batch, NNFloat alpha)
 {    
     // Special case single GPU
     if (getGpu()._numprocs == 1)
@@ -827,7 +1510,7 @@ void NNLayer::BackPropagate(uint32_t position, uint32_t batch, NNFloat alpha)
                 int ldc                         = pWeight->_bTransposed ? pInputLayer->_localStride : _localStride;
 
                 // Update weights
-                NNFloat sgemm_alpha             = -alpha / (pSrcWeight->_sharingCount * (NNFloat)batch);
+                NNFloat sgemm_alpha             = -(NNFloat)1.0 / (pSrcWeight->_sharingCount * (NNFloat)batch);
                 NNFloat sgemm_beta              = (pSrcWeight->_updateCount == 0) ? (NNFloat)0.0 : (NNFloat)1.0;
                 NNFloat* pC                     = pSrcWeight->_pbWeightGradient->_pDevData;
                 
@@ -958,7 +1641,7 @@ void NNLayer::BackPropagate(uint32_t position, uint32_t batch, NNFloat alpha)
                 int ldc                         = pOutputLayer->_localStride;
 
                 // Update weight gradients
-                NNFloat sgemm_alpha             = -alpha / (pSrcWeight->_sharingCount * (NNFloat)batch);
+                NNFloat sgemm_alpha             = -(NNFloat)1.0 / (pSrcWeight->_sharingCount * (NNFloat)batch);
                 NNFloat sgemm_beta              = (pSrcWeight->_updateCount == 0) ? (NNFloat)0.0 : (NNFloat)1.0;               
                 
                 cublasStatus_t cstatus          = cublasSgemm(getGpu()._cuBLASHandle, 
@@ -1085,7 +1768,7 @@ void NNLayer::BackPropagate(uint32_t position, uint32_t batch, NNFloat alpha)
                     kNormalizeDeltas(_deltaNorm, batch, _localStride, _pbDelta->_pDevData);
                 else
                 {
-                    NNFloat* pMagnitude         = getGpu()._pNetwork->GetScratchBuffer(batch);
+                    NNFloat* pMagnitude             = getGpu()._pNetwork->GetScratchBuffer(batch);
                     kCalculateDeltaMagnitudes(batch, _localStride, _pbDelta->_pDevData, pMagnitude);
                     getGpu()._pNetwork->P2P_Allreduce(pMagnitude, batch);
                     kNormalizeDeltaMagnitudes(_deltaNorm, batch, _localStride, _pbDelta->_pDevData, pMagnitude);            
@@ -1130,7 +1813,7 @@ void NNLayer::BackPropagate(uint32_t position, uint32_t batch, NNFloat alpha)
                 int ldc                         = _stride;
 
                 // Update weight gradients
-                NNFloat sgemm_alpha             = -alpha / (pSrcWeight->_sharingCount * (NNFloat)batch);
+                NNFloat sgemm_alpha             = -(NNFloat)1.0 / (pSrcWeight->_sharingCount * (NNFloat)batch);
                 NNFloat sgemm_beta              = (pSrcWeight->_updateCount == 0) ? (NNFloat)0.0 : (NNFloat)1.0;
                 
                 // Use sparse kernels if possible
@@ -1297,7 +1980,7 @@ void NNLayer::Reduce(uint32_t batch, uint32_t stride, NNFloat* pBuffer, uint32_t
         if (updateCount > 0) 
         {
             kAddBuffers2D(pBuffer, localStride, pSendBuffer + minX, stride, span, batch);
- 	    }
+        }
         else 
         {
             kCopy2D(pBuffer, localStride, pSendBuffer + minX, stride, span, batch);
@@ -1478,9 +2161,10 @@ void NNLayer::Dump(string fname, NNFloat* pBuffer)
 
 std::pair<NNLayer::Kind, string> NNLayer::_sKindPair[] =
 {
-    std::pair<NNLayer::Kind, string>(NNLayer::Kind::Input, "Input"),
-    std::pair<NNLayer::Kind, string>(NNLayer::Kind::Hidden, "Hidden"),
-    std::pair<NNLayer::Kind, string>(NNLayer::Kind::Output, "Output"),
+    std::pair<NNLayer::Kind, string>(NNLayer::Kind::Input,      "Input"),
+    std::pair<NNLayer::Kind, string>(NNLayer::Kind::Hidden,     "Hidden"),
+    std::pair<NNLayer::Kind, string>(NNLayer::Kind::Output,     "Output"),
+    std::pair<NNLayer::Kind, string>(NNLayer::Kind::Target,     "Target"),    
 };
 
 std::map<NNLayer::Kind, string> NNLayer::_sKindMap =
@@ -1490,7 +2174,8 @@ std::map<NNLayer::Kind, string>(_sKindPair, _sKindPair + sizeof(_sKindPair) / si
 std::pair<NNLayer::Type, string> NNLayer::_sTypePair[] =
 {
     std::pair<NNLayer::Type, string>(NNLayer::Type::FullyConnected, "FullyConnected"),
-    std::pair<NNLayer::Type, string>(NNLayer::Type::Convolutional, "Convolutional"),
+    std::pair<NNLayer::Type, string>(NNLayer::Type::Convolutional,  "Convolutional"),
+    std::pair<NNLayer::Type, string>(NNLayer::Type::Pooling,        "Pooling"),    
 };
 
 std::map<NNLayer::Type, string> NNLayer::_sTypeMap =
@@ -1498,9 +2183,9 @@ std::map<NNLayer::Type, string>(_sTypePair, _sTypePair + sizeof(_sTypePair) / si
 
 std::pair<NNLayer::Attributes, string> NNLayer::_sAttributesPair[] =
 {
-    std::pair<NNLayer::Attributes, string>(NNLayer::Attributes::None, "None"),
-    std::pair<NNLayer::Attributes, string>(NNLayer::Attributes::Sparse, "Sparse"),
-    std::pair<NNLayer::Attributes, string>(NNLayer::Attributes::Denoising, "Denoising"),
+    std::pair<NNLayer::Attributes, string>(NNLayer::Attributes::None,       "None"),
+    std::pair<NNLayer::Attributes, string>(NNLayer::Attributes::Sparse,     "Sparse"),
+    std::pair<NNLayer::Attributes, string>(NNLayer::Attributes::Denoising,  "Denoising"),
 };
 
 std::map<NNLayer::Attributes, string> NNLayer::_sAttributesMap =
@@ -1508,8 +2193,10 @@ std::map<NNLayer::Attributes, string>(_sAttributesPair, _sAttributesPair + sizeo
 
 std::pair<NNLayer::Parallelization, string> NNLayer::_sParallelizationPair[] =
 {
-    std::pair<NNLayer::Parallelization, string>(NNLayer::Parallelization::Data, "Data"),
-    std::pair<NNLayer::Parallelization, string>(NNLayer::Parallelization::Model, "Model"),
+    
+    std::pair<NNLayer::Parallelization, string>(NNLayer::Parallelization::Data,     "Data"),
+    std::pair<NNLayer::Parallelization, string>(NNLayer::Parallelization::Model,    "Model"),
+    std::pair<NNLayer::Parallelization, string>(NNLayer::Parallelization::Serial,   "Serial"),
 };
 
 std::map<NNLayer::Parallelization, string> NNLayer::_sParallelizationMap =
@@ -1546,10 +2233,12 @@ NNLayerDescriptor::NNLayerDescriptor() :
 _kind(NNLayer::Kind::Hidden),
 _type(NNLayer::Type::FullyConnected),
 _poolingFunction(None),
-_Nx(0),
+_Nx(1),
 _Ny(1),
 _Nz(1),
-_dimensions(0),
+_Nw(1),
+_dimensions(1),
+_bDimensionsProvided(true),
 _weightInit(Xavier),
 _weightInitScale((NNFloat)1.0),
 _biasInit((NNFloat)0.0),
@@ -1559,6 +2248,10 @@ _kernelZ(1),
 _kernelStrideX(1),
 _kernelStrideY(1),
 _kernelStrideZ(1),
+_kernelPaddingX(0),
+_kernelPaddingY(0),
+_kernelPaddingZ(0),
+_kernelDimensions(1),
 _weightNorm((NNFloat)0.0),
 _deltaNorm((NNFloat)0.0),
 _pDropout((NNFloat)0.0),
@@ -1602,7 +2295,8 @@ bool LoadNNLayerDescriptorNetCDF(const string& fname, netCDF::NcFile& nc, uint32
             NcGroupAtt poolingFunctionAtt       = nc.getAtt(lstring + "poolingfunction");
             if (poolingFunctionAtt.isNull())
             {
-                //throw NcException("NcException", "NNLayer::NNLayer: No pooling function supplied in NetCDF input file " + fname, __FILE__, __LINE__);
+                if (ld._type == NNLayer::Type::Pooling)
+                    throw NcException("NcException", "NNLayer::NNLayer: No pooling function supplied in NetCDF input file " + fname, __FILE__, __LINE__);
                 ld._poolingFunction             = None;
             }
             else
@@ -1635,6 +2329,13 @@ bool LoadNNLayerDescriptorNetCDF(const string& fname, netCDF::NcFile& nc, uint32
                 throw NcException("NcException", "NNLayer::NNLayer: No Nz supplied in NetCDF input file " + fname, __FILE__, __LINE__);
             }
             NzAtt.getValues(&ld._Nz);
+
+            NcGroupAtt NwAtt                    = nc.getAtt(lstring + "Nw");
+            if (NwAtt.isNull())
+            {
+                throw NcException("NcException", "NNLayer::NNLayer: No Nw supplied in NetCDF input file " + fname, __FILE__, __LINE__);
+            }
+            NwAtt.getValues(&ld._Nw);
 
             NcGroupAtt dimensionsAtt            = nc.getAtt(lstring + "dimensions");
             if (dimensionsAtt.isNull())
@@ -1684,11 +2385,40 @@ bool LoadNNLayerDescriptorNetCDF(const string& fname, netCDF::NcFile& nc, uint32
                 throw NcException("NcException", "NNLayer::NNLayer: No kernelStrideZ supplied in NetCDF input file " + fname, __FILE__, __LINE__);
             }
             kernelStrideZAtt.getValues(&ld._kernelStrideZ);
+
+
+            NcGroupAtt kernelPaddingXAtt        = nc.getAtt(lstring + "kernelPaddingX");
+            if (kernelPaddingXAtt.isNull())
+            {
+                throw NcException("NcException", "NNLayer::NNLayer: No kernelPaddingX supplied in NetCDF input file " + fname, __FILE__, __LINE__);
+            }
+            kernelPaddingXAtt.getValues(&ld._kernelPaddingX);
+
+            NcGroupAtt kernelPaddingYAtt        = nc.getAtt(lstring + "kernelPaddingY");
+            if (kernelPaddingYAtt.isNull())
+            {
+                throw NcException("NcException", "NNLayer::NNLayer: No kernelPaddingY supplied in NetCDF input file " + fname, __FILE__, __LINE__);
+            }
+            kernelPaddingYAtt.getValues(&ld._kernelPaddingY);
+
+            NcGroupAtt kernelPaddingZAtt        = nc.getAtt(lstring + "kernelPaddingZ");
+            if (kernelPaddingZAtt.isNull())
+            {
+                throw NcException("NcException", "NNLayer::NNLayer: No kernelPaddingZ supplied in NetCDF input file " + fname, __FILE__, __LINE__);
+            }
+            kernelPaddingZAtt.getValues(&ld._kernelPaddingZ);          
+
+            NcGroupAtt kernelDimensionsAtt      = nc.getAtt(lstring + "kernelDimensions");
+            if (kernelDimensionsAtt.isNull())
+            {
+                throw NcException("NcException", "NNLayer::NNLayer: No kernelDimensions supplied in NetCDF input file " + fname, __FILE__, __LINE__);
+            }
+            kernelDimensionsAtt.getValues(&ld._kernelDimensions);
             
             NcGroupAtt weightInitAtt            = nc.getAtt(lstring + "weightInit");
             if (weightInitAtt.isNull())
             {
-                //throw NcException("NcException", "NNLayer::NNLayer: No weightInit supplied in NetCDF input file " + fname, __FILE__, __LINE__);
+                throw NcException("NcException", "NNLayer::NNLayer: No weightInit supplied in NetCDF input file " + fname, __FILE__, __LINE__);
                 ld._weightInit                  = Xavier;
             }
             else
@@ -1697,7 +2427,7 @@ bool LoadNNLayerDescriptorNetCDF(const string& fname, netCDF::NcFile& nc, uint32
             NcGroupAtt weightInitScaleAtt       = nc.getAtt(lstring + "weightInitScale");
             if (weightInitScaleAtt.isNull())
             {
-                //throw NcException("NcException", "NNLayer::NNLayer: No weightInitScale supplied in NetCDF input file " + fname, __FILE__, __LINE__);
+                throw NcException("NcException", "NNLayer::NNLayer: No weightInitScale supplied in NetCDF input file " + fname, __FILE__, __LINE__);
                 ld._weightInitScale             = (NNFloat)1.0;
             }
             else
@@ -1706,7 +2436,7 @@ bool LoadNNLayerDescriptorNetCDF(const string& fname, netCDF::NcFile& nc, uint32
             NcGroupAtt biasInitAtt              = nc.getAtt(lstring + "biasInit");
             if (biasInitAtt.isNull())
             {
-                //throw NcException("NcException", "NNLayer::NNLayer: No biasInit supplied in NetCDF input file " + fname, __FILE__, __LINE__);
+                throw NcException("NcException", "NNLayer::NNLayer: No biasInit supplied in NetCDF input file " + fname, __FILE__, __LINE__);
                 ld._biasInit                    = (NNFloat)0.0;
             }
             else
@@ -1715,7 +2445,7 @@ bool LoadNNLayerDescriptorNetCDF(const string& fname, netCDF::NcFile& nc, uint32
             NcGroupAtt weightNormAtt            = nc.getAtt(lstring + "weightNorm");
             if (weightNormAtt.isNull())
             {
-                //throw NcException("NcException", "NNLayer::NNLayer: No weightNorm supplied in NetCDF input file " + fname, __FILE__, __LINE__);
+                throw NcException("NcException", "NNLayer::NNLayer: No weightNorm supplied in NetCDF input file " + fname, __FILE__, __LINE__);
                 ld._weightNorm                  = (NNFloat)0.0;
             }
             else
@@ -1724,7 +2454,7 @@ bool LoadNNLayerDescriptorNetCDF(const string& fname, netCDF::NcFile& nc, uint32
             NcGroupAtt deltaNormAtt             = nc.getAtt(lstring + "deltaNorm");
             if (deltaNormAtt.isNull())
             {
-                //throw NcException("NcException", "NNLayer::NNLayer: No deltaNorm supplied in NetCDF input file " + fname, __FILE__, __LINE__);
+                throw NcException("NcException", "NNLayer::NNLayer: No deltaNorm supplied in NetCDF input file " + fname, __FILE__, __LINE__);
                 ld._deltaNorm                   = (NNFloat)0.0;
             }
             else
@@ -1733,7 +2463,7 @@ bool LoadNNLayerDescriptorNetCDF(const string& fname, netCDF::NcFile& nc, uint32
             NcGroupAtt pDropoutAtt              = nc.getAtt(lstring + "pDropout");
             if (pDropoutAtt.isNull())
             {
-                //throw NcException("NcException", "NNLayer::NNLayer: No pDropout supplied in NetCDF input file " + fname, __FILE__, __LINE__);
+                throw NcException("NcException", "NNLayer::NNLayer: No pDropout supplied in NetCDF input file " + fname, __FILE__, __LINE__);
                 ld._pDropout                    = (NNFloat)0.0;
             }
             else
@@ -1750,7 +2480,7 @@ bool LoadNNLayerDescriptorNetCDF(const string& fname, netCDF::NcFile& nc, uint32
             NcGroupAtt sparsenessPenalty_pAtt   = nc.getAtt("sparsenessPenalty_p");   
             if (sparsenessPenalty_pAtt.isNull())
             {
-                //throw NcException("NcException", "NNLayer::NNLayer: No sparsenessPenalty_p supplied in NetCDF input file " + fname, __FILE__, __LINE__);
+                throw NcException("NcException", "NNLayer::NNLayer: No sparsenessPenalty_p supplied in NetCDF input file " + fname, __FILE__, __LINE__);
                 ld._sparsenessPenalty_p = (NNFloat)0.0;
             }
             else
@@ -1762,7 +2492,7 @@ bool LoadNNLayerDescriptorNetCDF(const string& fname, netCDF::NcFile& nc, uint32
             NcGroupAtt sparsenessPenalty_betaAtt= nc.getAtt("sparsenessPenalty_beta");
             if (sparsenessPenalty_betaAtt.isNull())
             {
-                //throw NcException("NcException", "NNLayer::NNLayer: No sparsenessPenalty_beta supplied in NetCDF input file " + fname, __FILE__, __LINE__);
+                throw NcException("NcException", "NNLayer::NNLayer: No sparsenessPenalty_beta supplied in NetCDF input file " + fname, __FILE__, __LINE__);
                 ld._sparsenessPenalty_p = (NNFloat)0.0;
             }
             else
@@ -1836,39 +2566,52 @@ ostream& operator<< (ostream& out, NNLayerDescriptor& d)
     out << "Name:                  " << d._name << endl;
     out << "Kind:                  " << d._kind << endl;
     out << "Type:                  " << d._type << endl;
-    out << "Pooling Function:      " << d._poolingFunction << endl;
+    if (d._type != NNLayer::Type::Pooling)
+        out << "Pooling Function:      " << d._poolingFunction << endl;
     out << "Nx:                    " << d._Nx << endl;
     out << "Ny:                    " << d._Ny << endl;
     out << "Nz:                    " << d._Nz << endl;
-    out << "kernelX:               " << d._kernelX << endl;
-    out << "kernelY:               " << d._kernelY << endl;
-    out << "kernelZ:               " << d._kernelZ << endl;
-    out << "kernelXStride:         " << d._kernelStrideX << endl;
-    out << "kernelYStride:         " << d._kernelStrideY << endl;
-    out << "kernelZStride:         " << d._kernelStrideZ << endl;
-    out << "pDropout:              " << d._pDropout << endl;
-    out << "weightInit:            " << d._weightInit << endl;
-    out << "weightInitScale:       " << d._weightInitScale << endl;
-    out << "biasInit:              " << d._biasInit << endl;
-    out << "weightNorm:            " << d._weightNorm << endl;
-    out << "deltaNorm:             " << d._deltaNorm << endl;
-    out << "activation:            " << d._activation << endl;
-    out << "Sparse:                " << ((d._attributes & NNLayer::Attributes::Sparse) != 0) << endl;
-    if (d._kind == NNLayer::Kind::Hidden)
+    out << "Nw:                    " << d._Nw << endl;
+    if (d._type != NNLayer::Type::FullyConnected)
     {
-        if (d._sparsenessPenalty_p > (NNFloat)0.0)
-            out << "sparsenessPenalty_p    " << d._sparsenessPenalty_p << endl;
-        if (d._sparsenessPenalty_beta > (NNFloat)0.0)
-            out << "sparsenessPenalty_beta " << d._sparsenessPenalty_beta << endl;
-        out << "DataSet:            " << d._dataSet << endl;
+        out << "kernelX:               " << d._kernelX << endl;
+        out << "kernelY:               " << d._kernelY << endl;
+        out << "kernelZ:               " << d._kernelZ << endl;
+        out << "kernelStrideX:         " << d._kernelStrideX << endl;
+        out << "kernelStrideY:         " << d._kernelStrideY << endl;
+        out << "kernelStrideZ:         " << d._kernelStrideZ << endl;
+        out << "kernelPaddingX:        " << d._kernelPaddingX << endl;
+        out << "kernelPaddingY:        " << d._kernelPaddingY << endl;
+        out << "kernelPaddingZ:        " << d._kernelPaddingZ << endl;
+        out << "kernelDimensions:      " << d._kernelDimensions << endl;
+    }
+    if (d._type != NNLayer::Type::Pooling)
+    {
+        out << "pDropout:              " << d._pDropout << endl;
+        out << "weightInit:            " << d._weightInit << endl;
+        out << "weightInitScale:       " << d._weightInitScale << endl;
+        out << "biasInit:              " << d._biasInit << endl;
+        out << "weightNorm:            " << d._weightNorm << endl;
+        out << "deltaNorm:             " << d._deltaNorm << endl;
+        out << "activation:            " << d._activation << endl;
+        out << "Sparse:                " << ((d._attributes & NNLayer::Attributes::Sparse) != 0) << endl;
+        if (d._type == NNLayer::Type::FullyConnected)
+        {
+            if (d._sparsenessPenalty_p > (NNFloat)0.0)
+                out << "sparsenessPenalty_p    " << d._sparsenessPenalty_p << endl;
+            if (d._sparsenessPenalty_beta > (NNFloat)0.0)
+                out << "sparsenessPenalty_beta " << d._sparsenessPenalty_beta << endl;
+        }
+        if (d._kind != NNLayer::Kind::Hidden)
+            out << "DataSet:               " << d._dataSet << endl;
     }
     for (size_t i = 0 ; i < d._vSource.size(); i++)
     {
-        out << "source " << setw(3) << i << ":         " << d._vSource[i] << endl;
-    } 
+        out << "source " << setw(3) << i << ":            " << d._vSource[i] << endl;
+    }
     for (size_t i = 0 ; i < d._vSkip.size(); i++)
     {
-        out << "skip " << setw(3) << i << ":         " << d._vSkip[i] << endl;
+        out << "skip " << setw(3) << i << ":            " << d._vSkip[i] << endl;
     }     
     return out;
 }
@@ -1882,13 +2625,18 @@ uint32_t MPI_Bcast_NNLayerDescriptor(NNLayerDescriptor& d)
     MPI_Bcast(&d._Nx, 1, MPI_UINT32_T, 0, MPI_COMM_WORLD);
     MPI_Bcast(&d._Ny, 1, MPI_UINT32_T, 0, MPI_COMM_WORLD);
     MPI_Bcast(&d._Nz, 1, MPI_UINT32_T, 0, MPI_COMM_WORLD);
+    MPI_Bcast(&d._Nw, 1, MPI_UINT32_T, 0, MPI_COMM_WORLD);
     MPI_Bcast(&d._dimensions, 1, MPI_UINT32_T, 0, MPI_COMM_WORLD);
+    MPI_Bcast(&d._bDimensionsProvided, 1, MPI_C_BOOL, 0, MPI_COMM_WORLD);
     MPI_Bcast(&d._kernelX, 1, MPI_UINT32_T, 0, MPI_COMM_WORLD);
     MPI_Bcast(&d._kernelY, 1, MPI_UINT32_T, 0, MPI_COMM_WORLD);
     MPI_Bcast(&d._kernelZ, 1, MPI_UINT32_T, 0, MPI_COMM_WORLD);
     MPI_Bcast(&d._kernelStrideX, 1, MPI_UINT32_T, 0, MPI_COMM_WORLD);
     MPI_Bcast(&d._kernelStrideY, 1, MPI_UINT32_T, 0, MPI_COMM_WORLD);
     MPI_Bcast(&d._kernelStrideZ, 1, MPI_UINT32_T, 0, MPI_COMM_WORLD);
+    MPI_Bcast(&d._kernelPaddingX, 1, MPI_UINT32_T, 0, MPI_COMM_WORLD);
+    MPI_Bcast(&d._kernelPaddingY, 1, MPI_UINT32_T, 0, MPI_COMM_WORLD);
+    MPI_Bcast(&d._kernelPaddingZ, 1, MPI_UINT32_T, 0, MPI_COMM_WORLD);
     MPI_Bcast(&d._pDropout, 1, MPI_FLOAT, 0, MPI_COMM_WORLD);
     MPI_Bcast(&d._weightInit, 1, MPI_UINT32_T, 0, MPI_COMM_WORLD);
     MPI_Bcast(&d._weightInitScale, 1, MPI_FLOAT, 0, MPI_COMM_WORLD);
@@ -1927,13 +2675,18 @@ bool NNLayer::WriteNetCDF(NcFile& nc, uint32_t index)
         nc.putAtt(lstring + "Nx", ncUint, _Nx);
         nc.putAtt(lstring + "Ny", ncUint, _Ny);
         nc.putAtt(lstring + "Nz", ncUint, _Nz);
+        nc.putAtt(lstring + "Nw", ncUint, _Nw);
         nc.putAtt(lstring + "dimensions", ncUint, _dimensions);
         nc.putAtt(lstring + "kernelX", ncUint, _kernelX);
         nc.putAtt(lstring + "kernelY", ncUint, _kernelY);
         nc.putAtt(lstring + "kernelZ", ncUint, _kernelZ);
+        nc.putAtt(lstring + "kernelDimensions", ncUint, _kernelDimensions);
         nc.putAtt(lstring + "kernelStrideX", ncUint, _kernelStrideX);
         nc.putAtt(lstring + "kernelStrideY", ncUint, _kernelStrideY);
         nc.putAtt(lstring + "kernelStrideZ", ncUint, _kernelStrideZ);
+        nc.putAtt(lstring + "kernelPaddingX", ncUint, _kernelPaddingX);
+        nc.putAtt(lstring + "kernelPaddingY", ncUint, _kernelPaddingY);
+        nc.putAtt(lstring + "kernelPaddingZ", ncUint, _kernelPaddingZ);
         nc.putAtt(lstring + "pDropout", ncFloat, _pDropout);
         nc.putAtt(lstring + "weightInit", ncUint, _weightInit);
         nc.putAtt(lstring + "weightInitScale", ncFloat, _weightInitScale);
