@@ -7,10 +7,11 @@ namespace NNDataSetEnums {
     {
         Sparse = 1,                 // Sparse dataset
         Boolean = 2,                // All datapoints are 0/1
-        Unused = 4,                 // Reserved, was multinomial, but that might be implicit
+        Compressed = 4,             // Data uses type-specific compression
         Recurrent = 8,              // Data has a time dimension
         Mutable = 16,               // Data can be modified by running network backwards
         SparseIgnoreZero = 32,      // Only calculate errors and deltas on non-zero values
+        Streaming = 64,             // Data streams from system memory
     };
 
     enum Kind
@@ -35,8 +36,8 @@ namespace NNDataSetEnums {
         ULLInt = 3,
         Float = 4,
         Double = 5,
-        RGBA8 = 6,
-        RGBA16 = 7,
+        RGB8 = 6,
+        RGB16 = 7,
         UChar = 8,
         Char = 9
     };

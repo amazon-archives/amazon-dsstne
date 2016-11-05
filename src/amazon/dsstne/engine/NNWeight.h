@@ -13,31 +13,58 @@
 #ifndef NNWEIGHT_H
 
 class NNWeight {
+public:
+    enum Transform
+    {
+        Convolution,
+        Linear
+    };
+    static std::pair<NNWeight::Transform, string> _sTransformPair[];
+    static std::map<NNWeight::Transform, string> _sTransformMap;
+
+private:
     friend class NNNetwork;
     friend class NNLayer;
     friend NNNetwork* LoadNeuralNetworkNetCDF(const string& fname, uint32_t batch);
-    const NNLayer&          _inputLayer;                // Source of activations
-    const NNLayer&          _outputLayer;               // Output destination/Delta sources
-    const bool              _bShared;                   // Are we using another set of shard weights
-    const bool              _bTransposed;               // Use tranpose of shared weights?
-    bool                    _bLocked;                   // Prevent updates to this set of weights
-    NNWeight*               _pSharedWeight;             // Pointer to shared weight
-    uint32_t                _sharingCount;              // Number of layers utilizing weight matrix
-    uint32_t                _updateCount;               // Indicates number of times a shared weight matrix has been updated
-    uint64_t                _width;                     // Number of output units in outgoing FC layer or width of convolution for Convolutional layer
-    uint64_t                _height;                    // Number of input units in incoming FC layer or height of convolution for 2D/3D Convolutional layer
-    uint64_t                _length;                    // Length of 3D convolution for Convolutional layer
-    uint64_t                _size;                      // Total size of weights
-    NNFloat                 _norm;                      // Maximum allowable weight vector length (default 0, unconstrained)
-    vector<NNFloat>         _vWeight;                   // CPU weight array
-    vector<NNFloat>         _vBias;                     // CPU bias array
-    GpuBuffer<NNFloat>*     _pbWeight;                  // GPU weight array 
-    GpuBuffer<NNFloat>*     _pbBias;                    // GPU bias array
-    GpuBuffer<NNFloat>*     _pbWeightGradient;          // Accumulated gradient per batch
-    GpuBuffer<NNFloat>*     _pbWeightVelocity;          // Velocity used for momentum and RMSProp
-    GpuBuffer<NNFloat>*     _pbBiasVelocity;            // Velocity used for momentum and RMSProp
-    GpuBuffer<NNFloat>*     _pbWeightGradientVelocity;  // Gradient velocity used for AdaDelta and Adam
-    GpuBuffer<NNFloat>*     _pbBiasGradientVelocity;    // Gradient velocity used for AdaDelta and Adam    
+
+    NNLayer&                        _inputLayer;                // Source of activations
+    NNLayer&                        _outputLayer;               // Output destination/Delta sources
+    const bool                      _bShared;                   // Are we using another set of shard weights
+    const bool                      _bTransposed;               // Use tranpose of shared weights?
+    Transform                       _transform;                 // Transform type
+    bool                            _bLocked;                   // Prevent updates to this set of weights
+    NNWeight*                       _pSharedWeight;             // Pointer to shared weight
+    uint32_t                        _sharingCount;              // Number of layers utilizing weight matrix
+    uint32_t                        _updateCount;               // Indicates number of times a shared weight matrix has been updated
+    uint32_t                        _dimensionality;            // Dimensionality for convolution (3 to 5)
+    uint64_t                        _width;                     // Number of output units in outgoing FC layer or width of convolution for Convolutional layer
+    uint64_t                        _height;                    // Number of input units in incoming FC layer or height of convolution for 2D/3D Convolutional layer
+    uint64_t                        _length;                    // Number of input neurons in 2D convolution or length of a 3D convolution
+    uint64_t                        _depth;                     // Number of output neurons in a 2D convolution or number of input neurons for a 3D convolution
+    uint64_t                        _breadth;                   // Number of output neurons in a 3D convolution
+    uint32_t                        _widthStride;               // X stride for all convolutions
+    uint32_t                        _heightStride;              // Y stride for 2D/3D convolutions
+    uint32_t                        _lengthStride;              // Z stride for 3D convolution
+    uint64_t                        _size;                      // Total size of weights
+    uint64_t                        _biasSize;                  // Total size of biases
+    NNFloat                         _norm;                      // Maximum allowable weight vector length (default 0, unconstrained)
+    cudnnTensorDescriptor_t         _convBiasTensor;            // Tensor describing weight biases
+    cudnnFilterDescriptor_t         _convFilterDesc;            // CUDNN convolution filter (specifies kernel)
+    cudnnConvolutionDescriptor_t    _convDesc;                  // CUDNN convolution stride and dimensions
+    int                             _convPad[3];                // Padding for convolution    
+    cudnnConvolutionFwdAlgo_t       _convFWAlgo;                // CUDNN convolution forward propagation algorithm
+    cudnnConvolutionBwdFilterAlgo_t _convBWWeightAlgo;          // CUDNN convolution weight gradient backpropagation algorithm
+    cudnnConvolutionBwdDataAlgo_t   _convBWDeltaAlgo;           // CUDNN convolution delta backpropagation algorithm
+    vector<NNFloat>                 _vWeight;                   // CPU weight array
+    vector<NNFloat>                 _vBias;                     // CPU bias array
+    GpuBuffer<NNFloat>*             _pbWeight;                  // GPU weight array 
+    GpuBuffer<NNFloat>*             _pbBias;                    // GPU bias array
+    GpuBuffer<NNFloat>*             _pbWeightGradient;          // Accumulated gradient per batch
+    GpuBuffer<NNFloat>*             _pbBiasGradient;            // GPU bias gradient only used for cuDNN convolutional layers because stupid cuDNN    
+    GpuBuffer<NNFloat>*             _pbWeightVelocity;          // Velocity used for momentum and RMSProp
+    GpuBuffer<NNFloat>*             _pbBiasVelocity;            // Velocity used for momentum and RMSProp
+    GpuBuffer<NNFloat>*             _pbWeightGradientVelocity;  // Gradient velocity used for AdaDelta and Adam
+    GpuBuffer<NNFloat>*             _pbBiasGradientVelocity;    // Gradient velocity used for AdaDelta and Adam    
     NNWeight(NNLayer& inputLayer, NNLayer& outputLayer, bool bShared = false, bool bTransposed = false, bool bLocked = false, NNFloat maxNorm = 0.0f);
     ~NNWeight();
     void ClearSharedGradient();
@@ -48,7 +75,7 @@ class NNWeight {
     void Lock();
     void Unlock();
     void Dump(string fname, NNFloat* pBuffer);
-    void RefreshState(TrainingMode trainingMode);
+    void RefreshState(NNNetwork* pNetwork, TrainingMode trainingMode);
     void UpdateWeights(TrainingMode trainingMode, uint32_t batch, NNFloat alpha, NNFloat lambda, NNFloat mu);
     bool WriteNetCDF(netCDF::NcFile& nc, uint32_t index, NNFloat* pWeight = NULL, NNFloat* pBias = NULL);
     NNFloat* GetWeightBuffer() { return _pbWeight ? _pbWeight->_pDevData : NULL; }
@@ -67,12 +94,14 @@ struct NNWeightDescriptor
     uint64_t                _width;
     uint64_t                _height;
     uint64_t                _length;
+    uint64_t                _depth;
+    uint64_t                _breadth;
     vector<NNFloat>         _vWeight;
     vector<NNFloat>         _vBias;
     bool                    _bShared;
     bool                    _bTransposed;
     bool                    _bLocked;
-    NNFloat                  _norm;
+    NNFloat                 _norm;
     string                  _sourceInputLayer;     // _sourceInputLayer and _sourceOutputLayer collectively
     string                  _sourceOutputLayer;    // specify which weight matrix will be shared here
 

@@ -41,6 +41,7 @@ _warpSize(32),
 _maxSparse(SM_3X_MAXSPARSE),
 _maxSparseAnalog(SM_3X_MAXSPARSEANALOG),
 _cuBLASHandle(0),
+_cuDNNHandle(0),
 _pbAccumulator(NULL)
 {
 
@@ -284,6 +285,18 @@ void GpuContext::Startup(int argc, char** argv)
     _data._maxInt32_t                               = numeric_limits<int32_t>::max();
     _data._maxUint64_t                              = numeric_limits<uint64_t>::max();
     _data._maxInt64_t                               = numeric_limits<int64_t>::max();
+
+    // Enumerate GPUs in use
+    if (getGpu()._id == 0)
+        printf("GpuContext::Startup: Enumerating GPUs in use.\n");
+    for (size_t i = 0; i < getGpu()._numprocs; i++)
+    {
+        if (getGpu()._id == i)
+            printf("Process: %lu, GPU: %s, running SM %d.%d\n", i, deviceProp.name, deviceProp.major, deviceProp.minor);
+        fflush(stdout);
+        MPI_Barrier(MPI_COMM_WORLD);
+    }
+    
     
     // Test for single node P2P run. P2P only works within a single node for
     // the foreseeable future (SML 9/25/15)
@@ -366,6 +379,15 @@ void GpuContext::Startup(int argc, char** argv)
         Shutdown();
         exit(-1);
     }
+    
+    // Initialize cuDNN
+    cudnnStatus_t cdstatus                          = cudnnCreate(&_cuDNNHandle);
+    if (cdstatus != CUDNN_STATUS_SUCCESS)
+    {
+        printf("GpuContext::Startup: Failed to initialize cuDNN on GPU for process %d, exiting.\n", _device);
+        Shutdown();
+        exit(-1);
+    }
 
     // Initialize cuRAND
     curandStatus_t crstatus                         = curandCreateGenerator(&_RNG, CURAND_RNG_PSEUDO_DEFAULT);
@@ -399,6 +421,16 @@ void GpuContext::Shutdown()
         printf("GpuContext::Shutdown: Failed to shut down cuBLAS on GPU for process %d.\n", _device);
     }
     printf("GpuContext::Shutdown: CuBLAS shut down on GPU for process %d\n", _device);
+
+    // Shut down cuDNN if active
+    printf("GpuContext::Shutdown: Shutting down cuDNN on GPU for process %d\n", _device);
+    cudnnStatus_t cdstatus                          = cudnnDestroy(_cuDNNHandle);
+    if (cdstatus != CUDNN_STATUS_SUCCESS)
+    {
+        printf("GpuContext::Shutdown: Failed to shut down cuDNN on GPU for process %d.\n", _device);
+    }
+    printf("GpuContext::Shutdown: CuDNN shut down on GPU for process %d\n", _device);
+
 
     // Shut down cuRand if active
     printf("GpuContext::Shutdown: Shutting down cuRand on GPU for process %d\n", _device);

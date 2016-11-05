@@ -243,6 +243,14 @@ static const bool bShadowedOutputBuffers                        = false;    // T
         cudaThreadExit(); \
         exit(-1); \
     }
+    
+#define CUDNNERROR(status, s) \
+    if (status != CUDNN_STATUS_SUCCESS) { \
+        printf("%s %s\n", s, cudnnGetErrorString(status)); \
+        assert(0); \
+        cudaThreadExit(); \
+        exit(-1); \
+    }    
 
 // Contains information that needs to be accessible for GPU kernels and most static hyperparameters
 struct GpuData {

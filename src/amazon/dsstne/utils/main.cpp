@@ -104,9 +104,9 @@ int main(int argc, char** argv)
         // Determine output layer dimensions for top K calculations
         bool bFilterPast        = true; 
         NNLayer* pLayer         = pNetwork->GetLayer("Output");
-        uint32_t Nx, Ny, Nz;
-        tie(Nx, Ny, Nz)         = pLayer->GetLocalDimensions();
-        const uint32_t STRIDE   = Nx * Ny * Nz; 
+        uint32_t Nx, Ny, Nz, Nw;
+        tie(Nx, Ny, Nz, Nw)     = pLayer->GetLocalDimensions();
+        const uint32_t STRIDE   = Nx * Ny * Nz * Nw; 
         
         // Calculate Precision and recall
         unsigned int K                      = 100;

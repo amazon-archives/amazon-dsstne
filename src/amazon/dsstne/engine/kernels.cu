@@ -324,7 +324,7 @@ kLoadNormalizedInputUnit_kernel(uint32_t position, uint32_t stride, NNFloat* pUn
         uint32_t pos1                   = cData._bShuffleIndices ?  cData._pShuffleIndex[blockIdx.x + position] : blockIdx.x + position;
         uint64_t soffset                = pos1 * stride + pos;
         uint64_t doffset                = blockIdx.x * stride + pos;
-        pUnit[doffset]                  = (NNFloat)pData[soffset] * (NNFloat)(1.0 / 256.0);
+        pUnit[doffset]                  = (NNFloat)pData[soffset] * (NNFloat)(1.0 / 256.0) - (NNFloat)0.5;
     }
 }
 
@@ -1511,21 +1511,21 @@ void KernelsTempFunction()
 
 __global__ void
 LAUNCH_BOUNDS()
-kSGDUpdateWeights_kernel(NNFloat lambda, uint64_t size, NNFloat* pWeightGradient, NNFloat* pWeight)
+kSGDUpdateWeights_kernel(NNFloat alpha, NNFloat lambda, uint64_t size, NNFloat* pWeightGradient, NNFloat* pWeight)
 {
     uint64_t pos                = blockIdx.x * blockDim.x + threadIdx.x;
     if (pos < size)
     {
         NNFloat g               = pWeightGradient[pos];
         NNFloat w               = pWeight[pos];
-        pWeight[pos]            = w + g - lambda * w;
+        pWeight[pos]            = w + alpha * g - alpha * lambda * w;
     }
 }
 
-void kSGDUpdateWeights(NNFloat lambda, uint64_t size, NNFloat* pWeightGradient, NNFloat* pWeight)
+void kSGDUpdateWeights(NNFloat alpha, NNFloat lambda, uint64_t size, NNFloat* pWeightGradient, NNFloat* pWeight)
 {
     uint32_t blocks             = CalculateBlocks(size);
-    kSGDUpdateWeights_kernel<<<blocks, getGpu()._threadsPerBlock>>>(lambda, size, pWeightGradient, pWeight);
+    kSGDUpdateWeights_kernel<<<blocks, getGpu()._threadsPerBlock>>>(alpha, lambda, size, pWeightGradient, pWeight);
     LAUNCHERROR("kMomentumUpdateWeights_kernel");
 }
 
@@ -1545,10 +1545,11 @@ kSGDUpdateBiases_kernel(NNFloat alpha, uint32_t batch, uint32_t width, NNFloat* 
             sum                += *pDelta;
             pDelta             += width;
         }
+        sum                    /= (NNFloat)batch;
 
         // Update velocity and bias
         NNFloat bias            = pBias[pos];
-        pBias[pos]              = bias + alpha * sum;
+        pBias[pos]              = bias - alpha * sum;
     }
 }
 
@@ -1562,7 +1563,7 @@ void kSGDUpdateBiases(NNFloat alpha, uint32_t batch, uint32_t width, NNFloat* pD
 
 __global__ void
 LAUNCH_BOUNDS()
-kMomentumUpdateWeights_kernel(NNFloat lambda, NNFloat mu, uint64_t size, NNFloat* pWeightVelocity, NNFloat* pWeightGradient, NNFloat* pWeight)
+kMomentumUpdateWeights_kernel(NNFloat alpha, NNFloat lambda, NNFloat mu, uint64_t size, NNFloat* pWeightVelocity, NNFloat* pWeightGradient, NNFloat* pWeight)
 {
     uint64_t pos                = blockIdx.x * blockDim.x + threadIdx.x;
     if (pos < size)
@@ -1570,16 +1571,16 @@ kMomentumUpdateWeights_kernel(NNFloat lambda, NNFloat mu, uint64_t size, NNFloat
         NNFloat g               = pWeightGradient[pos];
         NNFloat w               = pWeight[pos];
         NNFloat v               = pWeightVelocity[pos];
-        v                       = mu * v + g - lambda * w;
+        v                       = mu * v + alpha * g - alpha * lambda * w;
         pWeightVelocity[pos]    = v;
         pWeight[pos]            = w + v;
     }
 }
 
-void kMomentumUpdateWeights(NNFloat lambda, NNFloat mu, uint64_t size, NNFloat* pWeightVelocity, NNFloat* pWeightGradient, NNFloat* pWeight)
+void kMomentumUpdateWeights(NNFloat alpha, NNFloat lambda, NNFloat mu, uint64_t size, NNFloat* pWeightVelocity, NNFloat* pWeightGradient, NNFloat* pWeight)
 {
     uint32_t blocks             = CalculateBlocks(size);
-    kMomentumUpdateWeights_kernel<<<blocks, getGpu()._threadsPerBlock>>>(lambda, mu, size, pWeightVelocity, pWeightGradient, pWeight);
+    kMomentumUpdateWeights_kernel<<<blocks, getGpu()._threadsPerBlock>>>(alpha, lambda, mu, size, pWeightVelocity, pWeightGradient, pWeight);
     LAUNCHERROR("kMomentumUpdateWeights_kernel");
 }
 
@@ -1599,6 +1600,7 @@ kMomentumUpdateBiases_kernel(NNFloat alpha, NNFloat mu, uint32_t batch, uint32_t
             sum                += *pDelta;
             pDelta             += width;
         }
+        sum                    /= (NNFloat)batch;
 
         // Update velocity and bias
         NNFloat v               = pBiasVelocity[pos];
@@ -1655,6 +1657,7 @@ kAdaGradUpdateBiases_kernel(NNFloat alpha, uint32_t batch, uint32_t width, NNFlo
             sum                += *pDelta;
             pDelta             += width;
         }
+        sum                    /= (NNFloat)batch;
 
         // Update velocity and bias
         NNFloat v               = pBiasVelocity[pos];
@@ -1673,7 +1676,7 @@ void kAdaGradUpdateBiases(NNFloat alpha, uint32_t batch, uint32_t width, NNFloat
 
 __global__ void
 LAUNCH_BOUNDS()
-kAdaDeltaUpdateWeights_kernel(NNFloat alpha, NNFloat mu, NNFloat lambda, uint64_t size, NNFloat* pWeightVelocity, NNFloat* pWeightGradient, NNFloat* pWeightGradientVelocity, NNFloat* pWeight)
+kAdaDeltaUpdateWeights_kernel(NNFloat lambda, NNFloat mu, uint64_t size, NNFloat* pWeightVelocity, NNFloat* pWeightGradient, NNFloat* pWeightGradientVelocity, NNFloat* pWeight)
 {
     uint64_t pos                = blockIdx.x * blockDim.x + threadIdx.x;
     if (pos < size)
@@ -1683,25 +1686,25 @@ kAdaDeltaUpdateWeights_kernel(NNFloat alpha, NNFloat mu, NNFloat lambda, uint64_
         NNFloat v                       = pWeightVelocity[pos];
         NNFloat vg                      = pWeightGradientVelocity[pos];
         g                              -= lambda * w;
-        v                               = mu * v + ((NNFloat)1.0 - mu) * g;
-        NNFloat dw                      = sqrt(max((NNFloat)0.000000001, vg) / max((NNFloat)0.000000001, v));
-        vg                              = mu * vg + ((NNFloat)1.0 - mu) * vg;
+        vg                              = mu * vg + ((NNFloat)1.0 - mu) * g * g;
+        NNFloat dw                      = sqrt(max((NNFloat)0.000000001, v) / max((NNFloat)0.000000001, vg)) * g;
+        v                               = mu * v + ((NNFloat)1.0 - mu) * dw * dw;
         pWeightVelocity[pos]            = v;
         pWeightGradientVelocity[pos]    = vg;
-        pWeight[pos]                    = w + alpha * g * dw;
+        pWeight[pos]                    = w + dw;
     }
 }
 
-void kAdaDeltaUpdateWeights(NNFloat alpha, NNFloat mu, NNFloat lambda, uint64_t size, NNFloat* pWeightVelocity, NNFloat* pWeightGradient, NNFloat* pWeightGradientVelocity, NNFloat* pWeight)
+void kAdaDeltaUpdateWeights(NNFloat lambda, NNFloat mu, uint64_t size, NNFloat* pWeightVelocity, NNFloat* pWeightGradient, NNFloat* pWeightGradientVelocity, NNFloat* pWeight)
 {
     unsigned long blocks        = CalculateBlocks(size);
-    kAdaDeltaUpdateWeights_kernel<<<blocks, getGpu()._threadsPerBlock>>>(alpha, mu, lambda, size, pWeightVelocity, pWeightGradient, pWeightGradientVelocity, pWeight);
+    kAdaDeltaUpdateWeights_kernel<<<blocks, getGpu()._threadsPerBlock>>>(mu, lambda, size, pWeightVelocity, pWeightGradient, pWeightGradientVelocity, pWeight);
     LAUNCHERROR("kAdaDeltaUpdateWeights_kernel");
 }
 
 __global__ void
 LAUNCH_BOUNDS()
-kAdaDeltaUpdateBiases_kernel(NNFloat alpha, NNFloat mu, uint32_t batch, uint32_t width, NNFloat* pDelta, NNFloat* pBiasVelocity, NNFloat* pBiasGradientVelocity, NNFloat* pBias)
+kAdaDeltaUpdateBiases_kernel(NNFloat mu, uint32_t batch, uint32_t width, NNFloat* pDelta, NNFloat* pBiasVelocity, NNFloat* pBiasGradientVelocity, NNFloat* pBias)
 {
     uint64_t pos                    = blockIdx.x * blockDim.x + threadIdx.x;
     if (pos < width)
@@ -1715,29 +1718,30 @@ kAdaDeltaUpdateBiases_kernel(NNFloat alpha, NNFloat mu, uint32_t batch, uint32_t
             sum                    += *pDelta;
             pDelta                 += width;
         }
+        sum                        /= (NNFloat)batch;
 
         // Update velocity and bias
         NNFloat v                   = pBiasVelocity[pos];
         NNFloat vg                  = pBiasGradientVelocity[pos];        
-        v                           = mu * v + ((NNFloat)1.0 - mu) * sum;
-        NNFloat dw                  = sqrt(max((NNFloat)0.000000001, vg) / max((NNFloat)0.000000001, v));        
-        vg                          = mu * vg + ((NNFloat)1.0 - mu) * vg;
+        vg                          = mu * vg + ((NNFloat)1.0 - mu) * sum * sum;
+        NNFloat dw                  = sqrt(max((NNFloat)0.000000001, v) / max((NNFloat)0.000000001, vg)) * sum;        
+        v                           = mu * v + ((NNFloat)1.0 - mu) * dw * dw;
         pBiasVelocity[pos]          = v;
         pBiasGradientVelocity[pos]  = vg;        
-        pBias[pos]                 -= alpha * sum * dw;
+        pBias[pos]                 -= dw;
     }
 }
 
-void kAdaDeltaUpdateBiases(NNFloat alpha, NNFloat mu, uint32_t batch, uint32_t width, NNFloat* pDelta, NNFloat* pBiasVelocity, NNFloat* pBiasGradientVelocity, NNFloat* pBias)
+void kAdaDeltaUpdateBiases(NNFloat mu, uint32_t batch, uint32_t width, NNFloat* pDelta, NNFloat* pBiasVelocity, NNFloat* pBiasGradientVelocity, NNFloat* pBias)
 {
     uint32_t blocks             = CalculateBlocks(width);
-    kAdaDeltaUpdateBiases_kernel<<<blocks, getGpu()._threadsPerBlock>>>(alpha, mu, batch, width, pDelta, pBiasVelocity, pBiasGradientVelocity, pBias);
+    kAdaDeltaUpdateBiases_kernel<<<blocks, getGpu()._threadsPerBlock>>>(mu, batch, width, pDelta, pBiasVelocity, pBiasGradientVelocity, pBias);
     LAUNCHERROR("kAdaDeltaUpdateBiases_kernel");
 }
 
 __global__ void
 LAUNCH_BOUNDS()
-kNesterovUpdateWeights_kernel(NNFloat lambda, NNFloat mu, uint64_t size, NNFloat* pWeightVelocity, NNFloat* pWeightGradient, NNFloat* pWeight)
+kNesterovUpdateWeights_kernel(NNFloat alpha, NNFloat lambda, NNFloat mu, uint64_t size, NNFloat* pWeightVelocity, NNFloat* pWeightGradient, NNFloat* pWeight)
 {
     uint64_t pos                = blockIdx.x * blockDim.x + threadIdx.x;
     if (pos < size)
@@ -1745,17 +1749,17 @@ kNesterovUpdateWeights_kernel(NNFloat lambda, NNFloat mu, uint64_t size, NNFloat
         NNFloat g               = pWeightGradient[pos];
         NNFloat w               = pWeight[pos];
         NNFloat vOld            = pWeightVelocity[pos];
-        NNFloat vNew            = mu * vOld + g - lambda * w;
+        NNFloat vNew            = mu * vOld + alpha * (g - lambda * w);
         pWeightVelocity[pos]    = vNew;
         w                       = w + vNew + mu * (vNew - vOld);
         pWeight[pos]            = w;      
     }
 }
 
-void kNesterovUpdateWeights(NNFloat lambda, NNFloat mu, uint64_t size, NNFloat* pWeightVelocity, NNFloat* pWeightGradient, NNFloat* pWeight)
+void kNesterovUpdateWeights(NNFloat alpha, NNFloat lambda, NNFloat mu, uint64_t size, NNFloat* pWeightVelocity, NNFloat* pWeightGradient, NNFloat* pWeight)
 {
     uint32_t blocks             = CalculateBlocks(size);
-    kNesterovUpdateWeights_kernel<<<blocks, getGpu()._threadsPerBlock>>>(lambda, mu, size, pWeightVelocity, pWeightGradient, pWeight);
+    kNesterovUpdateWeights_kernel<<<blocks, getGpu()._threadsPerBlock>>>(alpha, lambda, mu, size, pWeightVelocity, pWeightGradient, pWeight);
     LAUNCHERROR("kNesterovUpdateWeights_kernel");
 }
 
@@ -1775,6 +1779,7 @@ kNesterovUpdateBiases_kernel(NNFloat alpha, NNFloat mu, uint32_t batch, uint32_t
             sum                += *pDelta;
             pDelta             += width;
         }
+        sum                    /= (NNFloat)batch;
 
         // Update velocity and bias
         NNFloat vOld            = pBiasVelocity[pos];
@@ -1871,6 +1876,7 @@ kRMSPropUpdateBiases_kernel(NNFloat alpha, NNFloat mu, uint32_t batch, uint32_t 
             sum                += *pDelta;
             pDelta             += width;
         }
+        sum                    /= (NNFloat)batch;
 
         // Update velocity and bias
         NNFloat v               = pBiasVelocity[pos];
@@ -2011,7 +2017,7 @@ __shared__ volatile uint32_t sValue[160 * 4];
         }
 
         // Do final sort if buffer has any remaining data
-        if ((bufferSize > 0) || (width <= 128))
+        if ((bufferSize > 0) || (width < 128))
         {
             // Store sentinel values in registers
             k4                       = -MAX_VALUE;
@@ -2029,17 +2035,17 @@ __shared__ volatile uint32_t sValue[160 * 4];
                 k4                   = psKey[tgx];
                 v4                   = psValue[tgx];
             }
-            if (tgx < bufferSize - cData._warpSize)
+            if (tgx + cData._warpSize < bufferSize)
             {
                 k5                   = psKey[tgx + cData._warpSize];
                 v5                   = psValue[tgx + cData._warpSize];
             }
-            if (tgx < bufferSize - 2 * cData._warpSize)
+            if (tgx + 2 * cData._warpSize < bufferSize)
             {
                 k6                   = psKey[tgx + 2 * cData._warpSize];
                 v6                   = psValue[tgx + 2 * cData._warpSize];
             }
-            if (tgx < bufferSize - 3 * cData._warpSize)
+            if (tgx + 3 * cData._warpSize < bufferSize)
             {
                 k7                   = psKey[tgx + 3 * cData._warpSize];
                 v7                   = psValue[tgx + 3 * cData._warpSize];
@@ -2149,7 +2155,7 @@ __shared__ volatile NNFloat sValue[160 * 4];
             k3                      = pOutputKey[wpos];
             v3                      = pOutputValue[wpos];
         }
-     
+  
         // Run through remainder of data
         NNFloat minValue            = -MAX_VALUE;
         uint32_t rpos               = 128;
@@ -2211,7 +2217,7 @@ __shared__ volatile NNFloat sValue[160 * 4];
         }
 
         // Do final sort if buffer has any remaining data
-        if ((bufferSize > 0) || (width <= 128))
+        if ((bufferSize > 0) || (width < 128))
         {
             // Store sentinel values in registers
             k4                      = -MAX_VALUE;
@@ -2222,29 +2228,28 @@ __shared__ volatile NNFloat sValue[160 * 4];
             v5                      = 0;
             v6                      = 0;
             v7                      = 0;
-
+            
             // Load last block of unsorted data into registers
             if (tgx < bufferSize)
             {
                 k4                  = psKey[tgx];
                 v4                  = psValue[tgx];
             }
-            if (tgx < bufferSize - cData._warpSize)
+            if (tgx + cData._warpSize < bufferSize)
             {
                 k5                  = psKey[tgx + cData._warpSize];
                 v5                  = psValue[tgx + cData._warpSize];
             }
-            if (tgx < bufferSize - 2 * cData._warpSize)
+            if (tgx  + 2 * cData._warpSize < bufferSize)
             {
                 k6                  = psKey[tgx + 2 * cData._warpSize];
                 v6                  = psValue[tgx + 2 * cData._warpSize];
             }
-            if (tgx < bufferSize - 3 * cData._warpSize)
-            {
+            if (tgx + 3 * cData._warpSize < bufferSize)
+            {          
                 k7                  = psKey[tgx + 3 * cData._warpSize];
                 v7                  = psValue[tgx + 3 * cData._warpSize];
             }
-
             BITONICSORT256_256();
         }
 
@@ -2407,7 +2412,7 @@ __shared__ volatile uint32_t sValue[160 * 4];
         }
 
         // Do final sort if buffer has any remaining data
-        if ((bufferSize > 0) || (width <= 128))
+        if ((bufferSize > 0) || (width < 128))
         {
             // Store sentinel values in registers
             k4                              = -MAX_VALUE;
@@ -2425,17 +2430,17 @@ __shared__ volatile uint32_t sValue[160 * 4];
                 k4                          = psKey[tgx];
                 v4                          = psValue[tgx];
             }
-            if (tgx < bufferSize - cData._warpSize)
+            if (tgx + cData._warpSize < bufferSize)
             {
                 k5                          = psKey[tgx + cData._warpSize];
                 v5                          = psValue[tgx + cData._warpSize];
             }
-            if (tgx < bufferSize - 2 * cData._warpSize)
+            if (tgx + 2 * cData._warpSize < bufferSize)
             {
                 k6                          = psKey[tgx + 2 * cData._warpSize];
                 v6                          = psValue[tgx + 2 * cData._warpSize];
             }
-            if (tgx < bufferSize - 3 * cData._warpSize)
+            if (tgx + 3 * cData._warpSize < bufferSize)
             {
                 k7                          = psKey[tgx + 3 * cData._warpSize];
                 v7                          = psValue[tgx + 3 * cData._warpSize];
@@ -2594,15 +2599,18 @@ void kNormalizeWeightMagnitudes(NNFloat norm, uint32_t outputStride, uint32_t in
 
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateDropout_kernel(NNFloat* pUnit, NNFloat* pRandom, NNFloat p, NNFloat scale)
+kCalculateDropout_kernel(NNFloat* pUnit, NNFloat* pRandom, NNFloat p, NNFloat scale, size_t size)
 {
     uint64_t pos                            = blockIdx.x * blockDim.x + threadIdx.x;
-    NNFloat r                               = pRandom[pos];
-    if (r < p)
-        pUnit[pos]                          = (NNFloat)0.0;
-    NNFloat o                               = pUnit[pos];
-    o                                       = (r < p) ? (NNFloat)0.0 : o;
-    pUnit[pos]                              = scale * o;
+    if (pos < size)
+    {
+        NNFloat r                           = pRandom[pos];
+        if (r < p)
+            pUnit[pos]                      = (NNFloat)0.0;
+        NNFloat o                           = pUnit[pos];
+        o                                   = (r < p) ? (NNFloat)0.0 : o;
+        pUnit[pos]                          = scale * o;
+    }
 }
 
 void kCalculateDropout(NNFloat* pUnit, NNFloat* pRandom, uint32_t batch, uint32_t stride, NNFloat p)
@@ -2610,12 +2618,34 @@ void kCalculateDropout(NNFloat* pUnit, NNFloat* pRandom, uint32_t batch, uint32_
     curandGenerateUniform(getGpu()._RNG, pRandom, batch * stride);
     unsigned long blocks                = CalculateBlocks(batch * stride);
     NNFloat scale                       = (NNFloat)1.0 / ((NNFloat)1.0 - p);
-    kCalculateDropout_kernel<<<blocks, getGpu()._threadsPerBlock>>>(pUnit, pRandom, p, scale);
+    kCalculateDropout_kernel<<<blocks, getGpu()._threadsPerBlock>>>(pUnit, pRandom, p, scale, batch * stride);
     LAUNCHERROR("kCalculateDropout_kernel");
+}
+
+__global__ void 
+LAUNCH_BOUNDS()
+kCalculateMaxout_kernel(NNFloat* pSrc, size_t size, NNFloat* pDst)
+{
+    uint64_t pos                        = blockIdx.x * blockDim.x + threadIdx.x;
+    if (pos < size)
+    {
+        NNFloat s = pSrc[pos];
+        NNFloat d = pDst[pos];
+        if (s > d)
+            pDst[pos]                   = s;
+    }
+}
+
+void kCalculateMaxout(NNFloat* pSrc, size_t size, NNFloat* pDst)
+{
+    unsigned long blocks                = CalculateBlocks(size);
+    kCalculateMaxout_kernel<<<blocks, getGpu()._threadsPerBlock>>>(pSrc, size, pDst);
+    LAUNCHERROR("kCalculateMaxout_kernel");
 }
 
 #include "cub/util_allocator.cuh"
 #include "cub/device/device_radix_sort.cuh"
+
 template<typename KeyType, typename ValueType> size_t kInitSort(uint32_t items, GpuBuffer<KeyType>* pbKey, GpuBuffer<ValueType>* pbValue)
 {
     uint32_t itemStride                     = ((items + 511) >> 9) << 9;
