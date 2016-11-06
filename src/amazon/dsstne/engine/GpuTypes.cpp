@@ -10,6 +10,8 @@
    or in the "license" file accompanying this file. This file is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific language governing permissions and limitations under the License.
  */
 
+#include <memory>
+
 #include "GpuTypes.h"
 #include "NNTypes.h"
 #include "kernels.h"
@@ -41,7 +43,7 @@ _warpSize(32),
 _maxSparse(SM_3X_MAXSPARSE),
 _maxSparseAnalog(SM_3X_MAXSPARSEANALOG),
 _cuBLASHandle(0),
-_pbAccumulator(NULL)
+_pbAccumulator()
 {
 
 }
@@ -109,9 +111,9 @@ void GpuContext::Startup(int argc, char** argv)
 
     int length;
     char myName[MPI_MAX_PROCESSOR_NAME + 1];
-    char* pName                                     = new char[world_size * (MPI_MAX_PROCESSOR_NAME + 1)];
-    int* pNameCount                                 = new int[world_size];
-    int* pNameDisp                                  = new int[world_size];
+    unique_ptr<char[]> pName(new char[world_size * (MPI_MAX_PROCESSOR_NAME + 1)]);
+    unique_ptr<int[]> pNameCount(new int[world_size]);
+    unique_ptr<int[]> pNameDisp(new int[world_size]);
     MPI_Get_processor_name(myName, &length);
     strcpy(&pName[world_rank * (MPI_MAX_PROCESSOR_NAME + 1)], myName); 
     for (int i = 0; i < world_size; i++)
@@ -119,7 +121,7 @@ void GpuContext::Startup(int argc, char** argv)
         pNameCount[i]                               = MPI_MAX_PROCESSOR_NAME + 1;
         pNameDisp[i]                                = i * (MPI_MAX_PROCESSOR_NAME + 1);
     }
-    MPI_Allgatherv(myName, MPI_MAX_PROCESSOR_NAME + 1, MPI_CHAR, pName, pNameCount, pNameDisp, 
+    MPI_Allgatherv(myName, MPI_MAX_PROCESSOR_NAME + 1, MPI_CHAR, pName.get(), pNameCount.get(), pNameDisp.get(),
             MPI_CHAR, MPI_COMM_WORLD);
 
     // Test for single node run
@@ -172,8 +174,8 @@ void GpuContext::Startup(int argc, char** argv)
     else
     {
         // Generate list of compatible GPUs scored by GPU revision first and total memory second
-        int* pGPUList                               = new int[gpuCount];
-        unsigned int* pGPUScore                     = new unsigned int[gpuCount];
+        unique_ptr<int[]> pGPUList(new int[gpuCount]);
+        unique_ptr<unsigned int[]> pGPUScore(new unsigned int[gpuCount]);
         int gpus                                    = 0;          
         for (int i = 0; i < gpuCount; i++)
         {
@@ -216,9 +218,7 @@ void GpuContext::Startup(int argc, char** argv)
         }
             
         // Let CUDA select any device from this list
-        status                                      = cudaSetValidDevices(pGPUList, gpus);
-        delete[] pGPUList;
-        delete[] pGPUScore;
+        status                                      = cudaSetValidDevices(pGPUList.get(), gpus);
         RTERROR(status, "GpuContext::Startup: Error searching for compatible GPU");
 
         // Trick driver into creating a context on an available and valid GPU
@@ -230,11 +230,6 @@ void GpuContext::Startup(int argc, char** argv)
         RTERROR(status, "GpuContext::Startup: Error fetching current GPU");
     }           
 
-    // Release list of hostnames
-    delete[] pName;
-    delete[] pNameCount;
-    delete[] pNameDisp;
-    
     // Exit if no GPU available
     if (device == -1)
     {
@@ -253,7 +248,7 @@ void GpuContext::Startup(int argc, char** argv)
     cudaThreadSynchronize();
 
     // Create local accumulator
-    _pbAccumulator                                  = new GpuBuffer<unsigned long long int>((unsigned int)1, true);
+    _pbAccumulator.reset(new GpuBuffer<unsigned long long int>((unsigned int)1, true));
     _data._pAccumulator                             = _pbAccumulator->_pDevData;
 
     // Grab GPU parameters
@@ -291,13 +286,13 @@ void GpuContext::Startup(int argc, char** argv)
     if (bSingleNode)
     {
         bP2P                                        = true;
-        int* pDevice                                = new int[_numprocs];
+        unique_ptr<int[]> pDevice(new int[_numprocs]);
         pDevice[_id]                                = device;
-        MPI_Allgather(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL, pDevice, sizeof(int), MPI_BYTE, MPI_COMM_WORLD);
-        int* pUnifiedAddressing                     = new int[_numprocs];
+        MPI_Allgather(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL, pDevice.get(), sizeof(int), MPI_BYTE, MPI_COMM_WORLD);
+        unique_ptr<int[]> pUnifiedAddressing(new int[_numprocs]);
         cudaGetDeviceProperties(&deviceProp, device);
         pUnifiedAddressing[_id]                     = deviceProp.unifiedAddressing;
-        MPI_Allgather(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL, pUnifiedAddressing, sizeof(int), MPI_BYTE, MPI_COMM_WORLD);
+        MPI_Allgather(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL, pUnifiedAddressing.get(), sizeof(int), MPI_BYTE, MPI_COMM_WORLD);
         for (int i = 0; i < _numprocs; i++)
         {     
             if (pDevice[i] != device)
@@ -326,8 +321,6 @@ void GpuContext::Startup(int argc, char** argv)
             if (!pUnifiedAddressing[i])
                 bSingleNode                         = false;
         }
-        delete[] pDevice;
-        delete[] pUnifiedAddressing;
     }
     _bSingleNode                                    = bSingleNode;
     _bP2P                                           = bP2P;
@@ -389,7 +382,7 @@ void GpuContext::CopyConstants()
 void GpuContext::Shutdown()
 {   
     // Delete kernel accumulator
-    delete _pbAccumulator;
+    _pbAccumulator.reset();
 
     // Shut down cuBLAS if active
     printf("GpuContext::Shutdown: Shutting down cuBLAS on GPU for process %d\n", _device);

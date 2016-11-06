@@ -157,8 +157,7 @@ NNFloat* NNNetwork::GetScratchBuffer(size_t size)
     // Increase size if requested
     if (size > _scratchBufferSize)
     {
-        delete _pbScratchBuffer;
-        _pbScratchBuffer                    = new GpuBuffer<NNFloat>(size);
+        _pbScratchBuffer.reset(new GpuBuffer<NNFloat>(size));
         _scratchBufferSize                  = size;
     
     }
@@ -177,7 +176,7 @@ NNFloat* NNNetwork::GetP2PReceiveBuffer()
 
 NNFloat* NNNetwork::GetP2PCPUBuffer()
 {
-    return _pCPUBuffer;
+    return _pCPUBuffer.get();
 }
 
 NNFloat* NNNetwork::GetPeerBuffer()
@@ -357,8 +356,8 @@ _position(0),
 _bShuffleIndices(d._bShuffleIndices),
 _shuffleIndices(0),
 _pShuffleIndex(NULL),
-_pShuffleIndexSort(NULL),
-_pbShuffleIndex(NULL),
+_pShuffleIndexSort(),
+_pbShuffleIndex(),
 _bExamplesFound(false),
 _bAllDataLoaded(true),
 _examples(0),
@@ -387,10 +386,10 @@ _bClearVelocity(true),
 _bDirty(true),
 _maxStride(0),
 _scratchBufferSize(0),
-_pbScratchBuffer(NULL),
+_pbScratchBuffer(),
 _pPeerBuffer{NULL, NULL},
-_pbP2PBuffer{NULL, NULL},
-_pCPUBuffer(NULL),
+_pbP2PBuffer(),
+_pCPUBuffer(),
 _sendIndex(0),
 _receiveIndex(1)
 {
@@ -736,12 +735,11 @@ void NNNetwork::RefreshShuffleBuffers()
                 // Delete old shuffle buffer data
                 if (getGpu()._id == 0)
                 {
-                    delete _pShuffleIndexSort;
+                    _pShuffleIndexSort.reset();
                 }
                 else
                 {
-                    delete _pbShuffleIndex;
-                    _pbShuffleIndex         = NULL;       
+                    _pbShuffleIndex.reset();
                 }
             
                 
@@ -750,7 +748,7 @@ void NNNetwork::RefreshShuffleBuffers()
                 
                 if (getGpu()._id == 0)
                 {
-                    _pShuffleIndexSort          = new GpuSort<unsigned int, unsigned int>(_shuffleIndices);
+                    _pShuffleIndexSort.reset(new GpuSort<uint32_t, uint32_t>(_shuffleIndices));
                     _pShuffleIndex              = _pShuffleIndexSort->GetValuePointer();
 
                     // Create and upload indices, need to use larger
@@ -766,7 +764,7 @@ void NNNetwork::RefreshShuffleBuffers()
                }
                else
                {
-                    _pbShuffleIndex             = new GpuBuffer<uint32_t>(_shuffleIndices);
+                    _pbShuffleIndex.reset(new GpuBuffer<uint32_t>(_shuffleIndices));
                     _pShuffleIndex              = _pbShuffleIndex->_pDevData;
                }
             }
@@ -1988,13 +1986,6 @@ NNNetwork::~NNNetwork()
     // Delete layers
     for (uint32_t i = 0; i < _vLayer.size(); i++)
         delete _vLayer[i];
-
-    // Delete Sort
-    delete _pShuffleIndexSort;
-    delete _pbShuffleIndex;
-    
-    // Delete scratch buffer
-    delete _pbScratchBuffer;
 }
 
 void NNNetwork::CalculatePropagationOrder()
@@ -2312,13 +2303,11 @@ void NNNetwork::DeallocatePeerBuffers()
         // Release local data
         for (size_t i = 0; i < 2; i++)
         {
-            delete _pbP2PBuffer[i];
-            _pbP2PBuffer[i]                 = NULL;
+            _pbP2PBuffer[i].reset();
         }  
         
         // Release MPI work buffer
-        delete[] _pCPUBuffer;
-        _pCPUBuffer = NULL;
+        _pCPUBuffer.reset();
     }
 
 }
@@ -2347,7 +2336,7 @@ void NNNetwork::AllocatePeerBuffers()
         // Allocate local data
         for (size_t i = 0; i < 2; i++)
         {
-            _pbP2PBuffer[i]                 = new GpuBuffer<NNFloat>(maxMemory);
+            _pbP2PBuffer[i].reset(new GpuBuffer<NNFloat>(maxMemory));
         } 
         
         // Gather P2P data
@@ -2368,7 +2357,7 @@ void NNNetwork::AllocatePeerBuffers()
         }
         else
         {
-            _pCPUBuffer = new NNFloat[maxMemory];
+            _pCPUBuffer.reset(new NNFloat[maxMemory]);
         }
     }
 }
@@ -3647,9 +3636,9 @@ bool NNNetwork::P2P_Bcast(void* pBuffer, size_t size)
         }
         else
         {
-            cudaMemcpy(_pCPUBuffer, pBuffer, size, cudaMemcpyDefault);
-            MPI_Bcast(_pCPUBuffer, size, MPI_BYTE, 0, MPI_COMM_WORLD);
-            cudaMemcpy(pBuffer, _pCPUBuffer, size, cudaMemcpyDefault);           
+            cudaMemcpy(_pCPUBuffer.get(), pBuffer, size, cudaMemcpyDefault);
+            MPI_Bcast(_pCPUBuffer.get(), size, MPI_BYTE, 0, MPI_COMM_WORLD);
+            cudaMemcpy(pBuffer, _pCPUBuffer.get(), size, cudaMemcpyDefault);
         }
     }
     
@@ -3710,7 +3699,7 @@ bool NNNetwork::P2P_Allreduce(NNFloat* pBuffer, size_t size)
                     segment                             = (segment + 1) % getGpu()._numprocs;
                     start                               = (size * segment) / getGpu()._numprocs;
                     end                                 = (size * (segment + 1)) / getGpu()._numprocs;
-                    cudaMemcpy(pBuffer + start, GetP2PSendBuffer(), (end - start) * sizeof(NNFloat), cudaMemcpyDefault);               
+                    cudaMemcpy(pBuffer + start, GetP2PSendBuffer(), (end - start) * sizeof(NNFloat), cudaMemcpyDefault);
                 }
             }
         }
@@ -3720,9 +3709,9 @@ bool NNNetwork::P2P_Allreduce(NNFloat* pBuffer, size_t size)
             // but instead present for those who enjoy dancing bears.  This code will let you
             // run a bajillion GPUs over MPI, not very efficiently, but you could have
             // thousands of GPUs if you so desired.
-            cudaMemcpy(_pCPUBuffer, pBuffer, size * sizeof(NNFloat), cudaMemcpyDefault);
-            MPI_Allreduce(MPI_IN_PLACE, _pCPUBuffer, size, MPI_NNFLOAT, MPI_SUM, MPI_COMM_WORLD);
-            cudaMemcpy(pBuffer, _pCPUBuffer, size * sizeof(NNFloat), cudaMemcpyDefault);
+            cudaMemcpy(_pCPUBuffer.get(), pBuffer, size * sizeof(NNFloat), cudaMemcpyDefault);
+            MPI_Allreduce(MPI_IN_PLACE, _pCPUBuffer.get(), size, MPI_NNFLOAT, MPI_SUM, MPI_COMM_WORLD);
+            cudaMemcpy(pBuffer, _pCPUBuffer.get(), size * sizeof(NNFloat), cudaMemcpyDefault);
         }
     }
     return true;

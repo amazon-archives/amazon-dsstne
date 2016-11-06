@@ -28,6 +28,7 @@
 #include <cstdint>
 #include <assert.h>
 #include <mpi.h>
+#include <memory>
 
 using namespace std;
 
@@ -343,7 +344,7 @@ struct GpuContext {
 
     // Neural network parameters
     NNNetwork*                          _pNetwork;                  // Pointer to current neural network
-    GpuBuffer<unsigned long long int>*  _pbAccumulator;             // Pointer to per-kernel fix point accumulator
+    unique_ptr<GpuBuffer<unsigned long long int>> _pbAccumulator;   // Pointer to per-kernel fix point accumulator
     bool                                _bCPUValidate;              // Should CPU validate GPU calculations?
     float                               _acceptableError;           // Acceptable error between CPU and GPU
         
@@ -374,7 +375,7 @@ struct GpuBuffer
     unsigned long long int  _length;
     bool                    _bSysMem;
     bool                    _bPinned;
-    T*                      _pSysData;
+    unique_ptr<T[]>         _pSysData;
     T*                      _pDevData;
     GpuBuffer(int length, bool bSysMem = false, bool bPinned = false);
     GpuBuffer(unsigned int length, bool bSysMem = false, bool bPinned = false);
@@ -386,28 +387,30 @@ struct GpuBuffer
     void Upload(T* pBuff = NULL);
     void Download(T * pBuff = NULL);
     void Copy(T* pBuff);
+
+    T* SysData();
 };
 
 template <typename T>
-GpuBuffer<T>::GpuBuffer(int length, bool bSysMem, bool bPinned) : _length(length), _bSysMem(bSysMem), _bPinned(bPinned), _pSysData(NULL), _pDevData(NULL)
+GpuBuffer<T>::GpuBuffer(int length, bool bSysMem, bool bPinned) : _length(length), _bSysMem(bSysMem), _bPinned(bPinned), _pSysData(), _pDevData(NULL)
 {
     Allocate();   
 }
 
 template <typename T>
-GpuBuffer<T>::GpuBuffer(unsigned int length, bool bSysMem, bool bPinned) : _length(length), _bSysMem(bSysMem), _bPinned(bPinned), _pSysData(NULL), _pDevData(NULL)
+GpuBuffer<T>::GpuBuffer(unsigned int length, bool bSysMem, bool bPinned) : _length(length), _bSysMem(bSysMem), _bPinned(bPinned), _pSysData(), _pDevData(NULL)
 {
     Allocate();   
 }
 
 template <typename T>
-GpuBuffer<T>::GpuBuffer(unsigned long long int length, bool bSysMem, bool bPinned) : _length(length), _bSysMem(bSysMem), _bPinned(bPinned), _pSysData(NULL), _pDevData(NULL)
+GpuBuffer<T>::GpuBuffer(unsigned long long int length, bool bSysMem, bool bPinned) : _length(length), _bSysMem(bSysMem), _bPinned(bPinned), _pSysData(), _pDevData(NULL)
 {
     Allocate();   
 }
 
 template <typename T>
-GpuBuffer<T>::GpuBuffer(size_t length, bool bSysMem, bool bPinned) : _length(length), _bSysMem(bSysMem), _bPinned(bPinned), _pSysData(NULL), _pDevData(NULL)
+GpuBuffer<T>::GpuBuffer(size_t length, bool bSysMem, bool bPinned) : _length(length), _bSysMem(bSysMem), _bPinned(bPinned), _pSysData(), _pDevData(NULL)
 {
     Allocate();   
 }
@@ -432,21 +435,22 @@ void GpuBuffer<T>::Allocate()
     cudaError_t status;
     if (_bPinned)
     {
-        status = cudaHostAlloc((void **)&_pSysData, _length * sizeof(T), cudaHostAllocMapped);
+        T* sysData = SysData();
+        status = cudaHostAlloc((void**)&sysData, _length * sizeof(T), cudaHostAllocMapped);
         RTERROR(status, "cudaHostalloc GpuBuffer::Allocate failed");
         getGpu()._totalCPUMemory                    += _length * sizeof(T);
         getGpu()._totalGPUMemory                    += _length * sizeof(T);
-        status = cudaHostGetDevicePointer((void **)&_pDevData, (void *)_pSysData, 0);
+        status = cudaHostGetDevicePointer((void **)&_pDevData, (void *)SysData(), 0);
         RTERROR(status, "cudaGetDevicePointer GpuBuffer::failed to get device pointer");
-        memset(_pSysData, 0, _length * sizeof(T));
+        memset(SysData(), 0, _length * sizeof(T));
     }
     else 
     {
         if (_bSysMem)
         {
-            _pSysData =     new T[_length];
+            _pSysData.reset(new T[_length]);
             getGpu()._totalCPUMemory            +=  _length * sizeof(T);
-            memset(_pSysData, 0, _length * sizeof(T));
+            memset(SysData(), 0, _length * sizeof(T));
         }
 
         status = cudaMalloc((void **) &_pDevData, _length * sizeof(T));
@@ -466,7 +470,7 @@ void GpuBuffer<T>::Deallocate()
     cudaError_t status;
     if (_bPinned)
     {
-        status = cudaFreeHost(_pSysData);
+        status = cudaFreeHost(SysData());
         getGpu()._totalCPUMemory                -=  _length * sizeof(T);
         getGpu()._totalGPUMemory                -=  _length * sizeof(T);        
     }
@@ -474,14 +478,14 @@ void GpuBuffer<T>::Deallocate()
     {
         if (_bSysMem)
         {
-            delete[] _pSysData;
+            _pSysData.reset();
             getGpu()._totalCPUMemory            -=  _length * sizeof(T);   
         }         
         status = cudaFree(_pDevData);
         getGpu()._totalGPUMemory                -=  _length * sizeof(T);
     }
     RTERROR(status, "cudaFree GpuBuffer::Deallocate failed");   
-    _pSysData = NULL;
+    _pSysData.reset();
     _pDevData = NULL;
 #ifdef MEMTRACKING    
     printf("Mem--: %lld %lld\n", getGpu()._totalGPUMemory, getGpu()._totalCPUMemory);     
@@ -497,6 +501,12 @@ void GpuBuffer<T>::Copy(T* pBuff)
 }
 
 template <typename T>
+T* GpuBuffer<T>::SysData()
+{
+    return _pSysData.get();
+}
+
+template <typename T>
 void GpuBuffer<T>::Upload(T* pBuff)
 {
     if (pBuff)
@@ -508,7 +518,7 @@ void GpuBuffer<T>::Upload(T* pBuff)
     else if (_bSysMem)
     {
         cudaError_t status;
-        status = cudaMemcpy(_pDevData, _pSysData, _length * sizeof(T), cudaMemcpyHostToDevice);
+        status = cudaMemcpy(_pDevData, SysData(), _length * sizeof(T), cudaMemcpyHostToDevice);
         RTERROR(status, "cudaMemcpy GpuBuffer::Upload failed");
     }
 }
@@ -525,7 +535,7 @@ void GpuBuffer<T>::Download(T* pBuff)
     else if (_bSysMem)
     {
         cudaError_t status;
-        status = cudaMemcpy(_pSysData, _pDevData, _length * sizeof(T), cudaMemcpyDeviceToHost);
+        status = cudaMemcpy(SysData(), _pDevData, _length * sizeof(T), cudaMemcpyDeviceToHost);
         RTERROR(status, "cudaMemcpy GpuBuffer::Download failed");
     }
 }
