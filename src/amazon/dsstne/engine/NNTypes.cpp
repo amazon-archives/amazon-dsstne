@@ -873,6 +873,16 @@ template<typename T> bool NNDataSet<T>::CalculateSparseDatapointCounts()
         std::fill(_vSparseDatapointCount.begin(), _vSparseDatapointCount.end(), 0);    
         for (auto x : _vSparseIndex)
         {
+            // Check for boundary violation and stop before it corrupts CPU memory
+            if (x >= _width)
+            {
+                if (getGpu()._id == 0)
+                {
+                    printf("NNDataSet::CalculateSparseDatapointCounts: Out of range index (%u) in sparse dataset %s.\n", x, _name.c_str());
+                }
+                getGpu().Shutdown();
+                exit(-1);
+            }
             _vSparseDatapointCount[x]++;
         }
         
