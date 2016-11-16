@@ -48,7 +48,7 @@ RUN cd /tmp && \
 
 # Install zlib
 RUN cd /tmp && \
-    wget ftp://ftp.unidata.ucar.edu/pub/netcdf/netcdf-4/zlib-1.2.8.tar.gz && \
+    wget https://www.unidata.ucar.edu/downloads/netcdf/ftp/netcdf-4/zlib-1.2.8.tar.gz && \
     tar xvf zlib-1.2.8.tar.gz && \
     cd zlib-1.2.8 && \
     ./configure && \
@@ -57,7 +57,7 @@ RUN cd /tmp && \
 
 # Install netcdf
 RUN cd /tmp && \
-    wget ftp://ftp.unidata.ucar.edu/pub/netcdf/netcdf-4.1.3.tar.gz && \
+    wget https://www.unidata.ucar.edu/downloads/netcdf/ftp/netcdf-4.1.3.tar.gz && \
     tar xvf netcdf-4.1.3.tar.gz && \
     cd netcdf-4.1.3 && \
     ./configure --prefix=/usr/local && \
@@ -66,7 +66,7 @@ RUN cd /tmp && \
 
 # Install netcdf-cxx
 RUN cd /tmp && \
-    wget http://www.unidata.ucar.edu/downloads/netcdf/ftp/netcdf-cxx4-4.2.tar.gz && \
+    wget https://www.unidata.ucar.edu/downloads/netcdf/ftp/netcdf-cxx4-4.2.tar.gz && \
     tar xvf netcdf-cxx4-4.2.tar.gz && \
     cd netcdf-cxx4-4.2 && \
     ./configure --prefix=/usr/local && \
