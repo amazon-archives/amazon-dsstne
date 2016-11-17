@@ -76,6 +76,31 @@ Note that this will take a while, as it will build DSSTNE's dependencies from so
 nvidia-docker run --rm -it amazon-dsstne predict
 ```
 
+The output should look like the following (the missing argument error is expected):
+
+```
+Error: Missing required argument: -d: dataset_name is not specified.
+Predict: Generates predictions from a trained neural network given a signals/input dataset.
+Usage: predict -d <dataset_name> -n <network_file> -r <input_text_file> -i <input_feature_index> -o <output_feature_index> -f <filters_json> [-b <batch_size>] [-k <num_recs>] [-l layer] [-s input_signals_index] [-p score_precision]
+    -b batch_size: (default = 1024) the number records/input rows to process in a batch.
+    -d dataset_name: (required) name for the dataset within the netcdf file.
+    -f samples filterFileName .
+    -i input_feature_index: (required) path to the feature index file, used to tranform input signals to correct input feature vector.
+    -k num_recs: (default = 100) The number of predictions (sorted by score to generate). Ignored if -l flag is used.
+    -l layer: (default = Output) the network layer to use for predictions. If specified, the raw scores for each node in the layer is output in order.
+    -n network_file: (required) the trained neural network in NetCDF file.
+    -o output_feature_index: (required) path to the feature index file, used to tranform the network output feature vector to appropriate features.
+    -p score_precision: (default = 4.3f) precision of the scores in output
+    -r input_text_file: (required) path to the file with input signal to use to generate predictions (i.e. recommendations).
+    -s filename (required) . to put the output recs to.
+```
+
+If this is what you see, you're ready to move on to the [examples]. Note that before running the examples, you should start a shell on a fresh Docker container:
+
+```bash
+nvidia-docker run -it amazon-dsstne /bin/bash
+```
+
 ## Setup on your own development machine
 Instructions are provided for installation on Ubuntu Linux machines.
 
