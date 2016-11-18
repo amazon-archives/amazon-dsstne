@@ -1,55 +1,107 @@
-# Setup
-DSSTNE requires a GPU to run. You can setup and run DSSTNE in several different ways:
+# Setup Guide
 
-* [Setting up with Docker](#setup-on-docker)
-* [Setting up on AWS](#setup-on-aws)
-* [Setting up on a dev machine](#setup-on-a-dev-machine)
+DSSTNE requires a GPU to run. This guide covers two different ways that you can setup and run DSSTNE:
 
-## Setup on Docker
-[Docker](http://docker.com/) helps to containerize your installation without affecting any builds locally. The [Dockerfile](../../Dockerfile) is provided for DSSTNE and you can build a docker out of that.
+* [Setup on AWS using Docker](#setup-on-aws-using-docker)
+* [Setup up on your own development machine](#setup-on-your-own-development-machine)
 
-### Matching GPU driver versions
-**The NVIDIA driver version in your Docker image must exactly match the version installed on the host**
-The `Dockerfile` uses CUDA 7.0 with driver version 346.72. You can verify the installed version on your
-machine by running the `nvidia-smi` tool.
+## Setup on AWS using Docker
+
+The first option is to run DSSTNE on AWS, taking advantage of [Docker](http://docker.com/) to containerize your installation. We have provided an AMI and Dockerfile that can be used to build and run DSSTNE on a GPU-based EC2 instance.
+
+### Dockerfile
+
+A [Dockerfile](../../Dockerfile) has been provided as part of the DSSTNE source code, and you can build a Docker image out of that. Our Dockerfile is designed to be used with a Docker plugin called [nvidia-docker](https://github.com/NVIDIA/nvidia-docker), which facilitates communication between a Docker container and the GPU on the host.
+
+When you build this Docker image, all of the dependencies for building DSSTNE will be fetched from third-party sources. By building this image, you are responsible for reading and accepting the relevant software licenses.
+
+### AMI with nvidia-docker
+
+You can launch a [GPU-based EC2 instance](http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/using_cluster_computing.html) from *ami-25c0eb32*, which has Docker and nvidia-docker installed. This AMI also includes NVIDIA drivers, and is currently available in the us-east-1 region (N.Virginia in AWS Console).
+
+You can create a new EC2 instance by following the instructions in the [EC2 Launch Instance Wizard](https://console.aws.amazon.com/ec2/v2/home?region=us-east-1#LaunchInstanceWizard:ami=ami-25c0eb32) (this link will take you directly to the wizard).
+
+### Login to EC2 instance via SSH
+
+Once you have launched your new GPU-based EC2 instance, you will need to log in as the 'ubuntu' user. Once you have successfully logged in, ensure that you can start a Docker container that can access the GPU drivers on the host. You can do this by running `nvidia-smi` in a new container:
 
 ```bash
-nvidia-smi | grep Version
-| NVIDIA-SMI 346.72     Driver Version: 346.72
+nvidia-docker run --rm nvidia/cuda nvidia-smi
 ```
 
-If your machine does not have 346.72 installed, then you must update the `Dockerfile` to install the
-same driver that your host machine has.
-Note that we have only fully tested installation with CUDA 7.0.28 and driver 346.72 on the host system.
+The output should be similar to the following - with no errors or running processes, and indicating that version 367.57 of the NVIDIA GPU Drivers are active:
 
-### Loading the nVidia driver on the host 
-We have to make sure the nVidia kernel driver is loaded in the host before running the docker for the first time. In the AWS AMI run the following command 
-```bash
-cd NVIDIA_CUDA-7.0_Samples/1_Utilities/deviceQuery
-make
-./deviceQuery
+```
+Wed Nov 16 02:11:42 2016
++-----------------------------------------------------------------------------+
+| NVIDIA-SMI 367.57                 Driver Version: 367.57                    |
+|-------------------------------+----------------------+----------------------+
+| GPU  Name        Persistence-M| Bus-Id        Disp.A | Volatile Uncorr. ECC |
+| Fan  Temp  Perf  Pwr:Usage/Cap|         Memory-Usage | GPU-Util  Compute M. |
+|===============================+======================+======================|
+|   0  GRID K520           Off  | 0000:00:03.0     Off |                  N/A |
+| N/A   26C    P8    17W / 125W |      0MiB /  4036MiB |      0%      Default |
++-------------------------------+----------------------+----------------------+
+
++-----------------------------------------------------------------------------+
+| Processes:                                                       GPU Memory |
+|  GPU       PID  Type  Process name                               Usage      |
+|=============================================================================|
+|  No running processes found                                                 |
++-----------------------------------------------------------------------------+
 ```
 
-### Creating the Docker image
- Download the code.
+If that all works, you can proceed to building a DSSTNE Docker image.
+
+### Build the Docker image
+
+To build the latest Docker image, you will need to clone the DSSTNE source code:
+
 ```bash
 git clone https://github.com/amznlabs/amazon-dsstne.git
 ```
-Then build the image locally. Make sure there are at least 10GB free on the root of your [docker runtime](https://docs.docker.com/engine/reference/commandline/daemon/).
+
+Then build the image locally:
+
 ```bash
 cd amazon-dsstne/
-docker build -t amazon/dsstne .
+docker build -t amazon-dsstne .
 ```
 
-Once the Docker Image has been created ensure that you start the docker with *privileged* mode so that you can access the GPU drivers
+Note that this will take a while, as it will build DSSTNE's dependencies from source. Feel free to get a cup of coffee while you wait.
+
+### Test the Docker image
+
 ```bash
-docker run -it --privileged amazon/dsstne /bin/bash
+nvidia-docker run --rm -it amazon-dsstne predict
 ```
 
-## Setup on AWS
-You can also launch a [GPU based AWS instance](http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/using_cluster_computing.html) from *ami-d6f2e6bc* which has all the prerequisites build in properly. The image is currently available in us-east-1 region (N.Virginia in AWS Console). Launch a GPU based instance (*g2.2xlarge*,*g2.8xlarge*) from the AMI. [Download the code and build](#download-the-code-and-build)
+The output should look like the following (the missing argument error is expected):
 
-## Setup on a dev machine
+```
+Error: Missing required argument: -d: dataset_name is not specified.
+Predict: Generates predictions from a trained neural network given a signals/input dataset.
+Usage: predict -d <dataset_name> -n <network_file> -r <input_text_file> -i <input_feature_index> -o <output_feature_index> -f <filters_json> [-b <batch_size>] [-k <num_recs>] [-l layer] [-s input_signals_index] [-p score_precision]
+    -b batch_size: (default = 1024) the number records/input rows to process in a batch.
+    -d dataset_name: (required) name for the dataset within the netcdf file.
+    -f samples filterFileName .
+    -i input_feature_index: (required) path to the feature index file, used to tranform input signals to correct input feature vector.
+    -k num_recs: (default = 100) The number of predictions (sorted by score to generate). Ignored if -l flag is used.
+    -l layer: (default = Output) the network layer to use for predictions. If specified, the raw scores for each node in the layer is output in order.
+    -n network_file: (required) the trained neural network in NetCDF file.
+    -o output_feature_index: (required) path to the feature index file, used to tranform the network output feature vector to appropriate features.
+    -p score_precision: (default = 4.3f) precision of the scores in output
+    -r input_text_file: (required) path to the file with input signal to use to generate predictions (i.e. recommendations).
+    -s filename (required) . to put the output recs to.
+```
+
+If this is what you see, you're ready to move on to the [examples]. Note that before running the examples, you should start a shell on a fresh Docker container:
+
+```bash
+nvidia-docker run -it amazon-dsstne /bin/bash
+```
+
+## Setup on your own development machine
 Instructions are provided for installation on Ubuntu Linux machines.
 
 ### Prerequisites
