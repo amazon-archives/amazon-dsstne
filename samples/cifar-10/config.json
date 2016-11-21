@@ -1,0 +1,32 @@
+{
+    "Version" : 0.81,
+    "Name" : "CIFAR-100",
+    "Kind" : "FeedForward",
+    "LocalResponseNormalization" :
+    {
+        "k" : 2,
+        "n" : 5,
+        "alpha" : 0.0001,
+        "beta" : 0.75
+    },
+    "Layers" : [
+        { "Name" : "Input", "Kind" : "Input", "Type" : "Convolutional", "N" : "auto", "DataSet" : "input"},
+        { "Name" : "C1", "Kind" : "Hidden", "Type" : "Convolutional", "N" : 128, "Kernel" : [7, 7], "KernelStride" : [1, 1],  "Activation" : "Linear", "WeightInit" : { "Scheme" : "Gaussian", "Scale" : 0.02 , "Bias" : 0.0 } },           
+        { "Name" : "C1a", "Kind" : "Hidden", "Type" : "Convolutional", "N" : 128, "Kernel" : [7, 7], "KernelStride" : [1, 1],  "Activation" : "Linear", "WeightInit" : { "Scheme" : "Gaussian", "Scale" : 0.02 , "Bias" : 0.0 } },           
+        { "Name" : "P1", "Kind" : "Hidden", "Type" : "Pooling", "Function" : "Max", "Kernel" : [4, 4], "KernelStride" : [2, 2]}, 
+
+        { "Name" : "C2", "Kind" : "Hidden", "Type" : "Convolutional", "N" : 128, "Kernel" : [7, 7], "KernelStride" : [1, 1],  "Activation" : "Linear", "WeightInit" : { "Scheme" : "Gaussian", "Scale" : 0.02 , "Bias" : 0.0 } },           
+        { "Name" : "C2a", "Kind" : "Hidden", "Type" : "Convolutional", "N" : 128, "Kernel" : [7, 7], "KernelStride" : [1, 1],  "Activation" : "Linear", "WeightInit" : { "Scheme" : "Gaussian", "Scale" : 0.02 , "Bias" : 0.0 } },           
+        { "Name" : "P2", "Kind" : "Hidden", "Type" : "Pooling", "Function" : "Max", "Kernel" : [4, 4], "KernelStride" : [2, 2]}, 
+        
+        { "Name" : "C3", "Kind" : "Hidden", "Type" : "Convolutional", "N" : 96, "Kernel" : [5, 5], "KernelStride" : [1, 1],  "Activation" : "Linear", "WeightInit" : { "Scheme" : "Gaussian", "Scale" : 0.02 , "Bias" : 0.0 } },           
+        { "Name" : "C3a", "Kind" : "Hidden", "Type" : "Convolutional", "N" : 96, "Kernel" : [5, 5], "KernelStride" : [1, 1],  "Activation" : "Linear", "WeightInit" : { "Scheme" : "Gaussian", "Scale" : 0.02 , "Bias" : 0.0 } },           
+        { "Name" : "P3", "Kind" : "Hidden", "Type" : "Pooling", "Function" : "Max", "Kernel" : [2, 2], "KernelStride" : [2, 2]}, 
+        
+        { "Kind" : "Hidden", "Type" : "FullyConnected", "N" : 1024, "Activation" : "Relu", "pDropout" : 0.5 },        
+        
+        { "Name" : "Output", "Kind" : "Output", "Type" : "FullyConnected", "N" : "auto", "DataSet" : "output", "Activation" : "SoftMax", "WeightInit" : { "Scheme" : "Gaussian", "Scale" : 0.01 , "Bias" : 0.0 } }
+    ],
+    "ErrorFunction" : "CrossEntropy"
+}
+
