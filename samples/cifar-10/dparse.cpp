@@ -5,7 +5,7 @@
 // Step 3. cat data_batch_*.bin > training.bin
 // Step 4. g++ dparse.cpp -o dparse -lnetcdf -lnetcdf_c++4 --std=c++0x
 // Step 5. ./dparse
-// Step 6. USe the network in config.json with cifar-10-training.nc and cifar-10-test.nc, P@1~=81%
+// Step 6. Use the network in config.json with cifar-10-training.nc and cifar-10-test.nc, P@1~=81%
 
 #include <cstdio>
 #include <algorithm>
@@ -75,7 +75,12 @@ int main(int argc, char **argv)
     static const uint32_t imageSize = width * height * length;
 
     // Read training data set
-    ifstream is("train.bin", ios::binary | ios::in);
+    ifstream is("training.bin", ios::binary | ios::in);
+    if (!is)
+    {
+        printf("Error opening input file training.bin\n");
+        exit(-1);
+    }
     vector<uint8_t> vTrainingData(training_images * imageSize);
     vector<uint32_t> vTrainingSparseLabel(training_images);
     vector<uint32_t> vTrainingSparseLabelStart(training_images);
@@ -112,9 +117,7 @@ int main(int argc, char **argv)
         NcDim dataDim0          = nc.addDim("dataDim0", training_images * imageSize); 
         NcVar dataVar0          = nc.addVar("data0", ncUint, dataDim0); 
         dataVar0.putVar(vTrainingData.data());
- 
-   
-   
+    
         // Write output data set
         nc.putAtt("name1", "output");
         nc.putAtt("attributes1", ncUint, 3);
@@ -126,15 +129,19 @@ int main(int argc, char **argv)
         NcDim sparseDataDim1    = nc.addDim("sparseDataDim1", training_images); 
         NcVar sparseStartVar1   = nc.addVar("sparseStart1", ncUint, examplesDim1);
         NcVar sparseEndVar1     = nc.addVar("sparseEnd1", ncUint, examplesDim1);
-        NcVar sparseIndexVar1   = nc.addVar("sparseIndex1", ncUbyte, sparseDataDim1);
+        NcVar sparseIndexVar1   = nc.addVar("sparseIndex1", ncUint, sparseDataDim1);
         sparseStartVar1.putVar(vTrainingSparseLabelStart.data());
         sparseEndVar1.putVar(vTrainingSparseLabelEnd.data());
-        sparseIndexVar1.putVar(vTrainingSparseLabel.data());
+        sparseIndexVar1.putVar(vTrainingSparseLabel.data());      
     }
-    
     
     // Read test data set
     is.open("test.bin", ios::binary | ios::in);
+    if (!is)
+    {
+        printf("Error opening input file test.bin\n");
+        exit(-1);
+    }    
     vector<uint8_t> vTestData(test_images * imageSize);
     vector<uint32_t> vTestSparseLabel(test_images);
     vector<uint32_t> vTestSparseLabelStart(test_images);
@@ -183,7 +190,7 @@ int main(int argc, char **argv)
         NcDim sparseDataDim1    = nc.addDim("sparseDataDim1", test_images); 
         NcVar sparseStartVar1   = nc.addVar("sparseStart1", ncUint, examplesDim1);
         NcVar sparseEndVar1     = nc.addVar("sparseEnd1", ncUint, examplesDim1);
-        NcVar sparseIndexVar1   = nc.addVar("sparseIndex1", ncUbyte, sparseDataDim1);
+        NcVar sparseIndexVar1   = nc.addVar("sparseIndex1", ncUint, sparseDataDim1);
         sparseStartVar1.putVar(vTestSparseLabelStart.data());
         sparseEndVar1.putVar(vTestSparseLabelEnd.data());
         sparseIndexVar1.putVar(vTestSparseLabel.data());
