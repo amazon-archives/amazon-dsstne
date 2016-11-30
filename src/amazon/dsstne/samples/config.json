@@ -1,0 +1,29 @@
+{
+    "Version" : 0.7,
+    "Name" : "AE",
+    "Kind" : "FeedForward",  
+    "SparsenessPenalty" : {
+        "p" : 0.5,
+        "beta" : 2.0
+    },
+
+    "ShuffleIndices" : false,
+
+    "Denoising" : {
+        "p" : 0.2
+    },
+
+    "ScaledMarginalCrossEntropy" : {
+        "oneTarget" : 1.0,
+        "zeroTarget" : 0.0,
+        "oneScale" : 1.0,
+        "zeroScale" : 1.0
+    },
+    "Layers" : [
+        { "Name" : "Input", "Kind" : "Input", "N" : "auto", "DataSet" : "gl_input", "Sparse" : true },
+        { "Name" : "Hidden", "Kind" : "Hidden", "Type" : "FullyConnected", "N" : 128, "Activation" : "Sigmoid", "Sparse" : true },
+        { "Name" : "Output", "Kind" : "Output", "Type" : "FullyConnected", "DataSet" : "gl_output", "N" : "auto", "Activation" : "Sigmoid", "Sparse" : true }
+    ],
+
+    "ErrorFunction" : "ScaledMarginalCrossEntropy"
+}
