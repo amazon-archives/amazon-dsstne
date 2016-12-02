@@ -1464,16 +1464,7 @@ void NNLayer::BackPropagateFullyConnected(uint32_t position, uint32_t batch, NNF
             // Normalize deltas if desired (Norms must be reduced across all GPUs)
             if (_deltaNorm > (NNFloat)0.0)
             {            
-                if (getGpu()._numprocs == 1)
-                    kNormalizeDeltas(_deltaNorm, batch, _localStride, _pbDelta->_pDevData);
-                else
-                {
-                    NNFloat* pMagnitude             = getGpu()._pNetwork->GetScratchBuffer(batch);
-                    kCalculateDeltaMagnitudes(batch, _localStride, _pbDelta->_pDevData, pMagnitude);
-                    getGpu()._pNetwork->P2P_Allreduce(pMagnitude, batch);
-                    kNormalizeDeltaMagnitudes(_deltaNorm, batch, _localStride, _pbDelta->_pDevData, pMagnitude);            
-                }            
-                
+                kNormalizeDeltas(_deltaNorm, batch, _localStride, _pbDelta->_pDevData);
             }
         }
 
@@ -1764,15 +1755,10 @@ void NNLayer::BackPropagateFullyConnected(uint32_t position, uint32_t batch, NNF
             // Normalize deltas if desired (Norms must be reduced across all GPUs)
             if (_deltaNorm > (NNFloat)0.0)
             {            
-                if (getGpu()._numprocs == 1)
-                    kNormalizeDeltas(_deltaNorm, batch, _localStride, _pbDelta->_pDevData);
-                else
-                {
-                    NNFloat* pMagnitude             = getGpu()._pNetwork->GetScratchBuffer(batch);
-                    kCalculateDeltaMagnitudes(batch, _localStride, _pbDelta->_pDevData, pMagnitude);
-                    getGpu()._pNetwork->P2P_Allreduce(pMagnitude, batch);
-                    kNormalizeDeltaMagnitudes(_deltaNorm, batch, _localStride, _pbDelta->_pDevData, pMagnitude);            
-                }                       
+                NNFloat* pMagnitude             = getGpu()._pNetwork->GetScratchBuffer(batch);
+                kCalculateDeltaMagnitudes(batch, _localStride, _pbDelta->_pDevData, pMagnitude);
+                getGpu()._pNetwork->P2P_Allreduce(pMagnitude, batch);
+                kNormalizeDeltaMagnitudes(_deltaNorm, batch, _localStride, _pbDelta->_pDevData, pMagnitude);
             }
         }
 
