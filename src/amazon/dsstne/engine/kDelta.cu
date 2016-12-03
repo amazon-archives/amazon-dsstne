@@ -1467,10 +1467,10 @@ void kCalculateSparseDataScaledMarginalCrossEntropyOutputDelta(Activation activa
             if (!bSparseIgnoreZero)
             {
                 kCalculateSparseRawSigmoidDataScaledMarginalCrossEntropyOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(size, pUnit, pDelta);
-                LAUNCHERROR("kCalculateSparseRawSigmoidScaledMarginalCrossEntropyOutputDelta_kernel");
+                LAUNCHERROR("kCalculateSparseRawSigmoidDataScaledMarginalCrossEntropyOutputDelta_kernel");
             }
             kCalculateSparseNonZeroSigmoidDataScaledMarginalCrossEntropyOutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pSparseStart, pSparseEnd, pSparseIndex, pSparseData);
-            LAUNCHERROR("kCalculateSparseNonZeroScaleMarginalCrossEntropyOutputDelta_kernel");
+            LAUNCHERROR("kCalculateSparseNonZeroSigmoidDataScaledMarginalCrossEntropyOutputDelta_kernel");
             break;
 
         case SoftMax:
