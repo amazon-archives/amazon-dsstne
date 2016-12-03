@@ -25,13 +25,6 @@ public:
 
     static std::pair<NNNetwork::Kind, string> _sKindPair[];
     static std::map<NNNetwork::Kind, string> _sKindMap;
-
-    enum Mode {
-        Prediction = 0,
-        Training = 1,
-        Validation = 2,
-        Unspecified = 3
-    };
     
 private:
     friend NNNetwork* LoadNeuralNetworkJSON(const string& fname, const uint32_t batch, const vector<NNDataSetBase*>& vDataSet);

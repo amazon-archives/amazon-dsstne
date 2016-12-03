@@ -932,6 +932,78 @@ NNFloat kCalculateSparseScaledMarginalCrossEntropyError(uint32_t position, uint3
 
 __global__ void
 LAUNCH_BOUNDS()
+kCalculateSparseRawDataScaledMarginalCrossEntropyError_kernel(NNFloat* pUnit, uint64_t size)
+{
+    uint64_t pos                = blockDim.x * blockIdx.x + threadIdx.x;
+    NNFloat error               = (NNFloat)0.0;
+    if (pos < size)
+    {
+	      NNFloat a               = pUnit[pos];
+	      if (a > cData._SMCE_zeroTarget)
+	      {
+	          error               = -cData._SMCE_zeroScale * log(max(MIN_ERROR, (NNFloat)1.0 - a));
+	      }
+    }
+
+    REDUCE_ERROR()
+}
+
+template<typename T>
+__global__ void
+LAUNCH_BOUNDS()
+kCalculateSparseNonZeroDataScaledMarginalCrossEntropyError_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat *pUnit, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t* pSparseIndex, T* pSparseData)
+{
+    uint64_t pos                = (blockIdx.x * blockDim.x + threadIdx.x) / cData._warpSize;
+    NNFloat error               = (NNFloat)0.0;
+    if (pos < batch)
+    {
+        uint32_t dpos           = cData._bShuffleIndices ? cData._pShuffleIndex[position + pos] : position + pos;
+        uint64_t pos1           = pSparseStart[dpos] + (threadIdx.x & cData._warpMask);
+        uint64_t end            = pSparseEnd[dpos];
+        uint64_t offset         = pos * stride;
+        while (pos1 < end)
+        {
+              uint64_t pos2       = offset + pSparseIndex[pos1];
+              NNFloat a           = pUnit[pos2];
+              T t                 = pSparseData[pos1];
+
+              if (a > cData._SMCE_zeroTarget)
+              {
+                  error          += cData._SMCE_zeroScale * log(max(MIN_ERROR, (NNFloat)1.0 - a));
+              }
+
+              if (a < cData._SMCE_oneTarget)
+              {
+                  error          += -cData._SMCE_oneScale * t * log(max(MIN_ERROR, a));
+              }
+              pos1               += cData._warpSize;
+        }
+    }
+
+    REDUCE_ERROR()
+}
+
+template<typename T>
+NNFloat kCalculateSparseDataScaledMarginalCrossEntropyError(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, uint64_t* pSparseStart, uint64_t *pSparseEnd, uint32_t *pSparseIndex, T* pSparseData, bool bSparseIgnoreZero)
+{
+    cudaMemset(getGpu()._data._pAccumulator, 0, sizeof(uint64_t));
+
+    if (!bSparseIgnoreZero)
+    {
+        uint64_t size               = (uint64_t)batch * (uint64_t)stride;
+        uint32_t blocks             = CalculateBlocks(size);
+        kCalculateSparseRawDataScaledMarginalCrossEntropyError_kernel<<<blocks, getGpu()._threadsPerBlock>>>(pUnit, size);
+        LAUNCHERROR("kCalculateSparseRawDataScaledMarginalCrossEntropyError_kernel");
+    }
+    uint32_t blocks             = CalculateBlocks(batch * getGpu()._warpSize);
+    kCalculateSparseNonZeroDataScaledMarginalCrossEntropyError_kernel<<<blocks, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pSparseStart, pSparseEnd, pSparseIndex, pSparseData);
+    LAUNCHERROR("kCalculateSparseNonZeroDataScaledMarginalCrossEntropyError_kernel");
+    getGpu()._pbAccumulator->Download();
+    return (NNFloat)((double)(getGpu()._pbAccumulator->_pSysData[0]) * ONEOVERERRORSCALE);
+}
+
+__global__ void
+LAUNCH_BOUNDS()
 kCalculateSparseMultinomialScaledMarginalCrossEntropyError_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat *pUnit, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t* pSparseIndex)
 {
     uint64_t pos                = (blockIdx.x * blockDim.x + threadIdx.x) / cData._warpSize;
@@ -1577,6 +1649,16 @@ void kLossTempFunction()
     kCalculateSparseAnalogMultinomialScaledMarginalCrossEntropyError<uint64_t>(0, 0, 0, NULL, NULL, NULL, NULL, NULL);    
     kCalculateSparseAnalogMultinomialScaledMarginalCrossEntropyError<int32_t>(0, 0, 0, NULL, NULL, NULL, NULL, NULL);
     kCalculateSparseAnalogMultinomialScaledMarginalCrossEntropyError<int64_t>(0, 0, 0, NULL, NULL, NULL, NULL, NULL);  
+
+    kCalculateSparseDataScaledMarginalCrossEntropyError<NNFloat>(0, 0, 0, NULL, NULL, NULL, NULL, NULL, false);
+    kCalculateSparseDataScaledMarginalCrossEntropyError<double>(0, 0, 0, NULL, NULL, NULL, NULL, NULL, false);
+    kCalculateSparseDataScaledMarginalCrossEntropyError<unsigned char>(0, 0, 0, NULL, NULL, NULL, NULL, NULL, false);
+    kCalculateSparseDataScaledMarginalCrossEntropyError<char>(0, 0, 0, NULL, NULL, NULL, NULL, NULL, false);
+    kCalculateSparseDataScaledMarginalCrossEntropyError<uint32_t>(0, 0, 0, NULL, NULL, NULL, NULL, NULL, false);
+    kCalculateSparseDataScaledMarginalCrossEntropyError<uint64_t>(0, 0, 0, NULL, NULL, NULL, NULL, NULL, false);
+    kCalculateSparseDataScaledMarginalCrossEntropyError<int32_t>(0, 0, 0, NULL, NULL, NULL, NULL, NULL, false);
+    kCalculateSparseDataScaledMarginalCrossEntropyError<int64_t>(0, 0, 0, NULL, NULL, NULL, NULL, NULL, false);
+    kCalculateSparseDataScaledMarginalCrossEntropyError<long>(0, 0, 0, NULL, NULL, NULL, NULL, NULL, false);
 }
 
 

@@ -2880,7 +2880,26 @@ NNNetwork* LoadNeuralNetworkJSON(const string& fname, const uint32_t batch, cons
                             goto exit;
                         }                            
                     }
-                }             
+                }
+                // Read DataScaledMarginalCrossEntropy parameters if present
+                else if (name.compare("datascaledmarginalcrossentropy") == 0)
+                {
+                    for (Json::ValueIterator pitr = value.begin(); pitr != value.end() ; pitr++)
+                    {
+                        string pname                = pitr.memberName();
+                        std::transform(pname.begin(), pname.end(), pname.begin(), ::tolower);
+                        Json::Value pkey            = pitr.key();
+                        Json::Value pvalue          = *pitr;
+                        if (pname.compare("onescale") == 0)
+                            nd._SMCE_oneScale       = pvalue.asFloat();
+                        else if (pname.compare("zeroscale") == 0)
+                            nd._SMCE_zeroScale      = pvalue.asFloat();
+                        else if (pname.compare("onetarget") == 0)
+                            nd._SMCE_oneTarget      = pvalue.asFloat();
+                        else if (pname.compare("zerotarget") == 0)
+                            nd._SMCE_zeroTarget     = pvalue.asFloat();
+                    }
+                }
 
                 // Read SchuffleIndices parameter if present
                 else if (name.compare("shuffleindices") == 0)
@@ -2899,6 +2918,8 @@ NNNetwork* LoadNeuralNetworkJSON(const string& fname, const uint32_t batch, cons
                         nd._errorFunction           = ErrorFunction::CrossEntropy;
                     else if (vstring.compare("scaledmarginalcrossentropy") == 0)
                         nd._errorFunction           = ErrorFunction::ScaledMarginalCrossEntropy;
+                    else if (vstring.compare("datascaledmarginalcrossentropy") == 0)
+                        nd._errorFunction           = ErrorFunction::DataScaledMarginalCrossEntropy;
                     else
                     {
                         printf("LoadNeuralNetworkJSON: Invalid error function: %s\n", value.asString().c_str());

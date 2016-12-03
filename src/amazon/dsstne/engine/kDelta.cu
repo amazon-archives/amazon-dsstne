@@ -1409,6 +1409,79 @@ void kCalculateSparseScaledMarginalCrossEntropyOutputDelta(Activation activation
     }
 }
 
+__global__ void
+LAUNCH_BOUNDS()
+kCalculateSparseRawSigmoidDataScaledMarginalCrossEntropyOutputDelta_kernel(uint64_t size, NNFloat* pUnit, NNFloat* pDelta)
+{
+    uint64_t pos                = (blockIdx.x * blockDim.x) + threadIdx.x;
+    if (pos < size)
+    {
+	      NNFloat a               = pUnit[pos];
+	      NNFloat output          = (NNFloat)0.0;
+	      if (a > cData._SMCE_zeroTarget)
+	      {
+	          output              = cData._SMCE_zeroScale * a;
+	      }
+	      pDelta[pos]             = output;
+    }
+}
+
+template<typename T>
+__global__ void
+LAUNCH_BOUNDS()
+kCalculateSparseNonZeroSigmoidDataScaledMarginalCrossEntropyOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, T* pSparseData)
+{
+    uint64_t pos                = ((blockIdx.x * blockDim.x) + threadIdx.x) / cData._warpSize;
+    if (pos < batch)
+    {
+        uint32_t dpos           = cData._bShuffleIndices ? cData._pShuffleIndex[position + pos] : position + pos;
+        uint64_t pos1           = pSparseStart[dpos] + (threadIdx.x & cData._warpMask);
+        uint64_t end            = pSparseEnd[dpos];
+        uint64_t offset         = pos * stride;
+        while (pos1 < end)
+        {
+              uint64_t pos2       = offset + pSparseIndex[pos1];
+              NNFloat a           = pUnit[pos2];
+              T t                 = pSparseData[pos1];
+              NNFloat output      = (NNFloat)0.0;
+              if (a < cData._SMCE_oneTarget)
+              {
+                  output          = cData._SMCE_oneScale * t * (a - (NNFloat)1.0);
+              }
+              pDelta[pos2]        = output;
+              pos1               += cData._warpSize;
+        }
+    }
+}
+
+template<typename T>
+void kCalculateSparseDataScaledMarginalCrossEntropyOutputDelta(Activation activation, uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, T* pSparseData, bool bSparseIgnoreZero)
+{
+    uint64_t size               = (uint64_t)batch * (uint64_t)stride;
+    dim3 grid1(CalculateBlocks(size));
+    dim3 grid2(CalculateBlocks(batch * getGpu()._data._warpSize));
+
+    switch (activation)
+    {
+        case Sigmoid:
+            if (!bSparseIgnoreZero)
+            {
+                kCalculateSparseRawSigmoidDataScaledMarginalCrossEntropyOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(size, pUnit, pDelta);
+                LAUNCHERROR("kCalculateSparseRawSigmoidScaledMarginalCrossEntropyOutputDelta_kernel");
+            }
+            kCalculateSparseNonZeroSigmoidDataScaledMarginalCrossEntropyOutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pSparseStart, pSparseEnd, pSparseIndex, pSparseData);
+            LAUNCHERROR("kCalculateSparseNonZeroScaleMarginalCrossEntropyOutputDelta_kernel");
+            break;
+
+        case SoftMax:
+            cout << "unsupported activation for this cost function" << endl;
+            getGpu().Shutdown();
+            exit(-1);
+            break;
+    }
+}
+
+
 template<typename T>
 __global__ void
 LAUNCH_BOUNDS()
@@ -2137,6 +2210,16 @@ void KDeltaTempFunction()
     kCalculateSparseAnalogOutputDelta<int32_t>(Linear, 0, 0, 0, NULL,  NULL, NULL, NULL, NULL, NULL, false);
     kCalculateSparseAnalogOutputDelta<int64_t>(Linear, 0, 0, 0, NULL,  NULL, NULL, NULL, NULL, NULL, false);
     kCalculateSparseAnalogOutputDelta<long>(Linear, 0, 0, 0, NULL,  NULL, NULL, NULL, NULL, NULL, false);
+
+    kCalculateSparseDataScaledMarginalCrossEntropyOutputDelta<NNFloat>(Sigmoid, 0, 0, 0, NULL,  NULL, NULL, NULL, NULL, NULL, false);
+    kCalculateSparseDataScaledMarginalCrossEntropyOutputDelta<double>(Sigmoid, 0, 0, 0, NULL,  NULL, NULL, NULL, NULL, NULL, false);
+    kCalculateSparseDataScaledMarginalCrossEntropyOutputDelta<unsigned char>(Sigmoid, 0, 0, 0, NULL,  NULL, NULL, NULL, NULL, NULL, false);
+    kCalculateSparseDataScaledMarginalCrossEntropyOutputDelta<char>(Sigmoid, 0, 0, 0, NULL,  NULL, NULL, NULL, NULL, NULL, false);
+    kCalculateSparseDataScaledMarginalCrossEntropyOutputDelta<uint32_t>(Sigmoid, 0, 0, 0, NULL,  NULL, NULL, NULL, NULL, NULL, false);
+    kCalculateSparseDataScaledMarginalCrossEntropyOutputDelta<uint64_t>(Sigmoid, 0, 0, 0, NULL,  NULL, NULL, NULL, NULL, NULL, false);
+    kCalculateSparseDataScaledMarginalCrossEntropyOutputDelta<int32_t>(Sigmoid, 0, 0, 0, NULL,  NULL, NULL, NULL, NULL, NULL, false);
+    kCalculateSparseDataScaledMarginalCrossEntropyOutputDelta<int64_t>(Sigmoid, 0, 0, 0, NULL,  NULL, NULL, NULL, NULL, NULL, false);
+    kCalculateSparseDataScaledMarginalCrossEntropyOutputDelta<long>(Sigmoid, 0, 0, 0, NULL,  NULL, NULL, NULL, NULL, NULL, false);
 }
 
 

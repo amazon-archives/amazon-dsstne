@@ -55,6 +55,13 @@ enum
     DefaultBatch    = 512
 };
 
+enum Mode {
+    Prediction = 0,
+    Training = 1,
+    Validation = 2,
+    Unspecified = 3
+};
+
 enum TrainingMode 
 {
     SGD = 0,
@@ -73,6 +80,7 @@ enum ErrorFunction
     L2,
     CrossEntropy,
     ScaledMarginalCrossEntropy,
+    DataScaledMarginalCrossEntropy,
 };
 
 ostream& operator<< (ostream& out, const ErrorFunction& e);
@@ -211,6 +219,8 @@ struct NNDataSetBase {
     virtual bool CalculateCrossEntropyOutputDelta(Activation activation, uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta) = 0;   
     virtual bool CalculateScaledMarginalCrossEntropyOutputDelta(Activation activation, uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta) = 0;   
     virtual bool CalculateOutputDelta(Activation activation, uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta) = 0;  
+    virtual float CalculateDataScaledMarginalCrossEntropyError(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit) = 0;
+    virtual bool CalculateDataScaledMarginalCrossEntropyOutputDelta(Activation activation, uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta) = 0;
 };
 
 ostream& operator<< (ostream& out, NNDataSetEnums::Attributes& a);
@@ -267,6 +277,8 @@ private:
     bool CalculateCrossEntropyOutputDelta(Activation activation, uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta);
     bool CalculateScaledMarginalCrossEntropyOutputDelta(Activation activation, uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta);    
     bool CalculateOutputDelta(Activation activation, uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta);
+    float CalculateDataScaledMarginalCrossEntropyError(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit);
+    bool CalculateDataScaledMarginalCrossEntropyOutputDelta(Activation activation, uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta);
 
 public:
 
@@ -502,6 +514,32 @@ template<typename T> float NNDataSet<T>::CalculateMultinomialScaledMarginalCross
         return kCalculateMultinomialScaledMarginalCrossEntropyError(position, batch, stride, pUnit, _pbData->_pDevData);
 }
 
+template<typename T> float NNDataSet<T>::CalculateDataScaledMarginalCrossEntropyError(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit)
+{
+    if (_attributes & NNDataSetEnums::Sparse)
+    {
+        if (_attributes & NNDataSetEnums::Boolean)
+        {
+            cout << "unsupported data format of this cost function" << endl;
+            getGpu().Shutdown();
+            exit(-1);
+        }
+        else
+        {
+            bool bSparseIgnoreZero = _attributes & NNDataSetEnums::SparseIgnoreZero;
+            return kCalculateSparseDataScaledMarginalCrossEntropyError(position, batch, stride, pUnit,
+                            _pbSparseStart->_pDevData, _pbSparseEnd->_pDevData, _pbSparseIndex->_pDevData,
+                            _pbSparseData->_pDevData, bSparseIgnoreZero);
+        }
+    }
+    else
+    {
+        cout << "unsupported data format of this cost function" << endl;
+        getGpu().Shutdown();
+        exit(-1);
+    }
+}
+
 template<typename T> bool NNDataSet<T>::CalculateL1OutputDelta(Activation activation, uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta)
 {
     if (_attributes & NNDataSetEnums::Sparse)
@@ -510,7 +548,9 @@ template<typename T> bool NNDataSet<T>::CalculateL1OutputDelta(Activation activa
         kCalculateSparseL1OutputDelta(activation, position, batch, stride, pUnit, pDelta, _pbSparseStart->_pDevData, _pbSparseEnd->_pDevData, _pbSparseIndex->_pDevData, bSparseIgnoreZero);
     }
     else
+    {
         kCalculateL1OutputDelta(activation, position, batch, stride, pUnit, pDelta, _pbData->_pDevData);
+    }
     return true;
 }
 
@@ -522,7 +562,9 @@ template<typename T> bool NNDataSet<T>::CalculateCrossEntropyOutputDelta(Activat
         kCalculateSparseCrossEntropyOutputDelta(activation, position, batch, stride, pUnit, pDelta, _pbSparseStart->_pDevData, _pbSparseEnd->_pDevData, _pbSparseIndex->_pDevData, bSparseIgnoreZero);
     }
     else
+    {
         kCalculateCrossEntropyOutputDelta(activation, position, batch, stride, pUnit, pDelta, _pbData->_pDevData);
+    }
     return true;
 }
 
@@ -560,7 +602,22 @@ template<typename T> bool NNDataSet<T>::CalculateOutputDelta(Activation activati
     return true;
 }
 
-
+template<typename T> bool NNDataSet<T>::CalculateDataScaledMarginalCrossEntropyOutputDelta(Activation activation,
+                uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta)
+{
+    if (_attributes & NNDataSetEnums::Sparse)
+    {
+        bool bSparseIgnoreZero = _attributes & NNDataSetEnums::SparseIgnoreZero;
+        kCalculateSparseDataScaledMarginalCrossEntropyOutputDelta(activation, position, batch, stride, pUnit, pDelta,
+                        _pbSparseStart->_pDevData, _pbSparseEnd->_pDevData, _pbSparseIndex->_pDevData,
+                        _pbSparseData->_pDevData, bSparseIgnoreZero);
+    } else {
+        cout << "unsupported data format of this cost function" << endl;
+        getGpu().Shutdown();
+        exit(-1);
+    }
+    return true;
+}
 
 vector<NNDataSetBase*> LoadNetCDF(const string& fname);
 bool SaveNetCDF(const string& fname, vector<NNDataSetBase*> vDataset);
