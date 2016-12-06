@@ -1033,7 +1033,7 @@ template<typename T> bool NNDataSet<T>::UnShard()
             // Subtract local index offset
             int32_t xmin                        = ((size_t)_width * (size_t)getGpu()._id) / (size_t)getGpu()._numprocs;
             int32_t xmax                        = ((size_t)_width * ((size_t)getGpu()._id + 1)) / (size_t)getGpu()._numprocs;
-            for (auto index : _vSparseIndex)
+            for (auto& index : _vSparseIndex)
                 index                          -= xmin;
             
             // Gather total sparse counts
