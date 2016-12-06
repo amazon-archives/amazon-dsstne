@@ -15,14 +15,9 @@
 #include <values.h>
 #include <sys/time.h>
 
-enum MODE
-{
-    Prediction,
-    Training,
-    Validation,
-};
 
-static const MODE mode = Training;
+
+static const Mode mode = Mode::Training;
 //static const MODE mode = Prediction;
 //static const MODE mode = Validation;
 
@@ -45,7 +40,7 @@ int main(int argc, char** argv)
 
     // Load training data
     vector <NNDataSetBase*> vDataSet;
-    if (mode == Training)
+    if (mode == Mode::Training)
         vDataSet = LoadNetCDF("../../data/data_training.nc");
     else
         vDataSet = LoadNetCDF("../../data/data_test.nc");
@@ -78,12 +73,12 @@ int main(int argc, char** argv)
     pNetwork->SetCheckpoint("check", 1);
 
     // Train, validate or predict based on operating mode
-    if (mode == Validation)
+    if (mode == Mode::Validation)
     {
         pNetwork->SetTrainingMode(Nesterov);
         pNetwork->Validate();
     }
-    else if (mode == Training)
+    else if (mode == Mode::Training)
     {
         pNetwork->SetTrainingMode(Nesterov);
         while (epochs < total_epochs)
@@ -317,7 +312,7 @@ int main(int argc, char** argv)
     }
     
     // Save Neural network
-    if (mode == Training)
+    if (mode == Mode::Training)
         pNetwork->SaveNetCDF("network.nc");
     delete pNetwork;
 

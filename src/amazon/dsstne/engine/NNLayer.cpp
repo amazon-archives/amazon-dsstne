@@ -116,7 +116,7 @@ _localBatch(batch)
                                            vKernelStride.data());
                 CUDNNERROR(cudnnStatus, "NNLayer::NNLayer: unable to set max pooling descriptor");
                 break;
-                
+
             case PoolingFunction::Average:
                 cudnnSetPoolingNdDescriptor(_poolingDescriptor,
                                            CUDNN_POOLING_AVERAGE_COUNT_EXCLUDE_PADDING,
@@ -125,7 +125,7 @@ _localBatch(batch)
                                            vKernel.data(),
                                            vKernelPadding.data(),
                                            vKernelStride.data());
-                CUDNNERROR(cudnnStatus, "NNLayer::NNLayer: unable to set average pooling descriptor");            
+                CUDNNERROR(cudnnStatus, "NNLayer::NNLayer: unable to set average pooling descriptor");
                 
             case PoolingFunction::LRN:
                 cudnnStatus         = cudnnCreateLRNDescriptor(&_LRNDescriptor);
@@ -1169,6 +1169,18 @@ NNFloat NNLayer::CalculateError(uint32_t position, uint32_t batch, ErrorFunction
                 return _pDataSet->CalculateMultinomialScaledMarginalCrossEntropyError(position, batch, _localStride, _pbUnit->_pDevData);
             else        
                 return _pDataSet->CalculateScaledMarginalCrossEntropyError(position, batch, _localStride, _pbUnit->_pDevData);
+
+        case DataScaledMarginalCrossEntropy:
+            if (_activation == SoftMax)
+            {
+                cout << "unsupported combination of activation with cost function" << endl;
+                getGpu().Shutdown();
+                exit(-1);
+            }
+            else
+            {
+                return _pDataSet->CalculateDataScaledMarginalCrossEntropyError(position, batch, _localStride, _pbUnit->_pDevData);
+            }
     }
     
     return (NNFloat)0.0;
@@ -1200,6 +1212,10 @@ void NNLayer::CalculateOutputDelta(uint32_t position, uint32_t batch, ErrorFunct
 
         case L2:
             _pDataSet->CalculateOutputDelta(_activation, position, batch, _localStride, _pbUnit->_pDevData, _pbDelta->_pDevData);
+            break;
+
+        case DataScaledMarginalCrossEntropy:
+            _pDataSet->CalculateDataScaledMarginalCrossEntropyOutputDelta(_activation, position, batch, _localStride, _pbUnit->_pDevData, _pbDelta->_pDevData);
             break;
 
         default:
