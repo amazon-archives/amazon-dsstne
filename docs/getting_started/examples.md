@@ -100,7 +100,7 @@ We can use OpenMPI to perform model parallel training across the GPUs in the sam
 
 Once you have finished training now you can start predicting. Since DSSTNE is mostly used for recommendations we also added support for post filtering. The filter follows the same format as the standard DSSTNE format but for each example you can decide which features to remove when we predict. In the following example we will remove all the features which were triggered in the input layer for predicting.
 
-    predict -b 1024 -d gl -i features_input -o features_output -k 10 -n gl.nc -f ml20m-all -s recs -r ml20m-all
+    predict -b 256 -d gl -i features_input -o features_output -k 10 -n gl.nc -f ml-20m_ratings -s recs -r ml-20m_ratings
 
 This will result in the top 10 recommendation for each sample in the **recs** file.
 
