@@ -470,7 +470,7 @@ void GpuContext::SetNeuralNetwork(NNNetwork* pNetwork)
     _data._SMCE_zeroTarget                          = pNetwork->_SMCE_zeroTarget;
     _data._SMCE_oneScale                            = pNetwork->_SMCE_oneScale;
     _data._SMCE_zeroScale                           = pNetwork->_SMCE_zeroScale;
-    _data._bShuffleIndices                          = pNetwork->_bShuffleIndices && (pNetwork->_mode == NNNetwork::Mode::Training);
+    _data._bShuffleIndices                          = pNetwork->_bShuffleIndices && (pNetwork->_mode == Mode::Training);
     _data._pShuffleIndex                            = pNetwork->_pShuffleIndex;
     CopyConstants();
 }
