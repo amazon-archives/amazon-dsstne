@@ -9,6 +9,7 @@
  */
 
 #ifndef NNNETWORK_H
+#define NNNETWORK_H
 #ifndef __NVCC__
 struct NNNetworkDescriptor;
 
@@ -243,5 +244,4 @@ bool SaveNeuralNetworkJSON(const NNNetwork& net, const string& fname);
 bool SaveNeuralNetworkNetCDF(const NNNetwork& net, const string& jname);
 NNNetwork* ImportAutoEncoder(const string& fname, uint32_t batch = DefaultBatch);
 #endif // __NVCC__
-#define NNNETWORK_H
 #endif
