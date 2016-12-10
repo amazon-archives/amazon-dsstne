@@ -2605,11 +2605,7 @@ kCalculateDropout_kernel(NNFloat* pUnit, NNFloat* pRandom, NNFloat p, NNFloat sc
     if (pos < size)
     {
         NNFloat r                           = pRandom[pos];
-        if (r < p)
-            pUnit[pos]                      = (NNFloat)0.0;
-        NNFloat o                           = pUnit[pos];
-        o                                   = (r < p) ? (NNFloat)0.0 : o;
-        pUnit[pos]                          = scale * o;
+        pUnit[pos]                          = (r < p) ? (NNFloat)0.0 : scale * pUnit[pos];
     }
 }
 
