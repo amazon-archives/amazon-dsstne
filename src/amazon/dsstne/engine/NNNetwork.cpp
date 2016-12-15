@@ -3266,7 +3266,17 @@ NNNetwork* LoadNeuralNetworkJSON(const string& fname, const uint32_t batch, cons
                                     } 
                                     continue;
                                 }
-
+                                // Read activation if present
+                                else if (lname.compare("slope") == 0)
+                                {
+                                    ldl._slope           = lvalue.asFloat();
+                                    if (ldl._slope < 0) {
+                                        printf("slope is negative \n");
+                                        bValid      = false;
+                                        goto exit;
+                                    }
+                                    continue;
+                                }
                                 // Read activation if present
                                 else if (lname.compare("activation") == 0)
                                 {
@@ -3280,6 +3290,8 @@ NNNetwork* LoadNeuralNetworkJSON(const string& fname, const uint32_t batch, cons
                                         ldl._activation = Activation::Linear;
                                     else if ((s.compare("relu") == 0) || (s.compare("rectifiedlinear") == 0))
                                         ldl._activation = Activation::RectifiedLinear;
+                                    else if ((s.compare("lrelu") == 0) || (s.compare("leakyrectifiedlinear") == 0))
+                                        ldl._activation = Activation::LeakyRectifiedLinear;
                                     else if (s.compare("softplus") == 0)
                                         ldl._activation = Activation::SoftPlus;
                                     else if (s.compare("softsign") == 0)

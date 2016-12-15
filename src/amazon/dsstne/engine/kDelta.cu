@@ -34,14 +34,14 @@ void SetKDeltaGpuData()
 {
     cudaError_t status;
     status = cudaMemcpyToSymbol(cData, &(getGpu()._data), sizeof(GpuData));     
-    RTERROR(status, "cudaMemcpyToSymbol: SetKernelsGpuData copy to cData failed");
+    RTERROR(status, "cudaMemcpyToSymbol: SetKDeltaGpuData copy to cData failed");
 }
 
 void GetKDeltaGpuData()
 {
     cudaError_t status;
     status = cudaMemcpyFromSymbol(&(getGpu()._data), cData, sizeof(GpuData));     
-    RTERROR(status, "cudaMemcpyToSymbol: SetKernelsGpuData copy From cData failed");
+    RTERROR(status, "cudaMemcpyFromSymbol: GetKDeltaGpuData copy From cData failed");
 }
 
 template<typename T>
@@ -236,6 +236,53 @@ kCalculateReluOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t str
     }
 }
 
+template<typename T>
+__global__ void
+LAUNCH_BOUNDS()
+kCalculateLeakyReluOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, T* pData, NNFloat slope)
+{
+    uint64_t pos                = (blockIdx.y * blockDim.x) + threadIdx.x;
+    if (pos < stride)
+    {
+        uint64_t uOffset        = blockIdx.x * stride;
+        uint64_t dOffset        = (cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x) * stride;
+        NNFloat a               = pUnit[uOffset + pos];
+        NNFloat t               = pData[dOffset + pos];
+        pDelta[uOffset + pos]   = (a - t) * ((a > (NNFloat)0.0) + slope * (a <= (NNFloat)0.0));
+    }
+}
+
+template<>
+__global__ void
+LAUNCH_BOUNDS()
+kCalculateLeakyReluOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, unsigned char* pData, NNFloat slope)
+{
+    uint64_t pos                = (blockIdx.y * blockDim.x) + threadIdx.x;
+    if (pos < stride)
+    {
+        uint64_t uOffset        = blockIdx.x * stride;
+        uint64_t dOffset        = (cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x) * stride;
+        NNFloat a               = pUnit[uOffset + pos];
+        NNFloat t               = (NNFloat)pData[dOffset + pos] * (NNFloat)(1.0 / 256.0);
+        pDelta[uOffset + pos]   = (a - t) * ((a > (NNFloat)0.0) + slope * (a <= (NNFloat)0.0));
+    }
+}
+
+template<>
+__global__ void
+LAUNCH_BOUNDS()
+kCalculateLeakyReluOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, char* pData, NNFloat slope)
+{
+    uint64_t pos                = (blockIdx.y * blockDim.x) + threadIdx.x;
+    if (pos < stride)
+    {
+        uint64_t uOffset        = blockIdx.x * stride;
+        uint64_t dOffset        = (cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x) * stride;
+        NNFloat a               = pUnit[uOffset + pos];
+        NNFloat t               = (NNFloat)pData[dOffset + pos] * (NNFloat)(1.0 / 128.0);
+        pDelta[uOffset + pos]   = (a - t) * ((a > (NNFloat)0.0) + slope * (a <= (NNFloat)0.0));
+    }
+}
 
 template<typename T>
 __global__ void
@@ -285,7 +332,7 @@ kCalculateSoftMaxOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t 
     }
 }
 
-template<typename T> void kCalculateOutputDelta(Activation activation, uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, T* pData)
+template<typename T> void kCalculateOutputDelta(Activation activation, uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, T* pData, NNFloat slope)
 {
     dim3 grid(batch, (stride + getGpu()._threadsPerBlock - 1) / getGpu()._threadsPerBlock);
     switch (activation)
@@ -310,6 +357,11 @@ template<typename T> void kCalculateOutputDelta(Activation activation, uint32_t 
             LAUNCHERROR("kCalculateReluOutputDelta_kernel");
             break;
             
+        case LeakyRectifiedLinear:
+            kCalculateLeakyReluOutputDelta_kernel<<<grid, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pData, slope);
+            LAUNCHERROR("kCalculateLeakyReluOutputDelta_kernel");
+            break;
+
        case SoftMax:
             kCalculateSoftMaxOutputDelta_kernel<<<grid, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pData);
             LAUNCHERROR("kCalculateSoftMaxOutputDelta_kernel");
@@ -430,6 +482,18 @@ kCalculateSparseRawReluOutputDelta_kernel(uint64_t size, NNFloat* pUnit,  NNFloa
 
 __global__ void
 LAUNCH_BOUNDS()
+kCalculateSparseRawLeakyReluOutputDelta_kernel(uint64_t size, NNFloat* pUnit,  NNFloat* pDelta, NNFloat slope)
+{
+    uint64_t pos                = (blockIdx.x * blockDim.x) + threadIdx.x;
+    if (pos < size)
+    {
+        NNFloat a               = pUnit[pos];
+        pDelta[pos]             = a * ((a > (NNFloat)0.0) + slope * (a <= (NNFloat)0.0));
+    }
+}
+
+__global__ void
+LAUNCH_BOUNDS()
 kCalculateSparseNonZeroReluOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex)
 {
     uint64_t pos                = ((blockIdx.x * blockDim.x) + threadIdx.x) / cData._warpSize;
@@ -446,6 +510,27 @@ kCalculateSparseNonZeroReluOutputDelta_kernel(uint32_t position, uint32_t batch,
             pDelta[pos2]        = (a - (NNFloat)1.0) * (a > (NNFloat)0.0); 
             pos1               += cData._warpSize;
         }      
+    }
+}
+
+__global__ void
+LAUNCH_BOUNDS()
+kCalculateSparseNonZeroLeakyReluOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat slope)
+{
+    uint64_t pos                = ((blockIdx.x * blockDim.x) + threadIdx.x) / cData._warpSize;
+    if (pos < batch)
+    {
+        uint32_t dpos           = cData._bShuffleIndices ? cData._pShuffleIndex[position + pos] : position + pos;
+        uint64_t pos1           = pSparseStart[dpos] + (threadIdx.x & cData._warpMask);
+        uint64_t end            = pSparseEnd[dpos];
+        uint64_t offset         = pos * stride;
+        while (pos1 < end)
+        {
+            uint64_t pos2       = offset + pSparseIndex[pos1];
+            NNFloat a           = pUnit[pos2];
+            pDelta[pos2]        = (a - (NNFloat)1.0) * ((a > (NNFloat)0.0) + slope * (a <= (NNFloat)0.0));
+            pos1               += cData._warpSize;
+        }
     }
 }
 
@@ -484,7 +569,7 @@ kCalculateSparseNonZeroSoftMaxOutputDelta_kernel(uint32_t position, uint32_t bat
     }
 }
 
-void kCalculateSparseOutputDelta(Activation activation, uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, bool bSparseIgnoreZero)
+void kCalculateSparseOutputDelta(Activation activation, uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, bool bSparseIgnoreZero, NNFloat slope)
 {
     uint64_t size               = (uint64_t)batch * (uint64_t)stride;
     dim3 grid1(CalculateBlocks(size));
@@ -537,7 +622,15 @@ void kCalculateSparseOutputDelta(Activation activation, uint32_t position, uint3
             kCalculateSparseNonZeroReluOutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pSparseStart, pSparseEnd, pSparseIndex);
             LAUNCHERROR("kCalculateSparseNonZeroReluOutputDelta_kernel");
             break;
-            
+        case LeakyRectifiedLinear:
+            if (!bSparseIgnoreZero)
+            {
+                kCalculateSparseRawLeakyReluOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(size, pUnit, pDelta, slope);
+                LAUNCHERROR("kCalculateSparseRawLeakyReluOutputDelta_kernel");
+            }
+            kCalculateSparseNonZeroLeakyReluOutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pSparseStart, pSparseEnd, pSparseIndex, slope);
+            LAUNCHERROR("kCalculateSparseNonZeroLeakyReluOutputDelta_kernel");
+            break;
         case SoftMax:
             if (!bSparseIgnoreZero)
             {
@@ -829,6 +922,78 @@ kCalculateSparseAnalogNonZeroReluOutputDelta_kernel(uint32_t position, uint32_t 
 template<typename T>
 __global__ void
 LAUNCH_BOUNDS()
+kCalculateSparseAnalogNonZeroLeakyReluOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, T* pSparseData, NNFloat slope)
+{
+    uint64_t pos                = ((blockIdx.x * blockDim.x) + threadIdx.x) / cData._warpSize;
+    if (pos < batch)
+    {
+        uint32_t dpos           = cData._bShuffleIndices ? cData._pShuffleIndex[position + pos] : position + pos;
+        uint64_t pos1           = pSparseStart[dpos] + (threadIdx.x & cData._warpMask);
+        uint64_t end            = pSparseEnd[dpos];
+        uint64_t offset         = pos * stride;
+        while (pos1 < end)
+        {
+            uint64_t pos2       = offset + pSparseIndex[pos1];
+            NNFloat a           = pUnit[pos2];
+            T t                 = pSparseData[pos1];
+            pDelta[pos2]        = (a - t) * ((a > (NNFloat)0.0) + slope * (a <= (NNFloat)0.0));
+            pos1               += cData._warpSize;
+        }
+    }
+}
+
+template<>
+__global__ void
+LAUNCH_BOUNDS()
+kCalculateSparseAnalogNonZeroLeakyReluOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, unsigned char* pSparseData, NNFloat slope)
+{
+    uint64_t pos                = ((blockIdx.x * blockDim.x) + threadIdx.x) / cData._warpSize;
+    if (pos < batch)
+    {
+        uint32_t dpos           = cData._bShuffleIndices ? cData._pShuffleIndex[position + pos] : position + pos;
+        uint64_t pos1           = pSparseStart[dpos] + (threadIdx.x & cData._warpMask);
+        uint64_t end            = pSparseEnd[dpos];
+        uint64_t offset         = pos * stride;
+        while (pos1 < end)
+        {
+            uint64_t pos2       = offset + pSparseIndex[pos1];
+            NNFloat a           = pUnit[pos2];
+            NNFloat t           = (NNFloat)pSparseData[pos1] * (NNFloat)(1.0 / 256.0);
+            pDelta[pos2]        = (a - t) * ((a > (NNFloat)0.0) + slope * (a <= (NNFloat)0.0));
+            pos1               += cData._warpSize;
+        }
+    }
+}
+
+template<>
+__global__ void
+LAUNCH_BOUNDS()
+kCalculateSparseAnalogNonZeroLeakyReluOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, char* pSparseData, NNFloat slope)
+{
+    uint64_t pos                = ((blockIdx.x * blockDim.x) + threadIdx.x) / cData._warpSize;
+    if (pos < batch)
+    {
+        uint32_t dpos           = cData._bShuffleIndices ? cData._pShuffleIndex[position + pos] : position + pos;
+        uint64_t pos1           = pSparseStart[dpos] + (threadIdx.x & cData._warpMask);
+        uint64_t end            = pSparseEnd[dpos];
+        uint64_t offset         = pos * stride;
+        while (pos1 < end)
+        {
+            uint64_t pos2       = offset + pSparseIndex[pos1];
+            NNFloat a           = pUnit[pos2];
+            NNFloat t           = (NNFloat)pSparseData[pos1] * (NNFloat)(1.0 / 128.0);
+            pDelta[pos2]        = (a - t) * ((a > (NNFloat)0.0) + slope * (a <= (NNFloat)0.0));
+            pos1               += cData._warpSize;
+        }
+    }
+}
+
+
+
+
+template<typename T>
+__global__ void
+LAUNCH_BOUNDS()
 kCalculateSparseAnalogNonZeroSoftMaxOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, T* pSparseData)
 {
     uint64_t pos                = ((blockIdx.x * blockDim.x) + threadIdx.x) / cData._warpSize;
@@ -896,7 +1061,7 @@ kCalculateSparseAnalogNonZeroSoftMaxOutputDelta_kernel(uint32_t position, uint32
 }
 
 template<typename T>
-void kCalculateSparseAnalogOutputDelta(Activation activation, uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, T* pSparseData, bool bSparseIgnoreZero)
+void kCalculateSparseAnalogOutputDelta(Activation activation, uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, T* pSparseData, bool bSparseIgnoreZero, NNFloat slope)
 {
     uint64_t size               = (uint64_t)batch * (uint64_t)stride;
     dim3 grid1(CalculateBlocks(size));
@@ -950,6 +1115,16 @@ void kCalculateSparseAnalogOutputDelta(Activation activation, uint32_t position,
             LAUNCHERROR("kCalculateSparseAnalogNonZeroReluOutputDelta_kernel");
             break;
             
+        case LeakyRectifiedLinear:
+            if (!bSparseIgnoreZero)
+            {
+                kCalculateSparseRawLeakyReluOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(size, pUnit, pDelta, slope);
+                LAUNCHERROR("kCalculateSparseRawLeakyReluOutputDelta_kernel");
+            }
+            kCalculateSparseAnalogNonZeroLeakyReluOutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pSparseStart, pSparseEnd, pSparseIndex, pSparseData, slope);
+            LAUNCHERROR("kCalculateSparseAnalogNonZeroLeakyReluOutputDelta_kernel");
+            break;
+
         case SoftMax:
             if (!bSparseIgnoreZero)
             {
@@ -1547,6 +1722,21 @@ kCalculateReluL1OutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t s
     }
 }
 
+template<typename T>
+__global__ void
+LAUNCH_BOUNDS()
+kCalculateLeakyReluL1OutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, T* pData, NNFloat slope)
+{
+    uint64_t pos                = (blockIdx.y * blockDim.x) + threadIdx.x;
+    if (pos < stride)
+    {
+        uint64_t uOffset        = blockIdx.x * stride;
+        uint64_t dOffset        = (cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x) * stride;
+        NNFloat a               = pUnit[uOffset + pos];
+        NNFloat t               = pData[dOffset + pos];
+        pDelta[uOffset + pos]   = ((a - t) > (NNFloat)0.0 ? (NNFloat)1.0 : (NNFloat)-1.0) * ((a > (NNFloat)0.0) + slope * (a <= (NNFloat)0.0));      
+    }
+}
 
 template<>
 __global__ void
@@ -1616,6 +1806,22 @@ kCalculateReluL1OutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t s
 template<>
 __global__ void
 LAUNCH_BOUNDS()
+kCalculateLeakyReluL1OutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, unsigned char* pData, NNFloat slope)
+{
+    uint64_t pos                = (blockIdx.y * blockDim.x) + threadIdx.x;
+    if (pos < stride)
+    {
+        uint64_t uOffset        = blockIdx.x * stride;
+        uint64_t dOffset        = (cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x) * stride;
+        NNFloat a               = pUnit[uOffset + pos];
+        NNFloat t               = (NNFloat)pData[dOffset + pos] * NNFloat(1.0 / 256.0);
+        pDelta[uOffset + pos]   = ((a - t) > (NNFloat)0.0 ? (NNFloat)1.0 : (NNFloat)-1.0) * ((a > (NNFloat)0.0) + slope * (a <= (NNFloat)0.0));      
+    }
+}
+
+template<>
+__global__ void
+LAUNCH_BOUNDS()
 kCalculateSigmoidL1OutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, char* pData)
 {
     uint64_t pos                = (blockIdx.y * blockDim.x) + threadIdx.x;
@@ -1677,7 +1883,23 @@ kCalculateReluL1OutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t s
     }
 }
 
-template<typename T> void kCalculateL1OutputDelta(Activation activation, uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, T* pData)
+template<>
+__global__ void
+LAUNCH_BOUNDS()
+kCalculateLeakyReluL1OutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, char* pData, NNFloat slope)
+{
+    uint64_t pos                = (blockIdx.y * blockDim.x) + threadIdx.x;
+    if (pos < stride)
+    {
+        uint64_t uOffset        = blockIdx.x * stride;
+        uint64_t dOffset        = (cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x) * stride;
+        NNFloat a               = pUnit[uOffset + pos];
+        NNFloat t               = (NNFloat)pData[dOffset + pos] * NNFloat(1.0 / 128.0);
+        pDelta[uOffset + pos]   = ((a - t) > (NNFloat)0.0 ? (NNFloat)1.0 : (NNFloat)-1.0) * ((a > (NNFloat)0.0) + slope * (a <= (NNFloat)0.0));
+    }
+}
+
+template<typename T> void kCalculateL1OutputDelta(Activation activation, uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, T* pData, NNFloat slope)
 {
     dim3 grid(batch, (stride + getGpu()._threadsPerBlock - 1) / getGpu()._threadsPerBlock);
     switch (activation)
@@ -1694,12 +1916,17 @@ template<typename T> void kCalculateL1OutputDelta(Activation activation, uint32_
 
         case Linear:
             kCalculateLinearL1OutputDelta_kernel<<<grid, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pData);
-            LAUNCHERROR("kCalculateL1OutputDelta_kernel");
+            LAUNCHERROR("kCalculateLinearL1OutputDelta_kernel");
             break;
 
         case RectifiedLinear:
             kCalculateReluL1OutputDelta_kernel<<<grid, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pData);
             LAUNCHERROR("kCalculateReluL1OutputDelta_kernel");
+            break;
+
+        case LeakyRectifiedLinear:
+            kCalculateLeakyReluL1OutputDelta_kernel<<<grid, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pData, slope);
+            LAUNCHERROR("kCalculateLeakyReluL1OutputDelta_kernel");
             break;
     }
 }
@@ -1836,7 +2063,40 @@ kCalculateSparseNonZeroReluL1OutputDelta_kernel(uint32_t position, uint32_t batc
     }
 }
 
-void kCalculateSparseL1OutputDelta(Activation activation, uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint64_t* pSparseStart, uint64_t *pSparseEnd, uint32_t *pSparseIndex, bool bSparseIgnoreZero)
+__global__ void
+LAUNCH_BOUNDS()
+kCalculateSparseRawLeakyReluL1OutputDelta_kernel(uint64_t size, NNFloat* pUnit, NNFloat* pDelta, NNFloat slope)
+{
+    uint64_t pos                = (blockIdx.x * blockDim.x) + threadIdx.x;
+    if (pos < size)
+    {
+        NNFloat a               = pUnit[pos];
+        pDelta[pos]             = (a > (NNFloat)0.0 ? (NNFloat)1.0 : (NNFloat)-1.0) * ((a > (NNFloat)0.0) + slope * (a <= (NNFloat)0.0)); 
+    }
+}
+
+__global__ void
+LAUNCH_BOUNDS()
+kCalculateSparseNonZeroRawLeakyReluL1OutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint64_t* pSparseStart, uint64_t *pSparseEnd, uint32_t *pSparseIndex, NNFloat slope)
+{
+    uint64_t pos                = ((blockIdx.x * blockDim.x) + threadIdx.x) / cData._warpSize;
+    if (pos < batch)
+    {
+        uint32_t dpos           = cData._bShuffleIndices ? cData._pShuffleIndex[position + pos] : position + pos;
+        uint64_t pos1           = pSparseStart[dpos] + (threadIdx.x & cData._warpMask);
+        uint64_t end            = pSparseEnd[dpos];
+        uint64_t offset         = pos * stride;
+        while (pos1 < end)
+        {
+            uint64_t pos2       = offset + pSparseIndex[pos1];
+            NNFloat a           = pUnit[pos2]; 
+            pDelta[pos2]        = ((a - (NNFloat)1.0) > (NNFloat)0.0 ? (NNFloat)1.0 : (NNFloat)-1.0) * ((a > (NNFloat)0.0) + slope * (a <= (NNFloat)0.0));   
+            pos1               += cData._warpSize;
+        }      
+    }
+}
+
+void kCalculateSparseL1OutputDelta(Activation activation, uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint64_t* pSparseStart, uint64_t *pSparseEnd, uint32_t *pSparseIndex, bool bSparseIgnoreZero, NNFloat slope)
 {
     uint64_t size               = (uint64_t)batch * (uint64_t)stride;
     dim3 grid1(CalculateBlocks(size));
@@ -1854,40 +2114,50 @@ void kCalculateSparseL1OutputDelta(Activation activation, uint32_t position, uin
             if (!bSparseIgnoreZero)
             {
                 kCalculateSparseRawSigmoidL1OutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(size, pUnit, pDelta);
-                LAUNCHERROR("kCalculateRawSigmoidL1OutputDelta_kernel");
+                LAUNCHERROR("kCalculateSparseRawSigmoidL1OutputDelta_kernel");
             }
             kCalculateSparseNonZeroSigmoidL1OutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pSparseStart, pSparseEnd, pSparseIndex);
-            LAUNCHERROR("kCalculateNonZeroSigmoidL1OutputDelta_kernel");
+            LAUNCHERROR("kCalculateSparseNonZeroSigmoidL1OutputDelta_kernel");
             break;
         
         case Tanh:
             if (!bSparseIgnoreZero)
             {
                 kCalculateSparseRawTanhL1OutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(size, pUnit, pDelta);
-                LAUNCHERROR("kCalculateRawTanhL1OutputDelta_kernel");
+                LAUNCHERROR("kCalculateSparseRawTanhL1OutputDelta_kernel");
             }
             kCalculateSparseNonZeroTanhL1OutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pSparseStart, pSparseEnd, pSparseIndex);
-            LAUNCHERROR("kCalculateNonZeroTanhL1OutputDelta_kernel");
+            LAUNCHERROR("kCalculateSparseNonZeroTanhL1OutputDelta_kernel");
             break;
 
         case Linear:
             if (!bSparseIgnoreZero)
             {
                 kCalculateSparseRawLinearL1OutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(size, pUnit, pDelta);
-                LAUNCHERROR("kCalculateRawLinearL1OutputDelta_kernel");
+                LAUNCHERROR("kCalculateSparseRawLinearL1OutputDelta_kernel");
             }
             kCalculateSparseNonZeroLinearL1OutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pSparseStart, pSparseEnd, pSparseIndex);
-            LAUNCHERROR("kCalculateNonZeroLinearL1OutputDelta_kernel");
+            LAUNCHERROR("kCalculateSparseNonZeroLinearL1OutputDelta_kernel");
             break;
 
         case RectifiedLinear:
             if (!bSparseIgnoreZero)
             {
                 kCalculateSparseRawReluL1OutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(size, pUnit, pDelta);
-                LAUNCHERROR("kCalculateRawReluL1OutputDelta_kernel");
+                LAUNCHERROR("kCalculateSparseRawReluL1OutputDelta_kernel");
             }
             kCalculateSparseNonZeroReluL1OutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pSparseStart, pSparseEnd, pSparseIndex);
-            LAUNCHERROR("kCalculateNonZeroL1OutputDelta_kernel");
+            LAUNCHERROR("kCalculateSparseNonZeroReluL1OutputDelta_kernel");
+            break;
+
+        case LeakyRectifiedLinear:
+            if (!bSparseIgnoreZero)
+            {
+                kCalculateSparseRawLeakyReluL1OutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(size, pUnit, pDelta, slope);
+                LAUNCHERROR("kCalculateSparseRawLeakyReluL1OutputDelta_kernel");
+            }
+            kCalculateSparseNonZeroRawLeakyReluL1OutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pSparseStart, pSparseEnd, pSparseIndex, slope);
+            LAUNCHERROR("kCalculateSparseNonZeroRawLeakyReluL1OutputDelta_kernel");
             break;
     }
 }
@@ -1975,11 +2245,26 @@ kCalculateReluHadamardProduct_kernel(uint64_t size, NNFloat* pUnit, NNFloat* pDe
     }
 }
 
-void kCalculateHadamardProduct(Activation activation, uint64_t size, NNFloat scale, NNFloat* pUnit, NNFloat* pDelta)
+__global__ void
+LAUNCH_BOUNDS()
+kCalculateLeakyReluHadamardProduct_kernel(uint64_t size, NNFloat* pUnit, NNFloat* pDelta, NNFloat slope)
+{
+    uint64_t pos                = blockIdx.x * blockDim.x + threadIdx.x;
+    if (pos < size)
+    {
+        NNFloat x               = pUnit[pos];
+        if (x <= (NNFloat)0.0)
+        {
+            pDelta[pos]         *= slope;
+        }
+    }
+}
+
+void kCalculateHadamardProduct(Activation activation, uint64_t size, NNFloat scale, NNFloat* pUnit, NNFloat* pDelta, NNFloat slope)
 {
     uint32_t blocks             = CalculateBlocks(size);
     NNFloat oneOverScale        = (NNFloat)1.0 / scale;        
-        
+
     switch (activation)
     {
         case Sigmoid:
@@ -1999,6 +2284,11 @@ void kCalculateHadamardProduct(Activation activation, uint64_t size, NNFloat sca
         case RectifiedLinear:
             kCalculateReluHadamardProduct_kernel<<<blocks, getGpu()._threadsPerBlock>>>(size, pUnit, pDelta);
             LAUNCHERROR("kCalculateReluHadamardProduct_kernel");
+            break;
+
+        case LeakyRectifiedLinear:
+            kCalculateLeakyReluHadamardProduct_kernel<<<blocks, getGpu()._threadsPerBlock>>>(size, pUnit, pDelta, slope);
+            LAUNCHERROR("kCalculateLeakyReluHadamardProduct_kernel");
             break;
     }
 }
@@ -2173,23 +2463,23 @@ void KDeltaTempFunction()
     kCalculateScaledMarginalCrossEntropyOutputDelta<int32_t>(Sigmoid, 0, 0, 0, NULL, NULL, NULL);
     kCalculateScaledMarginalCrossEntropyOutputDelta<int64_t>(Sigmoid, 0, 0, 0, NULL, NULL, NULL);
 
-    kCalculateL1OutputDelta<NNFloat>(Sigmoid, 0, 0, 0, NULL, NULL, NULL);
-    kCalculateL1OutputDelta<double>(Sigmoid, 0, 0, 0, NULL, NULL, NULL);
-    kCalculateL1OutputDelta<unsigned char>(Sigmoid, 0, 0, 0, NULL, NULL, NULL);
-    kCalculateL1OutputDelta<char>(Sigmoid, 0, 0, 0, NULL, NULL, NULL);
-    kCalculateL1OutputDelta<uint32_t>(Sigmoid, 0, 0, 0, NULL, NULL, NULL);
-    kCalculateL1OutputDelta<uint64_t>(Sigmoid, 0, 0, 0, NULL, NULL, NULL);
-    kCalculateL1OutputDelta<int32_t>(Sigmoid, 0, 0, 0, NULL, NULL, NULL);
-    kCalculateL1OutputDelta<int64_t>(Sigmoid, 0, 0, 0, NULL, NULL, NULL);
+    kCalculateL1OutputDelta<NNFloat>(Sigmoid, 0, 0, 0, NULL, NULL, NULL, 0);
+    kCalculateL1OutputDelta<double>(Sigmoid, 0, 0, 0, NULL, NULL, NULL, 0);
+    kCalculateL1OutputDelta<unsigned char>(Sigmoid, 0, 0, 0, NULL, NULL, NULL, 0);
+    kCalculateL1OutputDelta<char>(Sigmoid, 0, 0, 0, NULL, NULL, NULL, 0);
+    kCalculateL1OutputDelta<uint32_t>(Sigmoid, 0, 0, 0, NULL, NULL, NULL, 0);
+    kCalculateL1OutputDelta<uint64_t>(Sigmoid, 0, 0, 0, NULL, NULL, NULL, 0);
+    kCalculateL1OutputDelta<int32_t>(Sigmoid, 0, 0, 0, NULL, NULL, NULL, 0);
+    kCalculateL1OutputDelta<int64_t>(Sigmoid, 0, 0, 0, NULL, NULL, NULL, 0);
 
-    kCalculateOutputDelta<NNFloat>(Sigmoid, 0, 0, 0, NULL, NULL, NULL);
-    kCalculateOutputDelta<double>(Sigmoid, 0, 0, 0, NULL, NULL, NULL);
-    kCalculateOutputDelta<unsigned char>(Sigmoid, 0, 0, 0, NULL, NULL, NULL);
-    kCalculateOutputDelta<char>(Sigmoid, 0, 0, 0, NULL, NULL, NULL);
-    kCalculateOutputDelta<uint32_t>(Sigmoid, 0, 0, 0, NULL, NULL, NULL);
-    kCalculateOutputDelta<uint64_t>(Sigmoid, 0, 0, 0, NULL, NULL, NULL);
-    kCalculateOutputDelta<int32_t>(Sigmoid, 0, 0, 0, NULL, NULL, NULL);
-    kCalculateOutputDelta<int64_t>(Sigmoid, 0, 0, 0, NULL, NULL, NULL);
+    kCalculateOutputDelta<NNFloat>(Sigmoid, 0, 0, 0, NULL, NULL, NULL, 0);
+    kCalculateOutputDelta<double>(Sigmoid, 0, 0, 0, NULL, NULL, NULL, 0);
+    kCalculateOutputDelta<unsigned char>(Sigmoid, 0, 0, 0, NULL, NULL, NULL, 0);
+    kCalculateOutputDelta<char>(Sigmoid, 0, 0, 0, NULL, NULL, NULL, 0);
+    kCalculateOutputDelta<uint32_t>(Sigmoid, 0, 0, 0, NULL, NULL, NULL, 0);
+    kCalculateOutputDelta<uint64_t>(Sigmoid, 0, 0, 0, NULL, NULL, NULL, 0);
+    kCalculateOutputDelta<int32_t>(Sigmoid, 0, 0, 0, NULL, NULL, NULL, 0);
+    kCalculateOutputDelta<int64_t>(Sigmoid, 0, 0, 0, NULL, NULL, NULL, 0);
 
     kCalculateScaledMarginalCrossEntropyOutputDelta<NNFloat>(Sigmoid, 0, 0, 0, NULL, NULL, NULL);
     kCalculateScaledMarginalCrossEntropyOutputDelta<double>(Sigmoid, 0, 0, 0, NULL, NULL, NULL);
@@ -2201,15 +2491,15 @@ void KDeltaTempFunction()
     kCalculateScaledMarginalCrossEntropyOutputDelta<int64_t>(Sigmoid, 0, 0, 0, NULL, NULL, NULL);
     kCalculateScaledMarginalCrossEntropyOutputDelta<long>(Sigmoid, 0, 0, 0, NULL, NULL, NULL);
 
-    kCalculateSparseAnalogOutputDelta<NNFloat>(Linear, 0, 0, 0, NULL,  NULL, NULL, NULL, NULL, NULL, false);
-    kCalculateSparseAnalogOutputDelta<double>(Linear, 0, 0, 0, NULL,  NULL, NULL, NULL, NULL, NULL, false);
-    kCalculateSparseAnalogOutputDelta<unsigned char>(Linear, 0, 0, 0, NULL,  NULL, NULL, NULL, NULL, NULL, false);
-    kCalculateSparseAnalogOutputDelta<char>(Linear, 0, 0, 0, NULL,  NULL, NULL, NULL, NULL, NULL, false);
-    kCalculateSparseAnalogOutputDelta<uint32_t>(Linear, 0, 0, 0, NULL,  NULL, NULL, NULL, NULL, NULL, false);
-    kCalculateSparseAnalogOutputDelta<uint64_t>(Linear, 0, 0, 0, NULL,  NULL, NULL, NULL, NULL, NULL, false);
-    kCalculateSparseAnalogOutputDelta<int32_t>(Linear, 0, 0, 0, NULL,  NULL, NULL, NULL, NULL, NULL, false);
-    kCalculateSparseAnalogOutputDelta<int64_t>(Linear, 0, 0, 0, NULL,  NULL, NULL, NULL, NULL, NULL, false);
-    kCalculateSparseAnalogOutputDelta<long>(Linear, 0, 0, 0, NULL,  NULL, NULL, NULL, NULL, NULL, false);
+    kCalculateSparseAnalogOutputDelta<NNFloat>(Linear, 0, 0, 0, NULL,  NULL, NULL, NULL, NULL, NULL, false, 0);
+    kCalculateSparseAnalogOutputDelta<double>(Linear, 0, 0, 0, NULL,  NULL, NULL, NULL, NULL, NULL, false, 0);
+    kCalculateSparseAnalogOutputDelta<unsigned char>(Linear, 0, 0, 0, NULL,  NULL, NULL, NULL, NULL, NULL, false, 0);
+    kCalculateSparseAnalogOutputDelta<char>(Linear, 0, 0, 0, NULL,  NULL, NULL, NULL, NULL, NULL, false, 0);
+    kCalculateSparseAnalogOutputDelta<uint32_t>(Linear, 0, 0, 0, NULL,  NULL, NULL, NULL, NULL, NULL, false, 0);
+    kCalculateSparseAnalogOutputDelta<uint64_t>(Linear, 0, 0, 0, NULL,  NULL, NULL, NULL, NULL, NULL, false, 0);
+    kCalculateSparseAnalogOutputDelta<int32_t>(Linear, 0, 0, 0, NULL,  NULL, NULL, NULL, NULL, NULL, false, 0);
+    kCalculateSparseAnalogOutputDelta<int64_t>(Linear, 0, 0, 0, NULL,  NULL, NULL, NULL, NULL, NULL, false, 0);
+    kCalculateSparseAnalogOutputDelta<long>(Linear, 0, 0, 0, NULL,  NULL, NULL, NULL, NULL, NULL, false, 0);
 
     kCalculateSparseDataScaledMarginalCrossEntropyOutputDelta<NNFloat>(Sigmoid, 0, 0, 0, NULL,  NULL, NULL, NULL, NULL, NULL, false);
     kCalculateSparseDataScaledMarginalCrossEntropyOutputDelta<double>(Sigmoid, 0, 0, 0, NULL,  NULL, NULL, NULL, NULL, NULL, false);

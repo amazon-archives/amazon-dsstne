@@ -41,7 +41,7 @@ void GetKernelsGpuData()
 {
     cudaError_t status;
     status = cudaMemcpyFromSymbol(&(getGpu()._data), cData, sizeof(GpuData));     
-    RTERROR(status, "cudaMemcpyToSymbol: SetKernelsGpuData copy From cData failed");
+    RTERROR(status, "cudaMemcpyFromSymbol: GetKernelsGpuData copy From cData failed");
 }
 
 
@@ -686,21 +686,21 @@ template<typename T> void kCalculateSparseAnalogZ(uint32_t position, uint32_t ba
 {
     uint32_t threads            = min(256, ((stride + getGpu()._warpSize - 1) >> getGpu()._warpBits) << getGpu()._warpBits);
     kCalculateSparseAnalogZ_kernel<<<batch, threads>>>(position, stride, pWeight, pSparseStart, pSparseEnd, pSparseIndex, pSparseData, pUnit, beta);
-    LAUNCHERROR("kCalculateSparseZ_kernel");
+    LAUNCHERROR("kCalculateSparseAnalogZ_kernel");
 }
 
 template<> void kCalculateSparseAnalogZ(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pWeight, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t* pSparseIndex, char* pSparseData, NNFloat* pUnit, NNFloat beta)
 {
     uint32_t threads            = min(256, ((stride + getGpu()._warpSize - 1) >> getGpu()._warpBits) << getGpu()._warpBits);
     kCalculateSparseAnalogZ_kernel<<<batch, threads>>>(position, stride, pWeight, pSparseStart, pSparseEnd, pSparseIndex, pSparseData, pUnit, beta);
-    LAUNCHERROR("kCalculateSparseZ_kernel");
+    LAUNCHERROR("kCalculateSparseAnalogZ_kernel");
 }
 
 template<> void kCalculateSparseAnalogZ(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pWeight, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t* pSparseIndex, unsigned char* pSparseData, NNFloat* pUnit, NNFloat beta)
 {
     uint32_t threads            = min(256, ((stride + getGpu()._warpSize - 1) >> getGpu()._warpBits) << getGpu()._warpBits);
     kCalculateSparseAnalogZ_kernel<<<batch, threads>>>(position, stride, pWeight, pSparseStart, pSparseEnd, pSparseIndex, pSparseData, pUnit, beta);
-    LAUNCHERROR("kCalculateSparseZ_kernel");
+    LAUNCHERROR("kCalculateSparseAnalogZ_kernel");
 }
 
 __global__ void
@@ -1526,7 +1526,7 @@ void kSGDUpdateWeights(NNFloat alpha, NNFloat lambda, uint64_t size, NNFloat* pW
 {
     uint32_t blocks             = CalculateBlocks(size);
     kSGDUpdateWeights_kernel<<<blocks, getGpu()._threadsPerBlock>>>(alpha, lambda, size, pWeightGradient, pWeight);
-    LAUNCHERROR("kMomentumUpdateWeights_kernel");
+    LAUNCHERROR("kSGDUpdateWeights_kernel");
 }
 
 __global__ void

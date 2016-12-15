@@ -56,7 +56,7 @@ void GetKLossGpuData()
 {
     cudaError_t status;
     status = cudaMemcpyFromSymbol(&(getGpu()._data), cData, sizeof(GpuData));     
-    RTERROR(status, "cudaMemcpyToSymbol: SetKernelsGpuData copy From cData failed");
+    RTERROR(status, "cudaMemcpyFromSymbol: SetKernelsGpuData copy From cData failed");
 }
 
 __global__ void
