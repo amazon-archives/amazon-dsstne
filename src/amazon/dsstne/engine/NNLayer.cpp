@@ -66,7 +66,8 @@ _priority(-1),
 _deltaUpdateCount(0),
 _unitUpdateCount(0),
 _batch(batch),
-_localBatch(batch)
+_localBatch(batch),
+_slope(d._slope)
 {  
     _stride                         = _Nx * _Ny * _Nz * _Nw;
     _parallelization                = Serial;
@@ -1124,7 +1125,11 @@ void NNLayer::CalculateActivation(uint32_t batch)
         case RectifiedLinear:
             kCalculateReluActivation(_pbUnit->_pDevData, size);
             break;
-        
+
+        case LeakyRectifiedLinear:
+            kCalculateLeakyReluActivation(_pbUnit->_pDevData, size, _slope);
+            break;
+
         case SoftMax:
             kCalculateSoftMaxActivation(_pbUnit->_pDevData, batch, _localStride);
             break;
@@ -1199,7 +1204,7 @@ void NNLayer::CalculateOutputDelta(uint32_t position, uint32_t batch, ErrorFunct
     switch (ef)
     {
         case L1:
-            _pDataSet->CalculateL1OutputDelta(_activation, position, batch, _localStride, _pbUnit->_pDevData, _pbDelta->_pDevData);
+            _pDataSet->CalculateL1OutputDelta(_activation, position, batch, _localStride, _pbUnit->_pDevData, _pbDelta->_pDevData, _slope);
             break;
 
         case CrossEntropy:
@@ -1211,7 +1216,7 @@ void NNLayer::CalculateOutputDelta(uint32_t position, uint32_t batch, ErrorFunct
             break;
 
         case L2:
-            _pDataSet->CalculateOutputDelta(_activation, position, batch, _localStride, _pbUnit->_pDevData, _pbDelta->_pDevData);
+            _pDataSet->CalculateOutputDelta(_activation, position, batch, _localStride, _pbUnit->_pDevData, _pbDelta->_pDevData, _slope);
             break;
 
         case DataScaledMarginalCrossEntropy:
@@ -1278,7 +1283,7 @@ void NNLayer::BackPropagateConvolutional(uint32_t position, uint32_t batch, NNFl
 
             // Account for dropout when calculating deltas (100% local calculation)
             NNFloat scale                           = (NNFloat)1.0 / ((NNFloat)1.0 - _pDropout);
-            kCalculateHadamardProduct(_activation, batch * _localStride, scale, _pbUnit->_pDevData, _pbDelta->_pDevData);
+            kCalculateHadamardProduct(_activation, batch * _localStride, scale, _pbUnit->_pDevData, _pbDelta->_pDevData, _slope);
             
             // Normalize deltas if desired
             if (_deltaNorm > (NNFloat)0.0)
@@ -1475,7 +1480,7 @@ void NNLayer::BackPropagateFullyConnected(uint32_t position, uint32_t batch, NNF
 
             // Account for dropout when calculating deltas (100% local calculation)
             NNFloat scale                           = (NNFloat)1.0 / ((NNFloat)1.0 - _pDropout);
-            kCalculateHadamardProduct(_activation, batch * _localStride, scale, _pbUnit->_pDevData, _pbDelta->_pDevData);
+            kCalculateHadamardProduct(_activation, batch * _localStride, scale, _pbUnit->_pDevData, _pbDelta->_pDevData, _slope);
             
             // Normalize deltas if desired (Norms must be reduced across all GPUs)
             if (_deltaNorm > (NNFloat)0.0)
@@ -1766,7 +1771,7 @@ void NNLayer::BackPropagateFullyConnected(uint32_t position, uint32_t batch, NNF
 
             // Account for dropout when calculating deltas (100% local calculation)
             NNFloat scale                           = (NNFloat)1.0 / ((NNFloat)1.0 - _pDropout);
-            kCalculateHadamardProduct(_activation, batch * _localStride, scale, _pbUnit->_pDevData, _pbDelta->_pDevData);
+            kCalculateHadamardProduct(_activation, batch * _localStride, scale, _pbUnit->_pDevData, _pbDelta->_pDevData, _slope);
             
             // Normalize deltas if desired (Norms must be reduced across all GPUs)
             if (_deltaNorm > (NNFloat)0.0)
@@ -2476,7 +2481,18 @@ bool LoadNNLayerDescriptorNetCDF(const string& fname, netCDF::NcFile& nc, uint32
             {
                 throw NcException("NcException", "NNLayer::NNLayer: No activation supplied in NetCDF input file " + fname, __FILE__, __LINE__);
             }
-            activationAtt.getValues(&ld._activation);  
+            activationAtt.getValues(&ld._activation);
+
+
+            NcGroupAtt pSlopeAtt   = nc.getAtt(lstring + "slope");
+            if (pSlopeAtt.isNull())
+            {
+                ld._slope = (NNFloat)0.0;
+            }
+            else
+            {
+                pSlopeAtt.getValues(&(ld._slope));
+            }
             
             // Added in version 0.81, supply default values here if not present, eventually throw exception            
             NcGroupAtt sparsenessPenalty_pAtt   = nc.getAtt("sparsenessPenalty_p");   
@@ -2597,6 +2613,7 @@ ostream& operator<< (ostream& out, NNLayerDescriptor& d)
         out << "deltaNorm:             " << d._deltaNorm << endl;
         out << "activation:            " << d._activation << endl;
         out << "Sparse:                " << ((d._attributes & NNLayer::Attributes::Sparse) != 0) << endl;
+        out << "slope:                 " << d._slope << endl;
         if (d._type == NNLayer::Type::FullyConnected)
         {
             if (d._sparsenessPenalty_p > (NNFloat)0.0)
@@ -2649,6 +2666,8 @@ uint32_t MPI_Bcast_NNLayerDescriptor(NNLayerDescriptor& d)
     MPI_Bcast(&d._sparsenessPenalty_p, 1, MPI_FLOAT, 0, MPI_COMM_WORLD);
     MPI_Bcast(&d._sparsenessPenalty_beta, 1, MPI_FLOAT, 0, MPI_COMM_WORLD);    
     MPI_Bcast(&d._attributes, 1, MPI_UINT32_T, 0, MPI_COMM_WORLD);
+    MPI_Bcast(&d._slope, 1, MPI_FLOAT, 0, MPI_COMM_WORLD);
+
     MPI_Bcast_string(d._dataSet);
     size_t size                         = d._vSource.size();
     MPI_Bcast(&size, 1, MPI_UINT32_T, 0, MPI_COMM_WORLD);
@@ -2698,6 +2717,7 @@ bool NNLayer::WriteNetCDF(NcFile& nc, uint32_t index)
         nc.putAtt(lstring + "activation", ncUint, _activation);
         nc.putAtt(lstring + "sparsenessPenalty_p", ncFloat, _sparsenessPenalty_p);
         nc.putAtt(lstring + "sparsenessPenalty_beta", ncFloat, _sparsenessPenalty_beta);
+        nc.putAtt(lstring + "slope", ncFloat, _slope);
 
         uint32_t attributes             = 0;
         if (_bSparse)

@@ -47,14 +47,14 @@ void SetKActivationGpuData()
 {
     cudaError_t status;
     status = cudaMemcpyToSymbol(cData, &(getGpu()._data), sizeof(GpuData));     
-    RTERROR(status, "cudaMemcpyToSymbol: SetKernelsGpuData copy to cData failed");
+    RTERROR(status, "cudaMemcpyToSymbol: SetKActivationGpuData copy to cData failed");
 }
 
 void GetKActivationGpuData()
 {
     cudaError_t status;
     status = cudaMemcpyFromSymbol(&(getGpu()._data), cData, sizeof(GpuData));     
-    RTERROR(status, "cudaMemcpyToSymbol: SetKernelsGpuData copy From cData failed");
+    RTERROR(status, "cudaMemcpyFromSymbol: GetKActivationGpuData copy From cData failed");
 }
 
 __global__ void
@@ -109,6 +109,24 @@ void kCalculateReluActivation(NNFloat* pData, uint64_t size)
     LAUNCHERROR("kCalculateReluActivation_kernel");
 }
 
+__global__ void
+LAUNCH_BOUNDS()
+kCalculateLeakyReluActivation_kernel(NNFloat* pData, uint64_t size, NNFloat slope)
+{
+    uint64_t pos                = blockIdx.x * blockDim.x + threadIdx.x;
+    if (pos < size)
+    {
+        NNFloat val = pData[pos];
+        pData[pos]              = max(val, val * slope);
+    }
+}
+
+void kCalculateLeakyReluActivation(NNFloat* pData, uint64_t size, NNFloat slope)
+{
+    uint32_t blocks             = CalculateBlocks(size);
+    kCalculateLeakyReluActivation_kernel<<<blocks, getGpu()._threadsPerBlock>>>(pData, size, slope);
+    LAUNCHERROR("kCalculateReluActivation_kernel");
+}
 __global__ void
 LAUNCH_BOUNDS()
 kCalculateSoftMaxActivation_kernel(NNFloat* pData, uint32_t stride)

@@ -85,6 +85,7 @@ private:
     WeightInitialization        _weightInit;                // Weight initialization scheme
     NNFloat                     _weightInitScale;           // Weight Initialization scaling factor
     NNFloat                     _biasInit;                  // Bias initialization value
+    NNFloat                     _slope;                     // slope parameter for Leaky ReLU
     const uint32_t              _kernelX;                   // kernel X size
     const uint32_t              _kernelY;                   // kernel Y size
     const uint32_t              _kernelZ;                   // kernel Z size
@@ -214,6 +215,7 @@ struct NNLayerDescriptor
     NNFloat                 _sparsenessPenalty_p;       // Layer-specific sparseness target
     NNFloat                 _sparsenessPenalty_beta;    // Layer-specific sparseness penalty weight    
     uint32_t                _attributes;                // Specific layer properties
+    NNFloat                 _slope;                     // Leaky rely slope
     NNLayerDescriptor();
 };
 
