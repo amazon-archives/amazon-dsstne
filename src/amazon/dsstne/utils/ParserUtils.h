@@ -37,13 +37,6 @@ void writeDates(const string& fname, const int min_date_inp, const int max_date_
 
 void splitString(const std::string& str, const std::string& delimiter, std::vector<std::string>& line_strip);
 
-void writeNETCDF(const string& fileName, const vector<string>& vCustomerName,
-    const map<string, unsigned int>& mFeatureInput, const vector<vector<unsigned int> >& vCustomerInput, 
-    const vector<vector<unsigned int> >& vCustomerInputTime, const vector<vector<float> >& vCustomerInputData,
-    const map<string, unsigned int>& mFeatureOutput, const vector<vector<unsigned int> >& vCustomerOutput, 
-    const vector<vector<unsigned int> >& vCustomerOutputTime, const vector<vector<float> >& vCustomerOutputData,
-    const int local_layers, int& min_inp_date, int& max_inp_date, int& min_out_date, int& max_out_date, const bool align_feature_number = true);
-
 void verifyNETCDF(const string& fileName, const map<string, unsigned int>& mFeature, const vector<string>& vCustomerName,
     const vector<vector<unsigned int> >& vCustomerInput, const vector<vector<unsigned int> >& vCustomerInputTime,
     const vector<vector<unsigned int> >& vCustomerOutput, const vector<vector<unsigned int> >& vCustomerOutputTime);
@@ -68,12 +61,5 @@ void addFEATUREset(const string& feature, const unsigned int date, set<string>& 
 
 int writeFeatureToInd(const string& fname, const map<string, unsigned int>& mFeature);
 
-void readNetCDFindToFeature(const string& fname, const int n, vector<string>& vFeaturesStr);
-
-void readNetCDFcustomers(const string& fname, const int n, vector<string>& vCustomerStr);
-
 void checkFile(const std::ofstream& file, const string& fname);
 
-void generateRegressionData(const string& FLAGS_path);
-
-void generateClassificationData(const string& FLAGS_path);

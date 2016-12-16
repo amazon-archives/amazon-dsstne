@@ -25,6 +25,7 @@
 
 #include "NNEnum.h"
 #include "Utils.h"
+#include "NetCDFhelper.h"
 
 using namespace std;
 using namespace netCDF;
@@ -32,8 +33,8 @@ using namespace netCDF::exceptions;
 
 int gLoggingRate = 10000;
 
-bool loadIndex(std::unordered_map<string, unsigned int> &labelsToIndices, std::istream &inputStream,
-               std::ostream &outputStream) {
+bool loadIndex(unordered_map<string, unsigned int> &labelsToIndices, istream &inputStream,
+               ostream &outputStream) {
     string line;
     unsigned int linesProcessed = 0;
     const size_t initialIndexSize = labelsToIndices.size();
@@ -64,8 +65,8 @@ bool loadIndex(std::unordered_map<string, unsigned int> &labelsToIndices, std::i
     return true;
 }
 
-bool loadIndexFromFile(std::unordered_map<std::string, unsigned int> &labelsToIndices, const std::string &inputFile,
-                       std::ostream &outputStream) {
+bool loadIndexFromFile(unordered_map<string, unsigned int> &labelsToIndices, const string &inputFile,
+                       ostream &outputStream) {
     ifstream inputStream(inputFile);
     if (!inputStream.is_open()) {
         outputStream << "Error: Failed to open index file" << endl;
@@ -84,15 +85,15 @@ void exportIndex(unordered_map<string, unsigned int> &mLabelToIndex, string inde
     outputIndexStream.close();
 }
 
-bool parseSamples(std::istream &inputStream,
+bool parseSamples(istream &inputStream,
                   const bool enableFeatureIndexUpdates,
-                  std::unordered_map<std::string, unsigned int> &mFeatureIndex,
-                  std::unordered_map<std::string, unsigned int> &mSampleIndex,
+                  unordered_map<string, unsigned int> &mFeatureIndex,
+                  unordered_map<string, unsigned int> &mSampleIndex,
                   bool &featureIndexUpdated,
                   bool &sampleIndexUpdated,
-                  std::map<unsigned int, std::vector<unsigned int>> &mSignals,
-                  std::map<unsigned int, std::vector<float>> &mSignalValues,
-                  std::ostream &outputStream) {
+                  map<unsigned int, vector<unsigned int>> &mSignals,
+                  map<unsigned int, vector<float>> &mSignalValues,
+                  ostream &outputStream) {
     timeval tBegin;
     gettimeofday(&tBegin, NULL);
     timeval tReported = tBegin;
@@ -123,7 +124,7 @@ bool parseSamples(std::istream &inputStream,
         try {
             sampleIndex = mSampleIndex.at(sampleLabel);
         }
-        catch (const std::out_of_range &oor) {
+        catch (const out_of_range &oor) {
             unsigned int index = mSampleIndex.size();
             mSampleIndex[sampleLabel] = index;
             sampleIndex = mSampleIndex[sampleLabel];
@@ -163,7 +164,7 @@ bool parseSamples(std::istream &inputStream,
             try {
                 featureIndex = mFeatureIndex.at(featureName);
             }
-            catch (const std::out_of_range &oor) {
+            catch (const out_of_range &oor) {
                 if (enableFeatureIndexUpdates) {
                     unsigned int index = mFeatureIndex.size();
                     mFeatureIndex[featureName] = index;
@@ -201,17 +202,17 @@ bool parseSamples(std::istream &inputStream,
     return true;
 }
 
-bool importSamplesFromPath(const std::string &samplesPath,
+bool importSamplesFromPath(const string &samplesPath,
                            const bool enableFeatureIndexUpdates,
-                           std::unordered_map<string, unsigned int> &mFeatureIndex,
-                           std::unordered_map<string, unsigned int> &mSampleIndex,
+                           unordered_map<string, unsigned int> &mFeatureIndex,
+                           unordered_map<string, unsigned int> &mSampleIndex,
                            bool &featureIndexUpdated,
                            bool &sampleIndexUpdated,
-                           std::vector<unsigned int> &vSparseStart,
-                           std::vector<unsigned int> &vSparseEnd,
-                           std::vector<unsigned int> &vSparseIndex,
-                           std::vector<float> &vSparseData,
-                           std::ostream &outputStream) {
+                           vector<unsigned int> &vSparseStart,
+                           vector<unsigned int> &vSparseEnd,
+                           vector<unsigned int> &vSparseIndex,
+                           vector<float> &vSparseData,
+                           ostream &outputStream) {
 
     featureIndexUpdated = false;
     sampleIndexUpdated = false;
@@ -279,17 +280,17 @@ bool importSamplesFromPath(const std::string &samplesPath,
     return true;
 }
 
-bool generateNetCDFIndexes(const std::string &samplesPath,
+bool generateNetCDFIndexes(const string &samplesPath,
                            const bool enableFeatureIndexUpdates,
-                           const std::string &outFeatureIndexFileName,
-                           const std::string &outSampleIndexFileName,
-                           std::unordered_map<std::string, unsigned int> &mFeatureIndex,
-                           std::unordered_map<std::string, unsigned int> &mSampleIndex,
-                           std::vector<unsigned int> &vSparseStart,
-                           std::vector<unsigned int> &vSparseEnd,
-                           std::vector<unsigned int> &vSparseIndex,
-                           std::vector<float> &vSparseData,
-                           std::ostream &outputStream) {
+                           const string &outFeatureIndexFileName,
+                           const string &outSampleIndexFileName,
+                           unordered_map<string, unsigned int> &mFeatureIndex,
+                           unordered_map<string, unsigned int> &mSampleIndex,
+                           vector<unsigned int> &vSparseStart,
+                           vector<unsigned int> &vSparseEnd,
+                           vector<unsigned int> &vSparseIndex,
+                           vector<float> &vSparseData,
+                           ostream &outputStream) {
 
     bool featureIndexUpdated;
     bool sampleIndexUpdated;
@@ -346,7 +347,7 @@ void writeNetCDFFile(vector<unsigned int> &vSparseStart,
         NcFile nc(fileName, NcFile::replace);
         if (nc.isNull()) {
             cout << "Error creating output file:" << fileName << endl;
-            throw std::runtime_error("Error creating NetCDF file.");
+            throw runtime_error("Error creating NetCDF file.");
         }
         nc.putAtt("datasets", ncUint, 1);
         nc.putAtt("name0", datasetName);
@@ -367,9 +368,9 @@ void writeNetCDFFile(vector<unsigned int> &vSparseStart,
         sparseDataVar.putVar(&vSparseData[0]);
 
         cout << "Created NetCDF file " << fileName << " " << "for dataset " << datasetName << endl;
-    } catch (std::exception &e) {
+    } catch (exception &e) {
         cout << "Caught exception: " << e.what() << "\n";
-        throw std::runtime_error("Error writing to NetCDF file.");
+        throw runtime_error("Error writing to NetCDF file.");
     }
 }
 
@@ -390,7 +391,7 @@ void writeNetCDFFile(vector<unsigned int> &vSparseStart,
         NcFile nc(fileName, NcFile::replace);
         if (nc.isNull()) {
             cout << "Error creating output file:" << fileName << endl;
-            throw std::runtime_error("Error creating NetCDF file.");
+            throw runtime_error("Error creating NetCDF file.");
         }
         nc.putAtt("datasets", ncUint, 1);
         nc.putAtt("name0", datasetName);
@@ -409,12 +410,250 @@ void writeNetCDFFile(vector<unsigned int> &vSparseStart,
         sparseIndexVar.putVar(&vSparseIndex[0]);
 
         cout << "Created NetCDF file " << fileName << " " << "for dataset " << datasetName << endl;
-    } catch (std::exception &e) {
+    } catch (exception &e) {
         cout << "Caught exception: " << e.what() << "\n";
-        throw std::runtime_error("Error writing to NetCDF file.");
+        throw runtime_error("Error writing to NetCDF file.");
     }
 }
 
 
+unsigned int align(size_t size) {
+    return (unsigned int) ((size + 127) >> 7) << 7;
+}
 
+bool addDataToNetCDF(NcFile& nc, const long long dataIndex, const string& dataName,
+                const map<string, unsigned int>& mFeatureNameToIndex,
+                const vector<vector<unsigned int> >& vInputSamples,
+                const vector<vector<unsigned int> >& vInputSamplesTime, const vector<vector<float> >& vInputSamplesData,
+                const bool alignFeatureDimensionality, int& minDate, int& maxDate, const int featureDimensionality) {
+    // convert strings to format which is supported by netcdf
+    vector<string> vFeatureName(mFeatureNameToIndex.size());
+    vector<char*> vFeatureNameC(vFeatureName.size());
+    if (mFeatureNameToIndex.size()) {
+        for (map<string, unsigned int>::const_iterator it = mFeatureNameToIndex.begin();
+                        it != mFeatureNameToIndex.end(); it++) {
+            vFeatureName[it->second] = it->first;
+        }
 
+        for (int i = 0; i < vFeatureNameC.size(); i++) {
+            vFeatureNameC[i] = &(vFeatureName[i])[0];
+        }
+    }
+    string sDataIndex = to_string(dataIndex);
+
+    NcDim indToFeatureDim;
+    if (vFeatureNameC.size()) {
+        indToFeatureDim = nc.addDim((string("indToFeatureDim") + sDataIndex).c_str(), vFeatureNameC.size()); // number of Features
+    }
+    NcVar indToFeatureVar;
+    if (vFeatureNameC.size()) {
+        indToFeatureVar = nc.addVar((string("indToFeature") + sDataIndex).c_str(), ncString, indToFeatureDim); // ind to Feature mapping
+    }
+    if (vFeatureNameC.size()) {
+        indToFeatureVar.putVar(vector<size_t>(1, 0), vector<size_t>(1, mFeatureNameToIndex.size()),
+                        vFeatureNameC.data());
+    }
+
+    unsigned long long numberSamples = 0;
+    for (int i = 0; i < vInputSamples.size(); i++) {
+        numberSamples += vInputSamples[i].size();
+    }
+
+    if (numberSamples) {
+        vector<unsigned int> vSparseInputStart(vInputSamples.size());
+        vector<unsigned int> vSparseInputEnd(vInputSamples.size());
+        vector<unsigned int> vSparseInputIndex(0), vSparseInputTime(0);
+        for (int i = 0; i < vInputSamples.size(); i++) {
+            vSparseInputStart[i] = (unsigned int) vSparseInputIndex.size();
+            for (int j = 0; j < vInputSamples[i].size(); j++) {
+                vSparseInputIndex.push_back(vInputSamples[i][j]);
+                if (vInputSamplesTime.size() && vInputSamplesTime[i].size()) {
+                    vSparseInputTime.push_back(vInputSamplesTime[i][j]);
+                    minDate = min(minDate, (int) vInputSamplesTime[i][j]);
+                    maxDate = max(maxDate, (int) vInputSamplesTime[i][j]);
+                }
+            }
+            vSparseInputEnd[i] = (unsigned int) vSparseInputIndex.size();
+        }
+
+        vector<float> vSparseData(vSparseInputIndex.size(), 1.f); // fill it with one
+        if (vInputSamplesData.size()) { // if input data is specified
+            int cnt = 0;
+            for (int c = 0; c < vInputSamplesData.size(); c++) {
+                const vector<float>& inputData = vInputSamplesData[c];
+                for (int i = 0; i < inputData.size(); i++) {
+                    vSparseData[cnt] = inputData[i];
+                    cnt++;
+                }
+            }
+        }
+        cout << vSparseInputIndex.size() << " total input data points." << endl;
+        cout << "write " << dataName << " " << sDataIndex << endl;
+
+        unsigned int width = 0;
+
+        if (featureDimensionality > 0 && mFeatureNameToIndex.size() == 0) { // special case when there is no index to Feature mapping
+            width = featureDimensionality;
+        } else {
+            width = (unsigned int) mFeatureNameToIndex.size();
+        }
+
+        width = (alignFeatureDimensionality) ? align(width) : width;
+        nc.putAtt((string("name") + sDataIndex).c_str(), dataName.c_str());
+        if (vInputSamplesData.size()) {
+            nc.putAtt((string("attributes") + sDataIndex).c_str(), ncUint, 1); // NNDataSetBase::Attributes::Sparse = 1
+            nc.putAtt((string("kind") + sDataIndex).c_str(), ncUint, 0); // NNDataSetBase::Kind::Numeric = 0
+            nc.putAtt((string("dataType") + sDataIndex).c_str(), ncUint, 4); // NNDataSetBase::DataType::Float = 4
+        } else {
+            nc.putAtt((string("attributes") + sDataIndex).c_str(), ncUint, 3); // Sparse(1) + Boolean(2)
+            nc.putAtt((string("kind") + sDataIndex).c_str(), ncUint, 0); // NNDataSetBase::Kind::Numeric = 0
+            nc.putAtt((string("dataType") + sDataIndex).c_str(), ncUint, 0); // UInt = 0,
+        }
+
+        nc.putAtt((string("dimensions") + sDataIndex).c_str(), ncUint, 1);
+        nc.putAtt((string("width") + sDataIndex).c_str(), ncUint, width);
+        NcDim examplesDim = nc.addDim((string("examplesDim") + sDataIndex).c_str(), vSparseInputStart.size()); // number of training samples
+        NcDim sparseDataDim = nc.addDim((string("sparseDataDim") + sDataIndex).c_str(), vSparseInputIndex.size()); // number of all purchases
+        NcVar sparseStartVar = nc.addVar((string("sparseStart") + sDataIndex).c_str(), ncUint, examplesDim);
+        NcVar sparseEndVar = nc.addVar((string("sparseEnd") + sDataIndex).c_str(), ncUint, examplesDim);
+        NcVar sparseIndexVar = nc.addVar((string("sparseIndex") + sDataIndex).c_str(), ncUint, sparseDataDim);
+        NcVar sparseTimeVar;
+        if (vSparseInputTime.size()) {
+            sparseTimeVar = nc.addVar((string("sparseTime") + sDataIndex).c_str(), ncUint, sparseDataDim);
+        }
+
+        NcVar sparseDataVar;
+        if (vInputSamplesData.size()) {
+            sparseDataVar = nc.addVar((string("sparseData") + sDataIndex).c_str(), ncFloat, sparseDataDim);
+        }
+
+        sparseStartVar.putVar(&vSparseInputStart[0]);
+        sparseEndVar.putVar(&vSparseInputEnd[0]);
+        sparseIndexVar.putVar(&vSparseInputIndex[0]); // all purchases for all samples
+        if (vSparseInputTime.size()) {
+            sparseTimeVar.putVar(&vSparseInputTime[0]); // all time purchases for all samples
+        }
+        if (vInputSamplesData.size()) {
+            sparseDataVar.putVar(&vSparseData[0]);
+        }
+        return true;
+    } else {
+        return false;
+    }
+}
+
+// read index to feature name mapping
+void readNetCDFindToFeature(const string& fname, const int n, vector<string>& vFeaturesStr) {
+    NcFile nc(fname, NcFile::read);
+    if (nc.isNull()) {
+        cout << "Error opening binary output file " << fname << endl;
+        return;
+    }
+
+    string nstring = to_string((long long) n);
+    vFeaturesStr.clear();
+
+    NcDim indToFeatureDim = nc.getDim(string("indToFeatureDim") + nstring);
+    if (indToFeatureDim.isNull()) { // it is not supported by pipeline, so no exception raise
+        cout << "reading error indToFeatureDim" << endl;
+        return;
+    }
+
+    NcVar indToFeatureVar = nc.getVar(string("indToFeature") + nstring);
+    if (indToFeatureVar.isNull()) {
+        cout << "reading error indToFeature" << endl;
+        return;
+    }
+
+    vector<char*> vFeaturesChars;
+    vFeaturesChars.resize(indToFeatureDim.getSize());
+    indToFeatureVar.getVar(&vFeaturesChars[0]);
+    vFeaturesStr.resize(indToFeatureDim.getSize());
+    for (int i = 0; i < vFeaturesStr.size(); i++) {
+        vFeaturesStr[i] = vFeaturesChars[i];
+    }
+}
+
+// read samples name(id)
+void readNetCDFsamplesName(const string& fname, vector<string>& vSamplesName) {
+
+    NcFile nc(fname, NcFile::read);
+    if (nc.isNull()) {
+        cout << "Error opening binary output file " << fname << endl;
+        return;
+    }
+
+    vSamplesName.clear();
+
+    NcDim samplesDim = nc.getDim("samplesDim");
+    if (samplesDim.isNull()) { // it is not supported by pipeline, so no exception raise
+        cout << "reading error examplesDim" << endl;
+        return;
+    }
+    NcVar sparseSamplesVar = nc.getVar("samples");
+    if (sparseSamplesVar.isNull()) { // it is not supported by pipeline, so no exception raise
+        cout << "reading error sparseSamplesVar" << endl;
+        return;
+    }
+    vector<char*> vSamplesChars;
+
+    vSamplesChars.resize(samplesDim.getSize());
+    vSamplesName.resize(samplesDim.getSize());
+    sparseSamplesVar.getVar(&vSamplesChars[0]);
+    for (int i = 0; i < vSamplesChars.size(); i++) {
+        vSamplesName[i] = vSamplesChars[i];
+    }
+}
+
+void writeNETCDF(const string& fileName, const vector<string>& vSamplesName,
+                const map<string, unsigned int>& mInputFeatureNameToIndex, vector<vector<unsigned int> >& vInputSamples,
+                const vector<vector<unsigned int> >& vInputSamplesTime, vector<vector<float> >& vInputSamplesData,
+                const map<string, unsigned int>& mOutputFeatureNameToIndex, const vector<vector<unsigned int> >& vOutputSamples,
+                const vector<vector<unsigned int> >& vOutputSamplesTime,
+                const vector<vector<float> >& vOutputSamplesData, int& minInpDate, int& maxInpDate, int& minOutDate,
+                int& maxOutDate, const bool alignFeatureDimensionality, const int datasetNum) {
+
+    // Write NetCDF data set files
+    NcFile nc(fileName, NcFile::replace);
+    if (nc.isNull()) {
+        cout << "Error opening binary output file" << endl;
+        exit(2);
+    }
+
+    int countData = 0;
+    // add features
+    if (datasetNum >= 1) {
+        // input data always has index zero
+        if (addDataToNetCDF(nc, 0, "input", mInputFeatureNameToIndex, vInputSamples, vInputSamplesTime, vInputSamplesData,
+                        alignFeatureDimensionality, minInpDate, maxInpDate)) {
+            countData++;
+        } else {
+            cout << "failed to write input data";
+            exit(1);
+        }
+    }
+    if (datasetNum >= 2) {
+        // output data always has index one
+        if (addDataToNetCDF(nc, 1, "output", mOutputFeatureNameToIndex, vOutputSamples, vOutputSamplesTime, vOutputSamplesData,
+                        alignFeatureDimensionality, minOutDate, maxOutDate)) {
+            countData++;
+        } else {
+            cout << "failed to write output data";
+            exit(1);
+        }
+    } else {
+        cout << "number of data sets datasetNum " << datasetNum << " is not implemented";
+        exit(1);
+    }
+    nc.putAtt("datasets", ncUint, countData);
+
+    // add samples id
+    vector<const char*> vSamplesChars(vSamplesName.size());
+    for (int i = 0; i < vSamplesChars.size(); i++) {
+        vSamplesChars[i] = &(vSamplesName[i])[0];
+    }
+
+    NcDim samplesDim = nc.addDim("samplesDim", vSamplesName.size()); // number of training samples (it has to be the same for input and output data sets)
+    NcVar sparseSamplesVar = nc.addVar("samples", ncString, samplesDim);
+    sparseSamplesVar.putVar(vector<size_t>(1, 0), vector<size_t>(1, vSamplesChars.size()), vSamplesChars.data());
+}

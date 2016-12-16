@@ -9,12 +9,14 @@
 
    or in the "license" file accompanying this file. This file is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific language governing permissions and limitations under the License.
  */
+#pragma once
 
 #include <iosfwd>
 #include <map>
 #include <string>
 #include <vector>
 #include <unordered_map>
+#include <netcdf>
 
 /**
  * Loads an index from the given input stream, assuming an entry on each line with a 
@@ -163,3 +165,38 @@ unsigned int roundUpMaxIndex(unsigned int maxFeatureIndex);
  * of the file itself.
  */
 int listFiles(const std::string &dirname, const bool recursive, std::vector<std::string> &files);
+
+/**
+ * Writes self contained netcdf. It includes input/output features, feature map, samples id
+ */
+void writeNETCDF(const std::string& fileName, const std::vector<std::string>& vSamplesName,
+                const std::map<std::string, unsigned int>& mInputFeatureNameToIndex, std::vector<std::vector<unsigned int> >& vInputSamples,
+                const std::vector<std::vector<unsigned int> >& vInputSamplesTime, std::vector<std::vector<float> >& vInputSamplesData,
+                const std::map<std::string, unsigned int>& mOutputFeatureNameToIndex, const std::vector<std::vector<unsigned int> >& vOutputSamples,
+                const std::vector<std::vector<unsigned int> >& vOutputSamplesTime,
+                const std::vector<std::vector<float> >& vOutputSamplesData, int& minInpDate, int& maxInpDate,
+                int& minOutDate, int& maxOutDate, const bool alignFeatureDimensionality, const int datasetNum);
+
+/**
+ * Reads samples id of "input" data
+ */
+void readNetCDFsamplesName(const std::string& fname, std::vector<std::string>& vSamplesName);
+
+/**
+ * Reads index to feature map of data with index "n"
+ */
+void readNetCDFindToFeature(const std::string& fname, const int n, std::vector<std::string>& vFeaturesStr);
+
+/**
+ * Align feature size
+ */
+unsigned int align(size_t size);
+
+/**
+ * Add data to netcdf
+ */
+bool addDataToNetCDF(netCDF::NcFile& nc, const long long dataIndex, const std::string& dataName,
+                const std::map<std::string, unsigned int>& mFeatureNameToIndex,
+                const std::vector<std::vector<unsigned int> >& vInputSamples,
+                const std::vector<std::vector<unsigned int> >& vInputSamplesTime, const std::vector<std::vector<float> >& vInputSamplesData,
+                const bool alignFeatureDimensionality, int& minDate, int& maxDate, const int featureDimensionality = -1);
