@@ -11,6 +11,7 @@
  */
 
 #ifndef BITONIC_H
+#define BITONIC_H
 
 
 // 256 element register resident bitonic merge sort 

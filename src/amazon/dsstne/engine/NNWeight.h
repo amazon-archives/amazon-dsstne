@@ -11,6 +11,7 @@
  */
 
 #ifndef NNWEIGHT_H
+#define NNWEIGHT_H
 
 class NNWeight {
 public:
@@ -111,5 +112,4 @@ struct NNWeightDescriptor
 bool LoadNNWeightDescriptorNetCDF(const string& fname, netCDF::NcFile& nc, uint32_t index, NNWeightDescriptor& wd);
 ostream& operator<< (ostream& out, NNWeightDescriptor& d);
 uint32_t MPI_Bcast_NNWeightDescriptor(NNWeightDescriptor& d);
-#define NNWEIGHT_H
 #endif

@@ -11,6 +11,7 @@
  */
 
 #ifndef NNLAYER_H
+#define NNLAYER_H
 #ifndef __NVCC__
 class NNLayerDescriptor;
 class NNLayer {
@@ -223,5 +224,4 @@ bool LoadNNLayerDescriptorNetCDF(const string& fname, netCDF::NcFile& nc, uint32
 ostream& operator<< (ostream& out, NNLayerDescriptor& d);
 uint32_t MPI_Bcast_NNLayerDescriptor(NNLayerDescriptor& d);
 #endif
-#define NNLAYER_H
 #endif

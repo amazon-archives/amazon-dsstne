@@ -11,6 +11,7 @@
  */
 
 #ifndef NNTYPES_H
+#define NNTYPES_H
 #include <vector>
 #include <set>
 
@@ -627,5 +628,4 @@ vector<NNDataSetBase*> LoadCSVData(const string& fname);
 vector<NNDataSetBase*> LoadJSONData(const string& fname);
 vector<NNDataSetBase*> LoadAudioData(const string& name);
 
-#define NNTYPES_H
 #endif
