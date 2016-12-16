@@ -1,0 +1,15 @@
+{
+    "Version" : 0.8,
+    "Name" : "L2 1d regression",
+    "Kind" : "FeedForward",
+
+    "ShuffleIndices" : false,
+
+    "Layers" : [
+        { "Name" : "Input", "Kind" : "Input", "N" : 1, "DataSet" : "input", "Sparse" : true },
+        { "Name" : "Hidden", "Kind" : "Hidden", "Type" : "FullyConnected", "Source" : "Input", "N" : 4, "Activation" : "Sigmoid", "Sparse" : true }, 
+        { "Name" : "Output", "Kind" : "Output", "Type" : "FullyConnected", "DataSet" : "output", "N" : 1, "Source" : ["Input"], "Activation" : "Linear", "Sparse" : true }
+    ],
+        
+    "ErrorFunction" : "L2"
+}
