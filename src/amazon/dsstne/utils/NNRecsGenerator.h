@@ -17,6 +17,7 @@
 #include <iomanip>
 #include <fstream>
 #include <algorithm>
+#include <memory>
 #include <netcdf>
 
 #include "GpuTypes.h"
@@ -29,9 +30,9 @@ using namespace std;
 class NNRecsGenerator
 {
 private :
-    GpuBuffer<NNFloat>* pbKey ;
-    GpuBuffer<unsigned int>* pbUIValue;
-    GpuBuffer<NNFloat> *pFilteredOutput;
+    unique_ptr<GpuBuffer<NNFloat>> pbKey;
+    unique_ptr<GpuBuffer<unsigned int>> pbUIValue;
+    unique_ptr<GpuBuffer<NNFloat>> pFilteredOutput;
     vector <GpuBuffer<NNFloat>*> *vNodeFilters;
     string recsGenLayerLabel;
     string scorePrecision;

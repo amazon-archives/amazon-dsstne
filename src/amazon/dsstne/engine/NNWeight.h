@@ -13,6 +13,8 @@
 #ifndef NNWEIGHT_H
 #define NNWEIGHT_H
 
+#include <memory>
+
 class NNWeight {
 public:
     enum Transform
@@ -58,14 +60,14 @@ private:
     cudnnConvolutionBwdDataAlgo_t   _convBWDeltaAlgo;           // CUDNN convolution delta backpropagation algorithm
     vector<NNFloat>                 _vWeight;                   // CPU weight array
     vector<NNFloat>                 _vBias;                     // CPU bias array
-    GpuBuffer<NNFloat>*             _pbWeight;                  // GPU weight array 
-    GpuBuffer<NNFloat>*             _pbBias;                    // GPU bias array
-    GpuBuffer<NNFloat>*             _pbWeightGradient;          // Accumulated gradient per batch
-    GpuBuffer<NNFloat>*             _pbBiasGradient;            // GPU bias gradient only used for cuDNN convolutional layers because stupid cuDNN    
-    GpuBuffer<NNFloat>*             _pbWeightVelocity;          // Velocity used for momentum and RMSProp
-    GpuBuffer<NNFloat>*             _pbBiasVelocity;            // Velocity used for momentum and RMSProp
-    GpuBuffer<NNFloat>*             _pbWeightGradientVelocity;  // Gradient velocity used for AdaDelta and Adam
-    GpuBuffer<NNFloat>*             _pbBiasGradientVelocity;    // Gradient velocity used for AdaDelta and Adam    
+    unique_ptr<GpuBuffer<NNFloat>> _pbWeight;                  // GPU weight array
+    unique_ptr<GpuBuffer<NNFloat>> _pbBias;                    // GPU bias array
+    unique_ptr<GpuBuffer<NNFloat>> _pbWeightGradient;          // Accumulated gradient per batch
+    unique_ptr<GpuBuffer<NNFloat>> _pbBiasGradient;            // GPU bias gradient only used for cuDNN convolutional layers because stupid cuDNN
+    unique_ptr<GpuBuffer<NNFloat>> _pbWeightVelocity;          // Velocity used for momentum and RMSProp
+    unique_ptr<GpuBuffer<NNFloat>> _pbBiasVelocity;            // Velocity used for momentum and RMSProp
+    unique_ptr<GpuBuffer<NNFloat>> _pbWeightGradientVelocity;  // Gradient velocity used for AdaDelta and Adam
+    unique_ptr<GpuBuffer<NNFloat>> _pbBiasGradientVelocity;    // Gradient velocity used for AdaDelta and Adam
     NNWeight(NNLayer& inputLayer, NNLayer& outputLayer, bool bShared = false, bool bTransposed = false, bool bLocked = false, NNFloat maxNorm = 0.0f);
     ~NNWeight();
     void ClearSharedGradient();

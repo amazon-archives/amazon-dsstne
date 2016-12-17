@@ -11,6 +11,9 @@
 #ifndef NNNETWORK_H
 #define NNNETWORK_H
 #ifndef __NVCC__
+
+#include <memory>
+
 struct NNNetworkDescriptor;
 
 
@@ -78,8 +81,8 @@ private:
     bool                        _bShuffleIndices;           // Flag to shuffle training data (or not)
     uint32_t                    _shuffleIndices;            // Number of indices assigned
     uint32_t*                   _pShuffleIndex;             // Shuffle index
-    GpuBuffer<uint32_t>*        _pbShuffleIndex;            // Shuffle buffer for processes other than 0  
-    GpuSort<uint32_t, uint32_t>* _pShuffleIndexSort;        // Pointer to Device/GPU sort
+    unique_ptr<GpuBuffer<uint32_t>> _pbShuffleIndex;            // Shuffle buffer for processes other than 0
+    unique_ptr<GpuSort<uint32_t, uint32_t>> _pShuffleIndexSort; // Pointer to Device/GPU sort
 
     // Checkpoint information
     string                      _checkpoint_name;           // Name of checkpoint file
@@ -101,21 +104,21 @@ private:
 
     // Work buffer for merging multiGPU computations (weight and delta normalization)
     size_t                      _scratchBufferSize;         // Current scratch buffer size
-    GpuBuffer<NNFloat>*         _pbScratchBuffer;           // Pointer to scratch buffer
+    unique_ptr<GpuBuffer<NNFloat>> _pbScratchBuffer;        // Pointer to scratch buffer
 
 
     // P2P model-parallelization buffers
     uint32_t                    _maxStride;                 // Maximum stride of all scattered/gathered network layers
     uint32_t                    _sendIndex;                 // Current send buffer index
     uint32_t                    _receiveIndex;              // Current receiver buffer index
-    GpuBuffer<NNFloat>*         _pbP2PBuffer[2];            // Peer buffer for sending/calculating peer data
+    unique_ptr<GpuBuffer<NNFloat>> _pbP2PBuffer[2];         // Peer buffer for sending/calculating peer data
     NNFloat*                    _pPeerBuffer[2];            // Peer for receiving/reducing peer data
-    NNFloat*                    _pCPUBuffer;                // System memory work buffer for MPI copies
+    unique_ptr<NNFloat[]>       _pCPUBuffer;                // System memory work buffer for MPI copies
     
     // CUDNN parameters
     size_t                      _CUDNNWorkspaceSize;        // Current size of cuDNN workspace
     size_t                      _maxCUDNNWorkspaceSize;     // Maximum requested size of cuDNN workspace
-    GpuBuffer<uint8_t>*         _pbCUDNNWorkspace;          // CUDNN workspace buffer
+    unique_ptr<GpuBuffer<uint8_t>> _pbCUDNNWorkspace;       // CUDNN workspace buffer
 
 
 public:

@@ -297,14 +297,14 @@ _sparseTransposedIndices(0),
 _maxSparseDatapoints(0),
 _sparseDensity(0),
 _bDenoising(false),
-_pbSparseStart(NULL),
-_pbSparseEnd(NULL),
-_pbSparseIndex(NULL),
-_pbSparseTransposedStart(NULL),
-_pbSparseTransposedEnd(NULL),
-_pbSparseTransposedIndex(NULL),
+_pbSparseStart(),
+_pbSparseEnd(),
+_pbSparseIndex(),
+_pbSparseTransposedStart(),
+_pbSparseTransposedEnd(),
+_pbSparseTransposedIndex(),
 _batch(0),
-_pbDenoisingRandom(NULL),
+_pbDenoisingRandom(),
 _bDirty(true)
 {
 
@@ -581,9 +581,9 @@ template<typename T> bool NNDataSet<T>::SetSparseDataPoint(uint32_t n, uint32_t 
 }
 
 template<typename T> NNDataSet<T>::NNDataSet(const string& fname, uint32_t n) :
-_pbData(NULL),
-_pbSparseData(NULL),
-_pbSparseTransposedData(NULL)
+_pbData(),
+_pbSparseData(),
+_pbSparseTransposedData()
 {
     // Read File entirely with process 0
     bool bResult                                = true;
@@ -937,10 +937,10 @@ template<typename T> bool NNDataSet<T>::GenerateSparseTransposedMatrix(uint32_t 
     uint64_t NLayer                         = Nx * Ny * Nz * Nw;
     uint64_t N                              = max(NData, NLayer);
     _vSparseTransposedStart.resize(N);
-    if (_pbSparseTransposedStart == NULL)
-        _pbSparseTransposedStart            = new GpuBuffer<uint32_t>(N);
-    if (_pbSparseTransposedEnd == NULL)
-        _pbSparseTransposedEnd              = new GpuBuffer<uint32_t>(N);      
+    if (!_pbSparseTransposedStart)
+        _pbSparseTransposedStart.reset(new GpuBuffer<uint32_t>(N));
+    if (!_pbSparseTransposedEnd)
+        _pbSparseTransposedEnd.reset(new GpuBuffer<uint32_t>(N));
   
     // Set batch and calculate new sparse matrix data
     _batch                                  = batch;
@@ -957,12 +957,10 @@ template<typename T> bool NNDataSet<T>::GenerateSparseTransposedMatrix(uint32_t 
     if (offset > _sparseTransposedIndices)
     {
         _sparseTransposedIndices            = offset;
-        delete _pbSparseTransposedIndex;
-        _pbSparseTransposedIndex            = new GpuBuffer<uint32_t>(_sparseTransposedIndices);
+        _pbSparseTransposedIndex.reset(new GpuBuffer<uint32_t>(_sparseTransposedIndices));
         if (!(_attributes & NNDataSetEnums::Boolean))
         {
-            delete _pbSparseTransposedData;
-            _pbSparseTransposedData         = new GpuBuffer<T>(_sparseTransposedIndices);
+            _pbSparseTransposedData.reset(new GpuBuffer<T>(_sparseTransposedIndices));
         }
     }
     return true;
@@ -980,15 +978,12 @@ template<typename T> bool NNDataSet<T>::SetDenoising(bool flag)
     }
     else if (!flag && _bDenoising)
     {
-        delete _pbDenoisingRandom;
-        _pbDenoisingRandom                      = NULL;
+        _pbDenoisingRandom.reset();
         _bDenoising                             = false;
     }
     else if (flag && !_bDenoising)
     {
-        delete _pbDenoisingRandom;
-        _pbDenoisingRandom                      = NULL;    
-        _pbDenoisingRandom                      = new GpuBuffer<NNFloat>((uint64_t)_vSparseIndex.size());
+        _pbDenoisingRandom.reset(new GpuBuffer<NNFloat>((uint64_t)_vSparseIndex.size()));
     }
     return true;
 }
@@ -1017,17 +1012,13 @@ template<typename T> bool NNDataSet<T>::UnShard()
             _pbSparseStart->Download(_vSparseStart.data());
             _pbSparseEnd->Download(_vSparseEnd.data());
             _pbSparseIndex->Download(_vSparseIndex.data());
-            delete _pbSparseStart;
-            delete _pbSparseEnd;
-            delete _pbSparseIndex;
-            _pbSparseStart                      = NULL;
-            _pbSparseEnd                        = NULL;
-            _pbSparseIndex                      = NULL;                 
+            _pbSparseStart.reset();
+            _pbSparseEnd.reset();
+            _pbSparseIndex.reset();
             if (!(_attributes & NNDataSetEnums::Boolean))
             {
                 _pbSparseData->Download(_vSparseData.data());
-                delete _pbSparseData;
-                _pbSparseData                   = NULL;
+                _pbSparseData.reset();
             }
             
             // Subtract local index offset
@@ -1118,15 +1109,15 @@ template<typename T> bool NNDataSet<T>::UnShard()
                     _vSparseData                = vTempSparseData;
                     
                 // Reallocate GPU data
-                _pbSparseStart                  = new GpuBuffer<uint64_t>(_examples);
-                _pbSparseEnd                    = new GpuBuffer<uint64_t>(_examples);
-                _pbSparseIndex                  = new GpuBuffer<uint32_t>((uint64_t)_vSparseIndex.size());
+                _pbSparseStart.reset(new GpuBuffer<uint64_t>(_examples));
+                _pbSparseEnd.reset(new GpuBuffer<uint64_t>(_examples));
+                _pbSparseIndex.reset(new GpuBuffer<uint32_t>((uint64_t)_vSparseIndex.size()));
                 _pbSparseStart->Upload(_vSparseStart.data());
                 _pbSparseEnd->Upload(_vSparseEnd.data());
                 _pbSparseIndex->Upload(_vSparseIndex.data());
                 if (!(_attributes & NNDataSetEnums::Boolean))
                 {
-                    _pbSparseData               = new GpuBuffer<T>((uint64_t)_vSparseData.size());
+                    _pbSparseData.reset(new GpuBuffer<T>((uint64_t)_vSparseData.size()));
                     _pbSparseData->Upload(_vSparseData.data());           
                 }                    
             }
@@ -1147,8 +1138,7 @@ template<typename T> bool NNDataSet<T>::UnShard()
         {
             // Download all current data from all GPUs
             _pbData->Download(_vData.data());
-            delete _pbData;
-            _pbData                             = NULL;            
+            _pbData.reset();
             
             // Unshard
             if (getGpu()._id == 0)
@@ -1180,7 +1170,7 @@ template<typename T> bool NNDataSet<T>::UnShard()
                 }
 
                 // Reallocate GPU data
-                _pbData                         = new GpuBuffer<T>((uint64_t)_vData.size());
+                _pbData.reset(new GpuBuffer<T>((uint64_t)_vData.size()));
                 _pbData->Upload(_vData.data()); 
           
             }
@@ -1312,9 +1302,9 @@ template<typename T> bool NNDataSet<T>::Shard(NNDataSetEnums::Sharding sharding)
             }
 
             // Allocate GPU buffers and upload
-            _pbSparseStart                          = new GpuBuffer<uint64_t>(_examples);
-            _pbSparseEnd                            = new GpuBuffer<uint64_t>(_examples);
-            _pbSparseIndex                          = new GpuBuffer<uint32_t>((uint64_t)_vSparseIndex.size());
+            _pbSparseStart.reset(new GpuBuffer<uint64_t>(_examples));
+            _pbSparseEnd.reset(new GpuBuffer<uint64_t>(_examples));
+            _pbSparseIndex.reset(new GpuBuffer<uint32_t>((uint64_t)_vSparseIndex.size()));
             _pbSparseStart->Upload(_vSparseStart.data());
             _pbSparseEnd->Upload(_vSparseEnd.data());
             //for (int i = 0; i < 100; i++)
@@ -1323,7 +1313,7 @@ template<typename T> bool NNDataSet<T>::Shard(NNDataSetEnums::Sharding sharding)
             _pbSparseIndex->Upload(_vSparseIndex.data());
             if (!(_attributes & NNDataSetEnums::Boolean))
             {
-                _pbSparseData                       = new GpuBuffer<T>((uint64_t)_vSparseData.size());  
+                _pbSparseData.reset(new GpuBuffer<T>((uint64_t)_vSparseData.size()));
                 _pbSparseData->Upload(_vSparseData.data());            
             }
         }
@@ -1380,7 +1370,7 @@ template<typename T> bool NNDataSet<T>::Shard(NNDataSetEnums::Sharding sharding)
 
 
             // Allocate space then upload data to GPU memory
-            _pbData                                 = new GpuBuffer<T>((uint64_t)_vData.size());
+            _pbData.reset(new GpuBuffer<T>((uint64_t)_vData.size()));
             _pbData->Upload(_vData.data()); 
         }
     }
@@ -1429,7 +1419,7 @@ template<typename T> bool NNDataSet<T>::Shard(NNDataSetEnums::Sharding sharding)
         }
         
         // Allocate space then upload data to GPU memory
-        _pbData                                 = new GpuBuffer<T>((uint64_t)_vData.size());
+        _pbData.reset(new GpuBuffer<T>((uint64_t)_vData.size()));
         _pbData->Upload(_vData.data()); 
     }
 
@@ -1634,26 +1624,6 @@ template<typename T> bool NNDataSet<T>::WriteNetCDF(NcFile& nfc, const string& f
 
 template<typename T> NNDataSet<T>::~NNDataSet()
 {
-    if (_attributes & NNDataSetEnums::Sparse)
-    {
-        delete _pbSparseStart;
-        delete _pbSparseEnd;
-        delete _pbSparseTransposedStart;
-        delete _pbSparseTransposedEnd;
-        delete _pbSparseIndex;
-        delete _pbSparseTransposedIndex;
-        if (!(_attributes & NNDataSetEnums::Boolean))
-        {
-            delete _pbSparseData;
-            delete _pbSparseTransposedData;
-        }
-        if (_bDenoising)
-            delete _pbDenoisingRandom;
-    }
-    else
-    {
-        delete _pbData;
-    }
 }
 
 bool SaveNetCDF(const string& fname, vector<NNDataSetBase*> vDataSet)
