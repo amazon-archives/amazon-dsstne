@@ -1,6 +1,9 @@
 #pragma once
 
 #include <string>
+#include <map>
+#include <vector>
+#include <iostream>
 
 #include "GpuTypes.h"
 #include "NNTypes.h"
@@ -27,8 +30,7 @@ struct DataParameters {
     float B0;
 };
 
-inline void generateTestData(const std::string& path, const TestDataType testDataType, const DataParameters& dataParameters) {
-
+inline void generateTestData(const std::string& path, const TestDataType testDataType, const DataParameters& dataParameters, std::ostream& out) {
     std::vector<std::vector<unsigned int> > vSampleTestInput, vSampleTestInputTime;
     std::vector<std::vector<float> > vSampleTestInputData;
     std::vector<std::vector<unsigned int> > vSampleTestOutput, vSampleTestOutputTime;
@@ -104,7 +106,7 @@ inline void generateTestData(const std::string& path, const TestDataType testDat
 
             break;
         default:
-            std::cout << "unsupported mode";
+            out << "unsupported mode";
             exit(2);
         }
     }
@@ -117,12 +119,12 @@ inline void generateTestData(const std::string& path, const TestDataType testDat
                     vSampleTestOutputData, minInpDate, maxInpDate, minOutDate, maxOutDate, alignFeatureNumber, 2);
 }
 
-inline bool validateNeuralNetwork(const size_t batch, const std::string& modelPath, const TestDataType testDataType, const DataParameters& dataParameters) {
-    std::cout << "start validation of " << modelPath << std::endl;
+inline bool validateNeuralNetwork(const size_t batch, const std::string& modelPath, const TestDataType testDataType, const DataParameters& dataParameters, std::ostream& out) {
+    out << "start validation of " << modelPath << std::endl;
 
     NNNetwork* pNetwork = NULL;
     std::vector<NNDataSetBase*> vDataSet;
-    std::string dataName = string("test.nc");
+    const std::string dataName = string("test.nc");
     const std::string dataPath = "../tst/wrapper/toy_data/";
     generateTestData(dataPath, testDataType, dataParameters);
     vDataSet = LoadNetCDF(dataPath + dataName);
@@ -132,15 +134,15 @@ inline bool validateNeuralNetwork(const size_t batch, const std::string& modelPa
     pNetwork->SetTrainingMode(SGD);
     bool valid = pNetwork->Validate();
     if (valid) {
-        std::cout << "SUCCESFUL validation" << std::endl;
+        out << "SUCCESFUL validation" << std::endl;
     } else {
-        std::cout << "FAILED validation" << std::endl;
+        out << "FAILED validation" << std::endl;
     }
 
     int totalGPUMemory, totalCPUMemory;
     getGpu().GetMemoryUsage(&totalGPUMemory, &totalCPUMemory);
-    std::cout << "GPU Memory Usage: " << totalGPUMemory << " KB" << std::endl;
-    std::cout << "CPU Memory Usage: " << totalCPUMemory << " KB" << std::endl;
+    out << "GPU Memory Usage: " << totalGPUMemory << " KB" << std::endl;
+    out << "CPU Memory Usage: " << totalCPUMemory << " KB" << std::endl;
 
     delete pNetwork;
 
