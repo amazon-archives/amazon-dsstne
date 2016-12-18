@@ -97,7 +97,7 @@ void NNRecsGenerator::generateRecs(NNNetwork *xNetwork,
         outputBufferSize = xNetwork->GetBufferSize(recsGenLayerLabel);
     }
 
-    float *hOutputBuffer           = (float*)malloc(sizeof(float) * outputBufferSize);
+    unique_ptr<float[]> hOutputBuffer(new float[outputBufferSize]);
    
     // Get P2P handles to multi-gpu data on node 0
     if (bMultiGPU)
@@ -130,7 +130,7 @@ void NNRecsGenerator::generateRecs(NNNetwork *xNetwork,
         }
 
     }
-    cudaMemcpy(hOutputBuffer, dOutput, outputBufferSize * sizeof(NNFloat), cudaMemcpyDeviceToHost);
+    cudaMemcpy(hOutputBuffer.get(), dOutput, outputBufferSize * sizeof(NNFloat), cudaMemcpyDeviceToHost);
     // Iterate through all the filters and apply filters for each sample in the lBatch
 
     // We dont need the memory buffer if we have only one filter as copying the memory effects performance  
@@ -143,11 +143,11 @@ void NNRecsGenerator::generateRecs(NNNetwork *xNetwork,
 
         // offset is the starting FEATUREs in this GPU to the first one in global FEATURE Index 
         int offset = getGpu()._id * lLocalOutputStride;
-        xFilterSet->applySamplesFilter(hOutputBuffer + j * lLocalOutputStride, sampleIndex, offset, lLocalOutputStride);
+        xFilterSet->applySamplesFilter(hOutputBuffer.get() + j * lLocalOutputStride, sampleIndex, offset, lLocalOutputStride);
     }
 
     timeval timeEnd;
-    pFilteredOutput->Upload(hOutputBuffer);
+    pFilteredOutput->Upload(hOutputBuffer.get());
     // TODO: Add Node Filter support for multi GPU 
     // Each GPU sorting its top xK * TOPK_SCALAR
     kCalculateTopK(pFilteredOutput->_pDevData, pbKey->_pDevData, pbUIValue->_pDevData, lBatch, lLocalOutputStride, xK * TOPK_SCALAR);
@@ -182,7 +182,7 @@ void NNRecsGenerator::generateRecs(NNNetwork *xNetwork,
     {
         const char *fileName = xFilterSet->getOutputFileName().c_str();
         gettimeofday(&timeEnd, NULL);
-        cout << "Time Elapsed for Filtering and selecting Top " << xK << " recs" << elapsed_time(timeEnd, timeStart) << endl;
+        cout << "Time Elapsed for Filtering and selecting Top " << xK << " recs: " << elapsed_time(timeEnd, timeStart) << endl;
         cout << "Writing to " << fileName << endl;
         FILE *fp = fopen(fileName, "a");
         pbKey->Download();
@@ -232,8 +232,6 @@ void NNRecsGenerator::generateRecs(NNNetwork *xNetwork,
         gettimeofday(&timeEnd, NULL);
         cout << "Time Elapsed for Writing to file: " << elapsed_time(timeEnd, timeStart) << endl;
     }
-
-    free(hOutputBuffer);
 
     // Delete multi-GPU data and P2P handles if multi-GPU
     if (bMultiGPU)
