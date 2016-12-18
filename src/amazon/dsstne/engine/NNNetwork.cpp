@@ -95,61 +95,61 @@ ostream& operator<< (ostream& out, NNNetworkDescriptor& d)
 
 bool ValidateNetworkDescriptor(NNNetworkDescriptor& d)
 {
-    
-
-
     return true;
 }
 
-tuple<NNFloat, uint32_t, NNFloat, NNFloat> NNNetwork::GetLRN()
+tuple<NNFloat, uint32_t, NNFloat, NNFloat> NNNetwork::GetLRN() const
 {
     return make_tuple(_LRN_k, _LRN_n, _LRN_alpha, _LRN_beta);
 }
 
-tuple<uint32_t> NNNetwork::GetMaxout()
+tuple<uint32_t> NNNetwork::GetMaxout() const
 {
     return make_tuple(_maxout_k);
 }
 
-tuple<NNFloat, NNFloat> NNNetwork::GetSparsenessPenalty()
+tuple<NNFloat, NNFloat> NNNetwork::GetSparsenessPenalty() const
 {
     return make_tuple(_sparsenessPenalty_p, _sparsenessPenalty_beta);
 }
 
-tuple<NNFloat> NNNetwork::GetDenoising()
+tuple<NNFloat> NNNetwork::GetDenoising() const
 {
     return make_tuple(_denoising_p);
 }
 
-tuple<NNFloat, NNFloat> NNNetwork::GetDeltaBoost()
+tuple<NNFloat, NNFloat> NNNetwork::GetDeltaBoost() const
 {
     return make_tuple(_deltaBoost_one, _deltaBoost_zero);
 }
 
-tuple<NNFloat, NNFloat, NNFloat, NNFloat> NNNetwork::GetSMCE()
+tuple<NNFloat, NNFloat, NNFloat, NNFloat> NNNetwork::GetSMCE() const
 {
     return make_tuple(_SMCE_oneTarget, _SMCE_zeroTarget, _SMCE_oneScale, _SMCE_zeroScale);
 }
 
-tuple<bool> NNNetwork::GetShuffleIndices()
+tuple<bool> NNNetwork::GetShuffleIndices() const
 {
     return make_tuple(_bShuffleIndices);
 }
 
-tuple<string, int32_t> NNNetwork::GetCheckPoint()
+tuple<string, int32_t> NNNetwork::GetCheckPoint() const
 {
     return make_tuple(_checkpoint_name, _checkpoint_interval);
 } 
 
-NNLayer* NNNetwork::GetLayer(const string& layer)
+const NNLayer* NNNetwork::GetLayer(const string& layer) const
 {
-    NNLayer* pLayer         = _mLayer[layer];
-    if (pLayer == NULL)
+    const map<string, NNLayer*>::const_iterator itr = _mLayer.find(layer);
+    if (itr == _mLayer.end())
     {
         if (getGpu()._id == 0)
+        {
             printf("NNNetwork::GetLayerDimensions: Unknown layer %s.\n", layer.c_str());
+        }
     }
-    return pLayer;
+
+    return itr->second;
 }
 
 NNFloat* NNNetwork::GetScratchBuffer(size_t size)
@@ -636,12 +636,12 @@ void NNNetwork::SetBatch(uint32_t batch)
     }
 }
 
-uint32_t NNNetwork::GetBatch()
+uint32_t NNNetwork::GetBatch() const
 {
     return _batch;
 }
 
-uint32_t NNNetwork::GetExamples()
+uint32_t NNNetwork::GetExamples() const
 {
     return _examples;
 }
@@ -656,6 +656,11 @@ void NNNetwork::SetShuffleIndices(bool bShuffleIndices)
     
     if (getGpu()._id == 0)
         printf("NNNetwork::SetShuffleIndices: Index shuffling is now %s\n", (_bShuffleIndices ? "on" : "off"));   
+}
+
+uint32_t NNNetwork::GetPosition() const
+{
+    return _position;
 }
 
 void NNNetwork::SetPosition(uint32_t position)
@@ -1900,111 +1905,153 @@ bool NNNetwork::SaveNetCDF(const string& fname)
     return bResult;
 }
 
-vector<string> NNNetwork::GetLayers()
+vector<string> NNNetwork::GetLayers() const
 {
     vector<string> vResult;
     for (auto l: _vLayer)
+    {
         vResult.push_back(l->_name);
+    }
+    
     return vResult;
 }
 
 
-NNFloat* NNNetwork::GetUnitBuffer(const string& layer)
+const NNFloat* NNNetwork::GetUnitBuffer(const string& layer) const
 {
-    NNLayer* pLayer         = _mLayer[layer];
-    if (pLayer == NULL)
+    const auto itr = _mLayer.find(layer);
+    if (itr == _mLayer.end())
     {
         if (getGpu()._id == 0)
+        {
             printf("NNNetwork::GetUnitBuffer: Unknown layer %s.\n", layer.c_str());
+        }
+        
         return NULL;
     }
 
-    return pLayer->GetUnitBuffer();
+    return itr->second->GetUnitBuffer();
 }
 
-NNFloat* NNNetwork::GetDeltaBuffer(const string& layer)
+const NNFloat* NNNetwork::GetDeltaBuffer(const string& layer) const
 {
-    NNLayer* pLayer         = _mLayer[layer];
-    if (pLayer == NULL)
+    const auto itr = _mLayer.find(layer);
+    if (itr == _mLayer.end())
     {
         if (getGpu()._id == 0)
+        {
             printf("NNNetwork::GetDeltaBuffer: Unknown layer %s.\n", layer.c_str());
+        }
+
         return NULL;
     }
 
-    return pLayer->GetDeltaBuffer();
+    return itr->second->GetDeltaBuffer();
 }
 
-uint64_t NNNetwork::GetBufferSize(const string& layer)
+uint64_t NNNetwork::GetBufferSize(const string& layer) const
 {
-    NNLayer* pLayer         = _mLayer[layer];
-    if (pLayer == NULL)
+    const auto itr = _mLayer.find(layer);
+    if (itr == _mLayer.end())
     {
         if (getGpu()._id == 0)
+        {
             printf("NNNetwork::GetDeltaBuffer: Unknown layer %s.\n", layer.c_str());
+        }
+
         return 0;
     }
 
-    return pLayer->GetBufferSize();
+    return itr->second->GetBufferSize();
 }
 
-NNWeight* NNNetwork::GetWeight(const string& inputLayer, const string& outputLayer)
+const NNWeight* NNNetwork::GetWeight(const string& inputLayer, const string& outputLayer) const
 {
-    NNLayer* pInputLayer    = _mLayer[inputLayer];
-    NNLayer* pOutputLayer   = _mLayer[outputLayer];
-
-    // Validate parameters
-    if (pInputLayer == NULL)
+    const auto inputLayerItr = _mLayer.find(inputLayer);
+    if (inputLayerItr == _mLayer.end())
     {
         if (getGpu()._id == 0)
+        {
             printf("NNNetwork::GetWeight: Unknown input layer %s.\n", inputLayer.c_str());
+        }
+
         return NULL;
     }
-    if (pOutputLayer == NULL)
+    
+    const auto outputLayerItr = _mLayer.find(inputLayer);
+    if (outputLayerItr == _mLayer.end())
     {
         if (getGpu()._id == 0)
-            printf("NNNetwork::GetWeight: Unknown layer %s.\n", outputLayer.c_str());
+        {
+            printf("NNNetwork::GetWeight: Unknown output layer %s.\n", outputLayer.c_str());
+        }
+
         return NULL;
     }
+
+    const NNLayer *pInputLayer = inputLayerItr->second;
+    const NNLayer *pOutputLayer = outputLayerItr->second;
 
     // Search for matching set of weights
     for (auto p: _vWeight)
+    {
         if ((&(p->_inputLayer) == pInputLayer) && (&(p->_outputLayer) == pOutputLayer))
+        {
             return p;
+        }
+    }
 
     // Report failure to find weights connecting layers
     if (getGpu()._id == 0)
+    {
         printf("NNNetwork::GetWeight: No set of weights connecting layer %s to layer %s.\n", outputLayer.c_str(), outputLayer.c_str());
+    }
+
     return NULL;
 }
 
-NNFloat* NNNetwork::GetWeightBuffer(const string& inputLayer, const string& outputLayer)
+const NNFloat* NNNetwork::GetWeightBuffer(const string& inputLayer, const string& outputLayer) const
 {
-    NNLayer* pInputLayer    = _mLayer[inputLayer];
-    NNLayer* pOutputLayer   = _mLayer[outputLayer];
+    const auto inputLayerItr = _mLayer.find(inputLayer);
+    if (inputLayerItr == _mLayer.end())
+    {
+        if (getGpu()._id == 0)
+        {
+            printf("NNNetwork::GetWeight: Unknown input layer %s.\n", inputLayer.c_str());
+        }
 
-    // Validate parameters
-    if (pInputLayer == NULL)
-    {
-        if (getGpu()._id == 0)
-            printf("NNNetwork::GetWeightBuffer: Unknown input layer %s.\n", inputLayer.c_str());
         return NULL;
     }
-    if (pOutputLayer == NULL)
+    
+    const auto outputLayerItr = _mLayer.find(inputLayer);
+    if (outputLayerItr == _mLayer.end())
     {
         if (getGpu()._id == 0)
-            printf("NNNetwork::GetWeightBuffer: Unknown layer %s.\n", outputLayer.c_str());
+        {
+            printf("NNNetwork::GetWeight: Unknown output layer %s.\n", outputLayer.c_str());
+        }
+
         return NULL;
     }
+
+    const NNLayer *pInputLayer = inputLayerItr->second;
+    const NNLayer *pOutputLayer = outputLayerItr->second;
 
     // Search for matching set of weights
     for (auto p: _vWeight)
+    {
         if ((&(p->_inputLayer) == pInputLayer) && (&(p->_outputLayer) == pOutputLayer))
+        {
             return p->_vWeight.data();
+        }
+    }
 
     // Report failure to find weights connecting layers
     if (getGpu()._id == 0)
-            printf("NNNetwork::GetWeightBuffer: No set of weights connecting layer %s to layer %s.\n", outputLayer.c_str(), outputLayer.c_str());
+    {
+        printf("NNNetwork::GetWeightBuffer: No set of weights connecting layer %s to layer %s.\n", outputLayer.c_str(), outputLayer.c_str());
+    }
+
     return NULL;
 }
 

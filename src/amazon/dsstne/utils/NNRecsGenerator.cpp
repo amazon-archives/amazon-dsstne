@@ -54,7 +54,7 @@ NNRecsGenerator::NNRecsGenerator(unsigned int xBatchSize,
 {
 }
 
-void NNRecsGenerator::generateRecs(NNNetwork *xNetwork,
+void NNRecsGenerator::generateRecs(const NNNetwork *xNetwork,
                                    unsigned int xK,
                                    const FilterConfig *xFilterSet,
                                    const vector<string> &xCustomerIndex,
@@ -81,8 +81,8 @@ void NNRecsGenerator::generateRecs(NNNetwork *xNetwork,
  
     cudaIpcMemHandle_t keyMemHandle;
     cudaIpcMemHandle_t valMemHandle;
-    NNFloat* dOutput               = xNetwork->GetUnitBuffer(recsGenLayerLabel);
-    NNLayer* pLayer                = xNetwork->GetLayer(recsGenLayerLabel);
+    const NNFloat* dOutput         = xNetwork->GetUnitBuffer(recsGenLayerLabel);
+    const NNLayer* pLayer          = xNetwork->GetLayer(recsGenLayerLabel);
     unsigned int lx, ly, lz, lw;
     tie(lx, ly, lz, lw)            = pLayer->GetDimensions();
     int lOutputStride              = lx * ly * lz * lw;

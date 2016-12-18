@@ -42,7 +42,7 @@ public:
                     const std::string &layer = DEFAULT_LAYER_RECS_GEN_LABEL,
                     const std::string &precision = DEFAULT_SCORE_PRECISION);
 
-    void generateRecs(NNNetwork *network,
+    void generateRecs(const NNNetwork *network,
                       unsigned int topK,
                       const FilterConfig *filters,
                       const std::vector<std::string> &customerIndex,

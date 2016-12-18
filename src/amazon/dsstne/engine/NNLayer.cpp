@@ -226,22 +226,22 @@ cudnnTensorDescriptor_t NNLayer::getTensorDescriptor(uint32_t batch)
     return _oddBatchTensorDescriptor;
 }
 
-tuple<uint32_t, uint32_t, uint32_t, uint32_t> NNLayer::GetDimensions()
+tuple<uint32_t, uint32_t, uint32_t, uint32_t> NNLayer::GetDimensions() const
 {
     return make_tuple(_Nx, _Ny, _Nz, _Nw);
 }
 
-tuple<uint32_t, uint32_t, uint32_t, uint32_t> NNLayer::GetLocalDimensions()
+tuple<uint32_t, uint32_t, uint32_t, uint32_t> NNLayer::GetLocalDimensions() const
 {
     return make_tuple(_maxX - _minX, _Ny, _Nz, _Nw);
 }
 
-tuple<uint32_t, uint32_t, uint32_t> NNLayer::GetKernelDimensions()
+tuple<uint32_t, uint32_t, uint32_t> NNLayer::GetKernelDimensions() const
 {
     return make_tuple(_kernelX, _kernelY, _kernelZ);
 }
 
-tuple<uint32_t, uint32_t, uint32_t> NNLayer::GetKernelStride()
+tuple<uint32_t, uint32_t, uint32_t> NNLayer::GetKernelStride() const
 {
     return make_tuple(_kernelStrideX, _kernelStrideY, _kernelStrideZ);
 }

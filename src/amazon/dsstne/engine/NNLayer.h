@@ -166,10 +166,10 @@ private:
     cudnnTensorDescriptor_t getTensorDescriptor(uint32_t batch);
 
 public:
-    tuple<uint32_t, uint32_t, uint32_t, uint32_t> GetDimensions();
-    tuple<uint32_t, uint32_t, uint32_t, uint32_t> GetLocalDimensions();
-    tuple<uint32_t, uint32_t, uint32_t> GetKernelDimensions();
-    tuple<uint32_t, uint32_t, uint32_t> GetKernelStride();
+    tuple<uint32_t, uint32_t, uint32_t, uint32_t> GetDimensions() const;
+    tuple<uint32_t, uint32_t, uint32_t, uint32_t> GetLocalDimensions() const;
+    tuple<uint32_t, uint32_t, uint32_t> GetKernelDimensions() const;
+    tuple<uint32_t, uint32_t, uint32_t> GetKernelStride() const;
     //NNFloat GetPDropout();
     //NNFloat GetWeightNorm();
     //NNFloat GetDeltaNorm();
