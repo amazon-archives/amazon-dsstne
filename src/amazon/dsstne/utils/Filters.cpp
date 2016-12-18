@@ -27,7 +27,7 @@ using namespace std;
 
 const static int gSamplesLoggingInterval = 10000;
 
-void AbstractFilter::updateRecords(float *xArray, const unordered_map<int, float> *xFilter)
+void AbstractFilter::updateRecords(float *xArray, const unordered_map<int, float> *xFilter) const
 {
     if (xFilter && xFilter->size() > 0)
     {
@@ -46,7 +46,7 @@ void AbstractFilter::updateRecords(float *xArray, const unordered_map<int, float
  * @param offset the starting global index of current xArray
  * @param width the length of xArray
  */
-void AbstractFilter::updateRecords(float *xArray, const unordered_map<int, float> *xFilter, int offset, int width)
+void AbstractFilter::updateRecords(float *xArray, const unordered_map<int, float> *xFilter, int offset, int width) const
 {
     if (xFilter && xFilter->size() > 0)
     {
@@ -193,13 +193,13 @@ void SamplesFilter::loadFilter(unordered_map<string, unsigned int>& xMInput,
     cout << "Info:SamplesFilter " << samplefilters->size() << endl;
 }
 
-void SamplesFilter::applyFilter(float *xArray, int xSamplesIndex, int offset, int width)
+void SamplesFilter::applyFilter(float *xArray, int xSamplesIndex, int offset, int width) const
 {
     unordered_map<int, float> *filter = (*samplefilters)[xSamplesIndex].get();
     updateRecords(xArray, filter, offset, width);
 }
 
-void SamplesFilter::applyFilter(float *xArray, int xSamplesIndex)
+void SamplesFilter::applyFilter(float *xArray, int xSamplesIndex) const
 {
     unordered_map<int, float> *filter = (*samplefilters)[xSamplesIndex].get();
     updateRecords(xArray, filter);

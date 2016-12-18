@@ -26,14 +26,14 @@ public:
                             std::unordered_map<std::string, unsigned int> &xMSamples,
                             const std::string &filePath) = 0;
 
-    virtual void applyFilter(float *xArray, int xSamplesIndex) = 0;
-    virtual void applyFilter(float *xArray, int xSamplesIndex, int offset, int width) = 0;
+    virtual void applyFilter(float *xArray, int xSamplesIndex) const = 0;
+    virtual void applyFilter(float *xArray, int xSamplesIndex, int offset, int width) const = 0;
 
     virtual std::string getFilterType() const = 0;
 
 protected:
-    void updateRecords(float *xArray, const std::unordered_map<int, float> *xFilter);
-    void updateRecords(float *xArray, const std::unordered_map<int, float> *xFilter, int offset, int width);
+    void updateRecords(float *xArray, const std::unordered_map<int, float> *xFilter) const;
+    void updateRecords(float *xArray, const std::unordered_map<int, float> *xFilter, int offset, int width) const;
 };
 
 class SamplesFilter : public AbstractFilter
@@ -50,8 +50,8 @@ public:
                     std::unordered_map<std::string, unsigned int> &xMSamples,
                     const std::string &filePath);
 
-    void applyFilter(float *xArray, int xSamplesIndex);
-    void applyFilter(float *xArray, int xSamplesIndex, int offset, int width);
+    void applyFilter(float *xArray, int xSamplesIndex) const;
+    void applyFilter(float *xArray, int xSamplesIndex, int offset, int width) const;
 
     std::string getFilterType() const
     {
@@ -80,7 +80,7 @@ public :
         sampleFilter.reset(xSampleFilter);
     }
 
-    void applySamplesFilter(float *xInput, int xSampleIndex, int offset, int width)
+    void applySamplesFilter(float *xInput, int xSampleIndex, int offset, int width) const
     {
         if (sampleFilter)
         {

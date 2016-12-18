@@ -9,59 +9,44 @@
 
    or in the "license" file accompanying this file. This file is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific language governing permissions and limitations under the License.
  */
-#ifndef NN_SORT_H
+#ifndef NNRECSGENERATOR_H
+#define NNRECSGENERATOR_H
+
 #include <vector>
-#include <set>
 #include <string>
-#include <iostream>
-#include <iomanip>
-#include <fstream>
-#include <algorithm>
 #include <memory>
-#include <netcdf>
 
 #include "GpuTypes.h"
 #include "NNTypes.h"
-#include "NNNetwork.h"
-#include "Filters.h"
 
-using namespace std;
+class FilterConfig;
+class NNNetwork;
 
 class NNRecsGenerator
 {
-private :
-    unique_ptr<GpuBuffer<NNFloat>> pbKey;
-    unique_ptr<GpuBuffer<unsigned int>> pbUIValue;
-    unique_ptr<GpuBuffer<NNFloat>> pFilteredOutput;
-    vector <GpuBuffer<NNFloat>*> *vNodeFilters;
-    string recsGenLayerLabel;
-    string scorePrecision;
+    std::unique_ptr<GpuBuffer<NNFloat>> pbKey;
+    std::unique_ptr<GpuBuffer<unsigned int>> pbUIValue;
+    std::unique_ptr<GpuBuffer<NNFloat>> pFilteredOutput;
+    std::vector<GpuBuffer<NNFloat>*> *vNodeFilters;
+    std::string recsGenLayerLabel;
+    std::string scorePrecision;
     
 public:
-    static const string DEFAULT_LAYER_RECS_GEN_LABEL;
+    static const std::string DEFAULT_LAYER_RECS_GEN_LABEL;
     static const unsigned int TOPK_SCALAR;
-    static const string DEFAULT_SCORE_PRECISION;
+    static const std::string DEFAULT_SCORE_PRECISION;
 
-    NNRecsGenerator(unsigned int,
-		unsigned int,
-		unsigned int,
-    string layer=DEFAULT_LAYER_RECS_GEN_LABEL,
-    string precision=DEFAULT_SCORE_PRECISION);
+    NNRecsGenerator(unsigned int xBatchSize,
+                    unsigned int xK, 
+                    unsigned int xOutputBufferSize,
+                    const std::string &layer = DEFAULT_LAYER_RECS_GEN_LABEL,
+                    const std::string &precision = DEFAULT_SCORE_PRECISION);
 
     void generateRecs(NNNetwork *network,
-                      int topK,
-                      FilterConfig* filters,
-                      vector<string> & customerIndex,
-                      vector<string> & featureIndex);
-
-    
-    string getRecsLayerLabel();
-
-    void reset();
-    
-    ~NNRecsGenerator()
-    {
-        reset();
-    }
+                      unsigned int topK,
+                      const FilterConfig *filters,
+                      const std::vector<std::string> &customerIndex,
+                      const std::vector<std::string> &featureIndex);
 };
+
 #endif
