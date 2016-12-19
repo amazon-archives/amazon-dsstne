@@ -2017,7 +2017,7 @@ __shared__ volatile uint32_t sValue[160 * 4];
         }
 
         // Do final sort if buffer has any remaining data
-        if ((bufferSize > 0) || (width < 128))
+        if ((bufferSize > 0) || (width <= 128))
         {
             // Store sentinel values in registers
             k4                       = -MAX_VALUE;
@@ -2217,7 +2217,7 @@ __shared__ volatile NNFloat sValue[160 * 4];
         }
 
         // Do final sort if buffer has any remaining data
-        if ((bufferSize > 0) || (width < 128))
+        if ((bufferSize > 0) || (width <= 128))
         {
             // Store sentinel values in registers
             k4                      = -MAX_VALUE;
@@ -2412,7 +2412,7 @@ __shared__ volatile uint32_t sValue[160 * 4];
         }
 
         // Do final sort if buffer has any remaining data
-        if ((bufferSize > 0) || (width < 128))
+        if ((bufferSize > 0) || (width <= 128))
         {
             // Store sentinel values in registers
             k4                              = -MAX_VALUE;
