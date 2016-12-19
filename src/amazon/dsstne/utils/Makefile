@@ -11,7 +11,9 @@ OBJS= Utils.o NetCDFhelper.o NNRecsGenerator.o Filters.o
 LIB_DSSTNE=../lib/libdsstne.a
 
 COMMON_LIBS = $(LIB_DSSTNE) $(MATH_LIBS) $(MPI_LIBS) $(CU_LIBS) $(CU_LOADLIBS)
-all: generateNetCDF train predict encoder
+COMMON_LIBS_UNIT_TEST = $(COMMON_LIBS) -l:libcppunit.a
+
+all: generateNetCDF train predict encoder TestGPU
 
 install: all 
 
@@ -34,15 +36,17 @@ encoder : $(OBJS) main.o $(LIB_DSSTNE)
 	$(LOAD) $(LOADFLAGS) -o $@ $(OBJS) main.o $(COMMON_LIBS)
 	cp $@ ../bin/
 
-
 predict : $(OBJS) Predict.o $(LIB_DSSTNE)
 	mkdir -p ../bin
 	$(LOAD) $(LOADFLAGS) -o $@ $(OBJS) Predict.o  $(COMMON_LIBS)
 	cp $@ ../bin/
 
+TestGPU : $(OBJS) ../../../../tst/gputests/TestDune.o
+	$(LOAD) $(LOADFLAGS) -o $@ $(OBJS) TestDune.o  $(COMMON_LIBS_UNIT_TEST)
+
 
 clean:
-	rm -f *cudafe* *.fatbin.* *.fatbin *.ii *.cubin *cu.cpp *.ptx *.cpp?.* *.hash *.o *.d work.pc* generateNetCDF train predict encoder ../bin/generateNetCDF ../bin/train ../bin/predict ../bin/encoder
+	rm -f *cudafe* *.fatbin.* *.fatbin *.ii *.cubin *cu.cpp *.ptx *.cpp?.* *.hash *.o *.d work.pc* generateNetCDF train predict encoder TestGPU ../bin/generateNetCDF ../bin/train ../bin/predict ../bin/encoder
 
 distclean:
 	rm -f *cudafe* *.fatbin.* *.fatbin *.ii *.cubin *cu.cpp *.ptx *.cpp?.* *.hash *.o *.d work.pc*
