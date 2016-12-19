@@ -17,94 +17,82 @@
 #include <string>
 #include <unordered_map>
 #include <stdexcept>
+#include <sys/time.h>
 
 #include "Filters.h"
-#include "GpuTypes.h"
-#include "NNTypes.h"
+#include "Utils.h"
 
 using namespace Json;
 using namespace std;
 
-AbstractFilter::~AbstractFilter()
-{
-}
+const static int gSamplesLoggingInterval = 10000;
 
-/**
-        Updates the records in the array with the filters
-        x[Index] =  x[Index] * (filterValue for that index)
-*/
-void AbstractFilter::updateRecords(float *xArray,unordered_map<int,float> *xFilter)
+void AbstractFilter::updateRecords(float *xArray, const unordered_map<int, float> *xFilter)
 {
-
-    if (xFilter && xFilter->size() >0)
+    if (xFilter && xFilter->size() > 0)
     {
-        unordered_map<int,float>::iterator filterIter;
+        unordered_map<int, float>::const_iterator filterIter;
         for (filterIter = xFilter->begin(); filterIter != xFilter->end(); ++filterIter)
         {
-            int index =  filterIter->first ;
+            int index = filterIter->first;
             float value = filterIter->second;
-            xArray[ index  ] = value *  xArray[ index ];
+            xArray[index] = value * xArray[index];
         }
     }
 }
 
-void AbstractFilter::updateRecords(float *xArray,unordered_map<int,float> *xFilter, int offSet, int width)
+/**
+ * @param xArray values to be filtered
+ * @param offset the starting global index of current xArray
+ * @param width the length of xArray
+ */
+void AbstractFilter::updateRecords(float *xArray, const unordered_map<int, float> *xFilter, int offset, int width)
 {
-    /* Filter 
-       @param xArray values to be filtered
-       @param offSet the starting global index of current xArray
-       @param width the length of xArray
-    
-    */
-    
-
-    if (xFilter && xFilter->size() >0)
+    if (xFilter && xFilter->size() > 0)
     {
-        unordered_map<int,float>::iterator filterIter;
+        unordered_map<int, float>::const_iterator filterIter;
         for (filterIter = xFilter->begin(); filterIter != xFilter->end(); ++filterIter)
         {
-            int index =  filterIter->first ;
+            int index = filterIter->first;
             float value = filterIter->second;
-            // xArray global index [offset, offSet + width)
+            // xArray global index [offset, offset + width)
             // if index is falling outside of range, not changing xArray value
             // currently value is always zero in binary inputs
-            if (index >=offSet && index < offSet + width) { 
-                xArray[ index-offSet  ] = value *  xArray[ index-offSet ];
+            if (index >= offset && index < offset + width)
+            { 
+                xArray[index - offset] = value * xArray[index - offset];
             }
         }
     }
 }
 
-
-
-int gSamplesLoggingInterval = 10000;
-
 void SamplesFilter::loadSingleFilter(unordered_map<string, unsigned int> &xMInput,
                                      unordered_map<string, unsigned int> &xMSamples,
-                                     vector<unique_ptr<unordered_map<int,float>>> &sampleFilters,
-                                     const string &filePath) {
+                                     vector<unique_ptr<unordered_map<int, float>>> &sampleFilters,
+                                     const string &filePath)
+{
     ifstream samplesFile(filePath);
     timeval ts;
     gettimeofday(&ts, NULL);
-    unordered_map<int,float>* customerSampleFilter =  nullptr;
+    unordered_map<int, float> *sampleFilter = nullptr;
     int samplesFilterCount = 0;
     vector<string> filters;
-    if(samplesFile.good())
+    if (samplesFile.good())
     {
         string line;
         int sample = -1;
-        while(getline(samplesFile,line))
+        while (getline(samplesFile, line))
         {
             filters = split(line, ':');
-            if(filters.size() > 0)
+            if (filters.size() > 0)
             {
-                vector<string> vals =  split(filters[0],'\t');
-                if(vals.size() >0)
+                vector<string> vals = split(filters[0], '\t');
+                if (vals.size() > 0)
                 {
                     try
                     {
                         sample = xMSamples.at(vals[0]);
-                        if(vals.size() > 1)
+                        if (vals.size() > 1)
                         {
                             filters[0] = vals[1];
                         }
@@ -114,29 +102,29 @@ void SamplesFilter::loadSingleFilter(unordered_map<string, unsigned int> &xMInpu
                         continue;
                     }
                 }
-            } //filters[i] is the ith Feature for that customer
+            } //filters[i] is the ith Feature for that sample
 
-            customerSampleFilter = new unordered_map<int,float>();
-            for(int  i =0; i < filters.size(); ++i)
+            sampleFilter = new unordered_map<int, float>();
+            for (int i = 0; i < filters.size(); ++i)
             {
-                vector<string>  vals =  split(filters[i],',');
-                if(vals.size() > 0)
+                vector<string> vals = split(filters[i], ',');
+                if (vals.size() > 0)
                 {
                     try
                     {
                         int key = xMInput.at(vals[0]);
-                        float value =  0.0f;
-                        if(vals.size() >1)
+                        float value = 0.0f;
+                        if (vals.size() > 1)
                         {
-                            value =  atof(vals[1].c_str());
+                            value = atof(vals[1].c_str());
                             // This is hack for reading just the recs
                             // Because the current one has date
-                            if( value > 10.0 )
+                            if (value > 10.0)
                             {
                                 value = 0.0f;
                             }
                         }
-                        (*customerSampleFilter)[key] = value;
+                        (*sampleFilter)[key] = value;
                     }
                     catch (const std::out_of_range& oor)
                     {
@@ -144,34 +132,32 @@ void SamplesFilter::loadSingleFilter(unordered_map<string, unsigned int> &xMInpu
                     }
                 }
             }
-            if(sample != -1)
+            if (sample != -1)
             {
-                sampleFilters[sample].reset(customerSampleFilter);
+                sampleFilters[sample].reset(sampleFilter);
                 ++samplesFilterCount;
-                if(samplesFilterCount % gSamplesLoggingInterval ==0)
+                if (samplesFilterCount % gSamplesLoggingInterval == 0)
                 {
                     timeval t2;
                     gettimeofday(&t2, NULL);
-                    cout <<"Progress Parsing Filter "<< samplesFilterCount;
-                    cout <<"Time " <<  elapsed_time(t2, ts)<<endl;
+                    cout << "Progress Parsing Filter " << samplesFilterCount;
+                    cout << "Time " << elapsed_time(t2, ts) << endl;
                     gettimeofday(&ts, NULL);
-
                 }
             }
         }
     }
     else
     {
-        cout << "Unable to read the file "<< filePath<<endl;
+        cout << "Unable to read the file " << filePath << endl;
         throw std::invalid_argument("invalid sample filters " + filePath + ", exiting...");
-
     }
 
 }
 
 void SamplesFilter::loadFilter(unordered_map<string, unsigned int>& xMInput,
                                unordered_map<string, unsigned int>& xMSamples,
-                               string filterFilePath)
+                               const string &filterFilePath)
 {
     /**
      @param xMInput: $Feature , $GLOBAL_INDEX_FOR_FEATURES
@@ -190,62 +176,49 @@ void SamplesFilter::loadFilter(unordered_map<string, unsigned int>& xMInput,
      Filter
     */
 
-
-    samplefilters.reset(new vector<unique_ptr<unordered_map<int,float>>>(xMSamples.size()));
+    samplefilters.reset(new vector<unique_ptr<unordered_map<int, float>>>(xMSamples.size()));
 
     vector<string> files;
-    if (listFiles(filterFilePath, false, files) == 0) {
+    if (listFiles(filterFilePath, false, files) == 0)
+    {
         cout << "Loading " << files.size() << " filter files" << endl;
 
-        for (auto const &file: files) {
+        for (auto const &file : files)
+        {
             cout << "\tLoading filter: " << file << endl;
             loadSingleFilter(xMInput, xMSamples, *samplefilters.get(), file);
         }
     }
 
-    cout << "Info:SamplesFilter " << samplefilters->size() <<endl;
+    cout << "Info:SamplesFilter " << samplefilters->size() << endl;
 }
 
-void SamplesFilter::applyFilter(float *xArray,int xSamplesIndex, int offSet, int width)
+void SamplesFilter::applyFilter(float *xArray, int xSamplesIndex, int offset, int width)
 {
-    unordered_map<int,float> *filter= (*samplefilters)[xSamplesIndex].get();
-    updateRecords(xArray,filter, offSet, width);
+    unordered_map<int, float> *filter = (*samplefilters)[xSamplesIndex].get();
+    updateRecords(xArray, filter, offset, width);
 }
 
-void SamplesFilter::applyFilter(float *xArray,int xSamplesIndex)
+void SamplesFilter::applyFilter(float *xArray, int xSamplesIndex)
 {
-    unordered_map<int,float> *filter= (*samplefilters)[xSamplesIndex].get();
-    updateRecords(xArray,filter);
+    unordered_map<int, float> *filter = (*samplefilters)[xSamplesIndex].get();
+    updateRecords(xArray, filter);
 }
 
-SamplesFilter::~SamplesFilter()
+FilterConfig* loadFilters(const std::string &samplesFilterFileName,
+                          const std::string &outputFileName,
+                          unordered_map<string, unsigned int>& xMInput,
+                          unordered_map<string, unsigned int>& xMSamples)
 {
-}
-
-/**
-Sample Filters.json
-{
-        "filters": [
-                {"sampleFilters": "watches","nodeFilters": "primeFilters","outputFile":"primerecs" }
-        ]
-}
-Takes a filters.json and parses the file and created the Filters
-*/
-FilterConfig* loadFilters(string samplesFilterFileName,string outputFileName,
-                                  unordered_map<string, unsigned int>& xMInput,
-                                  unordered_map<string, unsigned int>& xMSamples)
-{
-   
-    
     Value index;
     Reader reader;
     FilterConfig *filterConfig  = new FilterConfig();
     SamplesFilter *samplesFilter = new SamplesFilter() ;
-    samplesFilter->loadFilter(xMInput,xMSamples,samplesFilterFileName);
+    samplesFilter->loadFilter(xMInput, xMSamples, samplesFilterFileName);
     filterConfig->setSamplesFilter(samplesFilter);
     filterConfig->setOutputFileName(outputFileName);
-    //Cleaning up the existing file rather than appending the file
-    FILE *fp =  fopen(outputFileName.c_str(),"w");
+    // Cleaning up the existing file rather than appending the file
+    FILE *fp = fopen(outputFileName.c_str(), "w");
     fclose(fp);
     return filterConfig;
 }

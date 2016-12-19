@@ -10,108 +10,100 @@
    or in the "license" file accompanying this file. This file is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific language governing permissions and limitations under the License.
  */
 #ifndef FILTERS_H
-#include <json/json.h>
-#include <cstdio>
-#include <iostream>
-#include <fstream>
+#define FILTERS_H
+
 #include <vector>
 #include <memory>
 #include <string>
 #include <unordered_map>
-#include <stdexcept>
-#include "Utils.h"
-using namespace Json;
-using namespace std;
+
 class AbstractFilter
 {
 public:
-    virtual ~AbstractFilter();
-    virtual void loadFilter(unordered_map<string, unsigned int>& ,
-                            unordered_map<string, unsigned int>& ,
-                            string ) = 0;
-    virtual void applyFilter(float *,int ) = 0 ;
-    virtual void applyFilter(float *, int, int, int) = 0;
-    virtual string getFilterType() = 0;
-protected:
-    void updateRecords(float *,unordered_map<int,float> *);
-    void updateRecords(float *,unordered_map<int,float> *, int, int);
+    virtual ~AbstractFilter() = default;
 
+    virtual void loadFilter(std::unordered_map<std::string, unsigned int> &xMInput,
+                            std::unordered_map<std::string, unsigned int> &xMSamples,
+                            const std::string &filePath) = 0;
+
+    virtual void applyFilter(float *xArray, int xSamplesIndex) = 0;
+    virtual void applyFilter(float *xArray, int xSamplesIndex, int offset, int width) = 0;
+
+    virtual std::string getFilterType() const = 0;
+
+protected:
+    void updateRecords(float *xArray, const std::unordered_map<int, float> *xFilter);
+    void updateRecords(float *xArray, const std::unordered_map<int, float> *xFilter, int offset, int width);
 };
 
 class SamplesFilter : public AbstractFilter
 {
-private:
-    unique_ptr<vector<unique_ptr<unordered_map<int,float>>>> samplefilters;
+    std::unique_ptr<std::vector<std::unique_ptr<std::unordered_map<int, float>>>> samplefilters;
 
-    void loadSingleFilter(unordered_map<string, unsigned int> &xMInput,
-                          unordered_map<string, unsigned int> &xMSamples,
-                          vector<unique_ptr<unordered_map<int,float>>>&sampleFilters,
-                          const string &filePath);
+    void loadSingleFilter(std::unordered_map<std::string, unsigned int> &xMInput,
+                          std::unordered_map<std::string, unsigned int> &xMSamples,
+                          std::vector<std::unique_ptr<std::unordered_map<int, float>>> &sampleFilters,
+                          const std::string &filePath);
+
 public:
-    SamplesFilter(): samplefilters()
-    {
-    }
+    void loadFilter(std::unordered_map<std::string, unsigned int> &xMInput,
+                    std::unordered_map<std::string, unsigned int> &xMSamples,
+                    const std::string &filePath);
 
-    void loadFilter(unordered_map<string, unsigned int> &xMInput,
-                    unordered_map<string, unsigned int> &xMSamples,
-                    string filePath);
+    void applyFilter(float *xArray, int xSamplesIndex);
+    void applyFilter(float *xArray, int xSamplesIndex, int offset, int width);
 
-    void applyFilter(float *,int ) ;
-    void applyFilter(float *,int, int, int);
-
-    string getFilterType()
+    std::string getFilterType() const
     {
         return "samplesFilterType";
     }
-    ~SamplesFilter() ;
 };
 
 class FilterConfig
 {
-private:
-    unique_ptr<SamplesFilter> sampleFilter;
-    string outputFileName;
+    std::unique_ptr<SamplesFilter> sampleFilter;
+    std::string outputFileName;
+
 public :
-    FilterConfig(): sampleFilter()
-    {
-    }
-
-    ~FilterConfig()
-    {
-    }
-
-    void setOutputFileName(string xOutputFileName)
+    void setOutputFileName(const std::string &xOutputFileName)
     {
         outputFileName = xOutputFileName;
     }
 
-    string getOutputFileName()
+    std::string getOutputFileName() const
     {
         return outputFileName;
     }
 
-    void setSamplesFilter(SamplesFilter* xSampleFilter)
+    void setSamplesFilter(SamplesFilter *xSampleFilter)
     {
         sampleFilter.reset(xSampleFilter);
     }
 
-    void applySamplesFilter(float *xInput, int xSampleIndex, int offSet, int width)
+    void applySamplesFilter(float *xInput, int xSampleIndex, int offset, int width)
     {
-	    if(sampleFilter) {
-		    sampleFilter->applyFilter(xInput, xSampleIndex, offSet, width);
-	    }
+        if (sampleFilter)
+        {
+            sampleFilter->applyFilter(xInput, xSampleIndex, offset, width);
+        }
     }
-
 };
 
 /**
-Parses the  filterConfig file which should be a json
-and created the Filters based on the Indexes  given for the Input Layer mInput
-and sampled mSamples
-*/
-FilterConfig* loadFilters(string , string ,
-                                  unordered_map<string, unsigned int>& ,
-                                  unordered_map<string, unsigned int>& );
+ * Parses a filterConfig file, which should be in JSON format
+ *
+ * This filter will be created based on the indexes given for the input layer,
+ * mInput, and samples, mSamples.
+ *
+ * Sample Filters.json:
+ *
+ *    "filters": [
+ *        {"sampleFilters": "watches", "nodeFilters": "primeFilters", "outputFile":"primerecs" }
+ *    ]
+ */
+FilterConfig* loadFilters(const std::string &samplesFilterFileName,
+                          const std::string &outputFileName,
+                          std::unordered_map<std::string, unsigned int> &xMInput,
+                          std::unordered_map<std::string, unsigned int> &xMSamples);
 
-#define FILTERS_H
 #endif
