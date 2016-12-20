@@ -9,6 +9,8 @@
 #include "NNTypes.h"
 #include "NetCDFhelper.h"
 
+#define TEST_DATA_PATH "../../../../tst/test_data/"
+
 enum TestDataType {
     Regression = 1,               // data for regression
     Classification = 2,           // data for classification
@@ -125,8 +127,8 @@ inline bool validateNeuralNetwork(const size_t batch, const std::string& modelPa
     NNNetwork* pNetwork = NULL;
     std::vector<NNDataSetBase*> vDataSet;
     const std::string dataName = string("test.nc");
-    const std::string dataPath = "../tst/wrapper/toy_data/";
-    generateTestData(dataPath, testDataType, dataParameters);
+    const std::string dataPath(TEST_DATA_PATH);
+    generateTestData(dataPath, testDataType, dataParameters, out);
     vDataSet = LoadNetCDF(dataPath + dataName);
     pNetwork = LoadNeuralNetworkJSON(modelPath, batch, vDataSet);
     pNetwork->LoadDataSets(vDataSet);
