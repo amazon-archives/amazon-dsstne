@@ -19,7 +19,7 @@ public:
         const std::string modelPaths[numberTests] = {
                         std::string(TEST_DATA_PATH) + std::string("validate_L2_LRelu_01.json"),
                         std::string(TEST_DATA_PATH) + std::string("validate_L2_LRelu_02.json")};
-        const size_t batches[numberTests] =  {2,  2};
+        const size_t batches[numberTests] =  {2,  4};
 
         for (size_t i = 0; i < numberTests; i++) {
             DataParameters dataParameters;

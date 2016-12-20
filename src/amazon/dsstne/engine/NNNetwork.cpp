@@ -2309,18 +2309,17 @@ void NNNetwork::CalculatePropagationOrder()
     //exit(-1);
 }
 
-
 // Validates network gradients numerically
 bool NNNetwork::Validate()
 {
-    // Assume network is valid
+    // below parameters are used only for numerical gradient validation (non centered formula TODO),
+    // that is why neural network will be tested only in SGD mode
     bool result                 = true;
     const NNFloat delta  = (NNFloat)0.001;
-    // alpha is used for updating weight gradient and later it is normalized: -alpha / (pSrcWeight->_sharingCount * (NNFloat)batch)
-    const NNFloat alpha  = (NNFloat)1.0*_batch;
+    const NNFloat alpha  = (NNFloat)1.0;
     const NNFloat lambda = (NNFloat)0.0; // regularization parameter (no need for bias test)
-    const NNFloat mu     = (NNFloat)0.0;
-    const NNFloat epsilon = delta*20.0;
+    const NNFloat mu     = (NNFloat)0.0; // no momentum
+    const NNFloat epsilon = delta * 10.f;
 
     // Only runs in single-processor mode
     if (getGpu()._numprocs > 1)
@@ -2328,7 +2327,6 @@ bool NNNetwork::Validate()
         cout << "NNNetwork::Validate: Do not call this method from a multi-process run, just don't, mmkay?" << endl;
         return false;
     }
-
 
     // Check if already in validate mode
     if (_mode != Validation)
@@ -2371,34 +2369,18 @@ bool NNNetwork::Validate()
     SetPosition(0);
     ClearUpdates();
     PredictValidationBatch();
-    NNFloat initial_error_training, initial_error_regularization, initial_error;
-    tie(initial_error_training, 
-        initial_error_regularization)                       = CalculateError(lambda);
-    initial_error                                           = initial_error_training + initial_error_regularization;
-    printf("Initial Error: %20.10f %20.10f\n", initial_error_training, initial_error_regularization);
-
-#if 0
-    {
-        PredictValidationBatch();
-        NNFloat new_error_training, new_error_regularization, new_error;
-        tie(new_error_training, 
-        new_error_regularization)                           = CalculateError(lambda);
-        new_error                                           = new_error_training + new_error_regularization;
-
-
-        printf("Initial %f %f %f\n", initial_error, initial_error_training, initial_error_regularization);
-        printf("New     %f %f %f\n", new_error, new_error_training, new_error_regularization);
-        getGpu().Shutdown();
-        exit(-1);
-    }
-#endif
+    NNFloat initialErrorTraining, initialErrorRegularization, initialError;
+    tie(initialErrorTraining, initialErrorRegularization) = CalculateError(lambda);
+    initialError                                          = initialErrorTraining + initialErrorRegularization;
+    cout << "initialErrorTraining " << initialErrorTraining << "; initialErrorRegularization " << initialErrorRegularization << endl;
     
     // Calculate initial gradients
     BackPropagate(alpha);
 
     // Save initial weights bias and weights gradients
     vector< vector<NNFloat>> vWeightGradient;    
-    for (int id =0; id < _vWeight.size(); id++) {
+    for (int id =0; id < _vWeight.size(); id++)
+    {
         NNWeight* w = _vWeight[id];
 
         vWeightGradient.push_back(vector<NNFloat>(w->_vWeight.size()));        
@@ -2408,56 +2390,56 @@ bool NNNetwork::Validate()
     }
 
     // get gradients for bias (bias gradient is not stored, so get it throgh UpdateWeights)
-    // TODO it is better to unify gradient normalization and gradient calculation
     vector< vector<NNFloat>> vBiasGradient;
-    {
-      const float alpha_u = 1*_batch; // because it is normalized later
-      const float lambda_u = 0;
-      // with (lambda = 0) w = w + g
-      // b = b + g*alpha_u/batch
-      UpdateWeights(alpha_u, lambda_u, mu);
-    }
+    UpdateWeights(alpha, lambda, mu);
 
-    for (int id = 0; id < _vWeight.size(); id++) {        
+    for (int id = 0; id < _vWeight.size(); id++)
+    {
         NNWeight* w = _vWeight[id];
         vBiasGradient.push_back(vector<NNFloat>(w->_vBias.size()));
         vector<NNFloat>& bias = vBiasGradient[id];
 
         // Display information about current weight set
-        cout << "Validating weights between layer " << w->_inputLayer._name << " and " << w->_outputLayer._name << ".\n";
+        cout << "Validating weights between layer " << w->_inputLayer._name << " and " << w->_outputLayer._name << endl;
       
         w->_pbWeight->Upload(w->_vWeight.data()); // restore weights
         // get bias gradient (TODO inseatd of this hack it is better to have explicit bias gradient)
         vector<NNFloat> bias_g(w->_pbBias->_length);
         w->_pbBias->Download(bias_g.data());
-        for (int b = 0; b < bias_g.size(); b++) {
+        for (int b = 0; b < bias_g.size(); b++)
+        {
           bias[b] = bias_g[b] - w->_vBias[b];
         }
         w->_pbBias->Upload(w->_vBias.data()); // restore bias
     }
 
     // Now tweak each weight and bias individually to determine change in loss function
-    for (int id = 0; id < _vWeight.size(); id++) {
+    for (int id = 0; id < _vWeight.size(); id++)
+    {
         NNWeight* w = _vWeight[id];
 
         // Display information about current weight set
-        cout << "Validating weights between layer " << w->_inputLayer._name << " and " << w->_outputLayer._name << ".\n";
+        cout << "Validating weights between layer " << w->_inputLayer._name << " and " << w->_outputLayer._name << endl;
       
         cout << "Tweak weights" << endl;
-        for (size_t i = 0; i < w->_vWeight.size(); i++) {
+        for (size_t i = 0; i < w->_vWeight.size(); i++)
+        {
             NNFloat oldWeight                               = w->_vWeight[i];
-            w->_vWeight[i]                                 += delta;
+            // weight gradient is normalized by -1 / (pSrcWeight->_sharingCount * _batch), so delta is normalized the same way
+            w->_vWeight[i]                                 += delta / (_batch * w->_sharingCount);
             w->_pbWeight->Upload(w->_vWeight.data());
             PredictValidationBatch();
             w->_vWeight[i]                                  = oldWeight;
-            NNFloat error_training, error_regularization, error;
-            tie(error_training, error_regularization)       = CalculateError(lambda);
-            error                                           = error_training + error_regularization;
-            printf("error_training = %20.10f, error_regularization = %20.10f\n", error_training, error_regularization);
-            NNFloat dEdW                                    = (error - initial_error) / delta;
+            NNFloat errorTraining, errorRegularization, error;
+            tie(errorTraining, errorRegularization)       = CalculateError(lambda);
+            error                                           = errorTraining + errorRegularization;
+            NNFloat dEdW                                    = (error - initialError) / delta;
             NNFloat weightGradient = vWeightGradient[id][i];
-            if (fabs(dEdW + weightGradient) > epsilon) {
-                cout << error << " " << initial_error << endl;
+            cout << "errorTraining " << errorTraining << "; errorRegularization " << errorRegularization <<
+                            "; dEdW " << dEdW << "; weightGradient " << weightGradient <<  endl;
+            if (fabs(dEdW + weightGradient) > epsilon)
+            {
+                cout << error << " " << initialError << endl;
                 cout << "Failed Weight " << i << " exceeds error threshold: " << dEdW << " vs " << weightGradient << endl;
                 result = false;
             }
@@ -2465,20 +2447,24 @@ bool NNNetwork::Validate()
         w->_pbWeight->Upload(w->_vWeight.data()); // restore original weights
 
         cout << "Tweak biases" << endl;
-        for (size_t i = 0; i < w->_vBias.size(); i++) {
+        for (size_t i = 0; i < w->_vBias.size(); i++)
+        {
             NNFloat oldBias                               = w->_vBias[i];
-            w->_vBias[i]                                 += delta;
+            // bias gradient is normalized by 1 / (_batch), so delta is normalized the same way
+            w->_vBias[i]                                 += delta / (_batch);
             w->_pbBias->Upload(w->_vBias.data());
             PredictValidationBatch();
             w->_vBias[i]                                  = oldBias;
-            NNFloat error_training, error_regularization, error;
-            tie(error_training, error_regularization)       = CalculateError(lambda);
-            error                                           = error_training + error_regularization;
-            printf("error_training = %20.10f, error_regularization = %20.10f\n", error_training, error_regularization);
-            NNFloat dEdb                                    = (error - initial_error) / delta;
+            NNFloat errorTraining, errorRegularization, error;
+            tie(errorTraining, errorRegularization)       = CalculateError(lambda);
+            error                                           = errorTraining + errorRegularization;
+            NNFloat dEdb                                    = (error - initialError) / delta;
             NNFloat biasGradient = vBiasGradient[id][i];
-            if (fabs(dEdb + biasGradient) > epsilon) {
-                cout << error << " " << initial_error << endl;
+            cout << "errorTraining " << errorTraining << "; errorRegularization " << errorRegularization <<
+                            "; dEdb " << dEdb << "; biasGradient " << biasGradient <<  endl;
+            if (fabs(dEdb + biasGradient) > epsilon)
+            {
+                cout << error << " " << initialError << endl;
                 cout << "Failed Bias " << i << " exceeds error threshold: " << dEdb << " vs " << biasGradient << endl;
                 result = false;
             }
