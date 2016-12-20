@@ -10,19 +10,13 @@
 #include "NNTypes.h"
 #include "TestUtils.h"
 
-using namespace std;
-
 //----------------------------------------------------------------------------
 class TestActivationFunctions: public CppUnit::TestFixture {
 public:
     // Interface
     void testActivationFunctions() {
-        // Initialize GPU
-        //getGpu().SetRandomSeed(12345);
-        //getGpu().CopyConstants();
-
         const size_t numberTests = 2;
-        const string modelPaths[numberTests] = {
+        const std::string modelPaths[numberTests] = {
                         std::string(TEST_DATA_PATH) + std::string("validate_L2_LRelu_01.json"),
                         std::string(TEST_DATA_PATH) + std::string("validate_L2_LRelu_02.json")};
         const size_t batches[numberTests] =  {2,  2};
@@ -33,7 +27,7 @@ public:
             dataParameters.inpFeatureDimensionality = 2;
             dataParameters.outFeatureDimensionality = 2;
             bool result = validateNeuralNetwork(batches[i], modelPaths[i], Classification, dataParameters, std::cout);
-            cout << "batches " << batches[i] <<  ", model " << modelPaths[i] << endl;
+            std::cout << "batches " << batches[i] <<  ", model " << modelPaths[i] << std::endl;
             CPPUNIT_ASSERT_MESSAGE("failed on testActivationFunctions", result);
         }
     }
