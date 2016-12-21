@@ -31,7 +31,7 @@ _maxout_k(2),
 _LRN_k(2),
 _LRN_n(5),
 _LRN_alpha((NNFloat)0.0001),
-_LRN_beta((NNFloat)0.75),  
+_LRN_beta((NNFloat)0.75),
 _bSparsenessPenalty(false),
 _sparsenessPenalty_p((NNFloat)0.0),
 _sparsenessPenalty_beta((NNFloat)0.0),
@@ -76,7 +76,7 @@ ostream& operator<< (ostream& out, NNNetworkDescriptor& d)
     out << "SMCE_zeroScale:          " << d._SMCE_zeroScale << endl;
     out << "checkpoint_name:         " << d._checkpoint_name << endl;
     out << "checkpoint_interval:     " << d._checkpoint_interval << endl;
-            
+
     // Dump layers
     out << endl << "Layers:" << endl;
     for (uint32_t i = 0; i < d._vLayerDescriptor.size(); i++)
@@ -136,7 +136,7 @@ tuple<bool> NNNetwork::GetShuffleIndices() const
 tuple<string, int32_t> NNNetwork::GetCheckPoint() const
 {
     return make_tuple(_checkpoint_name, _checkpoint_interval);
-} 
+}
 
 const NNLayer* NNNetwork::GetLayer(const string& layer) const
 {
@@ -147,6 +147,8 @@ const NNLayer* NNNetwork::GetLayer(const string& layer) const
         {
             printf("NNNetwork::GetLayerDimensions: Unknown layer %s.\n", layer.c_str());
         }
+
+        return NULL;
     }
 
     return itr->second;
@@ -159,7 +161,7 @@ NNFloat* NNNetwork::GetScratchBuffer(size_t size)
     {
         _pbScratchBuffer.reset(new GpuBuffer<NNFloat>(size));
         _scratchBufferSize                  = size;
-    
+
     }
     return _pbScratchBuffer->_pDevData;
 }
@@ -204,11 +206,11 @@ bool NNNetwork::SetLRN(uint32_t k, uint32_t n, NNFloat alpha, NNFloat beta)
     _LRN_alpha              = alpha;
     _LRN_beta               = beta;
     _bDirty                 = true;
-    
+
     // Report new settings
     if (getGpu()._id == 0)
-        printf("NNNetwork::SetLRN: k set to %u, n set to %u, alpha set to %f, beta set to %f.\n", k, n, alpha, beta); 
-    
+        printf("NNNetwork::SetLRN: k set to %u, n set to %u, alpha set to %f, beta set to %f.\n", k, n, alpha, beta);
+
     return true;
 }
 
@@ -220,10 +222,10 @@ bool NNNetwork::SetMaxout(uint32_t k)
         _bDirty             = true;
     }
 
-    // Report new settings 
+    // Report new settings
     if (getGpu()._id == 0)
         printf("NNNetwork::SetMaxout: k set to %u\n.", k);
- 
+
     return true;
 }
 
@@ -241,11 +243,11 @@ bool NNNetwork::SetSparsenessPenalty(NNFloat p, NNFloat beta)
     _sparsenessPenalty_beta = beta;
     _bSparsenessPenalty     = (_sparsenessPenalty_beta > (NNFloat)0.0);
     _bDirty                 = true;
-    
+
     // Report new settings
     if (getGpu()._id == 0)
         printf("NNNetwork::SetSparsenessPenalty: p set to %f, beta set to %f.\n", p, beta);
-    
+
     return true;
 }
 
@@ -266,10 +268,10 @@ bool NNNetwork::SetDenoising(NNFloat p)
         _bDirty             = true;
     }
 
-    // Report new settings    
+    // Report new settings
     if (getGpu()._id == 0)
         printf("NNNetwork::SetDenoising: p set to %f.\n", p);
-    
+
     return true;
 }
 
@@ -293,11 +295,11 @@ bool NNNetwork::SetDeltaBoost(NNFloat one, NNFloat zero)
     _deltaBoost_one         = one;
     _deltaBoost_zero        = zero;
     _bDirty                 = true;
-    
+
     // Report new settings
     if (getGpu()._id == 0)
         printf("NNNetwork::SetDeltaBoost: one set to %f, zero set to %f.\n", one, zero);
-     
+
     return true;
 }
 bool NNNetwork::SetSMCE(NNFloat oneTarget, NNFloat zeroTarget, NNFloat oneScale, NNFloat zeroScale)
@@ -334,11 +336,11 @@ bool NNNetwork::SetSMCE(NNFloat oneTarget, NNFloat zeroTarget, NNFloat oneScale,
     _SMCE_oneScale          = oneScale;
     _SMCE_zeroScale         = zeroScale;
     _bDirty                 = true;
- 
-    // Report new settings 
+
+    // Report new settings
     if (getGpu()._id == 0)
         printf("NNNetwork::SetSMCE: oneTarget set to %f, zeroTarget set to %f, oneScale set to %f, zeroScale set to %f.\n", oneTarget, zeroTarget, oneScale, zeroScale);
-        
+
     return true;
 }
 
@@ -347,7 +349,7 @@ bool NNNetwork::SetCheckpoint(string name, int32_t interval)
     _checkpoint_name        = name;
     _checkpoint_interval    = interval;
 
-    // Report new settings     
+    // Report new settings
     if (getGpu()._id == 0) {
         printf("NNNetwork::SetCheckPoint: filename set to %s, interval set to %d epochs.\n", name.c_str(), interval);
     }
@@ -362,7 +364,7 @@ _trainingMode(SGD),
 _batch(batch),
 _localBatch(batch),
 _position(0),
-_localPosition(0),  
+_localPosition(0),
 _bShuffleIndices(d._bShuffleIndices),
 _shuffleIndices(0),
 _pShuffleIndex(NULL),
@@ -376,7 +378,7 @@ _LRN_k(d._LRN_k),
 _LRN_n(d._LRN_n),
 _LRN_alpha(d._LRN_alpha),
 _LRN_beta(d._LRN_beta),
-_maxout_k(d._maxout_k), 
+_maxout_k(d._maxout_k),
 _bSparsenessPenalty(d._bSparsenessPenalty),
 _sparsenessPenalty_beta(d._sparsenessPenalty_beta),
 _sparsenessPenalty_p(d._sparsenessPenalty_p),
@@ -421,8 +423,8 @@ _pbCUDNNWorkspace()
         }
         else if (_vLayer.back()->_kind == NNLayer::Kind::Output)
         {
-             _vOutputLayer.push_back(_vLayer.back());    
-        }   
+             _vOutputLayer.push_back(_vLayer.back());
+        }
     }
 
     if (getGpu()._id == 0)
@@ -434,36 +436,36 @@ _pbCUDNNWorkspace()
     // Add skip layers and pooling connections
     for (auto l : _vLayer)
     {
-        
+
         // Handle skip connections
         for (auto s : l->_vSkip)
         {
             NNLayer* pLayer = _mLayer[s];
-            
+
             // Make sure dimensions match
             if (pLayer->_stride != l->_stride)
             {
                 if (getGpu()._id == 0)
-                    printf("NNNetwork::NNNetwork: Layer dimensions do not match for skip connection between layer %s and %s.\n", 
+                    printf("NNNetwork::NNNetwork: Layer dimensions do not match for skip connection between layer %s and %s.\n",
                             l->_name.c_str(), pLayer->_name.c_str());
                 getGpu().Shutdown();
-                exit(-1);                
+                exit(-1);
             }
-            
+
             l->_vIncomingSkip.push_back(pLayer);
             pLayer->_vOutgoingSkip.push_back(l);
         }
-        
+
         // Add pooling connections
         if (l->_type == NNLayer::Type::Pooling)
         {
             for (auto s: l->_vSource)
             {
-                NNLayer* pLayer = _mLayer[s]; 
+                NNLayer* pLayer = _mLayer[s];
                 l->_vIncomingLayer.push_back(pLayer);
-                pLayer->_vOutgoingLayer.push_back(l);  
-                
-                // BUG Multi-GPU              
+                pLayer->_vOutgoingLayer.push_back(l);
+
+                // BUG Multi-GPU
             }
         }
     }
@@ -488,7 +490,7 @@ _pbCUDNNWorkspace()
         {
             if (getGpu()._numprocs > 1)
             {
-                NNFloat* pDst                   = pWeight->_vWeight.data();            
+                NNFloat* pDst                   = pWeight->_vWeight.data();
                 uint32_t outgoingSize           = pOutputLayer->_stride * 3;
                 uint32_t incomingSize           = pInputLayer->_stride * 2;
 
@@ -507,7 +509,7 @@ _pbCUDNNWorkspace()
                     NNFloat* pSrc               = wd._vWeight.data() + pInputLayer->_minX * pOutputLayer->_stride;
                     memcpy(pDst, pSrc, pInputLayer->_localStride * pOutputLayer->_stride * sizeof(NNFloat));
                 }
-            
+
             }
             else
             {
@@ -515,7 +517,7 @@ _pbCUDNNWorkspace()
             }
             pWeight->_pbWeight->Upload(pWeight->_vWeight.data());
         }
-    
+
         // Copy biases if present (sharded across output layer if multi-GPU)
         if (wd._vBias.size() != 0)
         {
@@ -523,7 +525,7 @@ _pbCUDNNWorkspace()
             {
                 NNFloat* pSrc                   = wd._vBias.data() + pOutputLayer->_minX;
                 NNFloat* pDst                   = pWeight->_vBias.data();
-                memcpy(pDst, pSrc, pOutputLayer->_localStride * sizeof(NNFloat));               
+                memcpy(pDst, pSrc, pOutputLayer->_localStride * sizeof(NNFloat));
             }
             else
             {
@@ -541,16 +543,16 @@ _pbCUDNNWorkspace()
         if (wd._bShared)
         {
             NNWeight* pWeight                   = _vWeight[i];
-            string inputLayer                   = wd._sourceInputLayer;      
+            string inputLayer                   = wd._sourceInputLayer;
             string outputLayer                  = wd._sourceOutputLayer;
             bool bFound                         = false;
             for (int j = 0; j < _vWeight.size(); j++)
             {
-                if (!(_vWeight[j]->_bShared) && 
+                if (!(_vWeight[j]->_bShared) &&
                      (_vWeight[j]->_inputLayer._name == inputLayer) &&
                      (_vWeight[j]->_outputLayer._name == outputLayer))
-                {             
-                    // If transposed, check that this is a 2D weight matrix rather than a 3D tensor 
+                {
+                    // If transposed, check that this is a 2D weight matrix rather than a 3D tensor
                     if (wd._bTransposed)
                     {
                         if (wd._length > 1)
@@ -561,7 +563,7 @@ _pbCUDNNWorkspace()
                             getGpu().Shutdown();
                             exit(-1);
                         }
-                        
+
                         if ((_vWeight[i]->_width != _vWeight[j]->_height) || (_vWeight[i]->_height != _vWeight[j]->_width))
                         {
                             if (getGpu()._id == 0)
@@ -571,7 +573,7 @@ _pbCUDNNWorkspace()
                             exit(-1);
                         }
                     }
-                    else if ((_vWeight[i]->_width != _vWeight[j]->_width) || 
+                    else if ((_vWeight[i]->_width != _vWeight[j]->_width) ||
                              (_vWeight[i]->_height != _vWeight[j]->_height) ||
                              (_vWeight[i]->_length != _vWeight[j]->_length))
                     {
@@ -579,9 +581,9 @@ _pbCUDNNWorkspace()
                                 printf("NNNetwork::NNNetwork: Dimensions for shared weights between layers %s and %s do not match\n",
                                 _vWeight[i]->_inputLayer._name.c_str(), _vWeight[i]->_outputLayer._name.c_str());
                             getGpu().Shutdown();
-                            exit(-1);   
-                    }                                    
-                
+                            exit(-1);
+                    }
+
                     _vWeight[i]->_pSharedWeight = _vWeight[j];
                     if (_vWeight[j]->_sharingCount == 1)
                         _vSharedWeight.push_back(_vWeight[j]);
@@ -590,19 +592,19 @@ _pbCUDNNWorkspace()
                     break;
                 }
             }
-            
+
             // Complain and exit if source for shared weights wasn't located
             if (!bFound)
             {
                 if (getGpu()._id == 0)
-                    printf("NNNetwork::NNNetwork: Unable to locate shared weights for connection between layers %s and %s.\n", 
+                    printf("NNNetwork::NNNetwork: Unable to locate shared weights for connection between layers %s and %s.\n",
                     _vWeight[i]->_inputLayer._name.c_str(), _vWeight[i]->_outputLayer._name.c_str());
                 getGpu().Shutdown();
                 exit(-1);
-            }        
+            }
         }
-    } 
-    
+    }
+
     CalculatePropagationOrder();
 }
 
@@ -628,7 +630,7 @@ void NNNetwork::SetBatch(uint32_t batch)
         for (auto pL: _vLayer)
         {
             pL->SetBatch(batch);
-        }       
+        }
 
         _bDirty                 = true;
         if (getGpu()._id == 0)
@@ -653,9 +655,9 @@ void NNNetwork::SetShuffleIndices(bool bShuffleIndices)
         _bShuffleIndices        = bShuffleIndices;
         _bDirty                 = true;
     }
-    
+
     if (getGpu()._id == 0)
-        printf("NNNetwork::SetShuffleIndices: Index shuffling is now %s\n", (_bShuffleIndices ? "on" : "off"));   
+        printf("NNNetwork::SetShuffleIndices: Index shuffling is now %s\n", (_bShuffleIndices ? "on" : "off"));
 }
 
 uint32_t NNNetwork::GetPosition() const
@@ -708,7 +710,7 @@ bool NNNetwork::LockWeights(const string& inputLayer, const string& outputLayer)
 
     if (getGpu()._id == 0)
         printf("NNNetwork::LockWeights: Unable to find weight matrix between input layer %s and outputlayer %s.\n", inputLayer.c_str(), outputLayer.c_str());
-    return false;    
+    return false;
 }
 
 bool NNNetwork::UnlockWeights(const string& inputLayer, const string& outputLayer)
@@ -741,8 +743,8 @@ bool NNNetwork::UnlockWeights(const string& inputLayer, const string& outputLaye
 
     if (getGpu()._id == 0)
         printf("NNNetwork::UnlockWeights: Unable to find weight matrix between input layer %s and outputlayer %s.\n", inputLayer.c_str(), outputLayer.c_str());
-    return false;    
-} 
+    return false;
+}
 
 void NNNetwork::SetTrainingMode(TrainingMode mode)
 {
@@ -775,11 +777,11 @@ void NNNetwork::RefreshShuffleBuffers()
                 {
                     _pbShuffleIndex.reset();
                 }
-            
-                
+
+
                 _shuffleIndices             = _examples;
-                
-                
+
+
                 if (getGpu()._id == 0)
                 {
                     _pShuffleIndexSort.reset(new GpuSort<uint32_t, uint32_t>(_shuffleIndices));
@@ -820,7 +822,7 @@ void NNNetwork::ShuffleIndices()
         {
             vIndex[i]                       = i;
         }
-         _pShuffleIndexSort->GetValueBuffer()->Upload(vIndex.data());    
+         _pShuffleIndexSort->GetValueBuffer()->Upload(vIndex.data());
 
         // Generate random keys
         curandGenerate(getGpu()._RNG, _pShuffleIndexSort->GetKeyPointer(), _shuffleIndices);
@@ -828,19 +830,19 @@ void NNNetwork::ShuffleIndices()
         // Sort by keys
         _pShuffleIndexSort->Sort();
     }
-    
+
     // Broadcast results to all other processes
     if (getGpu()._numprocs > 1)
     {
         cudaDeviceSynchronize();
         MPI_Barrier(MPI_COMM_WORLD);
-    
+
         // Broadcast from P2P Send buffer
         P2P_Bcast(_pShuffleIndex, _examples * sizeof(uint32_t));
     }
 }
 
-void NNNetwork::RefreshState() 
+void NNNetwork::RefreshState()
 {
     // If any datasets have been loaded, then *all* data sets
     // must be loaded
@@ -894,14 +896,14 @@ void NNNetwork::RefreshState()
         // Allocate index shuffle buffers
         RefreshShuffleBuffers();
     }
-    
+
     // Allocate P2P Data if active (Refresh layer state first as above or this could fail)
     if (getGpu()._numprocs > 1)
     {
         DeallocatePeerBuffers();
         AllocatePeerBuffers();
     }
-    
+
     // Increase size of CUDNN workspace if necessary
     if (_maxCUDNNWorkspaceSize > _CUDNNWorkspaceSize)
     {
@@ -936,7 +938,7 @@ void NNNetwork::ClearDataSets()
 void NNNetwork::LoadDataSets(vector<NNDataSetBase*>& vData)
 {
     // Search for a data set to match each input layer
-    _bAllDataLoaded                             = false;  
+    _bAllDataLoaded                             = false;
     for (auto l: _vInputLayer)
     {
         for (auto d: vData)
@@ -984,7 +986,7 @@ void NNNetwork::LoadDataSets(vector<NNDataSetBase*>& vData)
 
                 // Signal successful location of matching data set
                 l->_pDataSet                    = d;
-                l->_bDirty                      = true;  
+                l->_bDirty                      = true;
                 if (getGpu()._id == 0)
                     printf("NNNetwork::LoadDataSets: Found data set %s for input layer %s\n", d->_name.c_str(), l->_name.c_str());
                 break;
@@ -1040,8 +1042,8 @@ void NNNetwork::LoadDataSets(vector<NNDataSetBase*>& vData)
 
                 // Signal successful location of matching data set
                 l->_pDataSet                    = d;
-                l->_bDirty                      = true; 
-                if (getGpu()._id == 0)       
+                l->_bDirty                      = true;
+                if (getGpu()._id == 0)
                     printf("NNNetwork::LoadDataSets: Found data set %s for output layer %s\n", d->_name.c_str(), l->_name.c_str());
                 break;
             }
@@ -1117,7 +1119,7 @@ void NNNetwork::SaveWeights(const string& fname, const string& inputLayer, const
                 {
                     printf("NNNetwork::SaveWeights: Failed to open output file %s.\n", fname.c_str());
                     bResult         = false;
-                    goto exit;   
+                    goto exit;
                 }
 
                 w->_pbWeight->Download(w->_vWeight.data());
@@ -1149,14 +1151,14 @@ void NNNetwork::SaveWeights(const string& fname, const string& inputLayer, const
         }
 
         printf("NNNetwork::SaveWeights: Unable to find weight matrix between input layer %s and outputlayer %s.\n", inputLayer.c_str(), outputLayer.c_str());
-        bResult                     = false;   
-    }  
+        bResult                     = false;
+    }
 
     // Check for success
 exit:
     MPI_Bcast(&bResult, 1, MPI_C_BOOL, 0, MPI_COMM_WORLD);
     if (!bResult)
-    {    
+    {
         getGpu().Shutdown();
         exit(-1);
     }
@@ -1183,17 +1185,17 @@ void NNNetwork::SaveLayer(const string& fname, const string& layer)
             if (getGpu()._id == 0)
                 printf("NNNetwork::SaveLayer: Failed to open output file %s.\n", fname.c_str());
             bResult         = false;
-            goto exit;   
+            goto exit;
         }
         DumpLayer(fp, layer);
         fclose(fp);
-    }  
+    }
 
     // Check for success
 exit:
     MPI_Bcast(&bResult, 1, MPI_C_BOOL, 0, MPI_COMM_WORLD);
     if (!bResult)
-    {    
+    {
         getGpu().Shutdown();
         exit(-1);
     }
@@ -1240,7 +1242,7 @@ void NNNetwork::DumpLayer(FILE* fp, const string& layer)
 exit:
     MPI_Bcast(&bResult, 1, MPI_C_BOOL, 0, MPI_COMM_WORLD);
     if (!bResult)
-    {    
+    {
         getGpu().Shutdown();
         exit(-1);
     }
@@ -1257,7 +1259,7 @@ void NNNetwork::SaveBatch(string fname)
             if (getGpu()._id == 0)
                 printf("NNNetwork::SaveBatch: Failed to open output file %s.\n", fname.c_str());
             bResult         = false;
-            goto exit;   
+            goto exit;
         }
 
         DumpBatch(fp);
@@ -1268,7 +1270,7 @@ void NNNetwork::SaveBatch(string fname)
 exit:
     MPI_Bcast(&bResult, 1, MPI_C_BOOL, 0, MPI_COMM_WORLD);
     if (!bResult)
-    {    
+    {
         getGpu().Shutdown();
         exit(-1);
     }
@@ -1312,16 +1314,16 @@ void NNNetwork::PredictBatch(uint32_t layers)
             printf("NNNetwork::PredictBatch: Attempt to predict more layers than present in neural network %s\n", _name.c_str());
         return;
     }
-    
+
     // Check if already in prediction mode
     if (_mode != Prediction)
     {
         _mode                                               = Prediction;
         _bDirty                                             = true;
-    }    
+    }
 
     // Refresh state if needed
-    if (_bDirty) 
+    if (_bDirty)
     {
         RefreshState();
 
@@ -1369,7 +1371,7 @@ void NNNetwork::PredictTrainingBatch(uint32_t layers)
     }
 
     // Refresh state if needed
-    if (_bDirty) 
+    if (_bDirty)
     {
         RefreshState();
 
@@ -1392,7 +1394,7 @@ void NNNetwork::PredictTrainingBatch(uint32_t layers)
     uint32_t batch                          = _batch;
     if (_position + batch > _examples)
         batch                               = _examples - _position;
-   
+
     //printf("Predicting at %d, %d examples\n", _position, batch);
 
     // Load batch from current position
@@ -1417,16 +1419,16 @@ void NNNetwork::PredictValidationBatch(uint32_t layers)
             printf("NNNetwork::PredictvalidationBatch: Attempt to predict more layers than present in neural network %s\n", _name.c_str());
         return;
     }
-    
+
     // Check if already in prediction mode
     if (_mode != Validation)
     {
         _mode                                               = Prediction;
         _bDirty                                             = true;
-    }    
+    }
 
     // Refresh state if needed
-    if (_bDirty) 
+    if (_bDirty)
     {
         RefreshState();
 
@@ -1494,7 +1496,7 @@ NNFloat NNNetwork::Train(uint32_t epochs, NNFloat alpha, NNFloat lambda, NNFloat
     {
         for (uint32_t i = 0; i < _vWeight.size(); i++)
             _vWeight[i]->ClearVelocity();
-    } 
+    }
 
     NNFloat total_error_training                            = (NNFloat)0.0;
     NNFloat total_error_regularization                      = (NNFloat)0.0;
@@ -1528,7 +1530,7 @@ NNFloat NNNetwork::Train(uint32_t epochs, NNFloat alpha, NNFloat lambda, NNFloat
         }
 
         for (uint32_t pos = 0; pos < GetExamples(); pos += GetBatch())
-        {      
+        {
             SetPosition(pos);
             ClearUpdates();
             PredictTrainingBatch();
@@ -1538,7 +1540,7 @@ NNFloat NNNetwork::Train(uint32_t epochs, NNFloat alpha, NNFloat lambda, NNFloat
             if (_examples - pos < minibatch)
                 minibatch                                   = _examples - pos;
             total_error_training                           += error_training;
-            total_error_regularization                     += error_regularization * minibatch;                                
+            total_error_regularization                     += error_regularization * minibatch;
             if (getGpu()._id == 0)
                 printf("NNNetwork::Train: Minibatch@%u, average error %f, (%f training, %f regularization), alpha %f\n", pos, error_training / minibatch + error_regularization, error_training / minibatch, error_regularization, alpha);
 
@@ -1551,13 +1553,13 @@ NNFloat NNNetwork::Train(uint32_t epochs, NNFloat alpha, NNFloat lambda, NNFloat
                 if (error_training > 2.0 * moving_average)
                 {
                     brake_steps = 25;
-                    if (getGpu()._id == 0)                    
+                    if (getGpu()._id == 0)
                         printf("NNNetwork::Train: Detected network divergence, attempting recovery.\n");
                 }
             }
             else
                 init_steps--;
-            
+
             // Reduce step size while braking is active
             if (brake_steps > 0)
             {
@@ -1568,7 +1570,7 @@ NNFloat NNNetwork::Train(uint32_t epochs, NNFloat alpha, NNFloat lambda, NNFloat
             // Calculate Gradients then update weights
             if (brake_steps < 24)
             {
-                BackPropagate(alpha);         
+                BackPropagate(alpha);
                 UpdateWeights(step_alpha, lambda, mu);
             }
 
@@ -1596,13 +1598,13 @@ NNFloat NNNetwork::Train(uint32_t epochs, NNFloat alpha, NNFloat lambda, NNFloat
         average_error_training                              = total_error_training / GetExamples();
         average_error_regularization                        = total_error_regularization / GetExamples();
         if (getGpu()._id == 0)
-            printf("NNNetwork::Train: Epoch %d, average error %f, average training error %f, average regularization error %f, elapsed time %fs\n", ++_epochs,           
-                    average_error_training + average_error_regularization, 
-                    average_error_training, average_error_regularization, 
+            printf("NNNetwork::Train: Epoch %d, average error %f, average training error %f, average regularization error %f, elapsed time %fs\n", ++_epochs,
+                    average_error_training + average_error_regularization,
+                    average_error_training, average_error_regularization,
                     elapsed_time(t1, t0));
 
         // Check for checkpoint
-        if (_checkpoint_interval > 0)        
+        if (_checkpoint_interval > 0)
         {
             _checkpoint_epochs++;
             if (_checkpoint_epochs >= _checkpoint_interval)
@@ -1611,12 +1613,12 @@ NNFloat NNNetwork::Train(uint32_t epochs, NNFloat alpha, NNFloat lambda, NNFloat
                 if (getGpu()._id == 0)
                     printf("NNNetwork::Train: saving checkpoint %s\n", filename.c_str());
 
-                SaveNetCDF(filename);                
+                SaveNetCDF(filename);
                 _checkpoint_epochs                          = 0;
             }
         }
     }
-    
+
     return average_error_training + average_error_regularization;
 }
 
@@ -1626,7 +1628,7 @@ void NNNetwork::ClearUpdates()
     {
         w->_updateCount                     = 0;
     }
-    
+
     for (auto l: _vLayer)
         l->ClearUpdates();
 }
@@ -1643,7 +1645,7 @@ tuple<NNFloat, NNFloat> NNNetwork::CalculateError(NNFloat lambda)
 
     // Calculate loss error
     for (auto l: _vOutputLayer)
-    {          
+    {
         error_training                     += l->CalculateError(_position, batch, _errorFunction);
     }
 
@@ -1655,7 +1657,7 @@ tuple<NNFloat, NNFloat> NNNetwork::CalculateError(NNFloat lambda)
             error_regularization           += w->CalculateRegularizationError(lambda);
         }
     }
-    
+
     // Reduce results if running multi-GPU
     if (getGpu()._numprocs > 1)
     {
@@ -1698,7 +1700,7 @@ void NNNetwork::UpdateWeights(NNFloat alpha, float lambda, NNFloat mu)
     // Calculate batch size
     uint32_t batch                          = _batch;
     if (_position + batch > _examples)
-        batch                               = _examples - _position; 
+        batch                               = _examples - _position;
 
     for (int64_t i = _vWeight.size() - 1; i >= 0; i--)
     {
@@ -1727,8 +1729,8 @@ void NNNetwork::CalculateTopK(const string& layer, uint32_t k, GpuBuffer<NNFloat
     else if (k > pLayer->_Nx * pLayer->_Ny * pLayer->_Nz)
     {
         if (getGpu()._id == 0)
-            printf("NNNetwork::CalculateTopK: Layer has fewer elements than k (%u vs %u).\n", k, pLayer->_Nx * pLayer->_Ny * pLayer->_Nz);    
-        return;  
+            printf("NNNetwork::CalculateTopK: Layer has fewer elements than k (%u vs %u).\n", k, pLayer->_Nx * pLayer->_Ny * pLayer->_Nz);
+        return;
     }
 
     // Call kernel and return
@@ -1742,8 +1744,8 @@ void NNNetwork::CalculateTopK(const string& layer, uint32_t k, GpuBuffer<NNFloat
 
 bool NNNetwork::SaveNetCDF(const string& fname)
 {
-    bool bResult                            = true;     
-    
+    bool bResult                            = true;
+
     // Unshard weights and biases to local copy
     vector< vector<NNFloat> > vvWeight;
     vector< vector<NNFloat> > vvBias;
@@ -1757,27 +1759,27 @@ bool NNNetwork::SaveNetCDF(const string& fname)
         if (!w->_bShared)
         {
             w->_pbWeight->Download(w->_vWeight.data());
-           
+
             if (getGpu()._numprocs == 1)
             {
                 vWeight                         = w->_vWeight;
             }
             else
             {
-                uint32_t outgoingSize           = w->_outputLayer._stride * 3;               
+                uint32_t outgoingSize           = w->_outputLayer._stride * 3;
                 uint32_t incomingSize           = w->_inputLayer._stride * 2;
                 if (getGpu()._id == 0)
                 {
                     vWeight.resize(w->_outputLayer._stride * w->_inputLayer._stride);
-                    NNFloat* pWeight            = vWeight.data();                    
+                    NNFloat* pWeight            = vWeight.data();
                     if (outgoingSize > incomingSize)
                     {
                         cudaMemcpy2D(pWeight, w->_outputLayer._stride * sizeof(NNFloat), w->_vWeight.data(), w->_outputLayer._localStride * sizeof(NNFloat), w->_outputLayer._localStride * sizeof(NNFloat), w->_inputLayer._stride, cudaMemcpyDefault);
                         pWeight                += w->_outputLayer._localStride;
                         for (uint32_t i = 1; i < getGpu()._numprocs; i++)
-                        {                        
+                        {
                             uint64_t size;
-                            MPI_Status status;                
+                            MPI_Status status;
                             MPI_Recv(&size, 1, MPI_UINT64_T, i, 0, MPI_COMM_WORLD, &status);
                             vector<NNFloat> vTemp(size);
                             MPI_Recv(vTemp.data(), size, MPI_FLOAT, i, 0, MPI_COMM_WORLD, &status);
@@ -1789,7 +1791,7 @@ bool NNNetwork::SaveNetCDF(const string& fname)
                                 memcpy(pDstWeight, pSrcWeight, lstride * sizeof(NNFloat));
                                 pSrcWeight     += lstride;
                                 pDstWeight     += w->_outputLayer._stride;
-                            }                          
+                            }
                             pWeight            += lstride;
                         }
                     }
@@ -1800,18 +1802,18 @@ bool NNNetwork::SaveNetCDF(const string& fname)
                         for (uint32_t i = 1; i < getGpu()._numprocs; i++)
                         {
                             uint64_t size;
-                            MPI_Status status;                
+                            MPI_Status status;
                             MPI_Recv(&size, 1, MPI_UINT64_T, i, 0, MPI_COMM_WORLD, &status);
                             MPI_Recv(pWeight, size, MPI_FLOAT, i, 0, MPI_COMM_WORLD, &status);
                             pWeight            += size;
-                        }                        
+                        }
                     }
-                }              
+                }
                 else
                 {
                     uint64_t size       = w->_vWeight.size();
                     MPI_Send(&size, 1, MPI_UINT64_T, 0, 0, MPI_COMM_WORLD);
-                    MPI_Send(w->_vWeight.data(), size, MPI_FLOAT, 0, 0, MPI_COMM_WORLD);                  
+                    MPI_Send(w->_vWeight.data(), size, MPI_FLOAT, 0, 0, MPI_COMM_WORLD);
                 }
             }
         }
@@ -1826,10 +1828,10 @@ bool NNNetwork::SaveNetCDF(const string& fname)
             for (size_t i = 1; i < getGpu()._numprocs; i++)
             {
                 uint64_t size;
-                MPI_Status status;                
+                MPI_Status status;
                 MPI_Recv(&size, 1, MPI_UINT64_T, i, 0, MPI_COMM_WORLD, &status);
                 MPI_Recv(vBias.data() + offset, size, MPI_FLOAT, i, 0, MPI_COMM_WORLD, &status);
-                offset             += size;   
+                offset             += size;
             }
         }
         else
@@ -1875,7 +1877,7 @@ bool NNNetwork::SaveNetCDF(const string& fname)
             nc.putAtt("ShuffleIndices", ncUint, (uint32_t)_bShuffleIndices);
             nc.putAtt("checkpoint_name", _checkpoint_name);
             nc.putAtt("checkpoint_interval", ncInt, _checkpoint_interval);
-            nc.putAtt("checkpoint_epochs", ncInt, _checkpoint_epochs);            
+            nc.putAtt("checkpoint_epochs", ncInt, _checkpoint_epochs);
 
             // Write Layers
             nc.putAtt("layers", ncUint, (uint32_t)_vLayer.size());
@@ -1912,7 +1914,7 @@ vector<string> NNNetwork::GetLayers() const
     {
         vResult.push_back(l->_name);
     }
-    
+
     return vResult;
 }
 
@@ -1926,7 +1928,7 @@ const NNFloat* NNNetwork::GetUnitBuffer(const string& layer) const
         {
             printf("NNNetwork::GetUnitBuffer: Unknown layer %s.\n", layer.c_str());
         }
-        
+
         return NULL;
     }
 
@@ -1977,7 +1979,7 @@ const NNWeight* NNNetwork::GetWeight(const string& inputLayer, const string& out
 
         return NULL;
     }
-    
+
     const auto outputLayerItr = _mLayer.find(inputLayer);
     if (outputLayerItr == _mLayer.end())
     {
@@ -2022,7 +2024,7 @@ const NNFloat* NNNetwork::GetWeightBuffer(const string& inputLayer, const string
 
         return NULL;
     }
-    
+
     const auto outputLayerItr = _mLayer.find(inputLayer);
     if (outputLayerItr == _mLayer.end())
     {
@@ -2083,8 +2085,8 @@ uint32_t CalculateConvolutionDimensions(uint32_t width, uint32_t filter, uint32_
 void CalculateConvolutionLayerDimensions(NNNetworkDescriptor& d)
 {
     map <NNLayerDescriptor*, bool> mbDimensionsCalculated;                      // Holds flag indicated whether dimensions are known
-    map <string, NNLayerDescriptor*> mLayer;                                    // Holds flag indicated whether dimensions are known    
-    
+    map <string, NNLayerDescriptor*> mLayer;                                    // Holds flag indicated whether dimensions are known
+
     // Input, Output, and fully connected layers are determined from spec
     for (size_t i = 0; i < d._vLayerDescriptor.size(); i++)
     {
@@ -2097,18 +2099,18 @@ void CalculateConvolutionLayerDimensions(NNNetworkDescriptor& d)
         mLayer[pL->_name]                   = pL;
     }
 
-    
-    
+
+
     // Loop repeatedly until all network layers determined
     bool bFinished;
     do {
         bFinished = true;
-        
+
         for (size_t i = 0; i < d._vLayerDescriptor.size(); i++)
         {
             NNLayerDescriptor* pL               = &(d._vLayerDescriptor[i]);
             bool bPooling                       = pL->_type == NNLayer::Type::Pooling;
-            bool bLRN                           = bPooling && (pL->_poolingFunction == PoolingFunction::LRN); 
+            bool bLRN                           = bPooling && (pL->_poolingFunction == PoolingFunction::LRN);
 
             if (!mbDimensionsCalculated[pL])
             {
@@ -2118,14 +2120,14 @@ void CalculateConvolutionLayerDimensions(NNNetworkDescriptor& d)
                     NNLayerDescriptor* pS = mLayer[s];
                     bAllInputsCalculated  &= mbDimensionsCalculated[pS];
                 }
-                
+
                 // Skip if not all source dimensions are known
                 if (!bAllInputsCalculated)
                 {
                     bFinished               = false;
                     continue;
                 }
-                
+
                 // Check for consistent sizing from all inputs
                 bool bSized = false;
                 uint32_t N                  = pL->_Nx;
@@ -2139,7 +2141,7 @@ void CalculateConvolutionLayerDimensions(NNNetworkDescriptor& d)
                 for (auto s : pL->_vSource)
                 {
                     NNLayerDescriptor* pS = mLayer[s];
-                    //printf("L: %s S: %s %u %u %u %u\n", pL->_name.c_str(), pS->_name.c_str(), pS->_Nx, pS->_Ny, pS->_Nz, pS->_Nw);    
+                    //printf("L: %s S: %s %u %u %u %u\n", pL->_name.c_str(), pS->_name.c_str(), pS->_Nx, pS->_Ny, pS->_Nz, pS->_Nw);
                     if (!bLRN)
                     {
                         nx                      = CalculateConvolutionDimensions(pS->_Nx, pL->_kernelX, pL->_kernelStrideX);
@@ -2157,7 +2159,7 @@ void CalculateConvolutionLayerDimensions(NNNetworkDescriptor& d)
                         nw                      = pS->_Nw;
                         pL->_dimensions         = pS->_dimensions;
                     }
-                    
+
                     // Calculate padding
                     switch (pL->_kernelDimensions)
                     {
@@ -2170,7 +2172,7 @@ void CalculateConvolutionLayerDimensions(NNNetworkDescriptor& d)
                             {
                                 pL->_kernelPaddingZ = pL->_kernelZ / 2;
                             }
-                            
+
                         case 2:
                             if (pS->_Ny < pL->_kernelY)
                             {
@@ -2180,7 +2182,7 @@ void CalculateConvolutionLayerDimensions(NNNetworkDescriptor& d)
                             {
                                 pL->_kernelPaddingY = pL->_kernelY / 2;
                             }
-                            
+
                         case 1:
                             if (pS->_Nx < pL->_kernelX)
                             {
@@ -2190,8 +2192,8 @@ void CalculateConvolutionLayerDimensions(NNNetworkDescriptor& d)
                             {
                                 pL->_kernelPaddingX = pL->_kernelX / 2;
                             }
-                    }                    
-                    
+                    }
+
                     // Check for consistency
                     if (bSized)
                     {
@@ -2221,21 +2223,21 @@ void CalculateConvolutionLayerDimensions(NNNetworkDescriptor& d)
                             pL->_Ny             = N;
                             pL->_dimensions     = 2;
                             break;
-                            
+
                         case 2:
                             pL->_Nz             = N;
                             pL->_dimensions     = 3;
                             break;
-                                             
+
                         case 3:
                             pL->_Nw             = N;
                             pL->_dimensions     = 4;
-                            break;   
+                            break;
                     }
                 }
 
                 //printf("L %s: %d | %d %d %d %d\n", pL->_name.c_str(), pL->_dimensions, pL->_Nx, pL->_Ny, pL->_Nz, pL->_Nw);
-                
+
             }
         }
     }
@@ -2245,35 +2247,35 @@ void CalculateConvolutionLayerDimensions(NNNetworkDescriptor& d)
 
 void NNNetwork::CalculatePropagationOrder()
 {
-    // Comparator for layer priorites    
+    // Comparator for layer priorites
     struct CompareLayer {
         bool operator()(NNLayer* l1 , NNLayer* l2)
         {
            return (l1->_priority < l2->_priority);
         }
     };
-       
+
     // Initialize FP priorities
     for (auto p : _vLayer)
     {
         p->_priority            = (p->_kind == NNLayer::Kind::Input) ? 0 : -1;
     }
-    
-    
+
+
     // Create FP queue
     priority_queue<NNLayer*, vector<NNLayer*>, CompareLayer> pqueue;
     for (auto p : _vInputLayer)
     {
         pqueue.push(p);
     }
-       
-       
+
+
     // Walk forward through network, setting priority of each layer to distance from furthest input
     while (!pqueue.empty())
     {
         NNLayer* pLayer         = pqueue.top();
         pqueue.pop();
-        
+
         int32_t priority       = pLayer->_priority + 1;
         for (auto p : pLayer->_vOutgoingLayer)
         {
@@ -2291,7 +2293,7 @@ void NNNetwork::CalculatePropagationOrder()
             {
                 p->_priority    = priority;
                 pqueue.push(p);
-            }            
+            }
         }
     }
 
@@ -2304,19 +2306,19 @@ void NNNetwork::CalculatePropagationOrder()
     sort(_vFPOrder.begin(), _vFPOrder.end(), CompareLayer());
     //for (auto p : _vFPOrder)
     //    cout << p->_name << endl;
-    
+
     // Initialize BP priorities
     for (auto p : _vLayer)
     {
         p->_priority            = (p->_kind == NNLayer::Kind::Output) ? 0 : -1;
     }
-    
+
     // Create BP queue
     for (auto p : _vOutputLayer)
     {
         pqueue.push(p);
-    }    
-    
+    }
+
     // Walk backwards through network, setting priority of each layer to distance from furthest output
     while (!pqueue.empty())
     {
@@ -2330,8 +2332,8 @@ void NNNetwork::CalculatePropagationOrder()
                 p->_priority    = priority;
                 pqueue.push(p);
             }
-        } 
-        
+        }
+
         // Handle skip layers
         for (auto p : pLayer->_vIncomingSkip)
         {
@@ -2340,16 +2342,16 @@ void NNNetwork::CalculatePropagationOrder()
                 p->_priority    = priority;
                 pqueue.push(p);
             }
-        }       
-    }    
-    
+        }
+    }
+
     // Create backpropagation list
     _vBPOrder.resize(0);
     for (auto p : _vLayer)
     {
         _vBPOrder.push_back(p);
     }
-    
+
     sort(_vBPOrder.begin(), _vBPOrder.end(), CompareLayer());
     //for (auto p : _vBPOrder)
     //    cout << p->_name << endl;
@@ -2429,17 +2431,17 @@ bool NNNetwork::Validate()
     tie(initialErrorTraining, initialErrorRegularization) = CalculateError(lambda);
     initialError                                          = initialErrorTraining + initialErrorRegularization;
     cout << "initialErrorTraining " << initialErrorTraining << "; initialErrorRegularization " << initialErrorRegularization << endl;
-    
+
     // Calculate initial gradients
     BackPropagate(alpha);
 
     // Save initial weights bias and weights gradients
-    vector< vector<NNFloat>> vWeightGradient;    
+    vector< vector<NNFloat>> vWeightGradient;
     for (int id =0; id < _vWeight.size(); id++)
     {
         NNWeight* w = _vWeight[id];
 
-        vWeightGradient.push_back(vector<NNFloat>(w->_vWeight.size()));        
+        vWeightGradient.push_back(vector<NNFloat>(w->_vWeight.size()));
         w->_pbWeight->Download(w->_vWeight.data());
         w->_pbBias->Download(w->_vBias.data());
         w->_pbWeightGradient->Download(vWeightGradient.back().data());
@@ -2457,7 +2459,7 @@ bool NNNetwork::Validate()
 
         // Display information about current weight set
         cout << "Validating weights between layer " << w->_inputLayer._name << " and " << w->_outputLayer._name << endl;
-      
+
         w->_pbWeight->Upload(w->_vWeight.data()); // restore weights
         // get bias gradient (TODO inseatd of this hack it is better to have explicit bias gradient)
         vector<NNFloat> bias_g(w->_pbBias->_length);
@@ -2476,7 +2478,7 @@ bool NNNetwork::Validate()
 
         // Display information about current weight set
         cout << "Validating weights between layer " << w->_inputLayer._name << " and " << w->_outputLayer._name << endl;
-      
+
         cout << "Tweak weights" << endl;
         for (size_t i = 0; i < w->_vWeight.size(); i++)
         {
@@ -2526,8 +2528,8 @@ bool NNNetwork::Validate()
             }
         }
         w->_pbBias->Upload(w->_vBias.data()); // restore original bias
-    }  
-   
+    }
+
     return result;
 }
 
@@ -2538,7 +2540,7 @@ void NNNetwork::DeallocatePeerBuffers()
         // make sure buffers aren't in use
         cudaDeviceSynchronize();
         MPI_Barrier(MPI_COMM_WORLD);
-        
+
         // Release peer data
         for (size_t i = 0; i < 2; i++)
         {
@@ -2549,13 +2551,13 @@ void NNNetwork::DeallocatePeerBuffers()
             }
         }
         MPI_Barrier(MPI_COMM_WORLD);
-        
+
         // Release local data
         for (size_t i = 0; i < 2; i++)
         {
             _pbP2PBuffer[i].reset();
-        }  
-        
+        }
+
         // Release MPI work buffer
         _pCPUBuffer.reset();
     }
@@ -2565,7 +2567,7 @@ void NNNetwork::DeallocatePeerBuffers()
 void NNNetwork::AllocatePeerBuffers()
 {
     if (getGpu()._numprocs > 1)
-    { 
+    {
         // Calculate maximum layer stride
         _maxStride                          = 0;
         for (auto w : _vWeight)
@@ -2578,30 +2580,30 @@ void NNNetwork::AllocatePeerBuffers()
         }
         // Calculate maximum memory
         uint64_t maxMemory                  = _maxStride * _batch;
-        if (maxMemory < _examples) 
+        if (maxMemory < _examples)
         {
             maxMemory                       = _examples;
         }
-        
+
         // Allocate local data
         for (size_t i = 0; i < 2; i++)
         {
             _pbP2PBuffer[i].reset(new GpuBuffer<NNFloat>(maxMemory));
-        } 
-        
+        }
+
         // Gather P2P data
         if (getGpu()._bP2P)
         {
             cudaIpcMemHandle_t* pMemHandle      = new cudaIpcMemHandle_t[2 * getGpu()._numprocs];
             size_t pos                          = getGpu()._id * 2;
-            cudaError_t status                  = cudaIpcGetMemHandle(&(pMemHandle[pos]), _pbP2PBuffer[0]->_pDevData);          
+            cudaError_t status                  = cudaIpcGetMemHandle(&(pMemHandle[pos]), _pbP2PBuffer[0]->_pDevData);
             RTERROR(status, "NNNetwork::AllocatePeerBuffers: Error getting first P2P IPCMemHandle");
             status                              = cudaIpcGetMemHandle(&(pMemHandle[pos + 1]), _pbP2PBuffer[1]->_pDevData);
             RTERROR(status, "NNNetwork::AllocatePeerBuffers: Error getting second P2P IPCMemHandle");
             MPI_Allgather(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL, pMemHandle, 2 * sizeof(cudaIpcMemHandle_t), MPI_BYTE, MPI_COMM_WORLD);
-            unsigned int peer                   = 2 * ((getGpu()._id + getGpu()._numprocs - 1) % getGpu()._numprocs);   
+            unsigned int peer                   = 2 * ((getGpu()._id + getGpu()._numprocs - 1) % getGpu()._numprocs);
             status = cudaIpcOpenMemHandle((void**)&(_pPeerBuffer[0]), pMemHandle[peer], cudaIpcMemLazyEnablePeerAccess);
-            RTERROR(status, "NNNetwork::AllocatePeerBuffers: Unable to open first peer IPCMemHandle");        
+            RTERROR(status, "NNNetwork::AllocatePeerBuffers: Unable to open first peer IPCMemHandle");
             status = cudaIpcOpenMemHandle((void**)&(_pPeerBuffer[1]), pMemHandle[peer + 1], cudaIpcMemLazyEnablePeerAccess);
             RTERROR(status, "NNNetwork::AllocatePeerBuffers: Unable to open second peer IPCMemHandle");
         }
@@ -2636,17 +2638,17 @@ ostream& operator<< (ostream& out, NNNetwork::Kind& k)
 
 uint32_t MPI_Bcast_NNNetworkDescriptor(NNNetworkDescriptor& d)
 {
-   
+
     // Broadcast network name
-    MPI_Bcast_string(d._name);   
+    MPI_Bcast_string(d._name);
 
     // Broadcast network (inefficient, but simple and only done once)
     MPI_Bcast(&d._kind, 1, MPI_UINT32_T, 0, MPI_COMM_WORLD);
     MPI_Bcast(&d._errorFunction, 1, MPI_UINT32_T, 0, MPI_COMM_WORLD);
-    MPI_Bcast(&d._maxout_k, 1, MPI_UINT32_T, 0, MPI_COMM_WORLD);   
-    MPI_Bcast(&d._LRN_k, 1, MPI_FLOAT, 0, MPI_COMM_WORLD);    
-    MPI_Bcast(&d._LRN_n, 1, MPI_UINT32_T, 0, MPI_COMM_WORLD);    
-    MPI_Bcast(&d._LRN_alpha, 1, MPI_FLOAT, 0, MPI_COMM_WORLD);    
+    MPI_Bcast(&d._maxout_k, 1, MPI_UINT32_T, 0, MPI_COMM_WORLD);
+    MPI_Bcast(&d._LRN_k, 1, MPI_FLOAT, 0, MPI_COMM_WORLD);
+    MPI_Bcast(&d._LRN_n, 1, MPI_UINT32_T, 0, MPI_COMM_WORLD);
+    MPI_Bcast(&d._LRN_alpha, 1, MPI_FLOAT, 0, MPI_COMM_WORLD);
     MPI_Bcast(&d._LRN_beta, 1, MPI_FLOAT, 0, MPI_COMM_WORLD);
     MPI_Bcast(&d._bSparsenessPenalty, 1, MPI_C_BOOL, 0, MPI_COMM_WORLD);
     MPI_Bcast(&d._sparsenessPenalty_beta, 1, MPI_FLOAT, 0, MPI_COMM_WORLD);
@@ -2663,7 +2665,7 @@ uint32_t MPI_Bcast_NNNetworkDescriptor(NNNetworkDescriptor& d)
     MPI_Bcast(&d._checkpoint_epochs, 1, MPI_INT32_T, 0, MPI_COMM_WORLD);
     MPI_Bcast_string(d._checkpoint_name);
     MPI_Bcast(&d._bShuffleIndices, 1, MPI_C_BOOL, 0, MPI_COMM_WORLD);
-    
+
 
 
     // Broadcast layers
@@ -2674,17 +2676,17 @@ uint32_t MPI_Bcast_NNNetworkDescriptor(NNNetworkDescriptor& d)
     {
         MPI_Bcast_NNLayerDescriptor(d._vLayerDescriptor[i]);
     }
-    
+
     // Broadcast weights if present
     uint32_t weights                            = d._vWeightDescriptor.size();
     MPI_Bcast(&weights, 1, MPI_UINT32_T, 0, MPI_COMM_WORLD);
     d._vWeightDescriptor.resize(weights);
-    
+
     for (uint32_t i = 0; i < weights; i++)
     {
         MPI_Bcast_NNWeightDescriptor(d._vWeightDescriptor[i]);
     }
-       
+
     return 0;
 }
 
@@ -2702,10 +2704,10 @@ NNNetwork* LoadNeuralNetworkJSON(const string& fname, const uint32_t batch, cons
     {
         std::ifstream stream(fname, std::ifstream::binary);
         bool parsedSuccess                          = reader.parse(stream, index, false);
-    
+
         if (!parsedSuccess)
         {
-            // Report failures and their locations 
+            // Report failures and their locations
             // in the document.
             printf("LoadNeuralNetworkJSON: Failed to parse JSON file: %s, error: %s\n", fname.c_str(), reader.getFormatedErrorMessages().c_str());
             bValid                                  = false;
@@ -2742,7 +2744,7 @@ NNNetwork* LoadNeuralNetworkJSON(const string& fname, const uint32_t batch, cons
                 {
                     nd._name                        = value.asString();
                 }
-                
+
                 // Read kind if present
                 else if (name.compare("kind") == 0)
                 {
@@ -2755,8 +2757,8 @@ NNNetwork* LoadNeuralNetworkJSON(const string& fname, const uint32_t batch, cons
                         printf("LoadNeuralNetworkJSON: Invalid network kind: %s\n", value.asString().c_str());
                         bValid                      = false;
                         goto exit;
-                    }               
-                }                
+                    }
+                }
 
                 // Read weights data if present
                 else if (name.compare("weightsdata") == 0)
@@ -2788,7 +2790,7 @@ NNNetwork* LoadNeuralNetworkJSON(const string& fname, const uint32_t batch, cons
                             printf("LoadNeuralNetworkJSON: Invalid LocalResponseNormalization parameter: %s\n", name.c_str());
                             bValid                      = false;
                             goto exit;
-                        }                               
+                        }
                     }
                 }
 
@@ -2809,7 +2811,7 @@ NNNetwork* LoadNeuralNetworkJSON(const string& fname, const uint32_t batch, cons
                             printf("LoadNeuralNetworkJSON: Invalid MaxOut parameter: %s\n", name.c_str());
                             bValid                      = false;
                             goto exit;
-                        }                               
+                        }
                     }
                 }
 
@@ -2832,7 +2834,7 @@ NNNetwork* LoadNeuralNetworkJSON(const string& fname, const uint32_t batch, cons
                             printf("LoadNeuralNetworkJSON: Invalid SparsenessPenalty parameter: %s\n", name.c_str());
                             bValid                      = false;
                             goto exit;
-                        }                               
+                        }
                     }
                 }
 
@@ -2855,7 +2857,7 @@ NNNetwork* LoadNeuralNetworkJSON(const string& fname, const uint32_t batch, cons
                             printf("LoadNeuralNetworkJSON: Invalid Denoising parameter: %s\n", name.c_str());
                             bValid                      = false;
                             goto exit;
-                        }                           
+                        }
                     }
                 }
 
@@ -2878,9 +2880,9 @@ NNNetwork* LoadNeuralNetworkJSON(const string& fname, const uint32_t batch, cons
                             printf("LoadNeuralNetworkJSON: Invalid DeltaBoost parameter: %s\n", name.c_str());
                             bValid                      = false;
                             goto exit;
-                        }   
+                        }
                     }
-                } 
+                }
 
                 // Read ScaledMarginalCrossEntropy parameters if present
                 else if (name.compare("scaledmarginalcrossentropy") == 0)
@@ -2905,7 +2907,7 @@ NNNetwork* LoadNeuralNetworkJSON(const string& fname, const uint32_t batch, cons
                             printf("LoadNeuralNetworkJSON: Invalid ScaledMarginalCrossentropy parameter: %s\n", name.c_str());
                             bValid                      = false;
                             goto exit;
-                        }                            
+                        }
                     }
                 }
                 // Read DataScaledMarginalCrossEntropy parameters if present
@@ -2933,7 +2935,7 @@ NNNetwork* LoadNeuralNetworkJSON(const string& fname, const uint32_t batch, cons
                 {
                     nd._bShuffleIndices             = value.asBool();
                 }
-    
+
                 // Read error function
                 else if (name.compare("errorfunction") == 0)
                 {
@@ -2954,7 +2956,7 @@ NNNetwork* LoadNeuralNetworkJSON(const string& fname, const uint32_t batch, cons
                         goto exit;
                     }
                 }
-            
+
                 // Read layer(s)
                 else if (name.compare("layers") == 0)
                 {
@@ -2963,19 +2965,19 @@ NNNetwork* LoadNeuralNetworkJSON(const string& fname, const uint32_t batch, cons
                     {
                         vector<NNWeightDescriptor> vSharedWeight;
                         NNLayerDescriptor ldl;
-                        bool bSource                = false;                      
+                        bool bSource                = false;
                         Json::Value layer           = value.isArray() ? value[i] : value;
-                        bool bAutoSize              = false; 
+                        bool bAutoSize              = false;
 
                         // Determine default layer kind and type
                         if (i == 0)
                             ldl._kind               = NNLayer::Kind::Input;
                         else if (i == size - 1)
                             ldl._kind               = NNLayer::Kind::Output;
-                        else 
+                        else
                             ldl._kind               = NNLayer::Kind::Hidden;
                         ldl._type                   = NNLayer::Type::FullyConnected;
- 
+
 
                         // Search for supplied layer kind and type because we need to know this before parsing
                         // the remainder of supplied keys
@@ -3006,7 +3008,7 @@ NNNetwork* LoadNeuralNetworkJSON(const string& fname, const uint32_t batch, cons
                                     goto exit;
                                 }
                             }
-                            
+
                             // Read type if present (default: FullyConnected)
                             else if (lname.compare("type") == 0)
                             {
@@ -3026,7 +3028,7 @@ NNNetwork* LoadNeuralNetworkJSON(const string& fname, const uint32_t batch, cons
                                 }
                             }
                         }
-                        
+
                         // FullyConnected non-pooling Layers have default dimensions, others must be supplied or calculated
                         if ((ldl._type == NNLayer::Type::Pooling) || (ldl._type == NNLayer::Type::Convolutional))
                         {
@@ -3039,7 +3041,7 @@ NNNetwork* LoadNeuralNetworkJSON(const string& fname, const uint32_t batch, cons
                             case NNLayer::Kind::Input:
                                 ldl._name           = "Input" + to_string(nd._vLayerDescriptor.size());
                                 break;
-                
+
                             case NNLayer::Kind::Hidden:
                                 ldl._name           = "Hidden" + to_string(nd._vLayerDescriptor.size());
                                 break;
@@ -3047,12 +3049,12 @@ NNNetwork* LoadNeuralNetworkJSON(const string& fname, const uint32_t batch, cons
                             case NNLayer::Kind::Output:
                                 ldl._name           = "Output" + to_string(nd._vLayerDescriptor.size());
                                 break;
-                                
+
                             case NNLayer::Kind::Target:
                                 ldl._name           = "Target" + to_string(nd._vLayerDescriptor.size());
-                                break;                                  
+                                break;
                         }
-                      
+
                         for (Json::ValueIterator litr = layer.begin(); litr != layer.end() ; litr++)
                         {
                             string lname            = litr.memberName();
@@ -3104,7 +3106,7 @@ NNNetwork* LoadNeuralNetworkJSON(const string& fname, const uint32_t batch, cons
                                             case 1:
                                                 ldl._Nx = lvalue[0].asInt();
                                         }
-                                        
+
                                     }
                                     else
                                     {
@@ -3116,7 +3118,7 @@ NNNetwork* LoadNeuralNetworkJSON(const string& fname, const uint32_t batch, cons
                                 }
                                 else if (lvalue.isString())
                                 {
-                                    string nstring          = lvalue.asString();        
+                                    string nstring          = lvalue.asString();
                                     std::transform(nstring.begin(), nstring.end(), nstring.begin(), ::tolower);
                                     if ((ldl._kind != NNLayer::Kind::Hidden) && (nstring.compare("auto") == 0))
                                         bAutoSize       = true;
@@ -3132,12 +3134,12 @@ NNNetwork* LoadNeuralNetworkJSON(const string& fname, const uint32_t batch, cons
                                     ldl._Nx             = lvalue.asInt();
                                     ldl._dimensions     = 1;
                                 }
-                                continue;            
+                                continue;
                             }
                             else if (lname.compare("pdropout") == 0)
                             {
                                 ldl._pDropout           = lvalue.asFloat();
-                                continue;                            
+                                continue;
                             }
 
 
@@ -3148,9 +3150,9 @@ NNNetwork* LoadNeuralNetworkJSON(const string& fname, const uint32_t batch, cons
                                 if (lname.compare("source") == 0)
                                 {
                                     uint32_t size       = lvalue.isArray() ? lvalue.size() : 1;
-                                    
+
                                     // MaxPooling and LRN layers can only have one source
-#if 0                                    
+#if 0
                                     if ((ldl._type == NNLayer::Type::Pooling) && (size > 1))
                                     {
                                             printf("LoadNeuralNetworkJSON: Pooling layer %s has multiple sources\n", ldl._name.c_str());
@@ -3158,16 +3160,16 @@ NNNetwork* LoadNeuralNetworkJSON(const string& fname, const uint32_t batch, cons
                                             goto exit;
                                     }
 #endif
-                                    
+
                                     for (uint32_t j = 0; j < size; j++)
                                     {
                                         Json::Value src = lvalue.isArray() ? lvalue[j] : lvalue;
                                         ldl._vSource.push_back(src.asString());
                                         bSource         = true;             // Signal existence of at least one source
-                                    } 
+                                    }
                                     continue;
                                 }
-                                
+
                                 else if ((lname.compare("kernel") == 0) || (lname.compare("kernelstride") == 0))
                                 {
                                     uint32_t x                  = 1;
@@ -3214,12 +3216,12 @@ NNNetwork* LoadNeuralNetworkJSON(const string& fname, const uint32_t batch, cons
                                         ldl._kernelStrideY      = y;
                                         ldl._kernelStrideZ      = z;
                                     }
-                                    continue;      
+                                    continue;
                                 }
                             }
-                            
-                            
-                            
+
+
+
 
                             // Hidden layer-specific features
                             if (ldl._kind == NNLayer::Kind::Hidden)
@@ -3245,14 +3247,14 @@ NNNetwork* LoadNeuralNetworkJSON(const string& fname, const uint32_t batch, cons
                                         }
                                     }
                                     continue;
-                                }                                
-                            
+                                }
+
                                 // Pooling layer-specific features
                                 if (ldl._type == NNLayer::Type::Pooling)
                                 {
                                     if (lname.compare("function") == 0)
                                     {
-                                        string s          = lvalue.asString();        
+                                        string s          = lvalue.asString();
                                         std::transform(s.begin(), s.end(), s.begin(), ::tolower);
                                         if (s.compare("max") == 0)
                                             ldl._poolingFunction = PoolingFunction::Max;
@@ -3266,7 +3268,7 @@ NNNetwork* LoadNeuralNetworkJSON(const string& fname, const uint32_t batch, cons
                                         {
                                             printf("LoadNeuralNetworkJSON: Invalid pooling function (%s) for pooling layer %s\n", lvalue.asString().c_str(), ldl._name.c_str());
                                             bValid                  = false;
-                                            goto exit;                                       
+                                            goto exit;
                                         }
                                         continue;
                                     }
@@ -3290,7 +3292,7 @@ NNNetwork* LoadNeuralNetworkJSON(const string& fname, const uint32_t batch, cons
                                     {
                                         Json::Value src = lvalue.isArray() ? lvalue[j] : lvalue;
                                         ldl._vSkip.push_back(src.asString());
-                                    } 
+                                    }
                                     continue;
                                 }
                                 // Read activation if present
@@ -3328,7 +3330,7 @@ NNNetwork* LoadNeuralNetworkJSON(const string& fname, const uint32_t batch, cons
                                     else if (s.compare("relumax") == 0)
                                         ldl._activation = Activation::ReluMax;
                                     else if (s.compare("linearmax") == 0)
-                                        ldl._activation = Activation::LinearMax;                                            
+                                        ldl._activation = Activation::LinearMax;
                                     else
                                     {
                                         printf("LoadNeuralNetworkJSON: Invalid layer activation: %s\n", lvalue.asString().c_str());
@@ -3337,22 +3339,22 @@ NNNetwork* LoadNeuralNetworkJSON(const string& fname, const uint32_t batch, cons
                                     }
                                     continue;
                                 }
-                                
-                                
+
+
                                 // Weight normalization
                                 else if (lname.compare("weightnorm") == 0)
                                 {
                                     ldl._weightNorm             = lvalue.asFloat();
                                     continue;
                                 }
-                                
-                                // Read delta normalization cap if active 
+
+                                // Read delta normalization cap if active
                                 else if (lname.compare("deltanorm") == 0)
                                 {
                                     ldl._deltaNorm              = lvalue.asFloat();
-                                    continue;                            
+                                    continue;
                                 }
-                                
+
                                 // Read weight initialization scheme
                                 else if (lname.compare("weightinit") == 0)
                                 {
@@ -3396,7 +3398,7 @@ NNNetwork* LoadNeuralNetworkJSON(const string& fname, const uint32_t batch, cons
                                             {
                                                ldl._biasInit            = wvalue.asFloat();
                                             }
-                                            else 
+                                            else
                                             {
                                                 printf("LoadNeuralNetworkJSON: Invalid weight initialization field: %s\n", wname.c_str());
                                                 bValid                  = false;
@@ -3406,7 +3408,7 @@ NNNetwork* LoadNeuralNetworkJSON(const string& fname, const uint32_t batch, cons
                                     }
                                     continue;
                                 }
-                                
+
                                 // Read shared weight entry
                                 else if (lname.compare("sharedweights") == 0)
                                 {
@@ -3414,7 +3416,7 @@ NNNetwork* LoadNeuralNetworkJSON(const string& fname, const uint32_t batch, cons
                                     for (uint32_t i = 0; i < size; i++)
                                     {
                                         NNWeightDescriptor nd;
-                                        Json::Value share   = lvalue.isArray() ? lvalue[i] : lvalue;  
+                                        Json::Value share   = lvalue.isArray() ? lvalue[i] : lvalue;
                                         for (Json::ValueIterator sitr = share.begin(); sitr != share.end() ; sitr++)
                                         {
                                             string sname                = sitr.memberName();
@@ -3438,7 +3440,7 @@ NNNetwork* LoadNeuralNetworkJSON(const string& fname, const uint32_t batch, cons
                                             {
                                                 nd._bTransposed         = svalue.asBool();
                                             }
-                                            else 
+                                            else
                                             {
                                                 printf("LoadNeuralNetworkJSON: Invalid shared weight field: %s\n", sname.c_str());
                                                 bValid                  = false;
@@ -3463,7 +3465,7 @@ NNNetwork* LoadNeuralNetworkJSON(const string& fname, const uint32_t batch, cons
                                 }
 
                             }
-                            
+
                             // If we reach here, we didn't recognize the field
                             printf("LoadNeuralNetworkJSON: Unknown neural network layer field: %s\n", lname.c_str());
                             bValid                                      = false;
@@ -3483,7 +3485,7 @@ NNNetwork* LoadNeuralNetworkJSON(const string& fname, const uint32_t batch, cons
                                     ldl._Ny                 = p->_height;
                                     ldl._Nz                 = p->_length;
                                     ldl._dimensions         = p->_dimensions;
-                                    bFound                  = true;   
+                                    bFound                  = true;
                                 }
                             }
                             if (!bFound)
@@ -3503,7 +3505,7 @@ NNNetwork* LoadNeuralNetworkJSON(const string& fname, const uint32_t batch, cons
                         // Add weight descriptors to non-pooling layers
                         if (ldl._type != NNLayer::Type::Pooling)
                         {
-                        
+
                             uint32_t sharedWeightsFound         = 0;
                             for (uint32_t i = 0; i < ldl._vSource.size(); i++)
                             {
@@ -3521,23 +3523,23 @@ NNNetwork* LoadNeuralNetworkJSON(const string& fname, const uint32_t batch, cons
                                         wd._bShared             = true;
                                         wd._bTransposed         = vSharedWeight[j]._bTransposed;
                                         wd._sourceInputLayer    = vSharedWeight[j]._sourceInputLayer;
-                                        wd._sourceOutputLayer   = vSharedWeight[j]._sourceOutputLayer; 
-                                        sharedWeightsFound++;                                
+                                        wd._sourceOutputLayer   = vSharedWeight[j]._sourceOutputLayer;
+                                        sharedWeightsFound++;
                                         break;
                                     }
                                 }
                                 nd._vWeightDescriptor.push_back(wd);
                             }
-                        
+
                             // Guarantee all shared weights were found
                             if (sharedWeightsFound < vSharedWeight.size())
                             {
                                 printf("LoadNeuralNetworkJSON: Unable to locate all shared weights\n");
                                 bValid                          = false;
-                                goto exit;                           
+                                goto exit;
                             }
                         }
-                        
+
                         // Determine if full layer dimensions have been provided or they need to
                         // be calculated from all sources
                         if (ldl._dimensions < ldl._kernelDimensions)
@@ -3547,13 +3549,13 @@ NNNetwork* LoadNeuralNetworkJSON(const string& fname, const uint32_t batch, cons
 
                         nd._vLayerDescriptor.push_back(ldl);
                     }
-                }   
-                             
+                }
+
                 else
                 {
                     printf("LoadNeuralNetworkJSON: Unknown neural network field: %s\n", name.c_str());
                     bValid                      = false;
-                    goto exit;                
+                    goto exit;
                 }
             }
         }
@@ -3575,7 +3577,7 @@ NNNetwork* LoadNeuralNetworkJSON(const string& fname, const uint32_t batch, cons
             }
         }
     }
-    
+
     // Calculate dimensions for unspecified convolution and pooling layers
     CalculateConvolutionLayerDimensions(nd);
 
@@ -3583,21 +3585,21 @@ NNNetwork* LoadNeuralNetworkJSON(const string& fname, const uint32_t batch, cons
 exit:
     MPI_Bcast(&bValid, 1, MPI_C_BOOL, 0, MPI_COMM_WORLD);
     if (!bValid)
-    {    
+    {
         getGpu().Shutdown();
         exit(-1);
     }
-    
+
 
     MPI_Bcast_NNNetworkDescriptor(nd);
-    
+
     // Enumerate network
     if (getGpu()._id == 0)
     {
         cout << "LoadNeuralNetworkJSON: Enumerating network:" << endl;
         cout << nd << endl;
     }
-    
+
     // Now create network;
     pNetwork                                            = new NNNetwork(nd, batch);
     pNetwork->RefreshState();
@@ -3614,16 +3616,16 @@ NNNetwork* LoadNeuralNetworkNetCDF(const string& fname, const uint32_t batch)
     NNFloat version                             = (NNFloat)0.0;
     uint32_t layers                             = 0;
     uint32_t weights                            = 0;
-    
+
     MPI_Bcast_string(nd._name);
-    
+
     // Turn off calculation of convolution layer dimensions in NNNetwork constructor
     nd._bConvLayersCalculated                   = true;
 
     if (getGpu()._id == 0)
     {
         bool bOpened                            = false;
-        try 
+        try
         {
             // Work around stupid unformative exception throwing here with a bool
             NcFile nc(fname, NcFile::read);
@@ -3657,7 +3659,7 @@ NNNetwork* LoadNeuralNetworkNetCDF(const string& fname, const uint32_t batch)
                 throw NcException("NcException", "NNetwork::NNetwork: No error function supplied in NetCDF input file " + fname, __FILE__, __LINE__);
             }
             errorFunctionAtt.getValues(&(nd._errorFunction));
-  
+
 
             NcGroupAtt maxout_kAtt              = nc.getAtt("maxout_k");
             if (maxout_kAtt.isNull())
@@ -3694,7 +3696,7 @@ NNNetwork* LoadNeuralNetworkNetCDF(const string& fname, const uint32_t batch)
             }
             LRN_betaAtt.getValues(&(nd._LRN_beta));
 
-            NcGroupAtt bSparsenessPenaltyAtt    = nc.getAtt("bSparsenessPenalty");      
+            NcGroupAtt bSparsenessPenaltyAtt    = nc.getAtt("bSparsenessPenalty");
             if (bSparsenessPenaltyAtt.isNull())
             {
                 throw NcException("NcException", "NNetwork::NNetwork: No bSparsenessPenalty supplied in NetCDF input file " + fname, __FILE__, __LINE__);
@@ -3703,7 +3705,7 @@ NNNetwork* LoadNeuralNetworkNetCDF(const string& fname, const uint32_t batch)
             bSparsenessPenaltyAtt.getValues(&bSparsenessPenalty);
             nd._bSparsenessPenalty              = (bSparsenessPenalty != 0);
 
-            NcGroupAtt sparsenessPenalty_pAtt   = nc.getAtt("sparsenessPenalty_p");   
+            NcGroupAtt sparsenessPenalty_pAtt   = nc.getAtt("sparsenessPenalty_p");
             if (sparsenessPenalty_pAtt.isNull())
             {
                 throw NcException("NcException", "NNetwork::NNetwork: No sparsenessPenalty_p supplied in NetCDF input file " + fname, __FILE__, __LINE__);
@@ -3732,7 +3734,7 @@ NNNetwork* LoadNeuralNetworkNetCDF(const string& fname, const uint32_t batch)
                 throw NcException("NcException", "NNetwork::NNetwork: No denoising_p supplied in NetCDF input file " + fname, __FILE__, __LINE__);
             }
             denoising_pAtt.getValues(&(nd._denoising_p));
-            
+
 
             // Read DeltaBoost parameters
             NcGroupAtt deltaBoost_oneAtt        = nc.getAtt("deltaBoost_one");
@@ -3777,7 +3779,7 @@ NNNetwork* LoadNeuralNetworkNetCDF(const string& fname, const uint32_t batch)
                 throw NcException("NcException", "NNetwork::NNetwork: No SMCE_zeroTarget supplied in NetCDF input file " + fname, __FILE__, __LINE__);
             }
             SMCE_zeroTargetAtt.getValues(&(nd._SMCE_zeroTarget));
-            
+
             NcGroupAtt checkpoint_nameAtt       = nc.getAtt("checkpoint_name");
             if (checkpoint_nameAtt.isNull())
             {
@@ -3794,8 +3796,8 @@ NNNetwork* LoadNeuralNetworkNetCDF(const string& fname, const uint32_t batch)
                 // Use default value from constructor
             }
             else
-                checkpoint_intervalAtt.getValues(&(nd._checkpoint_interval)); 
-                
+                checkpoint_intervalAtt.getValues(&(nd._checkpoint_interval));
+
             NcGroupAtt checkpoint_epochsAtt     = nc.getAtt("checkpoint_epochs");
             if (checkpoint_epochsAtt.isNull())
             {
@@ -3803,8 +3805,8 @@ NNNetwork* LoadNeuralNetworkNetCDF(const string& fname, const uint32_t batch)
                 // Use default value from constructor
             }
             else
-                checkpoint_epochsAtt.getValues(&(nd._checkpoint_epochs));                                 
-            
+                checkpoint_epochsAtt.getValues(&(nd._checkpoint_epochs));
+
 
             NcGroupAtt shuffleIndicesAtt        = nc.getAtt("ShuffleIndices");
             if (shuffleIndicesAtt.isNull())
@@ -3849,7 +3851,7 @@ NNNetwork* LoadNeuralNetworkNetCDF(const string& fname, const uint32_t batch)
                 if (!LoadNNWeightDescriptorNetCDF(fname, nc, i, wd))
                 {
                     throw NcException("NcException", "NNetwork::NNetwork: Error reading weight data in NetCDF input file " + fname, __FILE__, __LINE__);
-                } 
+                }
                 nd._vWeightDescriptor.push_back(wd);
             }
 
@@ -3869,7 +3871,7 @@ NNNetwork* LoadNeuralNetworkNetCDF(const string& fname, const uint32_t batch)
             }
             bResult                         = false;
         }
-    }   
+    }
 
     // Gather and test on result
     MPI_Bcast(&bResult, 1, MPI_C_BOOL, 0, MPI_COMM_WORLD);
@@ -3881,14 +3883,14 @@ NNNetwork* LoadNeuralNetworkNetCDF(const string& fname, const uint32_t batch)
 
     // Finally build network from descriptor and return
     MPI_Bcast_NNNetworkDescriptor(nd);
-    
+
     // Enumerate network
     if (getGpu()._id == 0)
     {
         cout << "LoadNeuralNetworkJSON: Enumerating network:" << endl;
         cout << nd << endl;
     }
-    
+
     // Create network
     pNetwork                                    = new NNNetwork(nd, batch);
     pNetwork->RefreshState();
@@ -3898,16 +3900,16 @@ NNNetwork* LoadNeuralNetworkNetCDF(const string& fname, const uint32_t batch)
 bool NNNetwork::P2P_Bcast(void* pBuffer, size_t size)
 {
     cudaError_t status;
-    
+
     // Skip if in single GPU mode
     if (getGpu()._numprocs > 1)
-    {                
+    {
         if (getGpu()._bP2P)
         {
             // Special case 2 GPUs as a single copy
             if (getGpu()._numprocs == 2)
             {
-                if (getGpu()._id == 0) 
+                if (getGpu()._id == 0)
                 {
                     status                                  = cudaMemcpy(GetPeerBackBuffer(), pBuffer, size, cudaMemcpyDefault);
                     RTERROR(status, "NNNetwork::P2P_Bcast: Failure to copy source data to P2P backbuffer");
@@ -3922,8 +3924,8 @@ bool NNNetwork::P2P_Bcast(void* pBuffer, size_t size)
                 {
                     status                                  = cudaMemcpy(GetP2PSendBuffer(), pBuffer, size, cudaMemcpyDefault);
                     RTERROR(status, "NNNetwork::P2P_Bcast: Failure to copy source data to P2P backbuffer");
-                }     
-            
+                }
+
                 uint32_t stages                             = 2 * getGpu()._numprocs - 2;
                 uint32_t distance                           = (getGpu()._numprocs - getGpu()._id) % getGpu()._numprocs;
                 uint64_t segment                            = 0;
@@ -3935,13 +3937,13 @@ bool NNNetwork::P2P_Bcast(void* pBuffer, size_t size)
                         size_t start                        = (size * segment) / getGpu()._numprocs;
                         size_t end                          = (size * (segment + 1)) / getGpu()._numprocs;
                         status                              = cudaMemcpy((char*)GetPeerBackBuffer() + start, (char*)GetP2PSendBuffer() + start, end - start, cudaMemcpyDefault);
-                        RTERROR(status, "NNNetwork::P2P_Bcast: Failure to copy source data to P2P backbuffer");                    
+                        RTERROR(status, "NNNetwork::P2P_Bcast: Failure to copy source data to P2P backbuffer");
                         segment++;
                     }
-                    
+
                     // Wait for all copies to complete
                     cudaDeviceSynchronize();
-                    MPI_Barrier(MPI_COMM_WORLD);                
+                    MPI_Barrier(MPI_COMM_WORLD);
                 }
             }
 
@@ -3949,7 +3951,7 @@ bool NNNetwork::P2P_Bcast(void* pBuffer, size_t size)
             if (getGpu()._id > 0)
             {
                 status                                      = cudaMemcpy(pBuffer, GetP2PSendBuffer(), size, cudaMemcpyDefault);
-                RTERROR(status, "NNNetwork::P2P_Bcast: Failure to copy source data from P2P sendbuffer");            
+                RTERROR(status, "NNNetwork::P2P_Bcast: Failure to copy source data from P2P sendbuffer");
             }
         }
         else
@@ -3959,7 +3961,7 @@ bool NNNetwork::P2P_Bcast(void* pBuffer, size_t size)
             cudaMemcpy(pBuffer, _pCPUBuffer.get(), size, cudaMemcpyDefault);
         }
     }
-    
+
     return true;
 }
 
@@ -3971,7 +3973,7 @@ bool NNNetwork::P2P_Allreduce(NNFloat* pBuffer, size_t size)
         if (getGpu()._bP2P)
         {
             // Special case 2 GPUs
-            if (getGpu()._numprocs == 2)   
+            if (getGpu()._numprocs == 2)
             {
                 cudaMemcpy(GetPeerBuffer(), pBuffer, size * sizeof(NNFloat), cudaMemcpyDefault);
                 cudaDeviceSynchronize();
@@ -3983,41 +3985,41 @@ bool NNNetwork::P2P_Allreduce(NNFloat* pBuffer, size_t size)
                 uint32_t stages                         = getGpu()._numprocs - 1;
                 uint64_t segment                        = getGpu()._id;
                 uint64_t start                          = (size * segment) / getGpu()._numprocs;
-                uint64_t end                            = (size * (segment + 1)) / getGpu()._numprocs;     
-            
+                uint64_t end                            = (size * (segment + 1)) / getGpu()._numprocs;
+
                 // Send segments around the adding local contributions from each process
                 for (uint32_t i = 0; i < stages; i++)
                 {
-               
+
                     if (i == 0)
                         cudaMemcpy(GetPeerBuffer(), pBuffer + start, (end - start) * sizeof(NNFloat), cudaMemcpyDefault);
                     else
-                        cudaMemcpy(GetPeerBuffer(), GetP2PSendBuffer(), (end - start) * sizeof(NNFloat), cudaMemcpyDefault); 
-                   
+                        cudaMemcpy(GetPeerBuffer(), GetP2PSendBuffer(), (end - start) * sizeof(NNFloat), cudaMemcpyDefault);
+
                     // Wait for completion
-                    cudaDeviceSynchronize();              
+                    cudaDeviceSynchronize();
                     MPI_Barrier(MPI_COMM_WORLD);
                     SwapPeerBuffers();
                     segment                             = (segment + 1) % getGpu()._numprocs;
                     start                               = (size * segment) / getGpu()._numprocs;
                     end                                 = (size * (segment + 1)) / getGpu()._numprocs;
-                    kAddBuffers(GetP2PSendBuffer(), pBuffer + start, end - start);  
+                    kAddBuffers(GetP2PSendBuffer(), pBuffer + start, end - start);
                 }
-                 
+
                 // Circulate segments a second time and copy out results
                 cudaMemcpy(pBuffer + start, GetP2PSendBuffer(), (end - start) * sizeof(NNFloat), cudaMemcpyDefault);
                 for (uint32_t i = 0; i < stages; i++)
                 {
-                    cudaMemcpy(GetPeerBuffer(), GetP2PSendBuffer(), (end - start) * sizeof(NNFloat), cudaMemcpyDefault);   
-                   
-                    // Wait for completion  
-                    cudaDeviceSynchronize();              
+                    cudaMemcpy(GetPeerBuffer(), GetP2PSendBuffer(), (end - start) * sizeof(NNFloat), cudaMemcpyDefault);
+
+                    // Wait for completion
+                    cudaDeviceSynchronize();
                     MPI_Barrier(MPI_COMM_WORLD);
                     SwapPeerBuffers();
                     segment                             = (segment + 1) % getGpu()._numprocs;
                     start                               = (size * segment) / getGpu()._numprocs;
                     end                                 = (size * (segment + 1)) / getGpu()._numprocs;
-                    cudaMemcpy(pBuffer + start, GetP2PSendBuffer(), (end - start) * sizeof(NNFloat), cudaMemcpyDefault);               
+                    cudaMemcpy(pBuffer + start, GetP2PSendBuffer(), (end - start) * sizeof(NNFloat), cudaMemcpyDefault);
                 }
             }
         }
