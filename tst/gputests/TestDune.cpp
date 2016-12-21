@@ -6,6 +6,7 @@
 
 #include "TestSort.cpp"
 #include "TestActivationFunctions.cpp"
+#include "TestCostFunctions.cpp"
 
 /**
  * In order to write a new test case, create a Test<File>.cpp and write the test
@@ -23,6 +24,7 @@ int main() {
     CppUnit::TextUi::TestRunner runner;
     runner.addTest(TestSort::suite());
     runner.addTest(TestActivationFunctions::suite());
+    runner.addTest(TestCostFunctions::suite());
     const bool result = runner.run();
     getGpu().Shutdown();
     return result ? EXIT_SUCCESS : EXIT_FAILURE;

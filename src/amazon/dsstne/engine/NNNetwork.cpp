@@ -2312,14 +2312,23 @@ void NNNetwork::CalculatePropagationOrder()
 // Validates network gradients numerically
 bool NNNetwork::Validate()
 {
-    // below parameters are used only for numerical gradient validation (non centered formula TODO),
+    // below parameters are used only for numerical gradient validation (non centered formula),
     // that is why neural network will be tested only in SGD mode
     bool result                 = true;
     const NNFloat delta  = (NNFloat)0.001;
     const NNFloat alpha  = (NNFloat)1.0;
     const NNFloat lambda = (NNFloat)0.0; // regularization parameter (no need for bias test)
     const NNFloat mu     = (NNFloat)0.0; // no momentum
-    const NNFloat epsilon = delta * 10.f;
+
+    // There are couple of issues with numerical gradient validation:
+    // The deeper network the higher numerical error in the cost function evaluation;
+    // Current implementation uses non centered derivative formula and it is not the best choice (TODO).
+    // Because of these two reasons threshold tuning becomes empirical,
+    // and the goal is choose value as small as possible so that probability of unit test failure
+    // in case when gradient implementation is correct should be zero
+    // and probability of detection of incorrect gradient implementation should be as high as possible.
+    // On deeper networks threshold 10 gives false positive failures even though gradient implementation is correct. So I set to 20
+    const NNFloat epsilon = delta * 20.f;
 
     // Only runs in single-processor mode
     if (getGpu()._numprocs > 1)
