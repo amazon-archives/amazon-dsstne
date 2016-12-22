@@ -7,6 +7,7 @@
 #include "TestSort.cpp"
 #include "TestActivationFunctions.cpp"
 #include "TestCostFunctions.cpp"
+#include "TestDotProduct.cpp"
 
 /**
  * In order to write a new test case, create a Test<File>.cpp and write the test
@@ -25,6 +26,7 @@ int main() {
     runner.addTest(TestSort::suite());
     runner.addTest(TestActivationFunctions::suite());
     runner.addTest(TestCostFunctions::suite());
+    runner.addTest(TestDotProduct::suite());
     const bool result = runner.run();
     getGpu().Shutdown();
     return result ? EXIT_SUCCESS : EXIT_FAILURE;
