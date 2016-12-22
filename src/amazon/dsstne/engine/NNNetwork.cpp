@@ -140,7 +140,7 @@ tuple<string, int32_t> NNNetwork::GetCheckPoint() const
 
 const NNLayer* NNNetwork::GetLayer(const string& layer) const
 {
-    const map<string, NNLayer*>::const_iterator itr = _mLayer.find(layer);
+    const auto itr = _mLayer.find(layer);
     if (itr == _mLayer.end())
     {
         if (getGpu()._id == 0)
@@ -1980,7 +1980,7 @@ const NNWeight* NNNetwork::GetWeight(const string& inputLayer, const string& out
         return NULL;
     }
 
-    const auto outputLayerItr = _mLayer.find(inputLayer);
+    const auto outputLayerItr = _mLayer.find(outputLayer);
     if (outputLayerItr == _mLayer.end())
     {
         if (getGpu()._id == 0)
@@ -2006,7 +2006,7 @@ const NNWeight* NNNetwork::GetWeight(const string& inputLayer, const string& out
     // Report failure to find weights connecting layers
     if (getGpu()._id == 0)
     {
-        printf("NNNetwork::GetWeight: No set of weights connecting layer %s to layer %s.\n", outputLayer.c_str(), outputLayer.c_str());
+        printf("NNNetwork::GetWeight: No set of weights connecting layer %s to layer %s.\n", inputLayer.c_str(), outputLayer.c_str());
     }
 
     return NULL;
@@ -2025,7 +2025,7 @@ const NNFloat* NNNetwork::GetWeightBuffer(const string& inputLayer, const string
         return NULL;
     }
 
-    const auto outputLayerItr = _mLayer.find(inputLayer);
+    const auto outputLayerItr = _mLayer.find(outputLayer);
     if (outputLayerItr == _mLayer.end())
     {
         if (getGpu()._id == 0)
@@ -2051,7 +2051,7 @@ const NNFloat* NNNetwork::GetWeightBuffer(const string& inputLayer, const string
     // Report failure to find weights connecting layers
     if (getGpu()._id == 0)
     {
-        printf("NNNetwork::GetWeightBuffer: No set of weights connecting layer %s to layer %s.\n", outputLayer.c_str(), outputLayer.c_str());
+        printf("NNNetwork::GetWeightBuffer: No set of weights connecting layer %s to layer %s.\n", inputLayer.c_str(), outputLayer.c_str());
     }
 
     return NULL;
