@@ -98,7 +98,7 @@ int main(int argc, char** argv)
 
         // Determine output layer dimensions for top K calculations
         bool bFilterPast        = true; 
-        NNLayer* pLayer         = pNetwork->GetLayer("Output");
+        const NNLayer* pLayer   = pNetwork->GetLayer("Output");
         uint32_t Nx, Ny, Nz, Nw;
         tie(Nx, Ny, Nz, Nw)     = pLayer->GetLocalDimensions();
         const uint32_t STRIDE   = Nx * Ny * Nz * Nw; 
@@ -182,7 +182,7 @@ int main(int argc, char** argv)
                 batch                       = pNetwork->GetExamples() - pos;
             NNFloat* pTarget                = pbTarget->_pSysData;
             memset(pTarget, 0, STRIDE * batch * sizeof(NNFloat));            
-            NNFloat* pOutputKey             = pNetwork->GetUnitBuffer("Output");
+            const NNFloat* pOutputKey       = pNetwork->GetUnitBuffer("Output");
             NNFloat* pOut                   = pOutputValue;
             cudaError_t status              = cudaMemcpy(pOut, pOutputKey, batch * STRIDE * sizeof(NNFloat), cudaMemcpyDeviceToHost);
             RTERROR(status, "cudaMemcpy GpuBuffer::Download failed");

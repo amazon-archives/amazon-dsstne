@@ -137,35 +137,37 @@ public:
     void DumpLayer(FILE* fp, const string& layer);
     void SaveWeights(const string& fname, const string& inputLayer, const string& outputLayer);
     bool LockWeights(const string& inputLayer, const string& outputLayer);
-    bool UnlockWeights(const string& inputLayer, const string& outputLayer); 
-    uint32_t GetExamples();
+    bool UnlockWeights(const string& inputLayer, const string& outputLayer);    
     void SetBatch(uint32_t batch);
-    unsigned int GetBatch();
     void SetPosition(uint32_t position);
-    uint32_t GetPosition() { return _position; }
     void SetTrainingMode(TrainingMode mode);
     void SetShuffleIndices(bool bShuffleIndices);
     void SetCPUValidate(bool bValidate);
     void SetClearVelocity(bool bClear) { _bClearVelocity = bClear; };
     bool SaveNetCDF(const string& fname);
 
-    // Getters
-    NNFloat* GetUnitBuffer(const string& layer);
-    NNFloat* GetDeltaBuffer(const string& layer);
-    NNFloat* GetWeightBuffer(const string& inputLayer, const string& outputLayer);
-    NNWeight* GetWeight(const string& inputLayer, const string& outputLayer);
-    uint64_t GetBufferSize(const string& layer);
-    NNLayer* GetLayer(const string &layer);
-    vector<string> GetLayers();
-    string GetName();
-    tuple<NNFloat, uint32_t, NNFloat, NNFloat> GetLRN();                                // Returns k, n, alpha, beta
-    tuple<uint32_t> GetMaxout();                                                        // Returns k
-    tuple<NNFloat, NNFloat> GetSparsenessPenalty();                                     // Returns p, beta
-    tuple<NNFloat> GetDenoising();                                                      // Returns p
-    tuple<NNFloat, NNFloat> GetDeltaBoost();                                            // Returns one, zero,
-    tuple<NNFloat, NNFloat, NNFloat, NNFloat> GetSMCE();                                // Returns oneTarget, zeroTarget, oneScale, zeroScale
-    tuple<bool> GetShuffleIndices();                                                    // Returns ShuffleIndices boolean
-    tuple<string, int32_t> GetCheckPoint();                                             // Returns Checkpoint name and interval
+    // Const getters
+    unsigned int GetBatch() const;
+    uint32_t GetExamples() const;
+    uint32_t GetPosition() const;
+    const NNFloat* GetUnitBuffer(const string& layer) const;
+    const NNFloat* GetDeltaBuffer(const string& layer) const;
+    const NNFloat* GetWeightBuffer(const string& inputLayer, const string& outputLayer) const;
+    const NNWeight* GetWeight(const string& inputLayer, const string& outputLayer) const;
+    uint64_t GetBufferSize(const string& layer) const;
+    const NNLayer* GetLayer(const string &layer) const;
+    vector<string> GetLayers() const;
+    string GetName() const;
+    tuple<NNFloat, uint32_t, NNFloat, NNFloat> GetLRN() const;                          // Returns k, n, alpha, beta
+    tuple<uint32_t> GetMaxout() const;                                                  // Returns k
+    tuple<NNFloat, NNFloat> GetSparsenessPenalty() const;                               // Returns p, beta
+    tuple<NNFloat> GetDenoising() const;                                                // Returns p
+    tuple<NNFloat, NNFloat> GetDeltaBoost() const;                                      // Returns one, zero,
+    tuple<NNFloat, NNFloat, NNFloat, NNFloat> GetSMCE() const;                          // Returns oneTarget, zeroTarget, oneScale, zeroScale
+    tuple<bool> GetShuffleIndices() const;                                              // Returns ShuffleIndices boolean
+    tuple<string, int32_t> GetCheckPoint() const;                                       // Returns Checkpoint name and interval
+
+    // Non-const getters
     NNFloat* GetScratchBuffer(size_t size = 0);                                         // Gets current scratch buffer, resizing if too small
     NNFloat* GetP2PSendBuffer();                                                        // Returns current local send buffer
     NNFloat* GetP2PReceiveBuffer();                                                     // Returns current local receive buffer
