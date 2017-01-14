@@ -160,6 +160,8 @@ void kAdaDeltaUpdateBiases(NNFloat mu, uint32_t batch, uint32_t width, NNFloat* 
 // Pooling Functions
 void kCalculateMaxout(NNFloat* pSrc, size_t size, NNFloat* pDst);
 
+// Merge Functions
+void kCalculateDotProduct(NNFloat* pSrcA, NNFloat* pSrcB, size_t srcDepth, NNFloat* pDst, size_t dstSize);
 
 // Pooling deltas
 void kCalculateMaxoutDelta(NNFloat* pSrc, NNFloat* pSrcDelta, size_t size, NNFloat beta, NNFloat* pDst, NNFloat* pDstDelta);

@@ -32,6 +32,27 @@ struct DataParameters {
     float B0;
 };
 
+/**
+ * Test equality of two floating point numbers to a desired level of precision
+ *
+ * Based on implementation from:
+ * http://en.cppreference.com/w/cpp/types/numeric_limits/epsilon
+ */
+template<typename T>
+inline typename std::enable_if<!std::numeric_limits<T>::is_integer, bool>::type almostEqual(T x, T y, int ulp)
+{
+    // the machine epsilon has to be scaled to the magnitude of the values used
+    // and multiplied by the desired precision in ULPs (units in the last place)
+    return std::abs(x-y) < std::numeric_limits<T>::epsilon() * std::abs(x+y) * ulp
+    // unless the result is subnormal
+           || std::abs(x-y) < std::numeric_limits<T>::min();
+}
+
+template<typename T>
+inline T generateRandomNumber(T lower, T upper) {
+    return lower + static_cast<T>(rand()) / (static_cast<T>(RAND_MAX) / (upper-lower));
+}
+
 inline void generateTestData(const std::string& path, const TestDataType testDataType, const DataParameters& dataParameters, std::ostream& out) {
     std::vector<std::vector<unsigned int> > vSampleTestInput, vSampleTestInputTime;
     std::vector<std::vector<float> > vSampleTestInputData;

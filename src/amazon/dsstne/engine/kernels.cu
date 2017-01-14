@@ -2639,6 +2639,33 @@ void kCalculateMaxout(NNFloat* pSrc, size_t size, NNFloat* pDst)
     LAUNCHERROR("kCalculateMaxout_kernel");
 }
 
+__global__ void
+LAUNCH_BOUNDS()
+kCalculateDotProduct_kernel(NNFloat* pSrcA, NNFloat* pSrcB, size_t srcDepth, NNFloat* pDst, size_t dstSize)
+{
+    const uint64_t dstPos = blockIdx.x * blockDim.x + threadIdx.x;
+    if (dstPos < dstSize)
+    {
+        uint32_t srcPos = dstPos * srcDepth;
+        const uint32_t srcEnd = srcPos + srcDepth;
+        NNFloat sum = 0;
+        while (srcPos < srcEnd)
+        {
+            sum += pSrcA[srcPos] * pSrcB[srcPos];
+            srcPos++;
+        }
+
+        pDst[dstPos] = sum;
+    }
+}
+
+void kCalculateDotProduct(NNFloat* pSrcA, NNFloat* pSrcB, size_t srcDepth, NNFloat* pDst, size_t dstSize)
+{
+    uint32_t blocks = CalculateBlocks(dstSize);
+    kCalculateDotProduct_kernel<<<blocks, getGpu()._threadsPerBlock>>>(pSrcA, pSrcB, srcDepth, pDst, dstSize);
+    LAUNCHERROR("kCalculateDotProduct_kernel");
+}
+
 #include "cub/util_allocator.cuh"
 #include "cub/device/device_radix_sort.cuh"
 
