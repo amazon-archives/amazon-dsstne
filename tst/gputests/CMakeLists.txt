@@ -90,12 +90,12 @@ set(UTILS_DIR ../../src/amazon/dsstne/utils)
 include_directories(
     ${ENGINE_DIR}
     ${UTILS_DIR}
-    ${CPPUNIT_INCLUDE_DIR}
+    ${CPPUNIT_INCLUDE_DIRS}
     ${CUDA_INCLUDE_DIRS}
-    ${JSONCPP_INCLUDE_DIR}
+    ${JSONCPP_INCLUDE_DIRS}
     ${MPI_CXX_INCLUDE_PATH}
-    ${NETCDF_INCLUDE_DIR}
-    ${NETCDF_CXX4_INCLUDE_DIR}
+    ${NETCDF_INCLUDE_DIRS}
+    ${NETCDF_CXX4_INCLUDE_DIRS}
 )
 
 set(ENGINE_SOURCES
@@ -117,6 +117,11 @@ set(UTILS_SOURCES
 
 set(TEST_SOURCES
     TestDune.cpp
+)
+
+# Suppress deprecated-declaration warnings produced by JsonCpp headers
+set_source_files_properties(
+    ${ENGINE_DIR}/NNNetwork.cpp PROPERTIES COMPILE_FLAGS "-Wno-deprecated-declarations"
 )
 
 cuda_add_executable(gputests
