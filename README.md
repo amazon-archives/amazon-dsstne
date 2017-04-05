@@ -24,7 +24,7 @@ problems. Custom GPU kernels perform sparse computation on the GPU, without fill
 (https://medium.com/@scottlegrand/first-dsstne-benchmarks-tldr-almost-15x-faster-than-tensorflow-393dbeb80c0f#.ghe74fu1q)
 * Directions on how to run a benchmark can be found in [here](benchmarks/Benchmark.md)
 
-##Scaling up
+## Scaling up
 * [Using Spark in AWS EMR and Dockers in AWS ECS ](http://blogs.aws.amazon.com/bigdata/post/TxGEL8IJ0CAXTK/Generating-Recommendations-at-Amazon-Scale-with-Apache-Spark-and-Amazon-DSSTNE)
     
 
