@@ -67,7 +67,8 @@ _deltaUpdateCount(0),
 _unitUpdateCount(0),
 _batch(batch),
 _localBatch(batch),
-_slope(d._slope)
+_slope(d._slope),
+_bBatchNormalization(d._attributes & NNLayer::Attributes::BatchNormalization)
 {  
     _stride                         = _Nx * _Ny * _Nz * _Nw;
     _parallelization                = Serial;
@@ -87,9 +88,10 @@ _slope(d._slope)
         CUDNNERROR(cudnnStatus, "NNLayer::NNLayer: unable to create _oddBatchTensordescriptor");        
     }
     
-    // Allocate cuDNN pooling descriptor for pooling layers
+
     if (_type == NNLayer::Type::Pooling)
     {
+        // Allocate cuDNN pooling descriptor for pooling layers that need them
         cudnnStatus_t cudnnStatus = cudnnCreatePoolingDescriptor(&_poolingDescriptor);
         CUDNNERROR(cudnnStatus, "NNLayer::NNLayer: unable to create pooling descriptor");
         vector<int> vKernel(3);
@@ -127,12 +129,15 @@ _slope(d._slope)
                                            vKernelPadding.data(),
                                            vKernelStride.data());
                 CUDNNERROR(cudnnStatus, "NNLayer::NNLayer: unable to set average pooling descriptor");
+                break;
                 
             case PoolingFunction::LRN:
                 cudnnStatus         = cudnnCreateLRNDescriptor(&_LRNDescriptor);
                 CUDNNERROR(cudnnStatus, "NNLayer::NNLayer: unable to create LRN descriptor");
                 break;
-        }        
+        }
+        
+        // Special handling for non-cuDNN pooling layers     
     }
 }
 
@@ -167,11 +172,13 @@ NNLayer::~NNLayer()
 void NNLayer::Deallocate()
 {
     if (getGpu()._id == 0)
-        printf("NNLayer::Allocate: Deallocating all data for layer %s\n", _name.c_str());
+        printf("NNLayer::Deallocate: Deallocating all data for layer %s\n", _name.c_str());
 
     _pbUnit.reset();
     _pbDelta.reset();
     _pbDropout.reset();
+    _pbBuffer1.reset();
+    _pbBuffer2.reset();
 }
 
 cudnnTensorDescriptor_t NNLayer::getTensorDescriptor(uint32_t batch)
@@ -219,7 +226,7 @@ cudnnTensorDescriptor_t NNLayer::getTensorDescriptor(uint32_t batch)
                 cudnnStatus         = cudnnSetTensorNdDescriptor(_tensorDescriptor, CUDNN_DATA_FLOAT, _dimensions + 1, vDimensions.data(), vStride.data());
                 break;
         }
-        CUDNNERROR(cudnnStatus, "NNLayer::Allocate: Unable to set oddBatchTensorDescriptor");
+        CUDNNERROR(cudnnStatus, "NNLayer::getTensorDescriptor: Unable to set oddBatchTensorDescriptor");
         _oddBatch = batch;
     }
 
@@ -267,9 +274,22 @@ void NNLayer::Allocate(bool validate)
 {
     Deallocate();
     uint64_t size                   = (uint64_t)_maxLocalStride * (uint64_t)_localBatch; 
+    
+    // Special handlers for specific layer types (should break this out to multiple classes)    
+    if ((_type == NNLayer::Type::Pooling) && (_poolingFunction == PoolingFunction::Cosine))
+    {
+        _vBuffer1.resize(size);
+        _pbBuffer1.reset(new GpuBuffer<NNFloat>(size));
+        if (getGpu()._id == 0)
+            printf("NNLayer::Allocate: Allocating %" PRIu64 " bytes (%u, %u) of auxilliary buffer 1 data for layer %s\n", size * sizeof(NNFloat), _maxLocalStride, _localBatch, _name.c_str());
+        _vBuffer2.resize(size);
+        _pbBuffer2.reset(new GpuBuffer<NNFloat>(size));
+        if (getGpu()._id == 0)
+            printf("NNLayer::Allocate: Allocating %" PRIu64 " bytes (%u, %u) of auxilliary buffer 2 data for layer %s\n", size * sizeof(NNFloat), _maxLocalStride, _localBatch, _name.c_str());
+    }
         
     // Set tensor descriptor if pooling or convolutional layer
-    if ((_type == NNLayer::Type::Pooling) || (_type == NNLayer::Type::Convolutional))
+    else if ((_type == NNLayer::Type::Pooling) || (_type == NNLayer::Type::Convolutional))
     {
         cudnnStatus_t cudnnStatus;
         vector<int> vDimensions(5, 1);
@@ -738,6 +758,8 @@ void NNLayer::ForwardPropagateFullyConnected(uint32_t position, uint32_t batch, 
             {
                 kAddBuffers(_pbUnit->_pDevData, l->_pbUnit->_pDevData, batch * _stride);
             }
+            
+            // Perform batch normalization if active
            
             // Calculate activation
             CalculateActivation(batch);
@@ -752,7 +774,7 @@ void NNLayer::ForwardPropagateFullyConnected(uint32_t position, uint32_t batch, 
 #endif              
         }       
     }
-    else
+    else // Multi-GPU
     {
         if (_kind != Input)
         {              
@@ -868,6 +890,8 @@ void NNLayer::ForwardPropagateFullyConnected(uint32_t position, uint32_t batch, 
                     exit(-1);
                     break; 
             }    
+            
+            // Perform batch normalization if active
                                       
             // Calculate activation
             CalculateActivation(batch);   
@@ -1030,6 +1054,8 @@ void NNLayer::ForwardPropagateConvolutional(uint32_t position, uint32_t batch, b
             {
                 kAddBuffers(_pbUnit->_pDevData, l->_pbUnit->_pDevData, batch * _stride);
             }
+            
+            // Perform batch normalization if active
            
             // Calculate activation
             CalculateActivation(batch);
@@ -1078,7 +1104,30 @@ void NNLayer::ForwardPropagatePooling(uint32_t position, uint32_t batch, bool bT
                                                                           _pbUnit->_pDevData);
                     CUDNNERROR(cudnnStatus, "NNLayer::ForwardPropagatePooling: cudnnLRNCrossChannelForward Failed");                                                                              
                     break;
+
+                case PoolingFunction::Cosine:
+                    if (i >= 1)
+                    {
+                        NNLayer* p0Layer        = _vIncomingLayer[0];
+                        uint32_t offset         = i - 1;
+                        kCalculateCosine(p0Layer->_pbUnit->_pDevData, pLayer->_pbUnit->_pDevData, batch, pLayer->_localStride, 
+                                    _pbUnit->_pDevData + offset, 
+                                    _pbBuffer1->_pDevData + offset, 
+                                    _pbBuffer2->_pDevData + offset, 
+                                    _localStride);
+                    }
+                    break;
                     
+                case PoolingFunction::DotProduct:
+                    if (i >= 1)
+                    {
+                        NNLayer* p0Layer        = _vIncomingLayer[0];
+                        uint32_t offset         = i - 1;
+                        kCalculateDotProduct(p0Layer->_pbUnit->_pDevData, pLayer->_pbUnit->_pDevData, batch, pLayer->_localStride, 
+                                    _pbUnit->_pDevData + offset, 
+                                    _localStride);
+                    }
+                    break;
                     
                 case PoolingFunction::Maxout:
                     // Will special case 4 or fewer sources into one pass, this will be for remainder of >4 sources
@@ -1286,6 +1335,8 @@ void NNLayer::BackPropagateConvolutional(uint32_t position, uint32_t batch, NNFl
             {            
                 kNormalizeDeltas(_deltaNorm, batch, _localStride, _pbDelta->_pDevData);
             }
+            
+            // Calculate batch normalization gradients
         }
 
 
@@ -1410,6 +1461,9 @@ void NNLayer::BackPropagatePooling(uint32_t position, uint32_t batch, NNFloat al
                                                                        pInputLayer->getTensorDescriptor(batch),
                                                                        pInputLayer->_pbDelta->_pDevData);                                                                         
                         CUDNNERROR(cudnnStatus, "NNLayer::BackPropagatePooling: cudnnPoolingBackward Failed");
+
+                        // Increment update count
+                        pInputLayer->_deltaUpdateCount++;                           
                         break;
 
                     case LRN:
@@ -1427,16 +1481,58 @@ void NNLayer::BackPropagatePooling(uint32_t position, uint32_t batch, NNFloat al
                                                                                 pInputLayer->getTensorDescriptor(batch),
                                                                                 pInputLayer->_pbDelta->_pDevData);                      
                         CUDNNERROR(cudnnStatus, "NNLayer::BackPropagatePooling: cudnnLRNCrossChannelBackward Failed");
+
+                        // Increment update count
+                        pInputLayer->_deltaUpdateCount++;   
                         break;
                         
                     case Maxout:
                         kCalculateMaxoutDelta(_pbUnit->_pDevData, _pbDelta->_pDevData, batch * _localStride, beta, pInputLayer->_pbUnit->_pDevData, pInputLayer->_pbDelta->_pDevData);
+                        // Increment update count
+                        pInputLayer->_deltaUpdateCount++;                         
                         break;
 
+                    case Cosine:
+                        if (i != 0)
+                        {
+                            NNLayer* p0Layer    = _vIncomingLayer[0];
+                            NNFloat beta0       = (p0Layer->_deltaUpdateCount == 0) ? (NNFloat)0.0 : (NNFloat)1.0;                                        
+                            uint32_t offset     = i - 1;
+                            NNFloat* pDPIn      = _pbUnit->_pDevData + offset;
+                            NNFloat* pDPDeltaIn = _pbDelta->_pDevData + offset;                            
+                            NNFloat* pAIn       = _pbBuffer1->_pDevData + offset;
+                            NNFloat* pBIn       = _pbBuffer2->_pDevData + offset;
+                            kCalculateCosineDelta(pDPDeltaIn, pDPIn, pAIn, pBIn, 
+                            p0Layer->_pbUnit->_pDevData, pInputLayer->_pbUnit->_pDevData, batch, _localStride, 
+                            p0Layer->_pbDelta->_pDevData, beta0, 
+                            pInputLayer->_pbDelta->_pDevData, beta, 
+                            pInputLayer->_localStride);
+
+                            // Increment update count
+                            p0Layer->_deltaUpdateCount++;
+                            pInputLayer->_deltaUpdateCount++; 
+                        }                            
+                        break;
+                        
+                    case DotProduct:
+                        if (i != 0)
+                        {
+                            NNLayer* p0Layer    = _vIncomingLayer[0];
+                            NNFloat beta0       = (p0Layer->_deltaUpdateCount == 0) ? (NNFloat)0.0 : (NNFloat)1.0;                                                 
+                            uint32_t offset     = i - 1;
+                            NNFloat* pDPDeltaIn = _pbDelta->_pDevData + offset;
+                            kCalculateDotProductDelta(pDPDeltaIn, p0Layer->_pbUnit->_pDevData, pInputLayer->_pbUnit->_pDevData, batch, _localStride, 
+                            p0Layer->_pbDelta->_pDevData, beta0, 
+                            pInputLayer->_pbDelta->_pDevData, beta, 
+                            pInputLayer->_localStride);
+
+                            // Increment update count
+                            p0Layer->_deltaUpdateCount++;
+                            pInputLayer->_deltaUpdateCount++; 
+                        }                            
+                        break;                        
+
                 }
-                
-                // Increment update count
-                pInputLayer->_deltaUpdateCount++; 
             }
         }    
         
@@ -1483,6 +1579,9 @@ void NNLayer::BackPropagateFullyConnected(uint32_t position, uint32_t batch, NNF
             {            
                 kNormalizeDeltas(_deltaNorm, batch, _localStride, _pbDelta->_pDevData);
             }
+            
+            // Calculate batch normalization gradients
+            
         }
 
 #if 0
@@ -1777,6 +1876,8 @@ void NNLayer::BackPropagateFullyConnected(uint32_t position, uint32_t batch, NNF
                 getGpu()._pNetwork->P2P_Allreduce(pMagnitude, batch);
                 kNormalizeDeltaMagnitudes(_deltaNorm, batch, _localStride, _pbDelta->_pDevData, pMagnitude);
             }
+            
+            // Calculate batch normalization gradients if active
         }
 
         // Copy deltas to incoming layers that skip into this layer
@@ -2186,9 +2287,10 @@ std::map<NNLayer::Type, string>(_sTypePair, _sTypePair + sizeof(_sTypePair) / si
 
 std::pair<NNLayer::Attributes, string> NNLayer::_sAttributesPair[] =
 {
-    std::pair<NNLayer::Attributes, string>(NNLayer::Attributes::None,       "None"),
-    std::pair<NNLayer::Attributes, string>(NNLayer::Attributes::Sparse,     "Sparse"),
-    std::pair<NNLayer::Attributes, string>(NNLayer::Attributes::Denoising,  "Denoising"),
+    std::pair<NNLayer::Attributes, string>(NNLayer::Attributes::None,               "None"),
+    std::pair<NNLayer::Attributes, string>(NNLayer::Attributes::Sparse,             "Sparse"),
+    std::pair<NNLayer::Attributes, string>(NNLayer::Attributes::Denoising,          "Denoising"),
+    std::pair<NNLayer::Attributes, string>(NNLayer::Attributes::BatchNormalization, "BatchNormalization"),
 };
 
 std::map<NNLayer::Attributes, string> NNLayer::_sAttributesMap =
@@ -2480,14 +2582,14 @@ bool LoadNNLayerDescriptorNetCDF(const string& fname, netCDF::NcFile& nc, uint32
             activationAtt.getValues(&ld._activation);
 
 
-            NcGroupAtt pSlopeAtt   = nc.getAtt(lstring + "slope");
-            if (pSlopeAtt.isNull())
+            NcGroupAtt slopeAtt   = nc.getAtt(lstring + "slope");
+            if (slopeAtt.isNull())
             {
                 ld._slope = (NNFloat)0.0;
             }
             else
             {
-                pSlopeAtt.getValues(&(ld._slope));
+                slopeAtt.getValues(&(ld._slope));
             }
             
             // Added in version 0.81, supply default values here if not present, eventually throw exception            
@@ -2610,6 +2712,7 @@ ostream& operator<< (ostream& out, NNLayerDescriptor& d)
         out << "activation:            " << d._activation << endl;
         out << "Sparse:                " << ((d._attributes & NNLayer::Attributes::Sparse) != 0) << endl;
         out << "slope:                 " << d._slope << endl;
+        out << "batchNormalization:    " << ((d._attributes & NNLayer::Attributes::BatchNormalization) != 0) << endl;
         if (d._type == NNLayer::Type::FullyConnected)
         {
             if (d._sparsenessPenalty_p > (NNFloat)0.0)
@@ -2720,6 +2823,8 @@ bool NNLayer::WriteNetCDF(NcFile& nc, uint32_t index)
             attributes                 |= NNLayer::Attributes::Sparse;
         if (_bDenoising)
             attributes                 |= NNLayer::Attributes::Denoising;
+        if (_bBatchNormalization)
+            attributes                 |= NNLayer::Attributes::BatchNormalization;
         nc.putAtt(lstring + "attributes", ncUint, attributes);
         nc.putAtt(lstring + "sources", ncUint, (uint32_t)_vSource.size());
         for (size_t i = 0; i < _vSource.size(); i++)

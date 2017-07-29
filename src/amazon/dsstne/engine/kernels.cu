@@ -1385,14 +1385,14 @@ void kUpdateBiases(NNFloat alpha, uint32_t batch, uint32_t width, NNFloat* pDelt
 
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateRegularizationError_kernel(NNFloat* pWeight, uint64_t size)
+kCalculateRegularizationError_kernel(NNFloat* pWeight, uint64_t size, NNFloat lambda, NNFloat lambda1)
 {
     uint64_t pos                = (blockIdx.x * blockDim.x) + threadIdx.x;
     NNFloat error               = (NNFloat)0.0;
     if (pos < size)
     {
         NNFloat w               = pWeight[pos];
-        error                   = w * w;   
+        error                   = lambda * w * w + lambda1 * abs(w);   
     }
 
     // Reduce error across threads
@@ -1409,15 +1409,14 @@ kCalculateRegularizationError_kernel(NNFloat* pWeight, uint64_t size)
 }
 
 // Calculates raw weight decay/regularization error
-NNFloat kCalculateRegularizationError(NNFloat lambda, NNFloat* pWeight, uint64_t size)
+NNFloat kCalculateRegularizationError(NNFloat lambda, NNFloat lambda1, NNFloat* pWeight, uint64_t size)
 {
     uint32_t blocks         = CalculateBlocks(size);
     cudaMemset(getGpu()._data._pAccumulator, 0, sizeof(uint64_t));
-    kCalculateRegularizationError_kernel<<<blocks, getGpu()._threadsPerBlock>>>(pWeight, size);
+    kCalculateRegularizationError_kernel<<<blocks, getGpu()._threadsPerBlock>>>(pWeight, size, (NNFloat)0.5 * lambda, lambda1);
     LAUNCHERROR("kCalculateRegularizationError_kernel");
     getGpu()._pbAccumulator->Download(); 
-    //printf("Reg %llu %f\n", size, lambda * 0.5f * (double)(getGpu()._pbAccumulator->_pSysData[0]) * ONEOVERERRORSCALE);
-    return (NNFloat)(lambda * 0.5f * (double)(getGpu()._pbAccumulator->_pSysData[0]) * ONEOVERERRORSCALE);
+    return (NNFloat)((double)(getGpu()._pbAccumulator->_pSysData[0]) * ONEOVERERRORSCALE);    
 }
 
 // Instantiates allowable templated functions so we can hide the implementations here
@@ -1511,21 +1510,21 @@ void KernelsTempFunction()
 
 __global__ void
 LAUNCH_BOUNDS()
-kSGDUpdateWeights_kernel(NNFloat alpha, NNFloat lambda, uint64_t size, NNFloat* pWeightGradient, NNFloat* pWeight)
+kSGDUpdateWeights_kernel(NNFloat alpha, NNFloat lambda, NNFloat lambda1, uint64_t size, NNFloat* pWeightGradient, NNFloat* pWeight)
 {
     uint64_t pos                = blockIdx.x * blockDim.x + threadIdx.x;
     if (pos < size)
     {
         NNFloat g               = pWeightGradient[pos];
         NNFloat w               = pWeight[pos];
-        pWeight[pos]            = w + alpha * g - alpha * lambda * w;
+        pWeight[pos]            = w + alpha * (g - lambda * w - lambda1 * sgn(w));
     }
 }
 
-void kSGDUpdateWeights(NNFloat alpha, NNFloat lambda, uint64_t size, NNFloat* pWeightGradient, NNFloat* pWeight)
+void kSGDUpdateWeights(NNFloat alpha, NNFloat lambda, NNFloat lambda1, uint64_t size, NNFloat* pWeightGradient, NNFloat* pWeight)
 {
     uint32_t blocks             = CalculateBlocks(size);
-    kSGDUpdateWeights_kernel<<<blocks, getGpu()._threadsPerBlock>>>(alpha, lambda, size, pWeightGradient, pWeight);
+    kSGDUpdateWeights_kernel<<<blocks, getGpu()._threadsPerBlock>>>(alpha, lambda, lambda1, size, pWeightGradient, pWeight);
     LAUNCHERROR("kSGDUpdateWeights_kernel");
 }
 
@@ -1563,7 +1562,7 @@ void kSGDUpdateBiases(NNFloat alpha, uint32_t batch, uint32_t width, NNFloat* pD
 
 __global__ void
 LAUNCH_BOUNDS()
-kMomentumUpdateWeights_kernel(NNFloat alpha, NNFloat lambda, NNFloat mu, uint64_t size, NNFloat* pWeightVelocity, NNFloat* pWeightGradient, NNFloat* pWeight)
+kMomentumUpdateWeights_kernel(NNFloat alpha, NNFloat lambda, NNFloat lambda1, NNFloat mu, uint64_t size, NNFloat* pWeightVelocity, NNFloat* pWeightGradient, NNFloat* pWeight)
 {
     uint64_t pos                = blockIdx.x * blockDim.x + threadIdx.x;
     if (pos < size)
@@ -1571,16 +1570,16 @@ kMomentumUpdateWeights_kernel(NNFloat alpha, NNFloat lambda, NNFloat mu, uint64_
         NNFloat g               = pWeightGradient[pos];
         NNFloat w               = pWeight[pos];
         NNFloat v               = pWeightVelocity[pos];
-        v                       = mu * v + alpha * g - alpha * lambda * w;
+        v                       = mu * v + alpha * (g - lambda * w - lambda1 * sgn(w));
         pWeightVelocity[pos]    = v;
         pWeight[pos]            = w + v;
     }
 }
 
-void kMomentumUpdateWeights(NNFloat alpha, NNFloat lambda, NNFloat mu, uint64_t size, NNFloat* pWeightVelocity, NNFloat* pWeightGradient, NNFloat* pWeight)
+void kMomentumUpdateWeights(NNFloat alpha, NNFloat lambda, NNFloat lambda1, NNFloat mu, uint64_t size, NNFloat* pWeightVelocity, NNFloat* pWeightGradient, NNFloat* pWeight)
 {
     uint32_t blocks             = CalculateBlocks(size);
-    kMomentumUpdateWeights_kernel<<<blocks, getGpu()._threadsPerBlock>>>(alpha, lambda, mu, size, pWeightVelocity, pWeightGradient, pWeight);
+    kMomentumUpdateWeights_kernel<<<blocks, getGpu()._threadsPerBlock>>>(alpha, lambda, lambda1, mu, size, pWeightVelocity, pWeightGradient, pWeight);
     LAUNCHERROR("kMomentumUpdateWeights_kernel");
 }
 
@@ -1619,7 +1618,7 @@ void kMomentumUpdateBiases(NNFloat alpha, NNFloat mu, uint32_t batch, uint32_t w
 
 __global__ void
 LAUNCH_BOUNDS()
-kAdaGradUpdateWeights_kernel(NNFloat alpha, NNFloat lambda, uint64_t size, NNFloat* pWeightVelocity, NNFloat* pWeightGradient, NNFloat* pWeight)
+kAdaGradUpdateWeights_kernel(NNFloat alpha, NNFloat lambda, NNFloat lambda1, uint64_t size, NNFloat* pWeightVelocity, NNFloat* pWeightGradient, NNFloat* pWeight)
 {
     uint64_t pos                = blockIdx.x * blockDim.x + threadIdx.x;
     if (pos < size)
@@ -1627,17 +1626,17 @@ kAdaGradUpdateWeights_kernel(NNFloat alpha, NNFloat lambda, uint64_t size, NNFlo
         NNFloat g               = pWeightGradient[pos];
         NNFloat w               = pWeight[pos];
         NNFloat v               = pWeightVelocity[pos];
-        g                      -= lambda * w;
+        g                      -= lambda * w + lambda1 * sgn(w);
         v                      += g * g;
         pWeightVelocity[pos]    = v;
         pWeight[pos]            = w + alpha * g * rsqrt(max(0.000000001f, v));
     }
 }
 
-void kAdaGradUpdateWeights(NNFloat alpha, NNFloat lambda, uint64_t size, NNFloat* pWeightVelocity, NNFloat* pWeightGradient, NNFloat* pWeight)
+void kAdaGradUpdateWeights(NNFloat alpha, NNFloat lambda, NNFloat lambda1, uint64_t size, NNFloat* pWeightVelocity, NNFloat* pWeightGradient, NNFloat* pWeight)
 {
     unsigned long blocks        = CalculateBlocks(size);
-    kAdaGradUpdateWeights_kernel<<<blocks, getGpu()._threadsPerBlock>>>(alpha, lambda, size, pWeightVelocity, pWeightGradient, pWeight);
+    kAdaGradUpdateWeights_kernel<<<blocks, getGpu()._threadsPerBlock>>>(alpha, lambda, lambda1, size, pWeightVelocity, pWeightGradient, pWeight);
     LAUNCHERROR("kAdaGradUpdateWeights_kernel");
 }
 
@@ -1676,7 +1675,7 @@ void kAdaGradUpdateBiases(NNFloat alpha, uint32_t batch, uint32_t width, NNFloat
 
 __global__ void
 LAUNCH_BOUNDS()
-kAdaDeltaUpdateWeights_kernel(NNFloat lambda, NNFloat mu, uint64_t size, NNFloat* pWeightVelocity, NNFloat* pWeightGradient, NNFloat* pWeightGradientVelocity, NNFloat* pWeight)
+kAdaDeltaUpdateWeights_kernel(NNFloat lambda, NNFloat lambda1, NNFloat mu, uint64_t size, NNFloat* pWeightVelocity, NNFloat* pWeightGradient, NNFloat* pWeightGradientVelocity, NNFloat* pWeight)
 {
     uint64_t pos                = blockIdx.x * blockDim.x + threadIdx.x;
     if (pos < size)
@@ -1685,7 +1684,7 @@ kAdaDeltaUpdateWeights_kernel(NNFloat lambda, NNFloat mu, uint64_t size, NNFloat
         NNFloat w                       = pWeight[pos];
         NNFloat v                       = pWeightVelocity[pos];
         NNFloat vg                      = pWeightGradientVelocity[pos];
-        g                              -= lambda * w;
+        g                              -= lambda * w + lambda1 * sgn(w);
         vg                              = mu * vg + ((NNFloat)1.0 - mu) * g * g;
         NNFloat dw                      = sqrt(max((NNFloat)0.000000001, v) / max((NNFloat)0.000000001, vg)) * g;
         v                               = mu * v + ((NNFloat)1.0 - mu) * dw * dw;
@@ -1695,10 +1694,10 @@ kAdaDeltaUpdateWeights_kernel(NNFloat lambda, NNFloat mu, uint64_t size, NNFloat
     }
 }
 
-void kAdaDeltaUpdateWeights(NNFloat lambda, NNFloat mu, uint64_t size, NNFloat* pWeightVelocity, NNFloat* pWeightGradient, NNFloat* pWeightGradientVelocity, NNFloat* pWeight)
+void kAdaDeltaUpdateWeights(NNFloat lambda, NNFloat lambda1, NNFloat mu, uint64_t size, NNFloat* pWeightVelocity, NNFloat* pWeightGradient, NNFloat* pWeightGradientVelocity, NNFloat* pWeight)
 {
     unsigned long blocks        = CalculateBlocks(size);
-    kAdaDeltaUpdateWeights_kernel<<<blocks, getGpu()._threadsPerBlock>>>(mu, lambda, size, pWeightVelocity, pWeightGradient, pWeightGradientVelocity, pWeight);
+    kAdaDeltaUpdateWeights_kernel<<<blocks, getGpu()._threadsPerBlock>>>(lambda, lambda1, mu, size, pWeightVelocity, pWeightGradient, pWeightGradientVelocity, pWeight);
     LAUNCHERROR("kAdaDeltaUpdateWeights_kernel");
 }
 
@@ -1741,7 +1740,76 @@ void kAdaDeltaUpdateBiases(NNFloat mu, uint32_t batch, uint32_t width, NNFloat* 
 
 __global__ void
 LAUNCH_BOUNDS()
-kNesterovUpdateWeights_kernel(NNFloat alpha, NNFloat lambda, NNFloat mu, uint64_t size, NNFloat* pWeightVelocity, NNFloat* pWeightGradient, NNFloat* pWeight)
+kAdamUpdateWeights_kernel(NNFloat alpha, NNFloat lambda, NNFloat lambda1, NNFloat mu, NNFloat mu1, uint64_t size, NNFloat* pWeightVelocity, NNFloat* pWeightGradient, NNFloat* pWeightGradientVelocity, NNFloat* pWeight)
+{
+    uint64_t pos                = blockIdx.x * blockDim.x + threadIdx.x;
+    if (pos < size)
+    {
+        NNFloat g                       = pWeightGradient[pos];
+        NNFloat w                       = pWeight[pos];
+        NNFloat v                       = pWeightVelocity[pos];
+        NNFloat m                       = pWeightGradientVelocity[pos];
+        g                              -= lambda * w + lambda1 * sgn(w);
+		m								= mu * m + ((NNFloat)1.0 - mu) * g;
+		v								= mu1 * v + ((NNFloat)1.0 - mu1) * g * g;
+		m				               /= (NNFloat)1.0 - mu;
+		v							   /= (NNFloat)1.0 - mu1;        
+        NNFloat dw                      = alpha * m / (sqrt(v) + (NNFloat)1.0e-8);
+        pWeightVelocity[pos]            = v;
+        pWeightGradientVelocity[pos]    = m;
+        pWeight[pos]                    = w + dw;
+    }
+}
+
+void kAdamUpdateWeights(NNFloat alpha, NNFloat lambda, NNFloat lambda1, NNFloat mu, NNFloat mu1, uint64_t size, NNFloat* pWeightVelocity, NNFloat* pWeightGradient, NNFloat* pWeightGradientVelocity, NNFloat* pWeight)
+{
+    unsigned long blocks        = CalculateBlocks(size);
+    kAdamUpdateWeights_kernel<<<blocks, getGpu()._threadsPerBlock>>>(alpha, lambda, lambda1, mu, mu1, size, pWeightVelocity, pWeightGradient, pWeightGradientVelocity, pWeight);
+    LAUNCHERROR("kAdamUpdateWeights_kernel");
+}
+
+__global__ void
+LAUNCH_BOUNDS()
+kAdamUpdateBiases_kernel(NNFloat alpha, NNFloat mu, NNFloat mu1, uint32_t batch, uint32_t width, NNFloat* pDelta, NNFloat* pBiasVelocity, NNFloat* pBiasGradientVelocity, NNFloat* pBias)
+{
+    uint64_t pos                    = blockIdx.x * blockDim.x + threadIdx.x;
+    if (pos < width)
+    {
+        NNFloat sum                 = (NNFloat)0.0;
+        pDelta                     += pos;
+
+        // Calculate bias gradient
+        for (uint32_t i = 0; i < batch; i++)
+        {
+            sum                    += *pDelta;
+            pDelta                 += width;
+        }
+        sum                        /= (NNFloat)batch;
+
+        // Update velocity and bias
+        NNFloat v                   = pBiasVelocity[pos];
+        NNFloat m                   = pBiasGradientVelocity[pos];
+		m					    	= mu * m + ((NNFloat)1.0 - mu) * sum;
+		v							= mu1 * v + ((NNFloat)1.0 - mu1) * sum * sum;
+		m			               /= (NNFloat)1.0 - mu;
+		v					       /= (NNFloat)1.0 - mu1;        
+        NNFloat dw                  = alpha * m / (sqrt(v) + (NNFloat)1.0e-8);
+        pBiasVelocity[pos]          = v;
+        pBiasGradientVelocity[pos]	= m;
+        pBias[pos]                 -= dw;
+    }
+}
+
+void kAdamUpdateBiases(NNFloat alpha, NNFloat mu, NNFloat mu1, uint32_t batch, uint32_t width, NNFloat* pDelta, NNFloat* pBiasVelocity, NNFloat* pBiasGradientVelocity, NNFloat* pBias)
+{
+    uint32_t blocks             = CalculateBlocks(width);
+    kAdamUpdateBiases_kernel<<<blocks, getGpu()._threadsPerBlock>>>(alpha, mu, mu1, batch, width, pDelta, pBiasVelocity, pBiasGradientVelocity, pBias);
+    LAUNCHERROR("kAdamUpdateBiases_kernel");
+}
+
+__global__ void
+LAUNCH_BOUNDS()
+kNesterovUpdateWeights_kernel(NNFloat alpha, NNFloat lambda, NNFloat lambda1, NNFloat mu, uint64_t size, NNFloat* pWeightVelocity, NNFloat* pWeightGradient, NNFloat* pWeight)
 {
     uint64_t pos                = blockIdx.x * blockDim.x + threadIdx.x;
     if (pos < size)
@@ -1749,17 +1817,17 @@ kNesterovUpdateWeights_kernel(NNFloat alpha, NNFloat lambda, NNFloat mu, uint64_
         NNFloat g               = pWeightGradient[pos];
         NNFloat w               = pWeight[pos];
         NNFloat vOld            = pWeightVelocity[pos];
-        NNFloat vNew            = mu * vOld + alpha * (g - lambda * w);
+        NNFloat vNew            = mu * vOld + alpha * (g - lambda * w - lambda1 * sgn(w));
         pWeightVelocity[pos]    = vNew;
         w                       = w + vNew + mu * (vNew - vOld);
         pWeight[pos]            = w;      
     }
 }
 
-void kNesterovUpdateWeights(NNFloat alpha, NNFloat lambda, NNFloat mu, uint64_t size, NNFloat* pWeightVelocity, NNFloat* pWeightGradient, NNFloat* pWeight)
+void kNesterovUpdateWeights(NNFloat alpha, NNFloat lambda, NNFloat lambda1, NNFloat mu, uint64_t size, NNFloat* pWeightVelocity, NNFloat* pWeightGradient, NNFloat* pWeight)
 {
     uint32_t blocks             = CalculateBlocks(size);
-    kNesterovUpdateWeights_kernel<<<blocks, getGpu()._threadsPerBlock>>>(alpha, lambda, mu, size, pWeightVelocity, pWeightGradient, pWeight);
+    kNesterovUpdateWeights_kernel<<<blocks, getGpu()._threadsPerBlock>>>(alpha, lambda, lambda1, mu, size, pWeightVelocity, pWeightGradient, pWeight);
     LAUNCHERROR("kNesterovUpdateWeights_kernel");
 }
 
@@ -1838,7 +1906,7 @@ void kNesterovShiftBiases(NNFloat mu, uint32_t width, NNFloat* pBiasVelocity, NN
 
 __global__ void
 LAUNCH_BOUNDS()
-kRMSPropUpdateWeights_kernel(NNFloat alpha, NNFloat lambda, NNFloat mu, uint64_t size, NNFloat* pWeightVelocity, NNFloat* pWeightGradient, NNFloat* pWeight)
+kRMSPropUpdateWeights_kernel(NNFloat alpha, NNFloat lambda, NNFloat lambda1, NNFloat mu, uint64_t size, NNFloat* pWeightVelocity, NNFloat* pWeightGradient, NNFloat* pWeight)
 {
     uint64_t pos  = blockIdx.x * blockDim.x + threadIdx.x;
     if (pos < size)
@@ -1846,17 +1914,17 @@ kRMSPropUpdateWeights_kernel(NNFloat alpha, NNFloat lambda, NNFloat mu, uint64_t
         NNFloat g               = pWeightGradient[pos];
         NNFloat w               = pWeight[pos];
         NNFloat v               = pWeightVelocity[pos];
-        g                      -= lambda * w;
+        g                      -= lambda * w + lambda1 * sgn(w);
         v                       = mu * v + (1.0f - mu) * g * g;
         pWeightVelocity[pos]    = v;
         pWeight[pos]            = w + alpha * g * rsqrt(max(0.000000001f, v));
     }
 }
 
-void kRMSPropUpdateWeights(NNFloat alpha, NNFloat lambda, NNFloat mu, uint64_t size, NNFloat* pWeightVelocity, NNFloat* pWeightGradient, NNFloat* pWeight)
+void kRMSPropUpdateWeights(NNFloat alpha, NNFloat lambda, NNFloat lambda1, NNFloat mu, uint64_t size, NNFloat* pWeightVelocity, NNFloat* pWeightGradient, NNFloat* pWeight)
 {
     uint32_t blocks             = CalculateBlocks(size);
-    kRMSPropUpdateWeights_kernel<<<blocks, getGpu()._threadsPerBlock>>>(alpha, lambda, mu, size, pWeightVelocity, pWeightGradient, pWeight);
+    kRMSPropUpdateWeights_kernel<<<blocks, getGpu()._threadsPerBlock>>>(alpha, lambda, lambda1, mu, size, pWeightVelocity, pWeightGradient, pWeight);
     LAUNCHERROR("kRMSPropUpdateWeights_kernel");
 }
 
@@ -2639,8 +2707,182 @@ void kCalculateMaxout(NNFloat* pSrc, size_t size, NNFloat* pDst)
     LAUNCHERROR("kCalculateMaxout_kernel");
 }
 
-#include "cub/util_allocator.cuh"
-#include "cub/device/device_radix_sort.cuh"
+__global__ void 
+LAUNCH_BOUNDS()
+kCalculateCosine_kernel(NNFloat* pVector1, NNFloat* pVector2, uint32_t stride, NNFloat* pDPOut, NNFloat* pAOut, NNFloat* pBOut, uint32_t outStride)
+{
+__shared__ NNFloat sDP[64];     // Shared memory accumulator between warps
+__shared__ NNFloat sA[64];      // Shared memory accumulator between warps
+__shared__ NNFloat sB[64];      // Shared memory accumulator between warps
+
+
+    // Preincrement pointers
+    pVector1               += blockIdx.x * stride + threadIdx.x;
+    pVector2               += blockIdx.x * stride + threadIdx.x;
+    pDPOut                 += blockIdx.x * outStride;
+    pAOut                  += blockIdx.x * outStride;
+    pBOut                  += blockIdx.x * outStride;    
+    uint32_t pos            = threadIdx.x;
+    NNFloat dp              = (NNFloat)0;
+    NNFloat al              = (NNFloat)0;
+    NNFloat bl              = (NNFloat)0;
+    
+    // Calculate running sum
+    while (pos < stride)
+    {
+        NNFloat a           = *pVector1;
+        NNFloat b           = *pVector2;
+        dp                 += a * b;
+        al                 += a * a;
+        bl                 += b * b;
+        pVector1           += blockDim.x;
+        pVector2           += blockDim.x;
+        pos                += blockDim.x;
+    }
+    
+    
+    // Reduce results within warps
+    uint32_t tgx            = threadIdx.x & cData._warpMask;
+    dp                     += __shfl(dp, tgx ^ 1);
+    al                     += __shfl(al, tgx ^ 1);
+    bl                     += __shfl(bl, tgx ^ 1);
+    dp                     += __shfl(dp, tgx ^ 2);
+    al                     += __shfl(al, tgx ^ 2);
+    bl                     += __shfl(bl, tgx ^ 2);
+    dp                     += __shfl(dp, tgx ^ 4);
+    al                     += __shfl(al, tgx ^ 4);
+    bl                     += __shfl(bl, tgx ^ 4);
+    dp                     += __shfl(dp, tgx ^ 8);
+    al                     += __shfl(al, tgx ^ 8);
+    bl                     += __shfl(bl, tgx ^ 8);    
+    dp                     += __shfl(dp, tgx ^ 16); 
+    al                     += __shfl(al, tgx ^ 16);
+    bl                     += __shfl(bl, tgx ^ 16);
+    if (tgx == 0)           
+    {
+        uint32_t index      = threadIdx.x >> cData._warpBits;
+        sDP[index]          = dp;
+        sA[index]           = al;
+        sB[index]           = bl;
+    }
+    __syncthreads();
+    
+    // Reduce results between warps
+    if (threadIdx.x < cData._warpSize)
+    {
+        uint32_t limit      = (blockDim.x + cData._warpSize -1) >> cData._warpBits;
+        al                  = (threadIdx.x < limit) ? sA[threadIdx.x]     : (NNFloat)0;      
+        bl                  = (threadIdx.x < limit) ? sB[threadIdx.x]     : (NNFloat)0; 
+        dp                  = (threadIdx.x < limit) ? sDP[threadIdx.x]    : (NNFloat)0;
+        dp                 += __shfl(dp, tgx ^ 1);
+        al                 += __shfl(al, tgx ^ 1);
+        bl                 += __shfl(bl, tgx ^ 1);
+        dp                 += __shfl(dp, tgx ^ 2);
+        al                 += __shfl(al, tgx ^ 2);
+        bl                 += __shfl(bl, tgx ^ 2);
+        dp                 += __shfl(dp, tgx ^ 4);
+        al                 += __shfl(al, tgx ^ 4);
+        bl                 += __shfl(bl, tgx ^ 4);
+        dp                 += __shfl(dp, tgx ^ 8);
+        al                 += __shfl(al, tgx ^ 8);
+        bl                 += __shfl(bl, tgx ^ 8);    
+        dp                 += __shfl(dp, tgx ^ 16); 
+        al                 += __shfl(al, tgx ^ 16);
+        bl                 += __shfl(bl, tgx ^ 16);        
+                         
+        
+        // Write final sum
+        if (threadIdx.x == 0)
+        {
+            al              = sqrt(al);
+            bl              = sqrt(bl);
+            dp             /= al * bl;
+            *pAOut          = al;
+            *pBOut          = bl;
+            *pDPOut         = dp;      
+        }
+    }
+} 
+
+// Calculates cosine and saves vector lengths for future gradient calculation
+void kCalculateCosine(NNFloat* pVector1In, NNFloat* pVector2In, uint32_t batch, uint32_t stride, NNFloat* pDPOut, NNFloat* pAOut, NNFloat* pBOut, uint32_t outStride)
+{
+    unsigned long threads = max(32, min(stride, 1024));
+    kCalculateCosine_kernel<<<batch, threads>>>(pVector1In, pVector2In, stride, pDPOut, pAOut, pBOut, outStride);
+    LAUNCHERROR("kCalculateCosine_kernel");    
+}
+
+
+
+__global__ void 
+LAUNCH_BOUNDS()
+kCalculateDotProduct_kernel(NNFloat* pVector1In, NNFloat* pVector2In, uint32_t strideIn, NNFloat* pDPOut, uint32_t strideOut)
+{
+__shared__ NNFloat sDP[32];     // Shared memory accumulator between warps
+
+    // Preincrement pointers
+    pVector1In             += blockIdx.x * strideIn + threadIdx.x;
+    pVector2In             += blockIdx.x * strideIn + threadIdx.x;
+    pDPOut                 += blockIdx.x * strideOut;
+    uint32_t pos            = threadIdx.x;
+    NNFloat dp              = (NNFloat)0;
+
+    
+    // Calculate running sum
+    while (pos < strideIn)
+    {
+        NNFloat a           = *pVector1In;
+        NNFloat b           = *pVector2In;
+        dp                 += a * b;
+        pVector1In         += blockDim.x;
+        pVector2In         += blockDim.x;
+        pos                += blockDim.x;
+    }
+    
+    
+    // Reduce results within warps
+    uint32_t tgx            = threadIdx.x & cData._warpMask;
+    dp                     += __shfl(dp, tgx ^ 1);
+    dp                     += __shfl(dp, tgx ^ 2);
+    dp                     += __shfl(dp, tgx ^ 4);
+    dp                     += __shfl(dp, tgx ^ 8);  
+    dp                     += __shfl(dp, tgx ^ 16); 
+    if (tgx == 0)           
+    {
+        uint32_t index      = threadIdx.x >> cData._warpBits;
+        sDP[index]          = dp;
+    }
+    __syncthreads();
+    
+    // Reduce results between warps
+    if (threadIdx.x < cData._warpSize)
+    {
+        uint32_t limit      = (blockDim.x + cData._warpSize -1) >> cData._warpBits;
+        dp                  = (threadIdx.x < limit) ? sDP[threadIdx.x]    : (NNFloat)0;                 
+        dp                 += __shfl(dp, tgx ^ 1);
+        dp                 += __shfl(dp, tgx ^ 2);
+        dp                 += __shfl(dp, tgx ^ 4);
+        dp                 += __shfl(dp, tgx ^ 8);  
+        dp                 += __shfl(dp, tgx ^ 16); 
+        
+        // Write final sum
+        if (threadIdx.x == 0)
+        {
+            *pDPOut         = dp;      
+        }
+    }
+} 
+
+// Calculates dot product
+void kCalculateDotProduct(NNFloat* pVector1In, NNFloat* pVector2In, uint32_t batch, uint32_t strideIn, NNFloat* pDPOut, uint32_t strideOut)
+{
+    unsigned long threads = max(32, min(strideIn, 1024));
+    kCalculateDotProduct_kernel<<<batch, threads>>>(pVector1In, pVector2In, strideIn, pDPOut, strideOut);
+    LAUNCHERROR("kCalculateDotProduct_kernel");    
+}
+
+#include "../cub/util_allocator.cuh"
+#include "../cub/device/device_radix_sort.cuh"
 
 template<typename KeyType, typename ValueType> size_t kInitSort(uint32_t items, GpuBuffer<KeyType>* pbKey, GpuBuffer<ValueType>* pbValue)
 {

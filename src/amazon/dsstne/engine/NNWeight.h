@@ -72,14 +72,14 @@ private:
     ~NNWeight();
     void ClearSharedGradient();
     void ClearGradient();
-    NNFloat CalculateRegularizationError(NNFloat lambda);
+    float CalculateRegularizationError(NNFloat lambda, NNFloat lambda1);
     void ClearVelocity();
     void Randomize();
     void Lock();
     void Unlock();
     void Dump(string fname, NNFloat* pBuffer);
     void RefreshState(NNNetwork* pNetwork, TrainingMode trainingMode);
-    void UpdateWeights(TrainingMode trainingMode, uint32_t batch, NNFloat alpha, NNFloat lambda, NNFloat mu);
+    void UpdateWeights(TrainingMode trainingMode, uint32_t batch, NNFloat alpha, NNFloat lambda, NNFloat lambda1, NNFloat mu, NNFloat mu1);
     bool WriteNetCDF(netCDF::NcFile& nc, uint32_t index, NNFloat* pWeight = NULL, NNFloat* pBias = NULL);
     NNFloat* GetWeightBuffer() { return _pbWeight ? _pbWeight->_pDevData : NULL; }
     NNFloat* GetWeightGradientBuffer() { return _pbWeightGradient ? _pbWeightGradient->_pDevData : NULL; }

@@ -622,6 +622,7 @@ void kCalculateSparseOutputDelta(Activation activation, uint32_t position, uint3
             kCalculateSparseNonZeroReluOutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pSparseStart, pSparseEnd, pSparseIndex);
             LAUNCHERROR("kCalculateSparseNonZeroReluOutputDelta_kernel");
             break;
+
         case LeakyRectifiedLinear:
             if (!bSparseIgnoreZero)
             {
@@ -631,6 +632,7 @@ void kCalculateSparseOutputDelta(Activation activation, uint32_t position, uint3
             kCalculateSparseNonZeroLeakyReluOutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pSparseStart, pSparseEnd, pSparseIndex, slope);
             LAUNCHERROR("kCalculateSparseNonZeroLeakyReluOutputDelta_kernel");
             break;
+
         case SoftMax:
             if (!bSparseIgnoreZero)
             {
@@ -1591,13 +1593,13 @@ kCalculateSparseRawSigmoidDataScaledMarginalCrossEntropyOutputDelta_kernel(uint6
     uint64_t pos                = (blockIdx.x * blockDim.x) + threadIdx.x;
     if (pos < size)
     {
-	      NNFloat a               = pUnit[pos];
-	      NNFloat output          = (NNFloat)0.0;
-	      if (a > cData._SMCE_zeroTarget)
-	      {
-	          output              = cData._SMCE_zeroScale * a;
-	      }
-	      pDelta[pos]             = output;
+          NNFloat a               = pUnit[pos];
+          NNFloat output          = (NNFloat)0.0;
+          if (a > cData._SMCE_zeroTarget)
+          {
+              output              = cData._SMCE_zeroScale * a;
+          }
+          pDelta[pos]             = output;
     }
 }
 
@@ -2439,6 +2441,107 @@ void kCalculateMaxoutDelta(NNFloat* pSrc, NNFloat* pSrcDelta, size_t size, NNFlo
     kCalculateMaxoutDelta_kernel<<<blocks, getGpu()._threadsPerBlock>>>(pSrc, pSrcDelta, size, beta, pDst, pDstDelta);
     LAUNCHERROR("kCalculateMaxoutDelta_kernel");
 }
+
+__global__ void
+LAUNCH_BOUNDS()
+kCalculateCosineDelta_kernel(NNFloat* pDPDelta, NNFloat* pDP, NNFloat* pA, NNFloat* pB, NNFloat* p0Vector, NNFloat* pVector, uint32_t batch, uint32_t stride, NNFloat* pDelta0, NNFloat beta0, NNFloat* pDelta, NNFloat beta, uint32_t inputStride)
+{
+    // Preincrement pointers
+    p0Vector               += blockIdx.x * inputStride + threadIdx.x;
+    pVector                += blockIdx.x * inputStride + threadIdx.x;
+    pDPDelta               += blockIdx.x * stride;
+    pDP                    += blockIdx.x * stride;
+    pA                     += blockIdx.x * stride;
+    pB                     += blockIdx.x * stride;    
+    pDelta0                += blockIdx.x * inputStride + threadIdx.x;
+    pDelta                 += blockIdx.x * inputStride + threadIdx.x;    
+    uint32_t pos            = threadIdx.x;
+    NNFloat dp              = *pDP;
+    NNFloat dpDelta         = *pDPDelta;
+    NNFloat a               = *pA;
+    NNFloat b               = *pB;
+    NNFloat ab              = a * b;
+    NNFloat a2              = a * a;
+    NNFloat b2              = b * b;
+    
+    // Calculate deltas
+    while (pos < inputStride)
+    {
+        NNFloat ai          = *p0Vector;
+        NNFloat bi          = *pVector;
+
+        NNFloat delta0      = dpDelta * ((bi / ab) - (ai * dp / a2));
+        NNFloat delta       = dpDelta * ((ai / ab) - (bi * dp / b2));
+        if (beta0 == (NNFloat)0)
+            *pDelta0        = delta0;
+        else
+            *pDelta0        = *pDelta0 + beta0 * delta0;
+        if (beta == (NNFloat)0)
+            *pDelta         = delta;
+        else
+            *pDelta         = *pDelta + beta * delta;        
+    
+        pDelta0            += blockDim.x;
+        pDelta             += blockDim.x;     
+        p0Vector           += blockDim.x;
+        pVector            += blockDim.x;
+        pos                += blockDim.x;
+    }
+}
+
+void kCalculateCosineDelta(NNFloat* pDPDeltaIn, NNFloat* pDPIn, NNFloat* pA, NNFloat* pB, NNFloat* p0Vector, NNFloat* pVector, uint32_t batch, uint32_t stride, NNFloat* pDelta0, NNFloat beta0, NNFloat* pDelta, NNFloat beta, uint32_t inputStride)
+{
+    unsigned long blocks = batch;
+    unsigned long threadsPerBlock = std::min(stride, getGpu()._threadsPerBlock);
+    kCalculateCosineDelta_kernel<<<blocks, getGpu()._threadsPerBlock>>>(pDPDeltaIn, pDPIn, pA, pB, p0Vector, pVector, batch, stride, pDelta0, beta0, pDelta, beta, inputStride);
+
+    LAUNCHERROR("kCalculateCosineDelta_kernel");
+}
+
+__global__ void
+LAUNCH_BOUNDS()
+kCalculateDotProductDelta_kernel(NNFloat* pDPDelta, NNFloat* p0Vector, NNFloat* pVector, uint32_t batch, uint32_t stride, NNFloat* pDelta0, NNFloat beta0, NNFloat* pDelta, NNFloat beta, uint32_t inputStride)
+{
+    // Preincrement pointers
+    p0Vector               += blockIdx.x * inputStride + threadIdx.x;
+    pVector                += blockIdx.x * inputStride + threadIdx.x;
+    pDPDelta               += blockIdx.x * stride; 
+    pDelta0                += blockIdx.x * inputStride + threadIdx.x;
+    pDelta                 += blockIdx.x * inputStride + threadIdx.x;    
+    uint32_t pos            = threadIdx.x;
+    NNFloat dpDelta         = *pDPDelta;
+    
+    // Calculate deltas
+    while (pos < inputStride)
+    {
+        NNFloat ai          = *p0Vector;
+        NNFloat bi          = *pVector;
+        NNFloat delta0      = dpDelta * bi;
+        NNFloat delta       = dpDelta * ai;
+        if (beta0 == (NNFloat)0)
+            *pDelta0        = delta0;
+        else
+            *pDelta0        = *pDelta0 + beta0 * delta0;
+        if (beta == (NNFloat)0)
+            *pDelta         = delta;
+        else
+            *pDelta         = *pDelta + beta * delta;        
+    
+        pDelta0            += blockDim.x;
+        pDelta             += blockDim.x;     
+        p0Vector           += blockDim.x;
+        pVector            += blockDim.x;
+        pos                += blockDim.x;
+    }
+}
+
+void kCalculateDotProductDelta(NNFloat* pDPDelta, NNFloat* p0Vector, NNFloat* pVector, uint32_t batch, uint32_t stride, NNFloat* pDelta0, NNFloat beta0, NNFloat* pDelta, NNFloat beta, uint32_t inputStride)
+{
+    unsigned long blocks = batch;
+    unsigned long threadsPerBlock = std::min(stride, getGpu()._threadsPerBlock);
+    kCalculateDotProductDelta_kernel<<<blocks, getGpu()._threadsPerBlock>>>(pDPDelta, p0Vector, pVector, batch, stride, pDelta0, beta0, pDelta, beta, inputStride);   
+    LAUNCHERROR("kCalculateDotProductDelta_kernel");
+}   
 
 // Instantiates allowable templated functions so we can hide the implementations here
 // instead of in the header file because we're mixing CUDA and C++ and that's

@@ -464,6 +464,20 @@ _pbCUDNNWorkspace()
                 NNLayer* pLayer = _mLayer[s];
                 l->_vIncomingLayer.push_back(pLayer);
                 pLayer->_vOutgoingLayer.push_back(l);
+                
+                // Validate dot product and maxout layers sources are all the same size
+                if ((l->_poolingFunction == PoolingFunction::Maxout) || (l->_poolingFunction == PoolingFunction::Maxout))
+                {
+                    if (pLayer->_stride != l->_vIncomingLayer[0]->_stride)
+                    {
+                        if (getGpu()._id == 0)
+                        {
+                            cout << "NNNetwork::NNetwork: All source layer dimensions must match for " << l->_poolingFunction << " layer " << l->_name << endl;
+                        }
+                        getGpu().Shutdown();
+                        exit(-1);
+                    }
+                }
 
                 // BUG Multi-GPU
             }
@@ -1464,7 +1478,7 @@ void NNNetwork::PredictValidationBatch(uint32_t layers)
     }
 }
 
-NNFloat NNNetwork::Train(uint32_t epochs, NNFloat alpha, NNFloat lambda, NNFloat mu)
+NNFloat NNNetwork::Train(uint32_t epochs, NNFloat alpha, NNFloat lambda, NNFloat lambda1, NNFloat mu, NNFloat mu1)
 {
     // Check if already in training mode
     if (_mode != Training)
@@ -1535,7 +1549,7 @@ NNFloat NNNetwork::Train(uint32_t epochs, NNFloat alpha, NNFloat lambda, NNFloat
             ClearUpdates();
             PredictTrainingBatch();
             NNFloat error_training, error_regularization, error;
-            tie(error_training, error_regularization)       = CalculateError(lambda);
+            tie(error_training, error_regularization)       = CalculateError(lambda, lambda1);
             uint32_t minibatch                              = GetBatch();
             if (_examples - pos < minibatch)
                 minibatch                                   = _examples - pos;
@@ -1571,7 +1585,7 @@ NNFloat NNNetwork::Train(uint32_t epochs, NNFloat alpha, NNFloat lambda, NNFloat
             if (brake_steps < 24)
             {
                 BackPropagate(alpha);
-                UpdateWeights(step_alpha, lambda, mu);
+                UpdateWeights(step_alpha, lambda, lambda1, mu, mu1);
             }
 
 #if 0
@@ -1633,7 +1647,7 @@ void NNNetwork::ClearUpdates()
         l->ClearUpdates();
 }
 
-tuple<NNFloat, NNFloat> NNNetwork::CalculateError(NNFloat lambda)
+tuple<NNFloat, NNFloat> NNNetwork::CalculateError(NNFloat lambda, NNFloat lambda1)
 {
     NNFloat error_training                  = (NNFloat)0.0;
     NNFloat error_regularization            = (NNFloat)0.0;
@@ -1654,7 +1668,7 @@ tuple<NNFloat, NNFloat> NNNetwork::CalculateError(NNFloat lambda)
     {
         for (auto w: _vWeight)
         {
-            error_regularization           += w->CalculateRegularizationError(lambda);
+            error_regularization           += w->CalculateRegularizationError(lambda, lambda1);
         }
     }
 
@@ -1695,7 +1709,7 @@ void NNNetwork::BackPropagate(NNFloat alpha)
     }
 }
 
-void NNNetwork::UpdateWeights(NNFloat alpha, float lambda, NNFloat mu)
+void NNNetwork::UpdateWeights(NNFloat alpha, NNFloat lambda, NNFloat lambda1, NNFloat mu, NNFloat mu1)
 {
     // Calculate batch size
     uint32_t batch                          = _batch;
@@ -1704,9 +1718,10 @@ void NNNetwork::UpdateWeights(NNFloat alpha, float lambda, NNFloat mu)
 
     for (int64_t i = _vWeight.size() - 1; i >= 0; i--)
     {
-        _vWeight[i]->UpdateWeights(_trainingMode, batch, alpha, lambda, mu);
+        _vWeight[i]->UpdateWeights(_trainingMode, batch, alpha, lambda, lambda1, mu, mu1);
     }
 
+    // Update batch normalization parameters
 }
 
 // Returns top k outputs of any layer (where k <= 128) along with their indices
@@ -1919,7 +1934,7 @@ vector<string> NNNetwork::GetLayers() const
 }
 
 
-const NNFloat* NNNetwork::GetUnitBuffer(const string& layer) const
+NNFloat* NNNetwork::GetUnitBuffer(const string& layer) const
 {
     const auto itr = _mLayer.find(layer);
     if (itr == _mLayer.end())
@@ -1935,7 +1950,7 @@ const NNFloat* NNNetwork::GetUnitBuffer(const string& layer) const
     return itr->second->GetUnitBuffer();
 }
 
-const NNFloat* NNNetwork::GetDeltaBuffer(const string& layer) const
+NNFloat* NNNetwork::GetDeltaBuffer(const string& layer) const
 {
     const auto itr = _mLayer.find(layer);
     if (itr == _mLayer.end())
@@ -2012,7 +2027,7 @@ const NNWeight* NNNetwork::GetWeight(const string& inputLayer, const string& out
     return NULL;
 }
 
-const NNFloat* NNNetwork::GetWeightBuffer(const string& inputLayer, const string& outputLayer) const
+NNFloat* NNNetwork::GetWeightBuffer(const string& inputLayer, const string& outputLayer) const
 {
     const auto inputLayerItr = _mLayer.find(inputLayer);
     if (inputLayerItr == _mLayer.end())
@@ -2030,9 +2045,8 @@ const NNFloat* NNNetwork::GetWeightBuffer(const string& inputLayer, const string
     {
         if (getGpu()._id == 0)
         {
-            printf("NNNetwork::GetWeight: Unknown output layer %s.\n", outputLayer.c_str());
+            printf("NNNetwork::GetWeightBuffer: Unknown output layer %s.\n", outputLayer.c_str());
         }
-
         return NULL;
     }
 
@@ -2082,7 +2096,7 @@ uint32_t CalculateConvolutionDimensions(uint32_t width, uint32_t filter, uint32_
 }
 
 // Automagically calculates convolution and pooling layer dimensions from inputs
-void CalculateConvolutionLayerDimensions(NNNetworkDescriptor& d)
+void CalculateDerivedLayerDimensions(NNNetworkDescriptor& d)
 {
     map <NNLayerDescriptor*, bool> mbDimensionsCalculated;                      // Holds flag indicated whether dimensions are known
     map <string, NNLayerDescriptor*> mLayer;                                    // Holds flag indicated whether dimensions are known
@@ -2099,8 +2113,6 @@ void CalculateConvolutionLayerDimensions(NNNetworkDescriptor& d)
         mLayer[pL->_name]                   = pL;
     }
 
-
-
     // Loop repeatedly until all network layers determined
     bool bFinished;
     do {
@@ -2111,6 +2123,7 @@ void CalculateConvolutionLayerDimensions(NNNetworkDescriptor& d)
             NNLayerDescriptor* pL               = &(d._vLayerDescriptor[i]);
             bool bPooling                       = pL->_type == NNLayer::Type::Pooling;
             bool bLRN                           = bPooling && (pL->_poolingFunction == PoolingFunction::LRN);
+            bool bDotProduct                    = bPooling && (pL->_poolingFunction == PoolingFunction::DotProduct);
 
             if (!mbDimensionsCalculated[pL])
             {
@@ -2130,86 +2143,101 @@ void CalculateConvolutionLayerDimensions(NNNetworkDescriptor& d)
 
                 // Check for consistent sizing from all inputs
                 bool bSized = false;
+                NNLayerDescriptor* pL0      = mLayer[pL->_vSource[0]];
                 uint32_t N                  = pL->_Nx;
-                uint32_t oldNx              = 0;
-                uint32_t oldNy              = 0;
-                uint32_t oldNz              = 0;
-                uint32_t nx = 1;
-                uint32_t ny = 1;
-                uint32_t nz = 1;
-                uint32_t nw = 1;
+                uint32_t oldNx              = bDotProduct ? pL0->_Nx : 1;
+                uint32_t oldNy              = bDotProduct ? pL0->_Ny : 1;
+                uint32_t oldNz              = bDotProduct ? pL0->_Nz : 1;
+                uint32_t nx                 = bDotProduct ? pL->_vSource.size() - 1 : 1;
+                uint32_t ny                 = 1;
+                uint32_t nz                 = 1;
+                uint32_t nw                 = 1;
                 for (auto s : pL->_vSource)
                 {
                     NNLayerDescriptor* pS = mLayer[s];
                     //printf("L: %s S: %s %u %u %u %u\n", pL->_name.c_str(), pS->_name.c_str(), pS->_Nx, pS->_Ny, pS->_Nz, pS->_Nw);
-                    if (!bLRN)
-                    {
-                        nx                      = CalculateConvolutionDimensions(pS->_Nx, pL->_kernelX, pL->_kernelStrideX);
-                        ny                      = CalculateConvolutionDimensions(pS->_Ny, pL->_kernelY, pL->_kernelStrideY);
-                        nz                      = CalculateConvolutionDimensions(pS->_Nz, pL->_kernelZ, pL->_kernelStrideZ);
-                        nw                      = pS->_Nw;
-                        if (bPooling)
-                            pL->_dimensions     = pS->_dimensions;
+                    
+                    if (bDotProduct)
+                    {   
+                        if ((oldNx != pS->_Nx) || (oldNy != pS->_Ny) || (oldNz != pS->_Nz))
+                        {
+                            if (getGpu()._id == 0)
+                                printf("NNNetwork::CalculateDerivedLayerDimensions: Inconsistent incoming data size for dot product layer %s\n", pL->_name.c_str());
+                            getGpu().Shutdown();
+                            exit(-1);                                               
+                        }
                     }
                     else
                     {
-                        nx                      = pS->_Nx;
-                        ny                      = pS->_Ny;
-                        nz                      = pS->_Nz;
-                        nw                      = pS->_Nw;
-                        pL->_dimensions         = pS->_dimensions;
-                    }
-
-                    // Calculate padding
-                    switch (pL->_kernelDimensions)
-                    {
-                        case 3:
-                            if (pS->_Nz < pL->_kernelZ)
-                            {
-                                pL->_kernelPaddingZ = (pL->_kernelZ - pS->_Nz + 1) / 2;
-                            }
-                            else if (pL->_kernelStrideZ == 1)
-                            {
-                                pL->_kernelPaddingZ = pL->_kernelZ / 2;
-                            }
-
-                        case 2:
-                            if (pS->_Ny < pL->_kernelY)
-                            {
-                                pL->_kernelPaddingY = (pL->_kernelY - pS->_Ny + 1) / 2;
-                            }
-                            else if (pL->_kernelStrideY == 1)
-                            {
-                                pL->_kernelPaddingY = pL->_kernelY / 2;
-                            }
-
-                        case 1:
-                            if (pS->_Nx < pL->_kernelX)
-                            {
-                                pL->_kernelPaddingX = (pL->_kernelX - pS->_Nx + 1) / 2;
-                            }
-                            else if (pL->_kernelStrideX == 1)
-                            {
-                                pL->_kernelPaddingX = pL->_kernelX / 2;
-                            }
-                    }
-
-                    // Check for consistency
-                    if (bSized)
-                    {
-                        if ((nx != oldNx) || (ny != oldNy) || (nz != oldNz))
+                        if (!bLRN)
                         {
-                            if (getGpu()._id == 0)
-                                printf("NNNetwork::CalculateConvolutionLayerDimensions: Inconsistent incoming data size for convolution layer %s\n", pL->_name.c_str());
-                            getGpu().Shutdown();
-                            exit(-1);
+                            nx                      = CalculateConvolutionDimensions(pS->_Nx, pL->_kernelX, pL->_kernelStrideX);
+                            ny                      = CalculateConvolutionDimensions(pS->_Ny, pL->_kernelY, pL->_kernelStrideY);
+                            nz                      = CalculateConvolutionDimensions(pS->_Nz, pL->_kernelZ, pL->_kernelStrideZ);
+                            nw                      = pS->_Nw;
+                            if (bPooling)
+                                pL->_dimensions     = pS->_dimensions;
                         }
+                        else
+                        {
+                            nx                      = pS->_Nx;
+                            ny                      = pS->_Ny;
+                            nz                      = pS->_Nz;
+                            nw                      = pS->_Nw;
+                            pL->_dimensions         = pS->_dimensions;
+                        }
+
+                        // Calculate padding
+                        switch (pL->_kernelDimensions)
+                        {
+                            case 3:
+                                if (pS->_Nz < pL->_kernelZ)
+                                {
+                                    pL->_kernelPaddingZ = (pL->_kernelZ - pS->_Nz + 1) / 2;
+                                }
+                                else if (pL->_kernelStrideZ == 1)
+                                {
+                                    pL->_kernelPaddingZ = pL->_kernelZ / 2;
+                                }
+
+                            case 2:
+                                if (pS->_Ny < pL->_kernelY)
+                                {
+                                    pL->_kernelPaddingY = (pL->_kernelY - pS->_Ny + 1) / 2;
+                                }
+                                else if (pL->_kernelStrideY == 1)
+                                {
+                                    pL->_kernelPaddingY = pL->_kernelY / 2;
+                                }
+
+                            case 1:
+                                if (pS->_Nx < pL->_kernelX)
+                                {
+                                    pL->_kernelPaddingX = (pL->_kernelX - pS->_Nx + 1) / 2;
+                                }
+                                else if (pL->_kernelStrideX == 1)
+                                {
+                                    pL->_kernelPaddingX = pL->_kernelX / 2;
+                                }
+                        }
+
+                        // Check for consistency
+                        if (bSized)
+                        {
+                            if ((nx != oldNx) || (ny != oldNy) || (nz != oldNz))
+                            {
+                                if (getGpu()._id == 0)
+                                    printf("NNNetwork::CalculateDerivedLayerDimensions: Inconsistent incoming data size for convolution layer %s\n", pL->_name.c_str());
+                                getGpu().Shutdown();
+                                exit(-1);
+                            }
+                        }
+                        bSized                      = true;
+                        oldNx                       = nx;
+                        oldNy                       = ny;
+                        oldNz                       = nz;
+                        mbDimensionsCalculated[pL]  = true;
                     }
-                    bSized                      = true;
-                    oldNx                       = nx;
-                    oldNy                       = ny;
-                    oldNz                       = nz;
-                    mbDimensionsCalculated[pL]  = true;
                 }
                 pL->_Nx                         = nx;
                 pL->_Ny                         = ny;
@@ -2364,10 +2392,12 @@ bool NNNetwork::Validate()
     // below parameters are used only for numerical gradient validation (non centered formula),
     // that is why neural network will be tested only in SGD mode
     bool result                 = true;
-    const NNFloat delta  = (NNFloat)0.001;
-    const NNFloat alpha  = (NNFloat)1.0;
-    const NNFloat lambda = (NNFloat)0.0; // regularization parameter (no need for bias test)
-    const NNFloat mu     = (NNFloat)0.0; // no momentum
+    const NNFloat delta         = (NNFloat)0.001;
+    const NNFloat alpha         = (NNFloat)1.0;
+    const NNFloat lambda        = (NNFloat)0.0; // regularization parameter (no need for bias test)
+    const NNFloat lambda1       = (NNFloat)0.0; // regularization parameter (no need for bias test)
+    const NNFloat mu            = (NNFloat)0.0; // no momentum
+    const NNFloat mu1           = (NNFloat)0.0; // no momentum
 
     // There are couple of issues with numerical gradient validation:
     // The deeper network the higher numerical error in the cost function evaluation;
@@ -2428,7 +2458,7 @@ bool NNNetwork::Validate()
     ClearUpdates();
     PredictValidationBatch();
     NNFloat initialErrorTraining, initialErrorRegularization, initialError;
-    tie(initialErrorTraining, initialErrorRegularization) = CalculateError(lambda);
+    tie(initialErrorTraining, initialErrorRegularization) = CalculateError(lambda, lambda1);
     initialError                                          = initialErrorTraining + initialErrorRegularization;
     cout << "initialErrorTraining " << initialErrorTraining << "; initialErrorRegularization " << initialErrorRegularization << endl;
 
@@ -2449,7 +2479,7 @@ bool NNNetwork::Validate()
 
     // get gradients for bias (bias gradient is not stored, so get it throgh UpdateWeights)
     vector< vector<NNFloat>> vBiasGradient;
-    UpdateWeights(alpha, lambda, mu);
+    UpdateWeights(alpha, lambda, lambda1, mu, mu1);
 
     for (int id = 0; id < _vWeight.size(); id++)
     {
@@ -2461,7 +2491,7 @@ bool NNNetwork::Validate()
         cout << "Validating weights between layer " << w->_inputLayer._name << " and " << w->_outputLayer._name << endl;
 
         w->_pbWeight->Upload(w->_vWeight.data()); // restore weights
-        // get bias gradient (TODO inseatd of this hack it is better to have explicit bias gradient)
+        // get bias gradient (TODO instead of this hack it is better to have explicit bias gradient)
         vector<NNFloat> bias_g(w->_pbBias->_length);
         w->_pbBias->Download(bias_g.data());
         for (int b = 0; b < bias_g.size(); b++)
@@ -2489,7 +2519,7 @@ bool NNNetwork::Validate()
             PredictValidationBatch();
             w->_vWeight[i]                                  = oldWeight;
             NNFloat errorTraining, errorRegularization, error;
-            tie(errorTraining, errorRegularization)       = CalculateError(lambda);
+            tie(errorTraining, errorRegularization)       = CalculateError(lambda, lambda1);
             error                                           = errorTraining + errorRegularization;
             NNFloat dEdW                                    = (error - initialError) / delta;
             NNFloat weightGradient = vWeightGradient[id][i];
@@ -2514,7 +2544,7 @@ bool NNNetwork::Validate()
             PredictValidationBatch();
             w->_vBias[i]                                  = oldBias;
             NNFloat errorTraining, errorRegularization, error;
-            tie(errorTraining, errorRegularization)       = CalculateError(lambda);
+            tie(errorTraining, errorRegularization)       = CalculateError(lambda, lambda1);
             error                                           = errorTraining + errorRegularization;
             NNFloat dEdb                                    = (error - initialError) / delta;
             NNFloat biasGradient = vBiasGradient[id][i];
@@ -2885,7 +2915,8 @@ NNNetwork* LoadNeuralNetworkJSON(const string& fname, const uint32_t batch, cons
                 }
 
                 // Read ScaledMarginalCrossEntropy parameters if present
-                else if (name.compare("scaledmarginalcrossentropy") == 0)
+                else if ((name.compare("scaledmarginalcrossentropy") == 0) || 
+                         (name.compare("datascaledmarginalcrossentropy") == 0))
                 {
                     for (Json::ValueIterator pitr = value.begin(); pitr != value.end() ; pitr++)
                     {
@@ -2908,25 +2939,6 @@ NNNetwork* LoadNeuralNetworkJSON(const string& fname, const uint32_t batch, cons
                             bValid                      = false;
                             goto exit;
                         }
-                    }
-                }
-                // Read DataScaledMarginalCrossEntropy parameters if present
-                else if (name.compare("datascaledmarginalcrossentropy") == 0)
-                {
-                    for (Json::ValueIterator pitr = value.begin(); pitr != value.end() ; pitr++)
-                    {
-                        string pname                = pitr.memberName();
-                        std::transform(pname.begin(), pname.end(), pname.begin(), ::tolower);
-                        Json::Value pkey            = pitr.key();
-                        Json::Value pvalue          = *pitr;
-                        if (pname.compare("onescale") == 0)
-                            nd._SMCE_oneScale       = pvalue.asFloat();
-                        else if (pname.compare("zeroscale") == 0)
-                            nd._SMCE_zeroScale      = pvalue.asFloat();
-                        else if (pname.compare("onetarget") == 0)
-                            nd._SMCE_oneTarget      = pvalue.asFloat();
-                        else if (pname.compare("zerotarget") == 0)
-                            nd._SMCE_zeroTarget     = pvalue.asFloat();
                     }
                 }
 
@@ -3260,6 +3272,10 @@ NNNetwork* LoadNeuralNetworkJSON(const string& fname, const uint32_t batch, cons
                                             ldl._poolingFunction = PoolingFunction::Max;
                                         else if (s.compare("maxout") == 0)
                                             ldl._poolingFunction = PoolingFunction::Maxout;
+                                        else if (s.compare("dotproduct") == 0)
+                                            ldl._poolingFunction = PoolingFunction::DotProduct;
+                                        else if (s.compare("cosine") == 0)
+                                            ldl._poolingFunction = PoolingFunction::Cosine;
                                         else if (s.compare("average") == 0)
                                             ldl._poolingFunction = PoolingFunction::Average;
                                         else if ((s.compare("lrn") == 0) || (s.compare("localresponsenormalization") == 0))
@@ -3295,6 +3311,7 @@ NNNetwork* LoadNeuralNetworkJSON(const string& fname, const uint32_t batch, cons
                                     }
                                     continue;
                                 }
+
                                 // Read activation if present
                                 else if (lname.compare("slope") == 0)
                                 {
@@ -3471,27 +3488,26 @@ NNNetwork* LoadNeuralNetworkJSON(const string& fname, const uint32_t batch, cons
                             bValid                                      = false;
                             goto exit;
                         }
-
-
+                        
                         // Automagically determine dimensions of input or output units
                         if (bAutoSize)
                         {
-                            bool bFound                     = false;
+                            bool bFound                                 = false;
                             for (auto p : vDataSet)
                             {
                                 if (p->_name.compare(ldl._dataSet) == 0)
                                 {
-                                    ldl._Nx                 = p->_width;
-                                    ldl._Ny                 = p->_height;
-                                    ldl._Nz                 = p->_length;
-                                    ldl._dimensions         = p->_dimensions;
-                                    bFound                  = true;
+                                    ldl._Nx                             = p->_width;
+                                    ldl._Ny                             = p->_height;
+                                    ldl._Nz                             = p->_length;
+                                    ldl._dimensions                     = p->_dimensions;
+                                    bFound                              = true;
                                 }
                             }
                             if (!bFound)
                             {
                                 printf("LoadNeuralNetworkJSON: Unable to find data set %s to determine dimensions for layer: %s\n", ldl._dataSet.c_str(), ldl._name.c_str());
-                                bValid                      = false;
+                                bValid                                  = false;
                                 goto exit;
                             }
                         }
@@ -3501,6 +3517,23 @@ NNNetwork* LoadNeuralNetworkJSON(const string& fname, const uint32_t batch, cons
                         {
                             ldl._vSource.push_back(nd._vLayerDescriptor.back()._name);
                         }
+                                               
+                        // Automagically compute dimensions of dot-product pooling layer (harmless BUG maybe?  Resolve)
+                        if ((ldl._type == NNLayer::Type::Pooling) && 
+                            (ldl._poolingFunction == PoolingFunction::DotProduct) || (ldl._poolingFunction == PoolingFunction::Cosine))
+                        {
+                            // Make sure dot product has 2 or more sources
+                            if (ldl._vSource.size() < 2)
+                            {
+                                printf("LoadNeuralNetworkJSON: Dot product layer %s must have 2 or more sources\n", ldl._name.c_str());
+                                bValid                                  = false;
+                                goto exit;                            
+                            }
+                            ldl._Nx                                     = ldl._vSource.size() - 1;
+                            ldl._Ny                                     = 1;
+                            ldl._Nz                                     = 1;
+                            ldl._dimensions                             = 1;
+                        }                       
 
                         // Add weight descriptors to non-pooling layers
                         if (ldl._type != NNLayer::Type::Pooling)
@@ -3579,7 +3612,7 @@ NNNetwork* LoadNeuralNetworkJSON(const string& fname, const uint32_t batch, cons
     }
 
     // Calculate dimensions for unspecified convolution and pooling layers
-    CalculateConvolutionLayerDimensions(nd);
+    CalculateDerivedLayerDimensions(nd);
 
     // Check for success, shut down upon failure
 exit:
@@ -3601,7 +3634,7 @@ exit:
     }
 
     // Now create network;
-    pNetwork                                            = new NNNetwork(nd, batch);
+    pNetwork                                        = new NNNetwork(nd, batch);
     pNetwork->RefreshState();
     return pNetwork;
 }

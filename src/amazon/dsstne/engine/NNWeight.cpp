@@ -33,6 +33,59 @@ _norm((NNFloat)0.0)
     
 }
 
+static void DumpTensor(cudnnTensorDescriptor_t t)
+{
+    cudnnDataType_t dataType;
+    int ndims;
+    vector<int> vDim(16);
+    vector<int> vStride(16);
+    cudnnStatus_t cudnnStatus = cudnnGetTensorNdDescriptor(t, 8, &dataType, &ndims, vDim.data(), vStride.data());
+    CUDNNERROR(cudnnStatus, "cudnnGetTensorNdDescriptor error");    
+    cout << "Tensor:   " << ndims << " dimensions" << endl;
+    cout << "DataType: " << dataType << endl;
+    for (int i = 0; i < ndims; i++)
+        cout << i << " " << vDim[i] << " " << vStride[i] << endl;
+    cout << endl;
+    
+}
+
+static void DumpFilter(cudnnFilterDescriptor_t f)
+{
+    cudnnDataType_t dataType;
+    cudnnTensorFormat_t format;
+    int ndims;
+    vector<int> vDim(16);
+    cudnnStatus_t cudnnStatus = cudnnGetFilterNdDescriptor(f, 5, &dataType, &format, &ndims, vDim.data());
+    CUDNNERROR(cudnnStatus, "cudnnGetFilterNdDescriptor error");        
+    cout << "Filter:   " << ndims << " dimensions" << endl;
+    cout << "DataType: " << dataType << endl;
+    cout << "Format:   " << format << endl;    
+    for (int i = 0; i < ndims; i++)
+        cout << i << " " << vDim[i] << " " << endl;
+    cout << endl;
+    
+}
+
+static void DumpConvolution(cudnnConvolutionDescriptor_t c)
+{
+    cudnnDataType_t dataType;
+    cudnnConvolutionMode_t mode;
+    int ndims;
+    vector<int> vPad(16);
+    vector<int> vStride(16);
+    vector<int> vUpscale(16);        
+    cudnnStatus_t cudnnStatus = cudnnGetConvolutionNdDescriptor(c, 5, &ndims, vPad.data(), vStride.data(), vUpscale.data(), &mode, &dataType);
+    CUDNNERROR(cudnnStatus, "cudnnGetConvolutionNdDescriptor error");      
+    cout << "Convolution:   " << ndims << " dimensions" << endl;
+    cout << "DataType:      " << dataType << endl;
+    cout << "Mode:          " << mode << endl;    
+    for (int i = 0; i < ndims; i++)
+        cout << i << " " << vPad[i] << " " << vStride[i] << " " << vUpscale[i] << endl;
+    cout << endl;
+    
+}
+
+
 bool LoadNNWeightDescriptorNetCDF(const string& fname, netCDF::NcFile& nc, uint32_t index, NNWeightDescriptor& wd)
 {
     bool bResult                                = true; 
@@ -407,7 +460,7 @@ _pbBiasGradientVelocity()
     _vBias.resize(_biasSize);
     _pbBias.reset(new GpuBuffer<NNFloat>(_biasSize));
 
-    // Add bias graident to convolutions
+    // Add bias gradient to convolutions
     if (_transform == Convolution)
     {
         _pbBiasGradient.reset(new GpuBuffer<NNFloat>(_biasSize));
@@ -511,7 +564,7 @@ void NNWeight::RefreshState(NNNetwork* pNetwork, TrainingMode mode)
             _pbBiasVelocity.reset(new GpuBuffer<NNFloat>(_biasSize));
             
         // Add additional buffers for AdaDelta and Adam
-        if (mode == TrainingMode::AdaDelta)
+        if ((mode == TrainingMode::AdaDelta) || (mode == TrainingMode::Adam))
         {
             if (!_pbWeightGradientVelocity)
                 _pbWeightGradientVelocity.reset(new GpuBuffer<NNFloat>(_size));
@@ -579,7 +632,10 @@ void NNWeight::RefreshState(NNNetwork* pNetwork, TrainingMode mode)
                                             &workspaceSize);
         CUDNNERROR(cudnnStatus, "NNWeight::Refresh: cudnnGetConvolutionBackwardFilterWorkspaceSize failed.");
         pNetwork->SetCUDNNWorkspace(workspaceSize); 
-                
+#if 0        
+        DumpTensor(_outputLayer._tensorDescriptor);
+        DumpTensor( _inputLayer._tensorDescriptor);
+#endif                
         cudnnStatus                         = cudnnGetConvolutionBackwardDataAlgorithm(getGpu()._cuDNNHandle,
                                             _convFilterDesc,
                                             _outputLayer._tensorDescriptor,
@@ -591,6 +647,15 @@ void NNWeight::RefreshState(NNNetwork* pNetwork, TrainingMode mode)
         CUDNNERROR(cudnnStatus, "NNWeight::Refresh: cudnnGetConvolutionBackwardDataAlgorithm failed.");      
         // cudnn BUG hacking in deterministic backprop
         //_convBWDeltaAlgo                    = CUDNN_CONVOLUTION_BWD_DATA_ALGO_1;                                         
+
+#if 0
+        cout << "Input ";
+        DumpTensor(_inputLayer._tensorDescriptor);
+        cout << "Output ";
+        DumpTensor(_outputLayer._tensorDescriptor);
+        DumpConvolution(_convDesc);
+        DumpFilter(_convFilterDesc);
+#endif
                                         
         cudnnStatus                         = cudnnGetConvolutionBackwardDataWorkspaceSize(getGpu()._cuDNNHandle,
                                               _convFilterDesc,
@@ -622,18 +687,19 @@ void NNWeight::RefreshState(NNNetwork* pNetwork, TrainingMode mode)
     }
 }
 
-float NNWeight::CalculateRegularizationError(NNFloat lambda)
+// Calculate L2 and L1 regularization error
+float NNWeight::CalculateRegularizationError(NNFloat lambda, NNFloat lambda1)
 {
     // Error on a shared set of weights is only calculated from its original source
     if (_bShared)
         return 0;
     else
-        return kCalculateRegularizationError(lambda, _pbWeight->_pDevData, _size);
+        return kCalculateRegularizationError(lambda, lambda1, _pbWeight->_pDevData, _size);
 }
 
 // Calculates Unit(l)^T * Delta(l + 1), the product of a [stride][batch] and [batch][outgoing stride] matrix
 // and then updates weight values utilizing the current training mode
-void NNWeight::UpdateWeights(TrainingMode trainingMode, uint32_t batch, NNFloat alpha, NNFloat lambda, NNFloat mu)
+void NNWeight::UpdateWeights(TrainingMode trainingMode, uint32_t batch, NNFloat alpha, NNFloat lambda, NNFloat lambda1, NNFloat mu, NNFloat mu1)
 {
     cublasStatus_t cstatus;
 
@@ -647,28 +713,32 @@ void NNWeight::UpdateWeights(TrainingMode trainingMode, uint32_t batch, NNFloat 
         switch (trainingMode)
         {
             case SGD:
-                kSGDUpdateWeights(alpha, lambda, _size, _pbWeightGradient->_pDevData, _pbWeight->_pDevData);
+                kSGDUpdateWeights(alpha, lambda, lambda1, _size, _pbWeightGradient->_pDevData, _pbWeight->_pDevData);
                 break;
                 
             case Momentum:
-                kMomentumUpdateWeights(alpha, lambda, mu, _size, _pbWeightVelocity->_pDevData, _pbWeightGradient->_pDevData, _pbWeight->_pDevData);
+                kMomentumUpdateWeights(alpha, lambda, lambda1, mu, _size, _pbWeightVelocity->_pDevData, _pbWeightGradient->_pDevData, _pbWeight->_pDevData);
                 break;
                         
             case AdaGrad:
-                kAdaGradUpdateWeights(alpha, lambda, _size, _pbWeightVelocity->_pDevData, _pbWeightGradient->_pDevData, _pbWeight->_pDevData);
+                kAdaGradUpdateWeights(alpha, lambda, lambda1, _size, _pbWeightVelocity->_pDevData, _pbWeightGradient->_pDevData, _pbWeight->_pDevData);
                 break;
                         
             case Nesterov:
-                kNesterovUpdateWeights(alpha, lambda, mu, _size, _pbWeightVelocity->_pDevData, _pbWeightGradient->_pDevData, _pbWeight->_pDevData);
+                kNesterovUpdateWeights(alpha, lambda, lambda1, mu, _size, _pbWeightVelocity->_pDevData, _pbWeightGradient->_pDevData, _pbWeight->_pDevData);
                 break;
                         
             case RMSProp:
-                kRMSPropUpdateWeights(alpha, lambda, mu, _size, _pbWeightVelocity->_pDevData, _pbWeightGradient->_pDevData, _pbWeight->_pDevData);
+                kRMSPropUpdateWeights(alpha, lambda, lambda1, mu, _size, _pbWeightVelocity->_pDevData, _pbWeightGradient->_pDevData, _pbWeight->_pDevData);
                 break;
 
             case AdaDelta:
-                kAdaDeltaUpdateWeights(lambda, mu, _size, _pbWeightVelocity->_pDevData, _pbWeightGradient->_pDevData, _pbWeightGradientVelocity->_pDevData, _pbWeight->_pDevData);
+                kAdaDeltaUpdateWeights(lambda, lambda1, mu, _size, _pbWeightVelocity->_pDevData, _pbWeightGradient->_pDevData, _pbWeightGradientVelocity->_pDevData, _pbWeight->_pDevData);
                 break;     
+
+            case Adam:
+                kAdamUpdateWeights(alpha, lambda, lambda1, mu, mu1, _size, _pbWeightVelocity->_pDevData, _pbWeightGradient->_pDevData, _pbWeightGradientVelocity->_pDevData, _pbWeight->_pDevData);
+                break;   
         }
     }
 
@@ -700,6 +770,10 @@ void NNWeight::UpdateWeights(TrainingMode trainingMode, uint32_t batch, NNFloat 
             case AdaDelta:
                 kAdaDeltaUpdateBiases(mu, batch, _outputLayer._localStride, _outputLayer._pbDelta->_pDevData, _pbBiasVelocity->_pDevData, _pbBiasGradientVelocity->_pDevData, _pbBias->_pDevData);
                 break;                         
+
+            case Adam:
+                kAdamUpdateBiases(alpha, mu, mu1, batch, _outputLayer._localStride, _outputLayer._pbDelta->_pDevData, _pbBiasVelocity->_pDevData, _pbBiasGradientVelocity->_pDevData, _pbBias->_pDevData);
+                break; 
         }
     }
     else
@@ -708,28 +782,32 @@ void NNWeight::UpdateWeights(TrainingMode trainingMode, uint32_t batch, NNFloat 
         switch (trainingMode)
         {
             case SGD:
-                kSGDUpdateWeights(alpha, (NNFloat)0.0, _biasSize, _pbBiasGradient->_pDevData, _pbBias->_pDevData);
+                kSGDUpdateWeights(alpha, (NNFloat)0.0, (NNFloat)0.0, _biasSize, _pbBiasGradient->_pDevData, _pbBias->_pDevData);
                 break;
 
             case Momentum:
-                kMomentumUpdateWeights(alpha, (NNFloat)0.0, mu, _biasSize, _pbBiasVelocity->_pDevData, _pbBiasGradient->_pDevData, _pbBias->_pDevData);
+                kMomentumUpdateWeights(alpha, (NNFloat)0.0, (NNFloat)0.0, mu, _biasSize, _pbBiasVelocity->_pDevData, _pbBiasGradient->_pDevData, _pbBias->_pDevData);
                 break;
                     
             case AdaGrad:
-                kAdaGradUpdateWeights(alpha, (NNFloat)0.0, _biasSize, _pbBiasVelocity->_pDevData, _pbBiasGradient->_pDevData, _pbBias->_pDevData);
+                kAdaGradUpdateWeights(alpha, (NNFloat)0.0, (NNFloat)0.0, _biasSize, _pbBiasVelocity->_pDevData, _pbBiasGradient->_pDevData, _pbBias->_pDevData);
                 break;
                         
             case Nesterov:
-                kNesterovUpdateWeights(alpha, (NNFloat)0.0, mu, _biasSize, _pbBiasVelocity->_pDevData, _pbBiasGradient->_pDevData, _pbBias->_pDevData);
+                kNesterovUpdateWeights(alpha, (NNFloat)0.0, (NNFloat)0.0, mu, _biasSize, _pbBiasVelocity->_pDevData, _pbBiasGradient->_pDevData, _pbBias->_pDevData);
                 break;
                         
             case RMSProp:
-                kRMSPropUpdateWeights(alpha, (NNFloat)0.0, mu, _biasSize, _pbBiasVelocity->_pDevData, _pbBiasGradient->_pDevData, _pbBias->_pDevData);
+                kRMSPropUpdateWeights(alpha, (NNFloat)0.0, (NNFloat)0.0, mu, _biasSize, _pbBiasVelocity->_pDevData, _pbBiasGradient->_pDevData, _pbBias->_pDevData);
                 break;
 
             case AdaDelta:
-                kAdaDeltaUpdateWeights((NNFloat)0.0, mu, _biasSize, _pbBiasVelocity->_pDevData, _pbBiasGradient->_pDevData, _pbBiasGradientVelocity->_pDevData, _pbBias->_pDevData);
-                break;                 
+                kAdaDeltaUpdateWeights((NNFloat)0.0, (NNFloat)0.0, mu, _biasSize, _pbBiasVelocity->_pDevData, _pbBiasGradient->_pDevData, _pbBiasGradientVelocity->_pDevData, _pbBias->_pDevData);
+                break;
+
+            case Adam:
+                kAdamUpdateWeights(alpha, (NNFloat)0.0, (NNFloat)0.0, mu, mu1, _biasSize, _pbBiasVelocity->_pDevData, _pbBiasGradient->_pDevData, _pbBiasGradientVelocity->_pDevData, _pbBias->_pDevData);
+                break;                                 
         }       
     }
 #if 0

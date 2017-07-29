@@ -47,6 +47,7 @@ public:
         None                = 0x0,
         Sparse              = 0x1,
         Denoising           = 0x2,
+        BatchNormalization  = 0x4,
     };
 
     static std::pair<NNLayer::Attributes, string> _sAttributesPair[];
@@ -88,7 +89,8 @@ private:
     WeightInitialization        _weightInit;                // Weight initialization scheme
     NNFloat                     _weightInitScale;           // Weight Initialization scaling factor
     NNFloat                     _biasInit;                  // Bias initialization value
-    NNFloat                     _slope;                     // slope parameter for Leaky ReLU
+    NNFloat                     _slope;                     // Slope parameter for Leaky ReLU
+    bool                        _bBatchNormalization;       // Perform batch normalization
     const uint32_t              _kernelX;                   // kernel X size
     const uint32_t              _kernelY;                   // kernel Y size
     const uint32_t              _kernelZ;                   // kernel Z size
@@ -128,9 +130,13 @@ private:
     vector<NNLayer*>            _vOutgoingSkip;             // List of outgoing skip layer targets
     vector<NNFloat>             _vUnit;                     // Layer's units
     vector<NNFloat>             _vDelta;                    // Layer's deltas
+    vector<NNFloat>             _vBuffer1;                  // Scratch buffer for various layer types
+    vector<NNFloat>             _vBuffer2;                  // Scratch buffer for various layer types
     unique_ptr<GpuBuffer<NNFloat>> _pbUnit;                 // GPU memory for unit activations
     unique_ptr<GpuBuffer<NNFloat>> _pbDelta;                // GPU memory for unit deltas
     unique_ptr<GpuBuffer<NNFloat>> _pbDropout;              // Dropout random values if active
+    unique_ptr<GpuBuffer<NNFloat>> _pbBuffer1;              // Scratch buffer 1 if active
+    unique_ptr<GpuBuffer<NNFloat>> _pbBuffer2;              // Scratch buffer 2 if active   
     int32_t                     _priority;                  // Mutable priority for calculating propagation ordering
     NNLayer(NNLayerDescriptor& l, uint32_t batch);
     ~NNLayer();
@@ -218,7 +224,7 @@ struct NNLayerDescriptor
     NNFloat                 _sparsenessPenalty_p;       // Layer-specific sparseness target
     NNFloat                 _sparsenessPenalty_beta;    // Layer-specific sparseness penalty weight    
     uint32_t                _attributes;                // Specific layer properties
-    NNFloat                 _slope;                     // Leaky rely slope
+    NNFloat                 _slope;                     // Leaky Relu slope
     NNLayerDescriptor();
 };
 

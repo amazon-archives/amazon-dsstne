@@ -27,6 +27,7 @@ static std::pair<TrainingMode, string> sTrainingModePair[] =
     std::pair<TrainingMode, string>(TrainingMode::Nesterov, "Nesterov"),
     std::pair<TrainingMode, string>(TrainingMode::RMSProp,  "RMSProp"),
     std::pair<TrainingMode, string>(TrainingMode::AdaDelta, "AdaDelta"),  
+    std::pair<TrainingMode, string>(TrainingMode::Adam,     "Adam"),  
 };
 
 static std::map<TrainingMode, string> sTrainingModeMap =
@@ -106,6 +107,8 @@ static std::pair<PoolingFunction, string> sPoolingFunctionPair[] =
     std::pair<PoolingFunction, string>(PoolingFunction::Max,                        "Max"),
     std::pair<PoolingFunction, string>(PoolingFunction::Average,                    "Average"),
     std::pair<PoolingFunction, string>(PoolingFunction::Maxout,                     "Maxout"),
+    std::pair<PoolingFunction, string>(PoolingFunction::DotProduct,                 "DotProduct"),    
+    std::pair<PoolingFunction, string>(PoolingFunction::Cosine,                     "Cosine"), 
     std::pair<PoolingFunction, string>(PoolingFunction::Stochastic,                 "Stochastic"),
     std::pair<PoolingFunction, string>(PoolingFunction::LCN,                        "LocalContrastNormalization"),
     std::pair<PoolingFunction, string>(PoolingFunction::LRN,                        "LocalResponseNormalization"),
@@ -1256,7 +1259,7 @@ template<typename T> bool NNDataSet<T>::Shard(NNDataSetEnums::Sharding sharding)
                 }
 
                 // Finally derive local shard
-                vector<uint64_t> vTempSparseStart	= _vSparseStart;
+                vector<uint64_t> vTempSparseStart   = _vSparseStart;
                 vector<uint64_t> vTempSparseEnd     = _vSparseEnd;
                 vector<uint32_t> vTempSparseIndex   = _vSparseIndex;
                 vector<T> vTempSparseData           = _vSparseData;

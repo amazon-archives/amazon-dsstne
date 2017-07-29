@@ -430,39 +430,58 @@ GpuBuffer<T>::~GpuBuffer()
 template <typename T>
 void GpuBuffer<T>::Allocate()
 {
+    cudaError_t status;
 #ifdef MEMTRACKING
     printf("Allocating %llu bytes of GPU memory", _length * sizeof(T));
     if (!_bSysMem && !_bPinned)
-        printf(", unshadowed");
-    else if (_bPinned)
-        printf(", pinned");
-    printf("\n");   
-#endif
-    cudaError_t status;
-    if (_bPinned)
     {
-        status = cudaHostAlloc((void **)&_pSysData, _length * sizeof(T), cudaHostAllocMapped);
-        RTERROR(status, "cudaHostalloc GpuBuffer::Allocate failed");
-        getGpu()._totalCPUMemory                    += _length * sizeof(T);
-        getGpu()._totalGPUMemory                    += _length * sizeof(T);
-        status = cudaHostGetDevicePointer((void **)&_pDevData, (void *)_pSysData, 0);
-        RTERROR(status, "cudaGetDevicePointer GpuBuffer::failed to get device pointer");
-        memset(_pSysData, 0, _length * sizeof(T));
+        printf(", unshadowed");
     }
-    else 
+    else if (_bPinned)
     {
         if (_bSysMem)
         {
-            _pSysData =     new T[_length];
-            getGpu()._totalCPUMemory            +=  _length * sizeof(T);
-            memset(_pSysData, 0, _length * sizeof(T));
+            printf(", staged");
         }
-
+        else
+        {
+            printf(", pinned");
+        }
+    }
+    printf("\n");   
+#endif
+    
+    // Allocate GPU memory if needed
+    if (_bSysMem || !_bPinned)
+    {
         status = cudaMalloc((void **) &_pDevData, _length * sizeof(T));
-        getGpu()._totalGPUMemory                +=  _length * sizeof(T);
-        RTERROR(status, "cudaMalloc GpuBuffer::Allocate failed");
+        getGpu()._totalGPUMemory           +=  _length * sizeof(T);
+        RTERROR(status, "GpuBuffer::Allocate failed (cudaMalloc)");
         status = cudaMemset((void *) _pDevData, 0, _length * sizeof(T));
-        RTERROR(status, "cudaMemset GpuBuffer::Allocate failed");
+        RTERROR(status, "GpuBuffer::Allocate failed (cudaMemset)");
+    }
+
+    // Allocate system/pinned memory as needed
+    if (_bPinned)
+    {
+        status = cudaHostAlloc((void **)&_pSysData, _length * sizeof(T), _bSysMem ? 0 : cudaHostAllocMapped);
+        RTERROR(status, "GpuBuffer::Allocate failed (cudaHostAlloc)");
+        getGpu()._totalCPUMemory           += _length * sizeof(T);
+        
+        // Unified memory
+        if (!_bSysMem)
+        {
+            status = cudaHostGetDevicePointer((void **)&_pDevData, (void *)_pSysData, 0);
+            RTERROR(status, "GpuBuffer::Allocate failed (cudaHostGetDevicePointer)");
+            getGpu()._totalGPUMemory       += _length * sizeof(T);
+        }
+        memset(_pSysData, 0, _length * sizeof(T));        
+    }
+    else if (_bSysMem)
+    {
+        _pSysData                           =  new T[_length];
+        getGpu()._totalCPUMemory           +=  _length * sizeof(T);
+        memset(_pSysData, 0, _length * sizeof(T));
     }
 #ifdef MEMTRACKING
     printf("Mem++: %llu %llu\n", getGpu()._totalGPUMemory, getGpu()._totalCPUMemory);     
@@ -473,23 +492,36 @@ template <typename T>
 void GpuBuffer<T>::Deallocate()
 {
     cudaError_t status;
+    
+    // Deallocate GPU memory
+    if (_bSysMem || !_bPinned)
+    {
+        status = cudaFree(_pDevData);
+        RTERROR(status, "GpuBuffer::Deallocate failed (cudaFree)");        
+        getGpu()._totalGPUMemory           -=  _length * sizeof(T);
+    }
+
+
+    // Deallocate system/pinned memory
     if (_bPinned)
     {
         status = cudaFreeHost(_pSysData);
-        getGpu()._totalCPUMemory                -=  _length * sizeof(T);
-        getGpu()._totalGPUMemory                -=  _length * sizeof(T);        
-    }
-    else
-    {
-        if (_bSysMem)
+        RTERROR(status, "GpuBuffer::Deallocate failed (cudaFreeHost)");
+        getGpu()._totalCPUMemory           -=  _length * sizeof(T);
+                
+        // Unified memory
+        if (!_bSysMem)
         {
-            delete[] _pSysData;
-            getGpu()._totalCPUMemory            -=  _length * sizeof(T);   
-        }         
-        status = cudaFree(_pDevData);
-        getGpu()._totalGPUMemory                -=  _length * sizeof(T);
+            getGpu()._totalGPUMemory       -= _length * sizeof(T);
+        }
     }
-    RTERROR(status, "cudaFree GpuBuffer::Deallocate failed");   
+    else if (_bSysMem)
+    {
+        delete[] _pSysData;
+        getGpu()._totalCPUMemory           -=  _length * sizeof(T);   
+    }
+
+    
     _pSysData = NULL;
     _pDevData = NULL;
 #ifdef MEMTRACKING    

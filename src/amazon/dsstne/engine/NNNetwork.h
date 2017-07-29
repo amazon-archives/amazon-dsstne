@@ -128,7 +128,7 @@ public:
     void LoadDataSets(vector<NNDataSetBase*>& vData);
     void Randomize();
     bool Validate();
-    float Train(uint32_t epochs = 1, NNFloat alpha = 0.1f, NNFloat lambda = 0.001f, NNFloat mu = 0.1f);
+    float Train(uint32_t epochs = 1, NNFloat alpha = (NNFloat)0.1, NNFloat lambda = (NNFloat)0.001, NNFloat lambda1 = (NNFloat)0.0, NNFloat mu = (NNFloat)0.1,  NNFloat mu1 = 0.0);
     void PredictBatch(uint32_t layers = 0);
     void CalculateTopK(const string& layer, uint32_t k, GpuBuffer<NNFloat>* pbKey, GpuBuffer<uint32_t>* pbValue);
     void SaveBatch(string fname);
@@ -150,9 +150,6 @@ public:
     unsigned int GetBatch() const;
     uint32_t GetExamples() const;
     uint32_t GetPosition() const;
-    const NNFloat* GetUnitBuffer(const string& layer) const;
-    const NNFloat* GetDeltaBuffer(const string& layer) const;
-    const NNFloat* GetWeightBuffer(const string& inputLayer, const string& outputLayer) const;
     const NNWeight* GetWeight(const string& inputLayer, const string& outputLayer) const;
     uint64_t GetBufferSize(const string& layer) const;
     const NNLayer* GetLayer(const string &layer) const;
@@ -168,6 +165,9 @@ public:
     tuple<string, int32_t> GetCheckPoint() const;                                       // Returns Checkpoint name and interval
 
     // Non-const getters
+    NNFloat* GetUnitBuffer(const string& layer) const;
+    NNFloat* GetDeltaBuffer(const string& layer) const;
+    NNFloat* GetWeightBuffer(const string& inputLayer, const string& outputLayer) const;    
     NNFloat* GetScratchBuffer(size_t size = 0);                                         // Gets current scratch buffer, resizing if too small
     NNFloat* GetP2PSendBuffer();                                                        // Returns current local send buffer
     NNFloat* GetP2PReceiveBuffer();                                                     // Returns current local receive buffer
@@ -198,10 +198,10 @@ private:
     void PredictValidationBatch(uint32_t layers = 0);
     void RefreshShuffleBuffers();
     void ShuffleIndices();
-    tuple<NNFloat, NNFloat> CalculateError(NNFloat lambda);
+    tuple<NNFloat, NNFloat> CalculateError(NNFloat lambda, NNFloat lambda1);
     void ClearUpdates();
     void BackPropagate(NNFloat alpha);
-    void UpdateWeights(NNFloat alpha, NNFloat lambda, NNFloat mu);
+    void UpdateWeights(NNFloat alpha, NNFloat lambda, NNFloat lambda1, NNFloat mu, NNFloat mu1);
     NNNetwork(NNNetworkDescriptor& nd, uint32_t batch = DefaultBatch);
     void RefreshState();
     void Shuffle();

@@ -72,6 +72,7 @@ enum TrainingMode
     Nesterov = 3,
     RMSProp = 4,
     AdaDelta = 5,
+    Adam = 6,
 };
 
 ostream& operator<< (ostream& out, const TrainingMode& e);
@@ -122,6 +123,8 @@ enum PoolingFunction {
     Average,
     LRN,
     Maxout,
+    DotProduct,
+    Cosine,
     Stochastic,
     LCN,
     GlobalTemporal,
@@ -224,6 +227,8 @@ struct NNDataSetBase {
     virtual bool CalculateOutputDelta(Activation activation, uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, NNFloat slope) = 0;
     virtual float CalculateDataScaledMarginalCrossEntropyError(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit) = 0;
     virtual bool CalculateDataScaledMarginalCrossEntropyOutputDelta(Activation activation, uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta) = 0;
+    virtual float CalculateHingeLoss(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit) = 0;
+    virtual bool CalculateHingeDelta(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta) = 0;
 };
 
 ostream& operator<< (ostream& out, NNDataSetEnums::Attributes& a);
@@ -282,6 +287,8 @@ private:
     bool CalculateOutputDelta(Activation activation, uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, NNFloat slope);
     float CalculateDataScaledMarginalCrossEntropyError(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit);
     bool CalculateDataScaledMarginalCrossEntropyOutputDelta(Activation activation, uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta);
+    float CalculateHingeLoss(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit);
+    bool CalculateHingeDelta(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta);    
 
 public:
 
@@ -543,6 +550,11 @@ template<typename T> float NNDataSet<T>::CalculateDataScaledMarginalCrossEntropy
     }
 }
 
+template<typename T> float NNDataSet<T>::CalculateHingeLoss(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit)
+{
+    return 0.0f;
+}
+
 template<typename T> bool NNDataSet<T>::CalculateL1OutputDelta(Activation activation, uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, NNFloat slope)
 {
     if (_attributes & NNDataSetEnums::Sparse)
@@ -619,6 +631,11 @@ template<typename T> bool NNDataSet<T>::CalculateDataScaledMarginalCrossEntropyO
         getGpu().Shutdown();
         exit(-1);
     }
+    return true;
+}
+
+template<typename T> bool NNDataSet<T>::CalculateHingeDelta(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta)
+{
     return true;
 }
 
