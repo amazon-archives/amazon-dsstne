@@ -1740,7 +1740,7 @@ void kAdaDeltaUpdateBiases(NNFloat mu, uint32_t batch, uint32_t width, NNFloat* 
 
 __global__ void
 LAUNCH_BOUNDS()
-kAdamUpdateWeights_kernel(NNFloat alpha, NNFloat lambda, NNFloat lambda1, NNFloat mu, NNFloat mu1, uint64_t size, NNFloat* pWeightVelocity, NNFloat* pWeightGradient, NNFloat* pWeightGradientVelocity, NNFloat* pWeight)
+kAdamUpdateWeights_kernel(NNFloat alpha, NNFloat lambda, NNFloat lambda1, NNFloat mu, NNFloat mu1, NNFloat t, uint64_t size, NNFloat* pWeightVelocity, NNFloat* pWeightGradient, NNFloat* pWeightGradientVelocity, NNFloat* pWeight)
 {
     uint64_t pos                = blockIdx.x * blockDim.x + threadIdx.x;
     if (pos < size)
@@ -1750,10 +1750,10 @@ kAdamUpdateWeights_kernel(NNFloat alpha, NNFloat lambda, NNFloat lambda1, NNFloa
         NNFloat v                       = pWeightVelocity[pos];
         NNFloat m                       = pWeightGradientVelocity[pos];
         g                              -= lambda * w + lambda1 * sgn(w);
-		m								= mu * m + ((NNFloat)1.0 - mu) * g;
-		v								= mu1 * v + ((NNFloat)1.0 - mu1) * g * g;
-		m				               /= (NNFloat)1.0 - mu;
-		v							   /= (NNFloat)1.0 - mu1;        
+        m                               = mu * m + ((NNFloat)1.0 - pow(mu, t)) * g;
+        v                               = mu1 * v + ((NNFloat)1.0 - pow(mu1, t)) * g * g;
+        m                              /= (NNFloat)1.0 - mu;
+        v                              /= (NNFloat)1.0 - mu1;        
         NNFloat dw                      = alpha * m / (sqrt(v) + (NNFloat)1.0e-8);
         pWeightVelocity[pos]            = v;
         pWeightGradientVelocity[pos]    = m;
@@ -1761,16 +1761,16 @@ kAdamUpdateWeights_kernel(NNFloat alpha, NNFloat lambda, NNFloat lambda1, NNFloa
     }
 }
 
-void kAdamUpdateWeights(NNFloat alpha, NNFloat lambda, NNFloat lambda1, NNFloat mu, NNFloat mu1, uint64_t size, NNFloat* pWeightVelocity, NNFloat* pWeightGradient, NNFloat* pWeightGradientVelocity, NNFloat* pWeight)
+void kAdamUpdateWeights(NNFloat alpha, NNFloat lambda, NNFloat lambda1, NNFloat mu, NNFloat mu1, NNFloat t, uint64_t size, NNFloat* pWeightVelocity, NNFloat* pWeightGradient, NNFloat* pWeightGradientVelocity, NNFloat* pWeight)
 {
     unsigned long blocks        = CalculateBlocks(size);
-    kAdamUpdateWeights_kernel<<<blocks, getGpu()._threadsPerBlock>>>(alpha, lambda, lambda1, mu, mu1, size, pWeightVelocity, pWeightGradient, pWeightGradientVelocity, pWeight);
+    kAdamUpdateWeights_kernel<<<blocks, getGpu()._threadsPerBlock>>>(alpha, lambda, lambda1, mu, mu1, t, size, pWeightVelocity, pWeightGradient, pWeightGradientVelocity, pWeight);
     LAUNCHERROR("kAdamUpdateWeights_kernel");
 }
 
 __global__ void
 LAUNCH_BOUNDS()
-kAdamUpdateBiases_kernel(NNFloat alpha, NNFloat mu, NNFloat mu1, uint32_t batch, uint32_t width, NNFloat* pDelta, NNFloat* pBiasVelocity, NNFloat* pBiasGradientVelocity, NNFloat* pBias)
+kAdamUpdateBiases_kernel(NNFloat alpha, NNFloat mu, NNFloat mu1, NNFloat t, uint32_t batch, uint32_t width, NNFloat* pDelta, NNFloat* pBiasVelocity, NNFloat* pBiasGradientVelocity, NNFloat* pBias)
 {
     uint64_t pos                    = blockIdx.x * blockDim.x + threadIdx.x;
     if (pos < width)
@@ -1789,21 +1789,21 @@ kAdamUpdateBiases_kernel(NNFloat alpha, NNFloat mu, NNFloat mu1, uint32_t batch,
         // Update velocity and bias
         NNFloat v                   = pBiasVelocity[pos];
         NNFloat m                   = pBiasGradientVelocity[pos];
-		m					    	= mu * m + ((NNFloat)1.0 - mu) * sum;
-		v							= mu1 * v + ((NNFloat)1.0 - mu1) * sum * sum;
-		m			               /= (NNFloat)1.0 - mu;
-		v					       /= (NNFloat)1.0 - mu1;        
+        m                           = mu * m + ((NNFloat)1.0 - pow(mu, t)) * sum;
+        v                           = mu1 * v + ((NNFloat)1.0 - pow(mu1, t)) * sum * sum;
+        m                          /= (NNFloat)1.0 - mu;
+        v                          /= (NNFloat)1.0 - mu1;        
         NNFloat dw                  = alpha * m / (sqrt(v) + (NNFloat)1.0e-8);
         pBiasVelocity[pos]          = v;
-        pBiasGradientVelocity[pos]	= m;
+        pBiasGradientVelocity[pos]  = m;
         pBias[pos]                 -= dw;
     }
 }
 
-void kAdamUpdateBiases(NNFloat alpha, NNFloat mu, NNFloat mu1, uint32_t batch, uint32_t width, NNFloat* pDelta, NNFloat* pBiasVelocity, NNFloat* pBiasGradientVelocity, NNFloat* pBias)
+void kAdamUpdateBiases(NNFloat alpha, NNFloat mu, NNFloat mu1, NNFloat t, uint32_t batch, uint32_t width, NNFloat* pDelta, NNFloat* pBiasVelocity, NNFloat* pBiasGradientVelocity, NNFloat* pBias)
 {
     uint32_t blocks             = CalculateBlocks(width);
-    kAdamUpdateBiases_kernel<<<blocks, getGpu()._threadsPerBlock>>>(alpha, mu, mu1, batch, width, pDelta, pBiasVelocity, pBiasGradientVelocity, pBias);
+    kAdamUpdateBiases_kernel<<<blocks, getGpu()._threadsPerBlock>>>(alpha, mu, mu1, t, batch, width, pDelta, pBiasVelocity, pBiasGradientVelocity, pBias);
     LAUNCHERROR("kAdamUpdateBiases_kernel");
 }
 

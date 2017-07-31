@@ -394,6 +394,7 @@ _checkpoint_name(d._checkpoint_name),
 _checkpoint_interval(d._checkpoint_interval),
 _checkpoint_epochs(0),
 _epochs(0),
+_batches(0),
 _bClearVelocity(true),
 _bDirty(true),
 _maxStride(0),
@@ -1510,6 +1511,7 @@ NNFloat NNNetwork::Train(uint32_t epochs, NNFloat alpha, NNFloat lambda, NNFloat
     {
         for (uint32_t i = 0; i < _vWeight.size(); i++)
             _vWeight[i]->ClearVelocity();
+        _batches = 0;
     }
 
     NNFloat total_error_training                            = (NNFloat)0.0;
@@ -1715,10 +1717,13 @@ void NNNetwork::UpdateWeights(NNFloat alpha, NNFloat lambda, NNFloat lambda1, NN
     uint32_t batch                          = _batch;
     if (_position + batch > _examples)
         batch                               = _examples - _position;
+        
+    // Increment batch count (do this before weight update in case using Adam optimizer)
+    _batches++;        
 
     for (int64_t i = _vWeight.size() - 1; i >= 0; i--)
     {
-        _vWeight[i]->UpdateWeights(_trainingMode, batch, alpha, lambda, lambda1, mu, mu1);
+        _vWeight[i]->UpdateWeights(_trainingMode, batch, alpha, lambda, lambda1, mu, mu1, _batches);
     }
 
     // Update batch normalization parameters

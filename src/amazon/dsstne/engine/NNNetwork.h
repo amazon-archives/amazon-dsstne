@@ -48,6 +48,7 @@ private:
     Mode                        _mode;                      // Operational mode (training or prediction)
     uint32_t                    _epochs;                    // Total number of training epochs
     uint32_t                    _indices;                   // Total number of indices in all input and output data
+    uint32_t                    _batches;                   // Total number of batches trained
 
     // Local response normalization settings
     NNFloat                     _LRN_k;                     // LRN offset

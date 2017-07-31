@@ -688,7 +688,7 @@ void NNWeight::RefreshState(NNNetwork* pNetwork, TrainingMode mode)
 }
 
 // Calculate L2 and L1 regularization error
-float NNWeight::CalculateRegularizationError(NNFloat lambda, NNFloat lambda1)
+NNFloat NNWeight::CalculateRegularizationError(NNFloat lambda, NNFloat lambda1)
 {
     // Error on a shared set of weights is only calculated from its original source
     if (_bShared)
@@ -699,7 +699,7 @@ float NNWeight::CalculateRegularizationError(NNFloat lambda, NNFloat lambda1)
 
 // Calculates Unit(l)^T * Delta(l + 1), the product of a [stride][batch] and [batch][outgoing stride] matrix
 // and then updates weight values utilizing the current training mode
-void NNWeight::UpdateWeights(TrainingMode trainingMode, uint32_t batch, NNFloat alpha, NNFloat lambda, NNFloat lambda1, NNFloat mu, NNFloat mu1)
+void NNWeight::UpdateWeights(TrainingMode trainingMode, uint32_t batch, NNFloat alpha, NNFloat lambda, NNFloat lambda1, NNFloat mu, NNFloat mu1, NNFloat t)
 {
     cublasStatus_t cstatus;
 
@@ -737,7 +737,7 @@ void NNWeight::UpdateWeights(TrainingMode trainingMode, uint32_t batch, NNFloat 
                 break;     
 
             case Adam:
-                kAdamUpdateWeights(alpha, lambda, lambda1, mu, mu1, _size, _pbWeightVelocity->_pDevData, _pbWeightGradient->_pDevData, _pbWeightGradientVelocity->_pDevData, _pbWeight->_pDevData);
+                kAdamUpdateWeights(alpha, lambda, lambda1, mu, mu1, t, _size, _pbWeightVelocity->_pDevData, _pbWeightGradient->_pDevData, _pbWeightGradientVelocity->_pDevData, _pbWeight->_pDevData);
                 break;   
         }
     }
@@ -772,7 +772,7 @@ void NNWeight::UpdateWeights(TrainingMode trainingMode, uint32_t batch, NNFloat 
                 break;                         
 
             case Adam:
-                kAdamUpdateBiases(alpha, mu, mu1, batch, _outputLayer._localStride, _outputLayer._pbDelta->_pDevData, _pbBiasVelocity->_pDevData, _pbBiasGradientVelocity->_pDevData, _pbBias->_pDevData);
+                kAdamUpdateBiases(alpha, mu, mu1, t, batch, _outputLayer._localStride, _outputLayer._pbDelta->_pDevData, _pbBiasVelocity->_pDevData, _pbBiasGradientVelocity->_pDevData, _pbBias->_pDevData);
                 break; 
         }
     }
@@ -806,7 +806,7 @@ void NNWeight::UpdateWeights(TrainingMode trainingMode, uint32_t batch, NNFloat 
                 break;
 
             case Adam:
-                kAdamUpdateWeights(alpha, (NNFloat)0.0, (NNFloat)0.0, mu, mu1, _biasSize, _pbBiasVelocity->_pDevData, _pbBiasGradient->_pDevData, _pbBiasGradientVelocity->_pDevData, _pbBias->_pDevData);
+                kAdamUpdateWeights(alpha, (NNFloat)0.0, (NNFloat)0.0, mu, mu1, t, _biasSize, _pbBiasVelocity->_pDevData, _pbBiasGradient->_pDevData, _pbBiasGradientVelocity->_pDevData, _pbBias->_pDevData);
                 break;                                 
         }       
     }

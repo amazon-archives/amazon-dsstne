@@ -156,8 +156,8 @@ void kRMSPropUpdateWeights(NNFloat alpha, NNFloat lambda, NNFloat lambda1, NNFlo
 void kRMSPropUpdateBiases(NNFloat alpha, NNFloat mu, uint32_t batch, uint32_t width, NNFloat* pDelta, NNFloat* pBiasVelocity, NNFloat* pBias);
 void kAdaDeltaUpdateWeights(NNFloat lambda, NNFloat lambda1, NNFloat mu, uint64_t size, NNFloat* pWeightVelocity, NNFloat* pWeightGradient, NNFloat* pWeightGradientVelocity, NNFloat* pWeight);
 void kAdaDeltaUpdateBiases(NNFloat mu, uint32_t batch, uint32_t width, NNFloat* pDelta, NNFloat* pBiasVelocity, NNFloat* pBiasGradientVelocity, NNFloat* pBias);
-void kAdamUpdateWeights(NNFloat alpha, NNFloat lambda, NNFloat lambda1, NNFloat mu, NNFloat mu1, uint64_t size, NNFloat* pWeightVelocity, NNFloat* pWeightGradient, NNFloat* pWeightGradientVelocity, NNFloat* pWeight);
-void kAdamUpdateBiases(NNFloat alpha, NNFloat mu, NNFloat mu1, uint32_t batch, uint32_t width, NNFloat* pDelta, NNFloat* pBiasVelocity, NNFloat* pBiasGradientVelocity, NNFloat* pBias);
+void kAdamUpdateWeights(NNFloat alpha, NNFloat lambda, NNFloat lambda1, NNFloat mu, NNFloat mu1, NNFloat t, uint64_t size, NNFloat* pWeightVelocity, NNFloat* pWeightGradient, NNFloat* pWeightGradientVelocity, NNFloat* pWeight);
+void kAdamUpdateBiases(NNFloat alpha, NNFloat mu, NNFloat mu1, NNFloat t, uint32_t batch, uint32_t width, NNFloat* pDelta, NNFloat* pBiasVelocity, NNFloat* pBiasGradientVelocity, NNFloat* pBias);
 
 // Pooling Functions
 void kCalculateMaxout(NNFloat* pSrc, size_t size, NNFloat* pDst);
