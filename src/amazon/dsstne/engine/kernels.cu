@@ -1750,10 +1750,10 @@ kAdamUpdateWeights_kernel(NNFloat alpha, NNFloat lambda, NNFloat lambda1, NNFloa
         NNFloat v                       = pWeightVelocity[pos];
         NNFloat m                       = pWeightGradientVelocity[pos];
         g                              -= lambda * w + lambda1 * sgn(w);
-        m                               = mu * m + ((NNFloat)1.0 - pow(mu, t)) * g;
-        v                               = mu1 * v + ((NNFloat)1.0 - pow(mu1, t)) * g * g;
-        m                              /= (NNFloat)1.0 - mu;
-        v                              /= (NNFloat)1.0 - mu1;        
+        m                               = mu * m + ((NNFloat)1.0 - mu) * g;
+        v                               = mu1 * v + ((NNFloat)1.0 - mu1) * g * g;
+        m                              /= (NNFloat)1.0 - pow(mu, t);
+        v                              /= (NNFloat)1.0 - pow(mu1, t);        
         NNFloat dw                      = alpha * m / (sqrt(v) + (NNFloat)1.0e-8);
         pWeightVelocity[pos]            = v;
         pWeightGradientVelocity[pos]    = m;
@@ -1789,10 +1789,10 @@ kAdamUpdateBiases_kernel(NNFloat alpha, NNFloat mu, NNFloat mu1, NNFloat t, uint
         // Update velocity and bias
         NNFloat v                   = pBiasVelocity[pos];
         NNFloat m                   = pBiasGradientVelocity[pos];
-        m                           = mu * m + ((NNFloat)1.0 - pow(mu, t)) * sum;
-        v                           = mu1 * v + ((NNFloat)1.0 - pow(mu1, t)) * sum * sum;
-        m                          /= (NNFloat)1.0 - mu;
-        v                          /= (NNFloat)1.0 - mu1;        
+        m                           = mu * m + ((NNFloat)1.0 - mu) * sum;
+        v                           = mu1 * v + ((NNFloat)1.0 - mu1) * sum * sum;
+        m                          /= (NNFloat)1.0 - pow(mu, t);
+        v                          /= (NNFloat)1.0 - pow(mu1, t);        
         NNFloat dw                  = alpha * m / (sqrt(v) + (NNFloat)1.0e-8);
         pBiasVelocity[pos]          = v;
         pBiasGradientVelocity[pos]  = m;
