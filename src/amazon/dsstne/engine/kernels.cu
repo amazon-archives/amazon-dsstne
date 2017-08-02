@@ -2884,8 +2884,8 @@ void kCalculateDotProduct(NNFloat* pVector1In, NNFloat* pVector2In, uint32_t bat
     LAUNCHERROR("kCalculateDotProduct_kernel");    
 }
 
-#include "../cub/util_allocator.cuh"
-#include "../cub/device/device_radix_sort.cuh"
+#include "cub/util_allocator.cuh"
+#include "cub/device/device_radix_sort.cuh"
 
 template<typename KeyType, typename ValueType> size_t kInitSort(uint32_t items, GpuBuffer<KeyType>* pbKey, GpuBuffer<ValueType>* pbValue)
 {

@@ -2744,7 +2744,7 @@ NNNetwork* LoadNeuralNetworkJSON(const string& fname, const uint32_t batch, cons
         {
             // Report failures and their locations
             // in the document.
-            printf("LoadNeuralNetworkJSON: Failed to parse JSON file: %s, error: %s\n", fname.c_str(), reader.getFormatedErrorMessages().c_str());
+            printf("LoadNeuralNetworkJSON: Failed to parse JSON file: %s, error: %s\n", fname.c_str(), reader.getFormattedErrorMessages().c_str());
             bValid                                  = false;
         }
         else
@@ -2755,7 +2755,7 @@ NNNetwork* LoadNeuralNetworkJSON(const string& fname, const uint32_t batch, cons
             for (Json::ValueIterator itr = index.begin(); itr != index.end() ; itr++)
             {
                 // Extract JSON object key/value pair
-                string name                         = itr.memberName();
+                string name                         = itr.name();
                 std::transform(name.begin(), name.end(), name.begin(), ::tolower);
                 Json::Value key                     = itr.key();
                 Json::Value value                   = *itr;
@@ -2807,7 +2807,7 @@ NNNetwork* LoadNeuralNetworkJSON(const string& fname, const uint32_t batch, cons
                 {
                     for (Json::ValueIterator pitr = value.begin(); pitr != value.end() ; pitr++)
                     {
-                        string pname                = pitr.memberName();
+                        string pname                = pitr.name();
                         std::transform(pname.begin(), pname.end(), pname.begin(), ::tolower);
                         Json::Value pkey            = pitr.key();
                         Json::Value pvalue          = *pitr;
@@ -2821,7 +2821,7 @@ NNNetwork* LoadNeuralNetworkJSON(const string& fname, const uint32_t batch, cons
                             nd._LRN_beta            = pvalue.asFloat();
                         else
                         {
-                            name = pitr.memberName();
+                            name = pitr.name();
                             printf("LoadNeuralNetworkJSON: Invalid LocalResponseNormalization parameter: %s\n", name.c_str());
                             bValid                      = false;
                             goto exit;
@@ -2834,7 +2834,7 @@ NNNetwork* LoadNeuralNetworkJSON(const string& fname, const uint32_t batch, cons
                 {
                     for (Json::ValueIterator pitr = value.begin(); pitr != value.end() ; pitr++)
                     {
-                        string pname                = pitr.memberName();
+                        string pname                = pitr.name();
                         std::transform(pname.begin(), pname.end(), pname.begin(), ::tolower);
                         Json::Value pkey            = pitr.key();
                         Json::Value pvalue          = *pitr;
@@ -2842,7 +2842,7 @@ NNNetwork* LoadNeuralNetworkJSON(const string& fname, const uint32_t batch, cons
                             nd._maxout_k            = pvalue.asFloat();
                         else
                         {
-                            name = pitr.memberName();
+                            name = pitr.name();
                             printf("LoadNeuralNetworkJSON: Invalid MaxOut parameter: %s\n", name.c_str());
                             bValid                      = false;
                             goto exit;
@@ -2855,7 +2855,7 @@ NNNetwork* LoadNeuralNetworkJSON(const string& fname, const uint32_t batch, cons
                 {
                     for (Json::ValueIterator pitr = value.begin(); pitr != value.end() ; pitr++)
                     {
-                        string pname                = pitr.memberName();
+                        string pname                = pitr.name();
                         std::transform(pname.begin(), pname.end(), pname.begin(), ::tolower);
                         Json::Value pkey            = pitr.key();
                         Json::Value pvalue          = *pitr;
@@ -2865,7 +2865,7 @@ NNNetwork* LoadNeuralNetworkJSON(const string& fname, const uint32_t batch, cons
                             nd._sparsenessPenalty_beta  = pvalue.asFloat();
                         else
                         {
-                            name = pitr.memberName();
+                            name = pitr.name();
                             printf("LoadNeuralNetworkJSON: Invalid SparsenessPenalty parameter: %s\n", name.c_str());
                             bValid                      = false;
                             goto exit;
@@ -2878,7 +2878,7 @@ NNNetwork* LoadNeuralNetworkJSON(const string& fname, const uint32_t batch, cons
                 {
                     for (Json::ValueIterator pitr = value.begin(); pitr != value.end() ; pitr++)
                     {
-                        string pname                = pitr.memberName();
+                        string pname                = pitr.name();
                         std::transform(pname.begin(), pname.end(), pname.begin(), ::tolower);
                         Json::Value pkey            = pitr.key();
                         Json::Value pvalue          = *pitr;
@@ -2888,7 +2888,7 @@ NNNetwork* LoadNeuralNetworkJSON(const string& fname, const uint32_t batch, cons
                         }
                         else
                         {
-                            name = pitr.memberName();
+                            name = pitr.name();
                             printf("LoadNeuralNetworkJSON: Invalid Denoising parameter: %s\n", name.c_str());
                             bValid                      = false;
                             goto exit;
@@ -2901,7 +2901,7 @@ NNNetwork* LoadNeuralNetworkJSON(const string& fname, const uint32_t batch, cons
                 {
                     for (Json::ValueIterator pitr = value.begin(); pitr != value.end() ; pitr++)
                     {
-                        string pname                = pitr.memberName();
+                        string pname                = pitr.name();
                         std::transform(pname.begin(), pname.end(), pname.begin(), ::tolower);
                         Json::Value pkey            = pitr.key();
                         Json::Value pvalue          = *pitr;
@@ -2911,7 +2911,7 @@ NNNetwork* LoadNeuralNetworkJSON(const string& fname, const uint32_t batch, cons
                             nd._deltaBoost_zero     = pvalue.asFloat();
                         else
                         {
-                            name = pitr.memberName();
+                            name = pitr.name();
                             printf("LoadNeuralNetworkJSON: Invalid DeltaBoost parameter: %s\n", name.c_str());
                             bValid                      = false;
                             goto exit;
@@ -2925,7 +2925,7 @@ NNNetwork* LoadNeuralNetworkJSON(const string& fname, const uint32_t batch, cons
                 {
                     for (Json::ValueIterator pitr = value.begin(); pitr != value.end() ; pitr++)
                     {
-                        string pname                = pitr.memberName();
+                        string pname                = pitr.name();
                         std::transform(pname.begin(), pname.end(), pname.begin(), ::tolower);
                         Json::Value pkey            = pitr.key();
                         Json::Value pvalue          = *pitr;
@@ -2939,7 +2939,7 @@ NNNetwork* LoadNeuralNetworkJSON(const string& fname, const uint32_t batch, cons
                             nd._SMCE_zeroTarget     = pvalue.asFloat();
                         else
                         {
-                            name = pitr.memberName();
+                            name = pitr.name();
                             printf("LoadNeuralNetworkJSON: Invalid ScaledMarginalCrossentropy parameter: %s\n", name.c_str());
                             bValid                      = false;
                             goto exit;
@@ -3002,7 +3002,7 @@ NNNetwork* LoadNeuralNetworkJSON(const string& fname, const uint32_t batch, cons
                         // the remainder of supplied keys
                         for (Json::ValueIterator litr = layer.begin(); litr != layer.end() ; litr++)
                         {
-                            string lname            = litr.memberName();
+                            string lname            = litr.name();
                             std::transform(lname.begin(), lname.end(), lname.begin(), ::tolower);
                             Json::Value lkey        = litr.key();
                             Json::Value lvalue      = *litr;
@@ -3076,7 +3076,7 @@ NNNetwork* LoadNeuralNetworkJSON(const string& fname, const uint32_t batch, cons
 
                         for (Json::ValueIterator litr = layer.begin(); litr != layer.end() ; litr++)
                         {
-                            string lname            = litr.memberName();
+                            string lname            = litr.name();
                             std::transform(lname.begin(), lname.end(), lname.begin(), ::tolower);
                             Json::Value lkey        = litr.key();
                             Json::Value lvalue      = *litr;
@@ -3250,7 +3250,7 @@ NNNetwork* LoadNeuralNetworkJSON(const string& fname, const uint32_t batch, cons
                                 {
                                     for (Json::ValueIterator pitr = lvalue.begin(); pitr != lvalue.end() ; pitr++)
                                     {
-                                        string pname                = pitr.memberName();
+                                        string pname                = pitr.name();
                                         std::transform(pname.begin(), pname.end(), pname.begin(), ::tolower);
                                         Json::Value pkey            = pitr.key();
                                         Json::Value pvalue          = *pitr;
@@ -3386,7 +3386,7 @@ NNNetwork* LoadNeuralNetworkJSON(const string& fname, const uint32_t batch, cons
                                     {
                                         for (Json::ValueIterator witr = lvalue.begin(); witr != lvalue.end() ; witr++)
                                         {
-                                            string wname                = witr.memberName();
+                                            string wname                = witr.name();
                                             std::transform(wname.begin(), wname.end(), wname.begin(), ::tolower);
                                             Json::Value wkey            = witr.key();
                                             Json::Value wvalue          = *witr;
@@ -3443,7 +3443,7 @@ NNNetwork* LoadNeuralNetworkJSON(const string& fname, const uint32_t batch, cons
                                         Json::Value share   = lvalue.isArray() ? lvalue[i] : lvalue;
                                         for (Json::ValueIterator sitr = share.begin(); sitr != share.end() ; sitr++)
                                         {
-                                            string sname                = sitr.memberName();
+                                            string sname                = sitr.name();
                                             std::transform(sname.begin(), sname.end(), sname.begin(), ::tolower);
                                             Json::Value skey            = sitr.key();
                                             Json::Value svalue          = *sitr;

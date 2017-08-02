@@ -319,6 +319,7 @@ struct GpuContext {
     {
         SM_3X,
         SM_5X,
+        SM_6X,
     };
 
    enum {
