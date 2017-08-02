@@ -1206,7 +1206,10 @@ NNFloat NNLayer::CalculateError(uint32_t position, uint32_t batch, ErrorFunction
             return _pDataSet->CalculateL1Error(position, batch, _localStride, _pbUnit->_pDevData);
 
         case L2:
-            return _pDataSet->CalculateL2Error(position, batch, _localStride, _pbUnit->_pDevData);  
+            return _pDataSet->CalculateL2Error(position, batch, _localStride, _pbUnit->_pDevData);
+
+        case Hinge:
+            return _pDataSet->CalculateHingeError(position, batch, _localStride, _pbUnit->_pDevData);              
 
         case CrossEntropy:
             if (_activation == SoftMax)
@@ -1263,6 +1266,10 @@ void NNLayer::CalculateOutputDelta(uint32_t position, uint32_t batch, ErrorFunct
         case L2:
             _pDataSet->CalculateOutputDelta(_activation, position, batch, _localStride, _pbUnit->_pDevData, _pbDelta->_pDevData, _slope);
             break;
+
+        case Hinge:
+            _pDataSet->CalculateHingeOutputDelta(_activation, position, batch, _localStride, _pbUnit->_pDevData, _pbDelta->_pDevData);
+            break;            
 
         case DataScaledMarginalCrossEntropy:
             _pDataSet->CalculateDataScaledMarginalCrossEntropyOutputDelta(_activation, position, batch, _localStride, _pbUnit->_pDevData, _pbDelta->_pDevData);

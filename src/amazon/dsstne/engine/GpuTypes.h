@@ -112,16 +112,24 @@ static const MPI_Datatype MPI_NNACCUMULATOR     = MPI_LONG_LONG_INT;
 // atomic operations, and a 32-bit blockDim.x
 static const int SM_3X_THREADS_PER_BLOCK                        = 128;
 static const int SM_5X_THREADS_PER_BLOCK                        = 128;
+static const int SM_6X_THREADS_PER_BLOCK                        = 128;
 
-#if (__CUDA_ARCH__ >= 500)
+#if (__CUDA_ARCH__ >= 600)
+#define LAUNCH_BOUNDS() __launch_bounds__(SM_6X_THREADS_PER_BLOCK, 8)
+#define LAUNCH_BOUNDS256() __launch_bounds__(256, 5)
+#elif (__CUDA_ARCH__ >= 500)
 #define LAUNCH_BOUNDS() __launch_bounds__(SM_5X_THREADS_PER_BLOCK, 8)
 #define LAUNCH_BOUNDS256() __launch_bounds__(256, 5)
 #else
 #define LAUNCH_BOUNDS() __launch_bounds__(SM_3X_THREADS_PER_BLOCK, 10)
 #define LAUNCH_BOUNDS256() __launch_bounds__(256, 4)
 #endif
+#define LAUNCH_BOUNDS512() __launch_bounds__(512, 2)
+#define LAUNCH_BOUNDS1024() __launch_bounds__(1024, 1)
 
 // Sparse kernel limits
+static const uint32_t SM_6X_MAXSPARSE = 4608;
+static const uint32_t SM_6X_MAXSPARSEANALOG = 2304;
 static const uint32_t SM_5X_MAXSPARSE = 4608;
 static const uint32_t SM_5X_MAXSPARSEANALOG = 2304;
 static const uint32_t SM_3X_MAXSPARSE = 2304;

@@ -44,7 +44,8 @@ static std::pair<ErrorFunction, string> sErrorFunctionPair[] =
     std::pair<ErrorFunction, string>(ErrorFunction::L1,                             "L1"),
     std::pair<ErrorFunction, string>(ErrorFunction::L2,                             "L2"),
     std::pair<ErrorFunction, string>(ErrorFunction::CrossEntropy,                   "CrossEntropy"),
-    std::pair<ErrorFunction, string>(ErrorFunction::ScaledMarginalCrossEntropy,     "ScaledMarginalCrossEntropy")
+    std::pair<ErrorFunction, string>(ErrorFunction::ScaledMarginalCrossEntropy,     "ScaledMarginalCrossEntropy"),
+    std::pair<ErrorFunction, string>(ErrorFunction::Hinge,                          "Hinge"),
 };
 
 static std::map<ErrorFunction, string> sErrorFunctionMap =

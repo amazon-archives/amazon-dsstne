@@ -84,6 +84,7 @@ enum ErrorFunction
     CrossEntropy,
     ScaledMarginalCrossEntropy,
     DataScaledMarginalCrossEntropy,
+    Hinge,
 };
 
 ostream& operator<< (ostream& out, const ErrorFunction& e);
@@ -221,14 +222,14 @@ struct NNDataSetBase {
     virtual float CalculateScaledMarginalCrossEntropyError(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit) = 0;
     virtual float CalculateMultinomialCrossEntropyError(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit) = 0;
     virtual float CalculateMultinomialScaledMarginalCrossEntropyError(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit) = 0;
+    virtual float CalculateDataScaledMarginalCrossEntropyError(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit) = 0;
+    virtual float CalculateHingeError(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit) = 0;
     virtual bool CalculateL1OutputDelta(Activation activation, uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, NNFloat slope) = 0;
     virtual bool CalculateCrossEntropyOutputDelta(Activation activation, uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta) = 0;   
     virtual bool CalculateScaledMarginalCrossEntropyOutputDelta(Activation activation, uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta) = 0;   
     virtual bool CalculateOutputDelta(Activation activation, uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, NNFloat slope) = 0;
-    virtual float CalculateDataScaledMarginalCrossEntropyError(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit) = 0;
     virtual bool CalculateDataScaledMarginalCrossEntropyOutputDelta(Activation activation, uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta) = 0;
-    virtual float CalculateHingeLoss(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit) = 0;
-    virtual bool CalculateHingeDelta(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta) = 0;
+    virtual bool CalculateHingeOutputDelta(Activation activation, uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta) = 0;
 };
 
 ostream& operator<< (ostream& out, NNDataSetEnums::Attributes& a);
@@ -550,9 +551,9 @@ template<typename T> float NNDataSet<T>::CalculateDataScaledMarginalCrossEntropy
     }
 }
 
-template<typename T> float NNDataSet<T>::CalculateHingeLoss(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit)
+template<typename T> float NNDataSet<T>::CalculateHingeError(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit)
 {
-    return 0.0f;
+    return kCalculateHingeError(position, batch, stride, pUnit, _pbData->_pDevData);
 }
 
 template<typename T> bool NNDataSet<T>::CalculateL1OutputDelta(Activation activation, uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, NNFloat slope)
@@ -634,8 +635,9 @@ template<typename T> bool NNDataSet<T>::CalculateDataScaledMarginalCrossEntropyO
     return true;
 }
 
-template<typename T> bool NNDataSet<T>::CalculateHingeDelta(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta)
+template<typename T> bool NNDataSet<T>::CalculateHingeOutputDelta(Activation activation, uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta)
 {
+    kCalculateHingeOutputDelta(activation, position, batch, stride, pUnit, pDelta, _pbData->_pDevData);
     return true;
 }
 

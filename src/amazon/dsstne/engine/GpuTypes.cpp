@@ -259,12 +259,20 @@ void GpuContext::Startup(int argc, char** argv)
         _maxSparse                                  = SM_3X_MAXSPARSE;
         _maxSparseAnalog                            = SM_3X_MAXSPARSEANALOG;
     }
-    else
+    else if (deviceProp.major == 5)
     {
         _sm_version                                 = SM_5X;
         _threadsPerBlock                            = SM_5X_THREADS_PER_BLOCK;
         _maxSparse                                  = SM_5X_MAXSPARSE;
         _maxSparseAnalog                            = SM_5X_MAXSPARSEANALOG;
+    }
+    else
+    {
+        _sm_version                                 = SM_6X;
+        _threadsPerBlock                            = SM_6X_THREADS_PER_BLOCK;
+        _maxSparse                                  = SM_6X_MAXSPARSE;
+        _maxSparseAnalog                            = SM_6X_MAXSPARSEANALOG;       
+        
     }
     _warpSize                                       = deviceProp.warpSize;
     _warpBits                                       = fls(_warpSize) - 1;

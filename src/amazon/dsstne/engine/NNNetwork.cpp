@@ -2960,6 +2960,8 @@ NNNetwork* LoadNeuralNetworkJSON(const string& fname, const uint32_t batch, cons
                         nd._errorFunction           = ErrorFunction::L1;
                     else if (vstring.compare("l2") == 0)
                         nd._errorFunction           = ErrorFunction::L2;
+                    else if (vstring.compare("hinge") == 0)
+                        nd._errorFunction           = ErrorFunction::Hinge;
                     else if ((vstring.compare("crossentropy") == 0) || (vstring.compare("cross entropy") == 0))
                         nd._errorFunction           = ErrorFunction::CrossEntropy;
                     else if (vstring.compare("scaledmarginalcrossentropy") == 0)

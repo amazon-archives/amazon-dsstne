@@ -448,7 +448,10 @@ void kAddQuadBias(NNFloat* pUnit, NNFloat* pBias1, NNFloat* pBias2, NNFloat* pBi
     LAUNCHERROR("kAddQuadBias_kernel");
 }
 
-#if (__CUDA_ARCH__ >= 500)
+#if (__CUDA_ARCH__ >= 600)
+static const uint32_t MAXSPARSE = SM_6X_MAXSPARSE;
+static const uint32_t MAXSPARSEANALOG = SM_6X_MAXSPARSEANALOG;
+#elif (__CUDA_ARCH__ >= 500)
 static const uint32_t MAXSPARSE = SM_5X_MAXSPARSE;
 static const uint32_t MAXSPARSEANALOG = SM_5X_MAXSPARSEANALOG;
 #else
@@ -2807,7 +2810,7 @@ __shared__ NNFloat sB[64];      // Shared memory accumulator between warps
 // Calculates cosine and saves vector lengths for future gradient calculation
 void kCalculateCosine(NNFloat* pVector1In, NNFloat* pVector2In, uint32_t batch, uint32_t stride, NNFloat* pDPOut, NNFloat* pAOut, NNFloat* pBOut, uint32_t outStride)
 {
-    unsigned long threads = max(32, min(stride, 1024));
+    unsigned long threads = max(32, min(stride, getGpu()._threadsPerBlock));
     kCalculateCosine_kernel<<<batch, threads>>>(pVector1In, pVector2In, stride, pDPOut, pAOut, pBOut, outStride);
     LAUNCHERROR("kCalculateCosine_kernel");    
 }
@@ -2876,7 +2879,7 @@ __shared__ NNFloat sDP[32];     // Shared memory accumulator between warps
 // Calculates dot product
 void kCalculateDotProduct(NNFloat* pVector1In, NNFloat* pVector2In, uint32_t batch, uint32_t strideIn, NNFloat* pDPOut, uint32_t strideOut)
 {
-    unsigned long threads = max(32, min(strideIn, 1024));
+    unsigned long threads = max(32, min(strideIn, getGpu()._threadsPerBlock));
     kCalculateDotProduct_kernel<<<batch, threads>>>(pVector1In, pVector2In, strideIn, pDPOut, strideOut);
     LAUNCHERROR("kCalculateDotProduct_kernel");    
 }

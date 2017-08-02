@@ -369,6 +369,144 @@ template<typename T> void kCalculateOutputDelta(Activation activation, uint32_t 
     }
 }
 
+template<typename T>
+__global__ void
+LAUNCH_BOUNDS()
+kCalculateHingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, T* pData)
+{
+    __shared__ NNFloat sDelta0;
+    sDelta0                     = (NNFloat)0;
+    __syncthreads();
+
+    // Increment pointers and fetch margin and positive example
+    uint32_t pos                = threadIdx.x + 1;
+    pUnit                      += blockIdx.x * stride;
+    pDelta                     += blockIdx.x * stride;
+    NNFloat positiveDP          = pUnit[0];
+    NNFloat* pDelta0            = pDelta;
+    pUnit                      += pos;
+    pData                      += blockIdx.x * stride;
+    NNFloat margin              = pData[0];
+    pData                      += pos;
+
+    // Calculate loss
+    while (pos < stride)
+    {
+        NNFloat negativeDP      = *pUnit;   
+        NNFloat loss            = max((NNFloat)0.0, margin - positiveDP + negativeDP);
+        NNFloat delta           = (NNFloat)0.0;
+        if (loss > (NNFloat)0.0)
+        {
+            delta               = (NNFloat)1.0;
+            atomicAdd(&sDelta0, (NNFloat)1.0);
+        }
+        *pDelta                 = delta;
+        pos                    += blockDim.x;
+        pUnit                  += blockDim.x;
+        pData                  += blockDim.x;      
+    }
+
+    // Output delta0
+    __syncthreads();
+    if (threadIdx.x == 0)
+        *pDelta0                = sDelta0; 
+}
+
+template<>
+__global__ void
+LAUNCH_BOUNDS()
+kCalculateHingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, unsigned char* pData)
+{
+    __shared__ NNFloat sDelta0;
+    sDelta0                     = (NNFloat)0;
+    __syncthreads();
+
+    // Increment pointers and fetch margin and positive example
+    uint32_t pos                = threadIdx.x + 1;
+    pUnit                      += blockIdx.x * stride;
+    pDelta                     += blockIdx.x * stride;
+    NNFloat positiveDP          = pUnit[0];
+    NNFloat* pDelta0            = pDelta;
+    pUnit                      += pos;
+    pData                      += blockIdx.x * stride;
+    NNFloat margin              = (NNFloat)pData[0] * (NNFloat)(1.0 / 256.0);
+    pData                      += pos;
+
+    // Calculate loss
+    while (pos < stride)
+    {
+        NNFloat negativeDP      = *pUnit;   
+        NNFloat loss            = max((NNFloat)0.0, margin - positiveDP + negativeDP);
+        NNFloat delta           = (NNFloat)0.0;
+        if (loss > (NNFloat)0.0)
+        {
+            delta               = (NNFloat)1.0;
+            atomicAdd(&sDelta0, (NNFloat)1.0);
+        }
+        *pDelta                 = delta;
+        pos                    += blockDim.x;
+        pUnit                  += blockDim.x;
+        pData                  += blockDim.x;      
+    }
+
+    // Output delta0
+    __syncthreads();
+    if (threadIdx.x == 0)
+        *pDelta0                = sDelta0; 
+}
+
+template<>
+__global__ void
+LAUNCH_BOUNDS()
+kCalculateHingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, char* pData)
+{
+    __shared__ NNFloat sDelta0;
+    sDelta0                     = (NNFloat)0;
+    __syncthreads();
+
+    // Increment pointers and fetch margin and positive example
+    uint32_t pos                = threadIdx.x + 1;
+    pUnit                      += blockIdx.x * stride;
+    pDelta                     += blockIdx.x * stride;
+    NNFloat positiveDP          = pUnit[0];
+    NNFloat* pDelta0            = pDelta;
+    pUnit                      += pos;
+    pData                      += blockIdx.x * stride;
+    NNFloat margin              = (NNFloat)pData[0] * (NNFloat)(1.0 / 128.0);
+    pData                      += pos;
+
+    // Calculate loss
+    while (pos < stride)
+    {
+        NNFloat negativeDP      = *pUnit;   
+        NNFloat loss            = max((NNFloat)0.0, margin - positiveDP + negativeDP);
+        NNFloat delta           = (NNFloat)0.0;
+        if (loss > (NNFloat)0.0)
+        {
+            delta               = (NNFloat)1.0;
+            atomicAdd(&sDelta0, (NNFloat)1.0);
+        }
+        *pDelta                 = delta;
+        pos                    += blockDim.x;
+        pUnit                  += blockDim.x;
+        pData                  += blockDim.x;      
+    }
+
+    // Output delta0
+    __syncthreads();
+    if (threadIdx.x == 0)
+        *pDelta0                = sDelta0; 
+}
+
+
+template<typename T> void kCalculateHingeOutputDelta(Activation activation, uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, T* pData)
+{
+    unsigned long threads = max(32, min(stride, getGpu()._threadsPerBlock));
+    kCalculateHingeOutputDelta_kernel<<<batch, threads>>>(position, batch, stride,  pUnit, pDelta, pData);
+    LAUNCHERROR("kCalculateHingeOutputDelta_kernel");    
+}
+
+
 __global__ void
 LAUNCH_BOUNDS()
 kCalculateSparseRawSigmoidOutputDelta_kernel(uint64_t size, NNFloat* pUnit,  NNFloat* pDelta)
@@ -2583,6 +2721,15 @@ void KDeltaTempFunction()
     kCalculateOutputDelta<uint64_t>(Sigmoid, 0, 0, 0, NULL, NULL, NULL, 0);
     kCalculateOutputDelta<int32_t>(Sigmoid, 0, 0, 0, NULL, NULL, NULL, 0);
     kCalculateOutputDelta<int64_t>(Sigmoid, 0, 0, 0, NULL, NULL, NULL, 0);
+    
+    kCalculateHingeOutputDelta<NNFloat>(Sigmoid, 0, 0, 0, NULL, NULL, NULL);    
+    kCalculateHingeOutputDelta<double>(Sigmoid, 0, 0, 0, NULL, NULL, NULL);    
+    kCalculateHingeOutputDelta<unsigned char>(Sigmoid, 0, 0, 0, NULL, NULL, NULL);    
+    kCalculateHingeOutputDelta<char>(Sigmoid, 0, 0, 0, NULL, NULL, NULL);    
+    kCalculateHingeOutputDelta<uint32_t>(Sigmoid, 0, 0, 0, NULL, NULL, NULL);    
+    kCalculateHingeOutputDelta<uint64_t>(Sigmoid, 0, 0, 0, NULL, NULL, NULL);    
+    kCalculateHingeOutputDelta<int32_t>(Sigmoid, 0, 0, 0, NULL, NULL, NULL);    
+    kCalculateHingeOutputDelta<int64_t>(Sigmoid, 0, 0, 0, NULL, NULL, NULL);    
 
     kCalculateScaledMarginalCrossEntropyOutputDelta<NNFloat>(Sigmoid, 0, 0, 0, NULL, NULL, NULL);
     kCalculateScaledMarginalCrossEntropyOutputDelta<double>(Sigmoid, 0, 0, 0, NULL, NULL, NULL);
