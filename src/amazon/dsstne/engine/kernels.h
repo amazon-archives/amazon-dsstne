@@ -172,4 +172,54 @@ void kCalculateDotProduct(NNFloat* p0Vector, NNFloat* pVector, uint32_t batch, u
 void kCalculateMaxoutDelta(NNFloat* pSrc, NNFloat* pSrcDelta, size_t size, NNFloat beta, NNFloat* pDst, NNFloat* pDstDelta);
 void kCalculateDotProductDelta(NNFloat* pDPDelta, NNFloat* p0Vector, NNFloat* pVector, uint32_t batch, uint32_t stride, NNFloat* pDelta0, NNFloat beta0, NNFloat* pDelta, NNFloat beta, uint32_t inputStride);
 void kCalculateCosineDelta(NNFloat* pDPDelta, NNFloat* pDP, NNFloat* pA, NNFloat* pB, NNFloat* p0Vector, NNFloat* pVector, uint32_t batch, uint32_t stride, NNFloat* pDelta0, NNFloat beta0, NNFloat* pDelta, NNFloat beta, uint32_t inputStride);
+
+
+
+// CUDA macros and routines
+#ifdef __NVCC__
+__device__ inline uint64_t llitoulli(int64_t l)
+{
+    uint64_t u;
+    asm("mov.b64    %0, %1;" : "=l"(u) : "l"(l));
+    return u;
+}
+
+__device__ inline int64_t ullitolli(uint64_t u)
+{
+    int64_t l;
+    asm("mov.b64    %0, %1;" : "=l"(l) : "l"(u));
+    return l;
+}
+
+// Handle arbitrary API churn from new and improved thread within thread model
+#if (CUDA_VERSION >= 9000)
+#define SHFL(x, lane) __shfl_sync(0xffffffff, (x), (lane))
+#define BALLOT(predicate) __ballot_sync(0xffffffff, (predicate))
+#define ANY(predicate) __any_sync(0xffffffff, (predicate))
+#else
+#define SHFL(x, lane) __shfl((x), (lane))
+#define BALLOT(predicate) __ballot(predicate)
+#define ANY(predicate) __any(predicate)
+#endif // CUDA_VERSION >= 9000
+
+
+#define REDUCE(error) \
+    if (ANY(error != (NNFloat)0.0)) \
+    { \
+        uint32_t tgx            = threadIdx.x & cData._warpMask; \
+        error                  += SHFL(error, tgx ^ 1); \
+        error                  += SHFL(error, tgx ^ 2); \
+        error                  += SHFL(error, tgx ^ 4); \
+        error                  += SHFL(error, tgx ^ 8); \
+        error                  += SHFL(error, tgx ^ 16); \
+        if (tgx == 0) \
+        { \
+            atomicAdd(cData._pAccumulator, llitoulli(llrintf(ERRORSCALEF * error))); \
+        } \
+    } 
+
+
+
+#endif // __NVCC__
+
 #endif // KERNELS_H

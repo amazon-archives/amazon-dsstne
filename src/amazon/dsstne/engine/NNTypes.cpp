@@ -1576,7 +1576,7 @@ template<typename T> bool NNDataSet<T>::WriteNetCDF(NcFile& nfc, const string& f
                 } 
                 
                 vname                       = "sparseStart" + nstring;
-                NcVar sparseStartVar        = nfc.addVar(vname, ncUint, examplesDim);
+                NcVar sparseStartVar        = nfc.addVar(vname, "uint", examplesDim.getName());
                 if (sparseStartVar.isNull())
                 {
                     throw NcException("NcException", "NNDataSet::WriteNetCDF: Failed to create dataset sparse start variable NetCDF file " + fname, __FILE__, __LINE__);
@@ -1584,7 +1584,7 @@ template<typename T> bool NNDataSet<T>::WriteNetCDF(NcFile& nfc, const string& f
                 sparseStartVar.putVar(_vSparseStart.data());
                 
                 vname                       = "sparseEnd" + nstring;
-                NcVar sparseEndVar          = nfc.addVar(vname, ncUint, examplesDim);
+                NcVar sparseEndVar          = nfc.addVar(vname, "uint", examplesDim.getName());
                 if (sparseEndVar.isNull())
                 {
                     throw NcException("NcException", "NNDataSet::WriteNetCDF: Failed to create dataset sparse end variable NetCDF file " + fname, __FILE__, __LINE__);
@@ -1592,7 +1592,7 @@ template<typename T> bool NNDataSet<T>::WriteNetCDF(NcFile& nfc, const string& f
                 sparseEndVar.putVar(_vSparseEnd.data());
  
                 vname                       = "sparseIndex" + nstring;
-                NcVar sparseIndexVar        = nfc.addVar(vname, ncUint64, sparseDataDim);
+                NcVar sparseIndexVar        = nfc.addVar(vname, "uint64", sparseDataDim.getName());
                 if (sparseIndexVar.isNull())
                 {
                     throw NcException("NcException", "NNDataSet::WriteNetCDF: Failed to create dataset sparse index variable NetCDF file " + fname, __FILE__, __LINE__);
@@ -1604,7 +1604,7 @@ template<typename T> bool NNDataSet<T>::WriteNetCDF(NcFile& nfc, const string& f
                 {
                     vname                       = "sparseData" + nstring;    
                     NcType sparseType           = getNetCDFDataType(_dataType);
-                    NcVar sparseDataVar         = nfc.addVar(vname, sparseType, sparseDataDim);
+                    NcVar sparseDataVar         = nfc.addVar(vname, sparseType.getName(), sparseDataDim.getName());
                     if (sparseDataVar.isNull())
                     {
                         throw NcException("NcException", "NNDataSet::WriteNetCDF: Failed to create dataset sparse data variable NetCDF file " + fname, __FILE__, __LINE__);

@@ -16,35 +16,6 @@
 
 static __constant__ GpuData cData;
 
-#define REDUCE(error) \
-    if (__any(error != (NNFloat)0.0)) \
-    { \
-        uint32_t tgx            = threadIdx.x & cData._warpMask; \
-        error                  += __shfl(error, tgx ^ 1); \
-        error                  += __shfl(error, tgx ^ 2); \
-        error                  += __shfl(error, tgx ^ 4); \
-        error                  += __shfl(error, tgx ^ 8); \
-        error                  += __shfl(error, tgx ^ 16); \
-        if (tgx == 0) \
-        { \
-            atomicAdd(cData._pAccumulator, llitoulli(llrintf(ERRORSCALEF * error))); \
-        } \
-    } \
-
-__device__ inline uint64_t llitoulli(int64_t l)
-{
-    uint64_t u;
-    asm("mov.b64    %0, %1;" : "=l"(u) : "l"(l));
-    return u;
-}
-
-__device__ inline int64_t ullitolli(uint64_t u)
-{
-    int64_t l;
-    asm("mov.b64    %0, %1;" : "=l"(l) : "l"(u));
-    return l;
-}
-
 void SetKLossGpuData()
 {
     cudaError_t status;

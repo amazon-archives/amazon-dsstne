@@ -16,20 +16,6 @@
 
 static __constant__ GpuData cData;
 
-__device__ inline uint64_t llitoulli(int64_t l)
-{
-    uint64_t u;
-    asm("mov.b64    %0, %1;" : "=l"(u) : "l"(l));
-    return u;
-}
-
-__device__ inline int64_t ullitolli(uint64_t u)
-{
-    int64_t l;
-    asm("mov.b64    %0, %1;" : "=l"(l) : "l"(u));
-    return l;
-}
-
 void SetKDeltaGpuData()
 {
     cudaError_t status;
@@ -2453,11 +2439,7 @@ kNormalizeDeltas_kernel(NNFloat norm, uint32_t batch, uint32_t stride, NNFloat* 
         }
         
         // Reduce sum
-        r2                                 += __shfl(r2, tgx ^ 1);
-        r2                                 += __shfl(r2, tgx ^ 2);
-        r2                                 += __shfl(r2, tgx ^ 4);
-        r2                                 += __shfl(r2, tgx ^ 8);
-        r2                                 += __shfl(r2, tgx ^ 16);
+        REDUCE(r2)
     
         // Normalalize vector if too large
         if (r2 > norm * norm)
@@ -2502,11 +2484,7 @@ kCalculateDeltaMagnitudes_kernel(uint32_t batch, uint32_t stride, NNFloat* pDelt
         }
         
         // Reduce sum
-        r2                                 += __shfl(r2, tgx ^ 1);
-        r2                                 += __shfl(r2, tgx ^ 2);
-        r2                                 += __shfl(r2, tgx ^ 4);
-        r2                                 += __shfl(r2, tgx ^ 8);
-        r2                                 += __shfl(r2, tgx ^ 16);
+        REDUCE(r2)
     
         // Output result
         if (tgx == 0)

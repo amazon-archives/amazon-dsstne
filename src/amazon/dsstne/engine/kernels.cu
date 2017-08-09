@@ -16,20 +16,6 @@
 
 static __constant__ GpuData cData;
 
-__device__ inline uint64_t llitoulli(int64_t l)
-{
-    uint64_t u;
-    asm("mov.b64    %0, %1;" : "=l"(u) : "l"(l));
-    return u;
-}
-
-__device__ inline int64_t ullitolli(uint64_t u)
-{
-    int64_t l;
-    asm("mov.b64    %0, %1;" : "=l"(l) : "l"(u));
-    return l;
-}
-
 void SetKernelsGpuData()
 {
     cudaError_t status;
@@ -507,7 +493,7 @@ __shared__ uint32_t sOffset[MAXSPARSE];                         // Shared set of
         {
             opos                = atomicAdd(&sOpos, cData._warpSize);
         }
-        opos                    = __shfl(opos, 0);
+        opos                    = SHFL(opos, 0);
         opos                   += tgx;
     }
 }
@@ -570,7 +556,7 @@ __shared__ T sValue[MAXSPARSEANALOG];
         {
             opos                = atomicAdd(&sOpos, cData._warpSize);
         }
-        opos                    = __shfl(opos, 0);
+        opos                    = SHFL(opos, 0);
         opos                   += tgx;
     }
 }
@@ -625,7 +611,7 @@ __shared__ NNFloat sValue[MAXSPARSEANALOG];
         {
             opos                = atomicAdd(&sOpos, cData._warpSize);
         }
-        opos                    = __shfl(opos, 0);
+        opos                    = SHFL(opos, 0);
         opos                   += tgx;
     }
 }
@@ -680,7 +666,7 @@ __shared__ NNFloat sValue[MAXSPARSEANALOG];
         {
             opos                = atomicAdd(&sOpos, cData._warpSize);
         }
-        opos                    = __shfl(opos, 0);
+        opos                    = SHFL(opos, 0);
         opos                   += tgx;
     }
 }
@@ -755,7 +741,7 @@ __shared__ uint32_t sOffset[MAXSPARSE];                         // Shared set of
         {
             opos                = atomicAdd(&sOpos, cData._warpSize);
         }
-        opos                    = __shfl(opos, 0);
+        opos                    = SHFL(opos, 0);
         opos                   += tgx;
     }
 }
@@ -819,7 +805,7 @@ __shared__ T sValue[MAXSPARSEANALOG];
         {
             opos                = atomicAdd(&sOpos, cData._warpSize);
         }
-        opos                    = __shfl(opos, 0);
+        opos                    = SHFL(opos, 0);
         opos                   += tgx;
     }
 }
@@ -876,7 +862,7 @@ __shared__ NNFloat sValue[MAXSPARSEANALOG];
         {
             opos                = atomicAdd(&sOpos, cData._warpSize);
         }
-        opos                    = __shfl(opos, 0);
+        opos                    = SHFL(opos, 0);
         opos                   += tgx;
     }
 }
@@ -933,7 +919,7 @@ __shared__ NNFloat sValue[MAXSPARSEANALOG];
         {
             opos                = atomicAdd(&sOpos, cData._warpSize);
         }
-        opos                    = __shfl(opos, 0);
+        opos                    = SHFL(opos, 0);
         opos                   += tgx;
     }
 }
@@ -1149,7 +1135,7 @@ __shared__ uint32_t sOffset[MAXSPARSE];                         // Shared set of
         {
             opos                = atomicAdd(&sOpos, cData._warpSize);
         }
-        opos                    = __shfl(opos, 0);
+        opos                    = SHFL(opos, 0);
         opos                   += tgx;
     }
 }
@@ -1216,7 +1202,7 @@ __shared__ T sValue[MAXSPARSEANALOG];
         {
             opos                = atomicAdd(&sOpos, cData._warpSize);
         }
-        opos                    = __shfl(opos, 0);
+        opos                    = SHFL(opos, 0);
         opos                   += tgx;
     }
 }
@@ -1274,7 +1260,7 @@ __shared__ NNFloat sValue[MAXSPARSEANALOG];
         {
             opos                = atomicAdd(&sOpos, cData._warpSize);
         }
-        opos                    = __shfl(opos, 0);
+        opos                    = SHFL(opos, 0);
         opos                   += tgx;
     }
 }
@@ -1332,7 +1318,7 @@ __shared__ NNFloat sValue[MAXSPARSEANALOG];
         {
             opos                = atomicAdd(&sOpos, cData._warpSize);
         }
-        opos                    = __shfl(opos, 0);
+        opos                    = SHFL(opos, 0);
         opos                   += tgx;
     }
 }
@@ -1399,11 +1385,7 @@ kCalculateRegularizationError_kernel(NNFloat* pWeight, uint64_t size, NNFloat la
     }
 
     // Reduce error across threads
-    error                      += __shfl(error, threadIdx.x ^ 1);
-    error                      += __shfl(error, threadIdx.x ^ 2);
-    error                      += __shfl(error, threadIdx.x ^ 4);
-    error                      += __shfl(error, threadIdx.x ^ 8);
-    error                      += __shfl(error, threadIdx.x ^ 16);
+    REDUCE(error)
 
     if ((threadIdx.x & cData._warpMask) == 0)
     {
@@ -2048,7 +2030,7 @@ __shared__ volatile uint32_t sValue[160 * 4];
             }
             
             // Add values > minValue to shared memory buffer
-            uint32_t count          = __ballot(key > minValue);
+            uint32_t count          = BALLOT(key > minValue);
             if (key > minValue)
             {
                 uint32_t mask       = 0xffffffff >> (32 - tgx);
@@ -2248,7 +2230,7 @@ __shared__ volatile NNFloat sValue[160 * 4];
             }
             
             // Add values > minValue to shared memory buffer
-            uint32_t count          = __ballot(key > minValue);
+            uint32_t count          = BALLOT(key > minValue);
             if (key > minValue)
             {
                 uint32_t mask       = 0xffffffff >> (32 - tgx);
@@ -2443,7 +2425,7 @@ __shared__ volatile uint32_t sValue[160 * 4];
             }
             
             // Add values > minValue to shared memory buffer
-            uint32_t count                  = __ballot(key > minValue);
+            uint32_t count                  = BALLOT(key > minValue);
             if (key > minValue)
             {
                 uint32_t mask               = 0xffffffff >> (32 - tgx);
@@ -2746,21 +2728,21 @@ __shared__ NNFloat sB[64];      // Shared memory accumulator between warps
     
     // Reduce results within warps
     uint32_t tgx            = threadIdx.x & cData._warpMask;
-    dp                     += __shfl(dp, tgx ^ 1);
-    al                     += __shfl(al, tgx ^ 1);
-    bl                     += __shfl(bl, tgx ^ 1);
-    dp                     += __shfl(dp, tgx ^ 2);
-    al                     += __shfl(al, tgx ^ 2);
-    bl                     += __shfl(bl, tgx ^ 2);
-    dp                     += __shfl(dp, tgx ^ 4);
-    al                     += __shfl(al, tgx ^ 4);
-    bl                     += __shfl(bl, tgx ^ 4);
-    dp                     += __shfl(dp, tgx ^ 8);
-    al                     += __shfl(al, tgx ^ 8);
-    bl                     += __shfl(bl, tgx ^ 8);    
-    dp                     += __shfl(dp, tgx ^ 16); 
-    al                     += __shfl(al, tgx ^ 16);
-    bl                     += __shfl(bl, tgx ^ 16);
+    dp                     += SHFL(dp, tgx ^ 1);
+    al                     += SHFL(al, tgx ^ 1);
+    bl                     += SHFL(bl, tgx ^ 1);
+    dp                     += SHFL(dp, tgx ^ 2);
+    al                     += SHFL(al, tgx ^ 2);
+    bl                     += SHFL(bl, tgx ^ 2);
+    dp                     += SHFL(dp, tgx ^ 4);
+    al                     += SHFL(al, tgx ^ 4);
+    bl                     += SHFL(bl, tgx ^ 4);
+    dp                     += SHFL(dp, tgx ^ 8);
+    al                     += SHFL(al, tgx ^ 8);
+    bl                     += SHFL(bl, tgx ^ 8);    
+    dp                     += SHFL(dp, tgx ^ 16); 
+    al                     += SHFL(al, tgx ^ 16);
+    bl                     += SHFL(bl, tgx ^ 16);
     if (tgx == 0)           
     {
         uint32_t index      = threadIdx.x >> cData._warpBits;
@@ -2777,21 +2759,21 @@ __shared__ NNFloat sB[64];      // Shared memory accumulator between warps
         al                  = (threadIdx.x < limit) ? sA[threadIdx.x]     : (NNFloat)0;      
         bl                  = (threadIdx.x < limit) ? sB[threadIdx.x]     : (NNFloat)0; 
         dp                  = (threadIdx.x < limit) ? sDP[threadIdx.x]    : (NNFloat)0;
-        dp                 += __shfl(dp, tgx ^ 1);
-        al                 += __shfl(al, tgx ^ 1);
-        bl                 += __shfl(bl, tgx ^ 1);
-        dp                 += __shfl(dp, tgx ^ 2);
-        al                 += __shfl(al, tgx ^ 2);
-        bl                 += __shfl(bl, tgx ^ 2);
-        dp                 += __shfl(dp, tgx ^ 4);
-        al                 += __shfl(al, tgx ^ 4);
-        bl                 += __shfl(bl, tgx ^ 4);
-        dp                 += __shfl(dp, tgx ^ 8);
-        al                 += __shfl(al, tgx ^ 8);
-        bl                 += __shfl(bl, tgx ^ 8);    
-        dp                 += __shfl(dp, tgx ^ 16); 
-        al                 += __shfl(al, tgx ^ 16);
-        bl                 += __shfl(bl, tgx ^ 16);        
+        dp                 += SHFL(dp, tgx ^ 1);
+        al                 += SHFL(al, tgx ^ 1);
+        bl                 += SHFL(bl, tgx ^ 1);
+        dp                 += SHFL(dp, tgx ^ 2);
+        al                 += SHFL(al, tgx ^ 2);
+        bl                 += SHFL(bl, tgx ^ 2);
+        dp                 += SHFL(dp, tgx ^ 4);
+        al                 += SHFL(al, tgx ^ 4);
+        bl                 += SHFL(bl, tgx ^ 4);
+        dp                 += SHFL(dp, tgx ^ 8);
+        al                 += SHFL(al, tgx ^ 8);
+        bl                 += SHFL(bl, tgx ^ 8);    
+        dp                 += SHFL(dp, tgx ^ 16); 
+        al                 += SHFL(al, tgx ^ 16);
+        bl                 += SHFL(bl, tgx ^ 16);        
                          
         
         // Write final sum
@@ -2844,12 +2826,8 @@ __shared__ NNFloat sDP[32];     // Shared memory accumulator between warps
     
     
     // Reduce results within warps
-    uint32_t tgx            = threadIdx.x & cData._warpMask;
-    dp                     += __shfl(dp, tgx ^ 1);
-    dp                     += __shfl(dp, tgx ^ 2);
-    dp                     += __shfl(dp, tgx ^ 4);
-    dp                     += __shfl(dp, tgx ^ 8);  
-    dp                     += __shfl(dp, tgx ^ 16); 
+    REDUCE(dp)
+    uint32_t tgx            = threadIdx.x & cData._warpMask;    
     if (tgx == 0)           
     {
         uint32_t index      = threadIdx.x >> cData._warpBits;
@@ -2861,12 +2839,8 @@ __shared__ NNFloat sDP[32];     // Shared memory accumulator between warps
     if (threadIdx.x < cData._warpSize)
     {
         uint32_t limit      = (blockDim.x + cData._warpSize -1) >> cData._warpBits;
-        dp                  = (threadIdx.x < limit) ? sDP[threadIdx.x]    : (NNFloat)0;                 
-        dp                 += __shfl(dp, tgx ^ 1);
-        dp                 += __shfl(dp, tgx ^ 2);
-        dp                 += __shfl(dp, tgx ^ 4);
-        dp                 += __shfl(dp, tgx ^ 8);  
-        dp                 += __shfl(dp, tgx ^ 16); 
+        dp                  = (threadIdx.x < limit) ? sDP[threadIdx.x]    : (NNFloat)0;
+        REDUCE(dp)                 
         
         // Write final sum
         if (threadIdx.x == 0)

@@ -854,7 +854,7 @@ bool NNWeight::WriteNetCDF(netCDF::NcFile& nc, uint32_t index, NNFloat* pWeight,
         nc.putAtt(wstring + "norm", ncFloat, _norm);
         
         NcDim biasDim           = nc.addDim(wstring + "biasDim", _biasSize);
-        NcVar biasVar           = nc.addVar(wstring + "bias", ncFloat, biasDim);
+        NcVar biasVar           = nc.addVar(wstring + "bias", "float", biasDim.getName());
         if (pBias == NULL)
             pBias               = _vBias.data();
         biasVar.putVar(pBias);  
@@ -873,7 +873,7 @@ bool NNWeight::WriteNetCDF(netCDF::NcFile& nc, uint32_t index, NNFloat* pWeight,
             printf("%3d %16.8f %16.8f\n", i, _vWeight[i], _vBias[i]);
 #endif
             NcDim weightDim     = nc.addDim(wstring + "weightDim", _size);            
-            NcVar weightVar     = nc.addVar(wstring + "weights", ncFloat, weightDim);            
+            NcVar weightVar     = nc.addVar(wstring + "weights", "float", weightDim.getName());            
             if (!pWeight)
                 pWeight         = _vWeight.data();
             weightVar.putVar(pWeight);
