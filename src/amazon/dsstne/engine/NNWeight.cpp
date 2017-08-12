@@ -406,12 +406,14 @@ _pbBiasGradientVelocity()
         // Calculate weight dimensions
         _size                       = vFilterDim[0] * vFilterDim[1] * _outputLayer._kernelX * _outputLayer._kernelY * _outputLayer._kernelZ;
         _biasSize                   = vFilterDim[0];
+        _localSize                  = _size;
+        _localBiasSize              = _biasSize;
         
         
         
         if (getGpu()._id == 0)
         {
-            printf("NNWeight::NNWeight: Allocating %" PRIu64 " bytes (%d x %d x %u", _size * sizeof(NNFloat), vFilterDim[0], vFilterDim[1], _outputLayer._kernelX);
+            printf("NNWeight::NNWeight: Allocating %" PRIu64 " bytes (%d x %d x %u", _localSize * sizeof(NNFloat), vFilterDim[0], vFilterDim[1], _outputLayer._kernelX);
             if (_outputLayer._dimensions >= 3)
                 printf(" x %u", _outputLayer._kernelY);
             if (_outputLayer._dimensions >= 4)
@@ -444,26 +446,30 @@ _pbBiasGradientVelocity()
             _width                  = outputLayer._stride;
             _height                 = inputLayer._localStride;
         }
-        _size                       = _width * _height * _length * _depth * _breadth;
-        _biasSize                   = outputLayer._localStride;
+        _localSize                  = _width * _height * _length * _depth * _breadth;
+        _localBiasSize              = outputLayer._localStride;
+        _size                       = outputLayer._stride * inputLayer._stride *_length * _depth * _breadth;
+        _biasSize                   = outputLayer._stride;
+        
+        
         if (getGpu()._id == 0)
-            printf("NNWeight::NNWeight: Allocating %" PRIu64 " bytes (%" PRIu64 ", %" PRIu64 ") for fully connected weights between layers %s and %s\n", _size * sizeof(float), _width, _height, inputLayer._name.c_str(), outputLayer._name.c_str());
+            printf("NNWeight::NNWeight: Allocating %" PRIu64 " bytes (%" PRIu64 ", %" PRIu64 ") for fully connected weights between layers %s and %s\n", _localSize * sizeof(float), _width, _height, inputLayer._name.c_str(), outputLayer._name.c_str());
     }
         
     if (!_bShared)
     {
-        _vWeight.resize(_size);
-        _pbWeight.reset(new GpuBuffer<NNFloat>(_size));
-        _pbWeightGradient.reset(new GpuBuffer<NNFloat>(_size));
+        _vWeight.resize(_localSize);
+        _pbWeight.reset(new GpuBuffer<NNFloat>(_localSize));
+        _pbWeightGradient.reset(new GpuBuffer<NNFloat>(_localSize));
     }
 
-    _vBias.resize(_biasSize);
-    _pbBias.reset(new GpuBuffer<NNFloat>(_biasSize));
+    _vBias.resize(_localBiasSize);
+    _pbBias.reset(new GpuBuffer<NNFloat>(_localBiasSize));
 
     // Add bias gradient to convolutions
     if (_transform == Convolution)
     {
-        _pbBiasGradient.reset(new GpuBuffer<NNFloat>(_biasSize));
+        _pbBiasGradient.reset(new GpuBuffer<NNFloat>(_localBiasSize));
     }
 }
 
@@ -473,17 +479,17 @@ NNWeight::~NNWeight()
 
 void NNWeight::ClearVelocity()
 {
-    cudaMemset(_pbWeightVelocity->_pDevData, 0, _size * sizeof(NNFloat));
-    cudaMemset(_pbBiasVelocity->_pDevData, 0, _biasSize * sizeof(NNFloat));
+    cudaMemset(_pbWeightVelocity->_pDevData, 0, _localSize * sizeof(NNFloat));
+    cudaMemset(_pbBiasVelocity->_pDevData, 0, _localBiasSize * sizeof(NNFloat));
     if (_pbWeightGradientVelocity)
-        cudaMemset(_pbWeightGradientVelocity->_pDevData, 0, _size * sizeof(NNFloat));
+        cudaMemset(_pbWeightGradientVelocity->_pDevData, 0, _localSize * sizeof(NNFloat));
     if (_pbBiasGradientVelocity)
-        cudaMemset(_pbBiasGradientVelocity->_pDevData, 0, _biasSize * sizeof(NNFloat));
+        cudaMemset(_pbBiasGradientVelocity->_pDevData, 0, _localBiasSize * sizeof(NNFloat));
 }
 
 void NNWeight::ClearGradient()
 {
-    cudaMemset(_pbWeightGradient->_pDevData, 0, _size * sizeof(NNFloat));
+    cudaMemset(_pbWeightGradient->_pDevData, 0, _localSize * sizeof(NNFloat));
 }
 
 void NNWeight::Randomize()
@@ -496,52 +502,52 @@ void NNWeight::Randomize()
         case CaffeXavier:
             // Initialize weights to range from _weightInitScale * (-sqrt(3 / n_output) to sqrt(3 / n_output))
             // ala the adaptation of Gloriot and Bengio in Caffe
-            curandGenerateUniform(getGpu()._RNG, _pbWeight->_pDevData, _size);
+            curandGenerateUniform(getGpu()._RNG, _pbWeight->_pDevData, _localSize);
             scale               = _outputLayer._weightInitScale * 2.0f * sqrtf(3.0f / _outputLayer._stride);
             bias                = 0.5f * scale;                 
-            kScaleAndBias(_pbWeight->_pDevData, _size, scale, bias);
+            kScaleAndBias(_pbWeight->_pDevData, _localSize, scale, bias);
             break;
             
         case Xavier:
             // Initialize weights to range from _weightInitScale * (-sqrt(6 / (n_output+n_input)) and sqrt(6 / (n_output+n_input)))
             // ala Gloriot and Bengio
-            curandGenerateUniform(getGpu()._RNG, _pbWeight->_pDevData, _size);
+            curandGenerateUniform(getGpu()._RNG, _pbWeight->_pDevData, _localSize);
             scale               = _outputLayer._weightInitScale * sqrtf(6.0f / (_outputLayer._stride + _inputLayer._stride));
             bias                = 0.5f * scale;
-            kScaleAndBias(_pbWeight->_pDevData, _size, scale, bias);
+            kScaleAndBias(_pbWeight->_pDevData, _localSize, scale, bias);
             break;
      
         case Uniform:
             // Initialize weights uniformly from -_weightInitScale to +_weightInitScale
-            curandGenerateUniform(getGpu()._RNG, _pbWeight->_pDevData, _size);
+            curandGenerateUniform(getGpu()._RNG, _pbWeight->_pDevData, _localSize);
             scale               = 2.0f * _outputLayer._weightInitScale;
             bias                = 0.5f * scale;                 
-            kScaleAndBias(_pbWeight->_pDevData, _size, scale, bias);  
+            kScaleAndBias(_pbWeight->_pDevData, _localSize, scale, bias);  
             break;
             
         case Gaussian:
             // Initialize weights to N(0, _weightInitScale)
-            curandGenerateNormal(getGpu()._RNG, _pbWeight->_pDevData, _size, 0.0f, _outputLayer._weightInitScale);
+            curandGenerateNormal(getGpu()._RNG, _pbWeight->_pDevData, _localSize, 0.0f, _outputLayer._weightInitScale);
             break;        
             
         case UnitBall:      
             // Initialize weights uniformly from 0 to _weightInitScale  
-            curandGenerateUniform(getGpu()._RNG, _pbWeight->_pDevData, _size);
+            curandGenerateUniform(getGpu()._RNG, _pbWeight->_pDevData, _localSize);
             scale               = _outputLayer._weightInitScale;              
-            kScaleAndBias(_pbWeight->_pDevData, _size, scale, 0.0f);     
+            kScaleAndBias(_pbWeight->_pDevData, _localSize, scale, 0.0f);     
             break;
           
         case Constant:
             // Initialize all weights to _weightInitScale
-            cudaMemset(_pbWeight->_pDevData, 0, _size * sizeof(NNFloat));
-            kScaleAndBias(_pbWeight->_pDevData, _size, (NNFloat)0.0, _outputLayer._weightInitScale); 
+            cudaMemset(_pbWeight->_pDevData, 0, _localSize * sizeof(NNFloat));
+            kScaleAndBias(_pbWeight->_pDevData, _localSize, (NNFloat)0.0, _outputLayer._weightInitScale); 
             break;
         };
     }
         
     // Initialize Biases
-    cudaMemset(_pbBias->_pDevData, 0, _biasSize * sizeof(NNFloat));
-    kScaleAndBias(_pbBias->_pDevData, _biasSize, (NNFloat)0.0, -_outputLayer._biasInit); 
+    cudaMemset(_pbBias->_pDevData, 0, _localBiasSize * sizeof(NNFloat));
+    kScaleAndBias(_pbBias->_pDevData, _localBiasSize, (NNFloat)0.0, -_outputLayer._biasInit); 
 }
 
 void NNWeight::Lock()
@@ -559,17 +565,17 @@ void NNWeight::RefreshState(NNNetwork* pNetwork, TrainingMode mode)
     if (mode != TrainingMode::SGD)
     {
         if (!_pbWeightVelocity)
-            _pbWeightVelocity.reset(new GpuBuffer<NNFloat>(_size));
+            _pbWeightVelocity.reset(new GpuBuffer<NNFloat>(_localSize));
         if (!_pbBiasVelocity)
-            _pbBiasVelocity.reset(new GpuBuffer<NNFloat>(_biasSize));
+            _pbBiasVelocity.reset(new GpuBuffer<NNFloat>(_localBiasSize));
             
         // Add additional buffers for AdaDelta and Adam
         if ((mode == TrainingMode::AdaDelta) || (mode == TrainingMode::Adam))
         {
             if (!_pbWeightGradientVelocity)
-                _pbWeightGradientVelocity.reset(new GpuBuffer<NNFloat>(_size));
+                _pbWeightGradientVelocity.reset(new GpuBuffer<NNFloat>(_localSize));
             if (!_pbBiasGradientVelocity)
-                _pbBiasGradientVelocity.reset(new GpuBuffer<NNFloat>(_biasSize));
+                _pbBiasGradientVelocity.reset(new GpuBuffer<NNFloat>(_localBiasSize));
         }
         else
         {
@@ -694,7 +700,7 @@ NNFloat NNWeight::CalculateRegularizationError(NNFloat lambda, NNFloat lambda1)
     if (_bShared)
         return 0;
     else
-        return kCalculateRegularizationError(lambda, lambda1, _pbWeight->_pDevData, _size);
+        return kCalculateRegularizationError(lambda, lambda1, _pbWeight->_pDevData, _localSize);
 }
 
 // Calculates Unit(l)^T * Delta(l + 1), the product of a [stride][batch] and [batch][outgoing stride] matrix
@@ -713,31 +719,31 @@ void NNWeight::UpdateWeights(TrainingMode trainingMode, uint32_t batch, NNFloat 
         switch (trainingMode)
         {
             case SGD:
-                kSGDUpdateWeights(alpha, lambda, lambda1, _size, _pbWeightGradient->_pDevData, _pbWeight->_pDevData);
+                kSGDUpdateWeights(alpha, lambda, lambda1, _localSize, _pbWeightGradient->_pDevData, _pbWeight->_pDevData);
                 break;
                 
             case Momentum:
-                kMomentumUpdateWeights(alpha, lambda, lambda1, mu, _size, _pbWeightVelocity->_pDevData, _pbWeightGradient->_pDevData, _pbWeight->_pDevData);
+                kMomentumUpdateWeights(alpha, lambda, lambda1, mu, _localSize, _pbWeightVelocity->_pDevData, _pbWeightGradient->_pDevData, _pbWeight->_pDevData);
                 break;
                         
             case AdaGrad:
-                kAdaGradUpdateWeights(alpha, lambda, lambda1, _size, _pbWeightVelocity->_pDevData, _pbWeightGradient->_pDevData, _pbWeight->_pDevData);
+                kAdaGradUpdateWeights(alpha, lambda, lambda1, _localSize, _pbWeightVelocity->_pDevData, _pbWeightGradient->_pDevData, _pbWeight->_pDevData);
                 break;
                         
             case Nesterov:
-                kNesterovUpdateWeights(alpha, lambda, lambda1, mu, _size, _pbWeightVelocity->_pDevData, _pbWeightGradient->_pDevData, _pbWeight->_pDevData);
+                kNesterovUpdateWeights(alpha, lambda, lambda1, mu, _localSize, _pbWeightVelocity->_pDevData, _pbWeightGradient->_pDevData, _pbWeight->_pDevData);
                 break;
                         
             case RMSProp:
-                kRMSPropUpdateWeights(alpha, lambda, lambda1, mu, _size, _pbWeightVelocity->_pDevData, _pbWeightGradient->_pDevData, _pbWeight->_pDevData);
+                kRMSPropUpdateWeights(alpha, lambda, lambda1, mu, _localSize, _pbWeightVelocity->_pDevData, _pbWeightGradient->_pDevData, _pbWeight->_pDevData);
                 break;
 
             case AdaDelta:
-                kAdaDeltaUpdateWeights(lambda, lambda1, mu, _size, _pbWeightVelocity->_pDevData, _pbWeightGradient->_pDevData, _pbWeightGradientVelocity->_pDevData, _pbWeight->_pDevData);
+                kAdaDeltaUpdateWeights(lambda, lambda1, mu, _localSize, _pbWeightVelocity->_pDevData, _pbWeightGradient->_pDevData, _pbWeightGradientVelocity->_pDevData, _pbWeight->_pDevData);
                 break;     
 
             case Adam:
-                kAdamUpdateWeights(alpha, lambda, lambda1, mu, mu1, t, _size, _pbWeightVelocity->_pDevData, _pbWeightGradient->_pDevData, _pbWeightGradientVelocity->_pDevData, _pbWeight->_pDevData);
+                kAdamUpdateWeights(alpha, lambda, lambda1, mu, mu1, t, _localSize, _pbWeightVelocity->_pDevData, _pbWeightGradient->_pDevData, _pbWeightGradientVelocity->_pDevData, _pbWeight->_pDevData);
                 break;   
         }
     }
@@ -748,11 +754,11 @@ void NNWeight::UpdateWeights(TrainingMode trainingMode, uint32_t batch, NNFloat 
         switch (trainingMode)
         {
             case SGD:
-                kSGDUpdateBiases(alpha, batch, _biasSize, _outputLayer._pbDelta->_pDevData, _pbBias->_pDevData);
+                kSGDUpdateBiases(alpha, batch, _localBiasSize, _outputLayer._pbDelta->_pDevData, _pbBias->_pDevData);
                 break;
 
             case Momentum:
-                kMomentumUpdateBiases(alpha, mu, batch, _biasSize, _outputLayer._pbDelta->_pDevData, _pbBiasVelocity->_pDevData, _pbBias->_pDevData);
+                kMomentumUpdateBiases(alpha, mu, batch, _localBiasSize, _outputLayer._pbDelta->_pDevData, _pbBiasVelocity->_pDevData, _pbBias->_pDevData);
                 break;
                     
             case AdaGrad:
@@ -782,31 +788,31 @@ void NNWeight::UpdateWeights(TrainingMode trainingMode, uint32_t batch, NNFloat 
         switch (trainingMode)
         {
             case SGD:
-                kSGDUpdateWeights(alpha, (NNFloat)0.0, (NNFloat)0.0, _biasSize, _pbBiasGradient->_pDevData, _pbBias->_pDevData);
+                kSGDUpdateWeights(alpha, (NNFloat)0.0, (NNFloat)0.0, _localBiasSize, _pbBiasGradient->_pDevData, _pbBias->_pDevData);
                 break;
 
             case Momentum:
-                kMomentumUpdateWeights(alpha, (NNFloat)0.0, (NNFloat)0.0, mu, _biasSize, _pbBiasVelocity->_pDevData, _pbBiasGradient->_pDevData, _pbBias->_pDevData);
+                kMomentumUpdateWeights(alpha, (NNFloat)0.0, (NNFloat)0.0, mu, _localBiasSize, _pbBiasVelocity->_pDevData, _pbBiasGradient->_pDevData, _pbBias->_pDevData);
                 break;
                     
             case AdaGrad:
-                kAdaGradUpdateWeights(alpha, (NNFloat)0.0, (NNFloat)0.0, _biasSize, _pbBiasVelocity->_pDevData, _pbBiasGradient->_pDevData, _pbBias->_pDevData);
+                kAdaGradUpdateWeights(alpha, (NNFloat)0.0, (NNFloat)0.0, _localBiasSize, _pbBiasVelocity->_pDevData, _pbBiasGradient->_pDevData, _pbBias->_pDevData);
                 break;
                         
             case Nesterov:
-                kNesterovUpdateWeights(alpha, (NNFloat)0.0, (NNFloat)0.0, mu, _biasSize, _pbBiasVelocity->_pDevData, _pbBiasGradient->_pDevData, _pbBias->_pDevData);
+                kNesterovUpdateWeights(alpha, (NNFloat)0.0, (NNFloat)0.0, mu, _localBiasSize, _pbBiasVelocity->_pDevData, _pbBiasGradient->_pDevData, _pbBias->_pDevData);
                 break;
                         
             case RMSProp:
-                kRMSPropUpdateWeights(alpha, (NNFloat)0.0, (NNFloat)0.0, mu, _biasSize, _pbBiasVelocity->_pDevData, _pbBiasGradient->_pDevData, _pbBias->_pDevData);
+                kRMSPropUpdateWeights(alpha, (NNFloat)0.0, (NNFloat)0.0, mu, _localBiasSize, _pbBiasVelocity->_pDevData, _pbBiasGradient->_pDevData, _pbBias->_pDevData);
                 break;
 
             case AdaDelta:
-                kAdaDeltaUpdateWeights((NNFloat)0.0, (NNFloat)0.0, mu, _biasSize, _pbBiasVelocity->_pDevData, _pbBiasGradient->_pDevData, _pbBiasGradientVelocity->_pDevData, _pbBias->_pDevData);
+                kAdaDeltaUpdateWeights((NNFloat)0.0, (NNFloat)0.0, mu, _localBiasSize, _pbBiasVelocity->_pDevData, _pbBiasGradient->_pDevData, _pbBiasGradientVelocity->_pDevData, _pbBias->_pDevData);
                 break;
 
             case Adam:
-                kAdamUpdateWeights(alpha, (NNFloat)0.0, (NNFloat)0.0, mu, mu1, t, _biasSize, _pbBiasVelocity->_pDevData, _pbBiasGradient->_pDevData, _pbBiasGradientVelocity->_pDevData, _pbBias->_pDevData);
+                kAdamUpdateWeights(alpha, (NNFloat)0.0, (NNFloat)0.0, mu, mu1, t, _localBiasSize, _pbBiasVelocity->_pDevData, _pbBiasGradient->_pDevData, _pbBiasGradientVelocity->_pDevData, _pbBias->_pDevData);
                 break;                                 
         }       
     }
@@ -921,8 +927,8 @@ void NNWeight::Dump(string fname, NNFloat* pBuffer)
     // Special case single GPU TODO data-parallel weights
     if (getGpu()._numprocs == 1)
     {
-        vWeight.resize(_size);
-        cudaMemcpy(vWeight.data(), pBuffer, _size * sizeof(NNFloat), cudaMemcpyDefault);
+        vWeight.resize(_localSize);
+        cudaMemcpy(vWeight.data(), pBuffer, _localSize * sizeof(NNFloat), cudaMemcpyDefault);
     }
     else
     {
@@ -931,7 +937,7 @@ void NNWeight::Dump(string fname, NNFloat* pBuffer)
             vWeight.resize(_outputLayer._stride * _inputLayer._stride);        
         uint32_t outgoingSize       = _outputLayer._stride * 3;               
         uint32_t incomingSize       = _inputLayer._stride * 2;     
-        cudaMemcpy(_vWeight.data(), pBuffer, _size * sizeof(NNFloat), cudaMemcpyDefault);
+        cudaMemcpy(_vWeight.data(), pBuffer, _localSize * sizeof(NNFloat), cudaMemcpyDefault);
 
         // Reduce weight data into GPU 0
         if (getGpu()._id == 0)

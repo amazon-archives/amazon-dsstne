@@ -50,6 +50,8 @@ private:
     uint32_t                        _lengthStride;              // Z stride for 3D convolution
     uint64_t                        _size;                      // Total size of weights
     uint64_t                        _biasSize;                  // Total size of biases
+    uint64_t                        _localSize;                 // Local size of weights
+    uint64_t                        _localBiasSize;             // Local size of biases
     NNFloat                         _norm;                      // Maximum allowable weight vector length (default 0, unconstrained)
     cudnnTensorDescriptor_t         _convBiasTensor;            // Tensor describing weight biases
     cudnnFilterDescriptor_t         _convFilterDesc;            // CUDNN convolution filter (specifies kernel)
@@ -83,7 +85,7 @@ private:
     bool WriteNetCDF(netCDF::NcFile& nc, uint32_t index, NNFloat* pWeight = NULL, NNFloat* pBias = NULL);
     NNFloat* GetWeightBuffer() { return _pbWeight ? _pbWeight->_pDevData : NULL; }
     NNFloat* GetWeightGradientBuffer() { return _pbWeightGradient ? _pbWeightGradient->_pDevData : NULL; }
-    uint64_t GetBufferSize() { return _size; }
+    uint64_t GetBufferSize() { return _localSize; }
 public:
     bool CopyWeights(NNWeight* pWeight);
     bool SetNorm(NNFloat norm);
