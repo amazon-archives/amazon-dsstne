@@ -6,21 +6,11 @@ VPATH=
 
 
 
-all: lib/libdsstne.a  bin/train bin/predict bin/generateNetCDF
+all:
+	cd engine && make
+	cd utils && make
 
 install: all 
-lib/libdsstne.a:
-	cd engine && make
-
-
-bin/train:
-	cd utils && make
-
-bin/predict:
-	cd utils && make
-
-bin/generateNetCDF:
-	cd utils && make
 
 
 clean:
