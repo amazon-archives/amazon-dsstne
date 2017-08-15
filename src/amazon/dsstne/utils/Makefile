@@ -41,7 +41,11 @@ predict : $(OBJS) Predict.o $(LIB_DSSTNE)
 	$(LOAD) $(LOADFLAGS) -o $@ $(OBJS) Predict.o  $(COMMON_LIBS)
 	cp $@ ../bin/
 
-TestGPU : $(OBJS)
+
+TestDune.o : ../../../../tst/gputests/TestDune.cpp
+	$(CC) $(CFLAGS) $(CU_INCLUDES) -c ../../../../tst/gputests/TestDune.cpp
+
+TestGPU : $(OBJS) TestDune.o
 	$(LOAD) $(LOADFLAGS) -o $@ $(OBJS) TestDune.o  $(COMMON_LIBS_UNIT_TEST)
 
 
