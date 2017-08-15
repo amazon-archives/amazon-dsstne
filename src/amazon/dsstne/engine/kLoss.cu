@@ -42,7 +42,7 @@ kCalculateSparseRawL1Error_kernel(NNFloat* pUnit, uint64_t size)
         error                   = fabsf(a);     
     }
     
-    REDUCE(error)
+    REDUCEERROR(error)
 }
 
 __global__ void
@@ -67,7 +67,7 @@ kCalculateSparseNonZeroL1Error_kernel(uint32_t position, uint32_t batch, uint32_
         }
     }  
 
-    REDUCE(error)
+    REDUCEERROR(error)
 }
 
 __global__ void
@@ -92,7 +92,7 @@ kCalculateSparseOnlyNonZeroL1Error_kernel(uint32_t position, uint32_t batch, uin
         }
     }  
 
-    REDUCE(error)
+    REDUCEERROR(error)
 }
 
 
@@ -144,7 +144,7 @@ kCalculateSparseAnalogOnlyNonZeroL1Error_kernel(uint32_t position, uint32_t batc
         }
     }  
 
-    REDUCE(error)
+    REDUCEERROR(error)
 }
 
 template<typename T>
@@ -171,7 +171,7 @@ kCalculateSparseAnalogNonZeroL1Error_kernel(uint32_t position, uint32_t batch, u
         }
     }  
 
-    REDUCE(error)
+    REDUCEERROR(error)
 }
 
 
@@ -199,7 +199,7 @@ kCalculateSparseAnalogOnlyNonZeroL1Error_kernel(uint32_t position, uint32_t batc
         }
     }  
 
-    REDUCE(error)
+    REDUCEERROR(error)
 }
 
 
@@ -227,7 +227,7 @@ kCalculateSparseAnalogNonZeroL1Error_kernel(uint32_t position, uint32_t batch, u
         }
     }  
 
-    REDUCE(error)
+    REDUCEERROR(error)
 }
 
 template<>
@@ -254,7 +254,7 @@ kCalculateSparseAnalogOnlyNonZeroL1Error_kernel(uint32_t position, uint32_t batc
         }
     }  
 
-    REDUCE(error)
+    REDUCEERROR(error)
 }
 
 template<>
@@ -281,7 +281,7 @@ kCalculateSparseAnalogNonZeroL1Error_kernel(uint32_t position, uint32_t batch, u
         }
     }  
 
-    REDUCE(error)
+    REDUCEERROR(error)
 }
 
 template<typename T>
@@ -320,7 +320,7 @@ kCalculateSparseRawL2Error_kernel(NNFloat* pUnit, uint64_t size)
         error                   = (NNFloat)0.5 * a * a;     
     }
     
-    REDUCE(error)
+    REDUCEERROR(error)
 }
 
 __global__ void
@@ -345,7 +345,7 @@ kCalculateSparseOnlyNonZeroL2Error_kernel(uint32_t position, uint32_t batch, uin
         }
     }  
 
-    REDUCE(error)
+    REDUCEERROR(error)
 }
 
 __global__ void
@@ -370,7 +370,7 @@ kCalculateSparseNonZeroL2Error_kernel(uint32_t position, uint32_t batch, uint32_
         }
     }  
 
-    REDUCE(error)
+    REDUCEERROR(error)
 }
 
 
@@ -421,7 +421,7 @@ kCalculateSparseAnalogOnlyNonZeroL2Error_kernel(uint32_t position, uint32_t batc
         }
     }  
 
-    REDUCE(error)
+    REDUCEERROR(error)
 }
 
 template<typename T>
@@ -448,7 +448,7 @@ kCalculateSparseAnalogNonZeroL2Error_kernel(uint32_t position, uint32_t batch, u
         }
     }  
 
-    REDUCE(error)
+    REDUCEERROR(error)
 }
 
 template<>
@@ -475,7 +475,7 @@ kCalculateSparseAnalogOnlyNonZeroL2Error_kernel(uint32_t position, uint32_t batc
         }
     }  
 
-    REDUCE(error)
+    REDUCEERROR(error)
 }
 
 template<>
@@ -502,7 +502,7 @@ kCalculateSparseAnalogNonZeroL2Error_kernel(uint32_t position, uint32_t batch, u
         }
     }  
 
-    REDUCE(error)
+    REDUCEERROR(error)
 }
 
 template<>
@@ -529,7 +529,7 @@ kCalculateSparseAnalogOnlyNonZeroL2Error_kernel(uint32_t position, uint32_t batc
         }
     }  
 
-    REDUCE(error)
+    REDUCEERROR(error)
 }
 
 template<>
@@ -556,7 +556,7 @@ kCalculateSparseAnalogNonZeroL2Error_kernel(uint32_t position, uint32_t batch, u
         }
     }  
 
-    REDUCE(error)
+    REDUCEERROR(error)
 }
 
 
@@ -597,7 +597,7 @@ kCalculateSparseRawCrossEntropyError_kernel(NNFloat* pUnit, uint64_t size)
         error                   = -log(max(MIN_ERROR, (NNFloat)1.0 - a));     
     }
 
-    REDUCE(error)
+    REDUCEERROR(error)
 }
 
 __global__ void
@@ -622,7 +622,7 @@ kCalculateSparseOnlyNonZeroCrossEntropyError_kernel(uint32_t position, uint32_t 
         }
     }  
 
-    REDUCE(error)
+    REDUCEERROR(error)
 }
 
 __global__ void
@@ -647,7 +647,7 @@ kCalculateSparseNonZeroCrossEntropyError_kernel(uint32_t position, uint32_t batc
         }
     }  
 
-    REDUCE(error)
+    REDUCEERROR(error)
 }
 
 NNFloat kCalculateSparseCrossEntropyError(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, uint64_t* pSparseStart, uint64_t *pSparseEnd, uint32_t *pSparseIndex, bool bSparseIgnoreZero)
@@ -699,7 +699,7 @@ kCalculateSparseMultinomialCrossEntropyError_kernel(uint32_t position, uint32_t 
         }
     }  
 
-    REDUCE(error)
+    REDUCEERROR(error)
 }
 
 NNFloat kCalculateSparseMultinomialCrossEntropyError(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, uint64_t* pSparseStart, uint64_t *pSparseEnd, uint32_t *pSparseIndex)
@@ -740,7 +740,7 @@ kCalculateSparseAnalogMultinomialCrossEntropyError_kernel(uint32_t position, uin
         }
     }  
 
-    REDUCE(error)
+    REDUCEERROR(error)
 }
 
 template<>
@@ -767,7 +767,7 @@ kCalculateSparseAnalogMultinomialCrossEntropyError_kernel(uint32_t position, uin
         }
     }  
 
-    REDUCE(error)
+    REDUCEERROR(error)
 }
 
 template<>
@@ -794,7 +794,7 @@ kCalculateSparseAnalogMultinomialCrossEntropyError_kernel(uint32_t position, uin
         }
     }  
 
-    REDUCE(error)
+    REDUCEERROR(error)
 }
 
 
@@ -822,7 +822,7 @@ kCalculateSparseRawScaledMarginalCrossEntropyError_kernel(NNFloat* pUnit, uint64
             error               = -cData._SMCE_zeroScale * log(max(MIN_ERROR, (NNFloat)1.0 - a));     
     }
     
-    REDUCE(error)
+    REDUCEERROR(error)
 }
 
 __global__ void
@@ -847,7 +847,7 @@ kCalculateSparseOnlyNonZeroScaledMarginalCrossEntropyError_kernel(uint32_t posit
         }
     }  
 
-    REDUCE(error)
+    REDUCEERROR(error)
 }
 
 __global__ void
@@ -874,7 +874,7 @@ kCalculateSparseNonZeroScaledMarginalCrossEntropyError_kernel(uint32_t position,
         }
     }  
 
-    REDUCE(error)
+    REDUCEERROR(error)
 }
 
 NNFloat kCalculateSparseScaledMarginalCrossEntropyError(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, uint64_t* pSparseStart, uint64_t *pSparseEnd, uint32_t *pSparseIndex, bool bSparseIgnoreZero)
@@ -916,7 +916,7 @@ kCalculateSparseRawDataScaledMarginalCrossEntropyError_kernel(NNFloat* pUnit, ui
           }
     }
 
-    REDUCE(error)
+    REDUCEERROR(error)
 }
 
 template<typename T>
@@ -951,7 +951,7 @@ kCalculateSparseNonZeroDataScaledMarginalCrossEntropyError_kernel(uint32_t posit
         }
     }
 
-    REDUCE(error)
+    REDUCEERROR(error)
 }
 
 template<typename T>
@@ -997,7 +997,7 @@ kCalculateSparseMultinomialScaledMarginalCrossEntropyError_kernel(uint32_t posit
         }
     }  
 
-    REDUCE(error)
+    REDUCEERROR(error)
 }
 
 NNFloat kCalculateSparseMultinomialScaledMarginalCrossEntropyError(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, uint64_t* pSparseStart, uint64_t *pSparseEnd, uint32_t *pSparseIndex)
@@ -1038,7 +1038,7 @@ kCalculateSparseAnalogMultinomialScaledMarginalCrossEntropyError_kernel(uint32_t
         }
     }  
 
-    REDUCE(error)
+    REDUCEERROR(error)
 }
 
 template<>
@@ -1065,7 +1065,7 @@ kCalculateSparseAnalogMultinomialScaledMarginalCrossEntropyError_kernel(uint32_t
         }
     }  
 
-    REDUCE(error)
+    REDUCEERROR(error)
 }
 
 template<>
@@ -1092,7 +1092,7 @@ kCalculateSparseAnalogMultinomialScaledMarginalCrossEntropyError_kernel(uint32_t
         }
     }  
 
-    REDUCE(error)
+    REDUCEERROR(error)
 }
 
 template<typename T>
@@ -1123,7 +1123,7 @@ kCalculateL1Error_kernel(uint32_t position, uint32_t stride, NNFloat* pUnit, T* 
         error                   = fabsf(a - t);        
     }
 
-    REDUCE(error)
+    REDUCEERROR(error)
 }
 
 template<>
@@ -1142,7 +1142,7 @@ kCalculateL1Error_kernel(uint32_t position, uint32_t stride, NNFloat* pUnit, uns
         error                   = fabsf(a - t);        
     }
 
-    REDUCE(error)
+    REDUCEERROR(error)
 }
 
 template<>
@@ -1161,7 +1161,7 @@ kCalculateL1Error_kernel(uint32_t position, uint32_t stride, NNFloat* pUnit, cha
         error                   = fabsf(a - t);        
     }
 
-    REDUCE(error)
+    REDUCEERROR(error)
 }
 
 template<typename T> NNFloat kCalculateL1Error(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, T* pData)
@@ -1191,7 +1191,7 @@ kCalculateL2Error_kernel(uint32_t position, uint32_t stride, NNFloat* pUnit, T* 
         error                   = (NNFloat)0.5 * (a - t) * (a - t);         
     }
 
-    REDUCE(error)
+    REDUCEERROR(error)
 }
 
 template<>
@@ -1211,7 +1211,7 @@ kCalculateL2Error_kernel(uint32_t position, uint32_t stride, NNFloat* pUnit, uns
 
     }
 
-    REDUCE(error)
+    REDUCEERROR(error)
 }
 
 template<>
@@ -1231,7 +1231,7 @@ kCalculateL2Error_kernel(uint32_t position, uint32_t stride, NNFloat* pUnit, cha
 
     }
 
-    REDUCE(error)
+    REDUCEERROR(error)
 }
 
 template<typename T> NNFloat kCalculateL2Error(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, T* pData)
@@ -1269,7 +1269,7 @@ kCalculateHingeError_kernel(uint32_t position, uint32_t stride, NNFloat* pUnit, 
         pData                  += blockDim.x;      
     }
     
-    REDUCE(loss)
+    REDUCEERROR(loss)
 }
 
 template<>
@@ -1297,7 +1297,7 @@ kCalculateHingeError_kernel(uint32_t position, uint32_t stride, NNFloat* pUnit, 
         pData                  += blockDim.x;      
     }
     
-    REDUCE(loss)
+    REDUCEERROR(loss)
 }
 
 template<>
@@ -1325,7 +1325,7 @@ kCalculateHingeError_kernel(uint32_t position, uint32_t stride, NNFloat* pUnit, 
         pData                  += blockDim.x;      
     }
     
-    REDUCE(loss)
+    REDUCEERROR(loss)
 }
 
 template<typename T> NNFloat kCalculateHingeError(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, T* pData)
@@ -1355,7 +1355,7 @@ kCalculateCrossEntropyError_kernel(uint32_t position, uint32_t stride, NNFloat* 
         //printf("%d %llu %f %f %f\n", position, pos, a, t, error);
     }
 
-    REDUCE(error)
+    REDUCEERROR(error)
 }
 
 template<>
@@ -1374,7 +1374,7 @@ kCalculateCrossEntropyError_kernel(uint32_t position, uint32_t stride, NNFloat* 
         error                   = -t * log(max(MIN_ERROR, a)) - ( (NNFloat)1.0 - t) * log(max(MIN_ERROR, (NNFloat)1.0 - a));     
     }
 
-    REDUCE(error)
+    REDUCEERROR(error)
 }
 
 template<>
@@ -1394,7 +1394,7 @@ kCalculateCrossEntropyError_kernel(uint32_t position, uint32_t stride, NNFloat* 
         //printf("%d %llu %f %f %f\n", position, pos, a, t, error);
     }
 
-    REDUCE(error)
+    REDUCEERROR(error)
 }
 
 template<typename T> NNFloat kCalculateCrossEntropyError(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, T* pData)
@@ -1424,7 +1424,7 @@ kCalculateMultinomialCrossEntropyError_kernel(uint32_t position, uint32_t stride
         //printf("%d %llu %f %f %f\n", position, pos, a, t, error);
     }
 
-    REDUCE(error)
+    REDUCEERROR(error)
 }
 
 template<>
@@ -1443,7 +1443,7 @@ kCalculateMultinomialCrossEntropyError_kernel(uint32_t position, uint32_t stride
         error                   = -t * log(max(MIN_ERROR, a));     
     }
 
-    REDUCE(error)
+    REDUCEERROR(error)
 }
 
 template<>
@@ -1463,7 +1463,7 @@ kCalculateMultinomialCrossEntropyError_kernel(uint32_t position, uint32_t stride
         //printf("%d %llu %f %f %f\n", position, pos, a, t, error);
     }
 
-    REDUCE(error)
+    REDUCEERROR(error)
 }
 
 template<typename T> NNFloat kCalculateMultinomialCrossEntropyError(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, T* pData)
@@ -1495,7 +1495,7 @@ kCalculateScaledMarginalCrossEntropyError_kernel(uint32_t position, uint32_t str
             error               = -t * cData._SMCE_oneScale * log(max(MIN_ERROR, a)) - ( (NNFloat)1.0 - t) * cData._SMCE_zeroScale * log(max(MIN_ERROR, (NNFloat)1.0 - a));     
     }
 
-    REDUCE(error)
+    REDUCEERROR(error)
 }
 
 template<>
@@ -1515,7 +1515,7 @@ kCalculateScaledMarginalCrossEntropyError_kernel(uint32_t position, uint32_t str
             error               = -t * cData._SMCE_oneScale * log(max(MIN_ERROR, a)) - ((NNFloat)1.0 - t) * cData._SMCE_zeroScale * log(max(MIN_ERROR, (NNFloat)1.0 - a));  
     }
 
-    REDUCE(error)
+    REDUCEERROR(error)
 }
 
 template<>
@@ -1536,7 +1536,7 @@ kCalculateScaledMarginalCrossEntropyError_kernel(uint32_t position, uint32_t str
         //printf("%d %llu %f %f %f\n", position, pos, a, t, error);
     }
 
-    REDUCE(error)
+    REDUCEERROR(error)
 }
 
 template<typename T> NNFloat kCalculateScaledMarginalCrossEntropyError(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, T* pData)
@@ -1568,7 +1568,7 @@ kCalculateMultinomialScaledMarginalCrossEntropyError_kernel(uint32_t position, u
             error               = -t * cData._SMCE_oneScale * log(max(MIN_ERROR, a));
     }
 
-    REDUCE(error)
+    REDUCEERROR(error)
 }
 
 template<>
@@ -1588,7 +1588,7 @@ kCalculateMultinomialScaledMarginalCrossEntropyError_kernel(uint32_t position, u
             error               = -t * cData._SMCE_oneScale * log(max(MIN_ERROR, a));  
     }
 
-    REDUCE(error)
+    REDUCEERROR(error)
 }
 
 template<>
@@ -1608,7 +1608,7 @@ kCalculateMultinomialScaledMarginalCrossEntropyError_kernel(uint32_t position, u
             error               = -t * cData._SMCE_oneScale * log(max(MIN_ERROR, a));  
     }
 
-    REDUCE(error)
+    REDUCEERROR(error)
 }
 
 template<typename T> NNFloat kCalculateMultinomialScaledMarginalCrossEntropyError(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, T* pData)

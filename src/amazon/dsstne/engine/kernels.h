@@ -203,7 +203,7 @@ __device__ inline int64_t ullitolli(uint64_t u)
 #endif // CUDA_VERSION >= 9000
 
 
-#define REDUCE(error) \
+#define REDUCEERROR(error) \
     if (ANY(error != (NNFloat)0.0)) \
     { \
         uint32_t tgx            = threadIdx.x & cData._warpMask; \
@@ -218,6 +218,17 @@ __device__ inline int64_t ullitolli(uint64_t u)
         } \
     } 
 
+
+#define REDUCE(a) \
+    if (ANY((a) != (NNFloat)0.0)) \
+    { \
+        uint32_t tgx            = threadIdx.x & cData._warpMask; \
+        a                      += SHFL((a), tgx ^ 1); \
+        a                      += SHFL((a), tgx ^ 2); \
+        a                      += SHFL((a), tgx ^ 4); \
+        a                      += SHFL((a), tgx ^ 8); \
+        a                      += SHFL((a), tgx ^ 16); \
+    } 
 
 
 #endif // __NVCC__

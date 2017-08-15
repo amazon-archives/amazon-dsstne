@@ -1385,12 +1385,7 @@ kCalculateRegularizationError_kernel(NNFloat* pWeight, uint64_t size, NNFloat la
     }
 
     // Reduce error across threads
-    REDUCE(error)
-
-    if ((threadIdx.x & cData._warpMask) == 0)
-    {
-        atomicAdd(cData._pAccumulator, llitoulli(llrintf(ERRORSCALEF * error)));
-    }  
+    REDUCEERROR(error)
 }
 
 // Calculates raw weight decay/regularization error
