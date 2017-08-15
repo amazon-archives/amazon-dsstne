@@ -762,23 +762,23 @@ void NNWeight::UpdateWeights(TrainingMode trainingMode, uint32_t batch, NNFloat 
                 break;
                     
             case AdaGrad:
-                kAdaGradUpdateBiases(alpha, batch, _outputLayer._localStride, _outputLayer._pbDelta->_pDevData, _pbBiasVelocity->_pDevData, _pbBias->_pDevData);
+                kAdaGradUpdateBiases(alpha, batch, _localBiasSize, _outputLayer._pbDelta->_pDevData, _pbBiasVelocity->_pDevData, _pbBias->_pDevData);
                 break;
                     
             case Nesterov:
-                kNesterovUpdateBiases(alpha, mu, batch, _outputLayer._localStride, _outputLayer._pbDelta->_pDevData, _pbBiasVelocity->_pDevData, _pbBias->_pDevData);
+                kNesterovUpdateBiases(alpha, mu, batch, _localBiasSize, _outputLayer._pbDelta->_pDevData, _pbBiasVelocity->_pDevData, _pbBias->_pDevData);
                 break;
                     
             case RMSProp:
-                kRMSPropUpdateBiases(alpha, mu, batch, _outputLayer._localStride, _outputLayer._pbDelta->_pDevData, _pbBiasVelocity->_pDevData, _pbBias->_pDevData);
+                kRMSPropUpdateBiases(alpha, mu, batch, _localBiasSize, _outputLayer._pbDelta->_pDevData, _pbBiasVelocity->_pDevData, _pbBias->_pDevData);
                 break;
                 
             case AdaDelta:
-                kAdaDeltaUpdateBiases(mu, batch, _outputLayer._localStride, _outputLayer._pbDelta->_pDevData, _pbBiasVelocity->_pDevData, _pbBiasGradientVelocity->_pDevData, _pbBias->_pDevData);
+                kAdaDeltaUpdateBiases(mu, batch, _localBiasSize, _outputLayer._pbDelta->_pDevData, _pbBiasVelocity->_pDevData, _pbBiasGradientVelocity->_pDevData, _pbBias->_pDevData);
                 break;                         
 
             case Adam:
-                kAdamUpdateBiases(alpha, mu, mu1, t, batch, _outputLayer._localStride, _outputLayer._pbDelta->_pDevData, _pbBiasVelocity->_pDevData, _pbBiasGradientVelocity->_pDevData, _pbBias->_pDevData);
+                kAdamUpdateBiases(alpha, mu, mu1, t, batch, _localBiasSize, _outputLayer._pbDelta->_pDevData, _pbBiasVelocity->_pDevData, _pbBiasGradientVelocity->_pDevData, _pbBias->_pDevData);
                 break; 
         }
     }

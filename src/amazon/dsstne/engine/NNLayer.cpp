@@ -901,7 +901,6 @@ void NNLayer::ForwardPropagateFullyConnected(uint32_t position, uint32_t batch, 
                 CalculateDropout(batch);  
         }
         
-
 #if 0
         string fname = "activation_" + _name;
         Dump(fname, _pbUnit->_pDevData);
@@ -2096,33 +2095,6 @@ void NNLayer::Reduce(uint32_t batch, uint32_t stride, NNFloat* pBuffer, uint32_t
         {
             kCopy2D(pBuffer, localStride, pSendBuffer + minX, stride, span, batch);
         }
-
-#if 0             
-        MPI_Barrier(MPI_COMM_WORLD
-       
-        vector<NNFloat> vOut(16 * 16);
-        cudaMemcpy(vOut.data(), pBuffer, batch * localStride * sizeof(NNFloat), cudaMemcpyDefault);
-        for (int n = 0; n < getGpu()._numprocs; n++)
-        {
-            if (getGpu()._id == n)
-            {
-                for (int i = 0; i < batch; i++)
-                {
-                    printf("%2d ", i);
-                    for (int j = 0; j < localStride; j++)
-                    {
-                        printf("%8.6f ", vOut[i * localStride + j]);
-                    }
-                    printf("\n");
-                }
-                printf("\n");
-                fflush(stdout);
-            }
-            
-            MPI_Barrier(MPI_COMM_WORLD);
-        } 
-        exit(-1);  
-#endif
     }
 }
 
@@ -2143,11 +2115,14 @@ void NNLayer::Gather(uint32_t batch, uint32_t stride, NNFloat* pBuffer, uint32_t
         {
             NNFloat* pPeerBuffer                        = getGpu()._pNetwork->GetPeerBackBuffer();
 
+            // Insure Send Buffer is idle before commencing gather
+            cudaDeviceSynchronize();  
+            MPI_Barrier(MPI_COMM_WORLD);
+
             // Copy local segment to send buffer
             kCopy2D(pSendBuffer + minX, stride, pBuffer, localStride, span, batch); 
 
-
-            // Send segments around the adding local contributions from each process
+            // Send segments around the ring, adding local contributions from each process
             for (uint32_t i = 0; i < stages; i++)
             {                    
                 kCopy2D(pPeerBuffer + minX, stride, pSendBuffer + minX, stride, span, batch);
@@ -2185,24 +2160,6 @@ void NNLayer::Gather(uint32_t batch, uint32_t stride, NNFloat* pBuffer, uint32_t
             status                                     = cudaMemcpy(pSendBuffer, pCPUBuffer, batch * stride * sizeof(NNFloat), cudaMemcpyDefault);
             RTERROR(status, "NNLayer::Gather: cudaMemcpy upload failed");
         }
-#if 0
-        if (getGpu()._id == 0)
-        {
-            vector<NNFloat> vOut(16 * 16);
-            cudaMemcpy(vOut.data(), pSendBuffer, 16 * 16 * sizeof(NNFloat), cudaMemcpyDefault);
-            for (int i = 0; i < 16; i++)
-            {
-                printf("%2d ", i);
-                for (int j = 0; j < 16; j++)
-                {
-                    printf("%8.6f ", vOut[i * 16 + j]);
-                }
-                printf("\n");
-            }
-        }
-        MPI_Barrier(MPI_COMM_WORLD);
-        exit(-1);
-#endif
     }
 }
 
