@@ -14,7 +14,6 @@
 #define NNTYPES_H
 #include <vector>
 #include <set>
-
 #include <string>
 #include <iostream>
 #include <iomanip>
@@ -188,6 +187,7 @@ struct NNDataSetBase {
     // States
     bool                        _bDenoising;
     bool                        _bDirty;
+    bool                        _bStreaming;
     uint32_t                    _batch;
     
       
@@ -203,6 +203,8 @@ struct NNDataSetBase {
     virtual void RefreshState(uint32_t batch) = 0;
     virtual bool Shard(NNDataSetEnums::Sharding sharding) = 0;
     virtual bool UnShard() = 0;
+    virtual bool SetStreaming(bool flag) = 0;
+    virtual bool GetStreaming() = 0;
     virtual vector<tuple<uint64_t, uint64_t> > getMemoryUsage() = 0;
     virtual bool CalculateSparseDatapointCounts() = 0;
     virtual bool GenerateSparseTransposedMatrix(uint32_t batch, NNLayer* pLayer) = 0;
@@ -247,20 +249,20 @@ public:
     friend bool SaveNetCDF(const string& fname, vector<NNDataSetBase*> vDataSet);
 
 private:
-
-    vector<T>               _vData;
-    unique_ptr<GpuBuffer<T>> _pbData;
-    vector<T>               _vSparseData;
-    unique_ptr<GpuBuffer<T>> _pbSparseData;
-    unique_ptr<GpuBuffer<T>> _pbSparseTransposedData;
-
+    // Type-specific data
+    vector<T>                   _vData;
+    unique_ptr<GpuBuffer<T>>    _pbData;
+    vector<T>                   _vSparseData;
+    unique_ptr<GpuBuffer<T>>    _pbSparseData;
+    unique_ptr<GpuBuffer<T>>    _pbSparseTransposedData;
+  
 
     // Force constructor private
     NNDataSet(const string& fname, uint32_t n);
     bool Rename(const string& name);
     bool SaveNetCDF(const string& fname);
     bool WriteNetCDF(netCDF::NcFile& nfc, const string& fname, const uint32_t n);
-    void RefreshState(uint32_t batch) {}    
+    void RefreshState(uint32_t batch) {} 
     bool Shard(NNDataSetEnums::Sharding sharding);
     bool UnShard();
     vector<tuple<uint64_t, uint64_t> > getMemoryUsage();
@@ -269,6 +271,8 @@ private:
     bool CalculateSparseTransposedMatrix(uint32_t position, uint32_t batch, NNLayer* pLayer);
     bool CalculateSparseTransposedDenoisedMatrix(uint32_t position, uint32_t batch, NNLayer* pLayer);
     bool CalculateSparseTransposedWeightGradient(NNFloat alpha, NNFloat beta, uint32_t m, uint32_t n, NNFloat* pDelta, NNFloat* pWeightGradient);     
+    bool SetStreaming(bool flag);
+    bool GetStreaming();  
     bool SetDenoising(bool flag);
     bool GenerateDenoisingData();
     bool LoadInputUnit(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit);

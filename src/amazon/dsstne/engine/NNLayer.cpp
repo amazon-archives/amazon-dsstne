@@ -552,7 +552,7 @@ void NNLayer::LoadPredictionBatch(uint32_t position, uint32_t batch)
 {
 
     if (_kind == Input)
-    { 
+    {
         if (!_bSparse)
         {
             _pDataSet->LoadInputUnit(position, batch, _localStride, _pbUnit->_pDevData);
@@ -567,7 +567,7 @@ void NNLayer::LoadPredictionBatch(uint32_t position, uint32_t batch)
 void NNLayer::LoadTrainingBatch(uint32_t position, uint32_t batch)
 {
     if (_kind == Input)
-    { 
+    {
         if (_bSparse)
         {
             if (_bFastSparse)
@@ -607,7 +607,7 @@ void NNLayer::LoadTrainingBatch(uint32_t position, uint32_t batch)
 void NNLayer::LoadValidationBatch(uint32_t position, uint32_t batch)
 {
     if (_kind == Input)
-    { 
+    {
         if (_bSparse)
         {
             _pDataSet->LoadSparseInputUnit(position, batch, _localStride, _pbUnit->_pDevData);
@@ -1436,7 +1436,6 @@ void NNLayer::BackPropagateConvolutional(uint32_t position, uint32_t batch, NNFl
 void NNLayer::BackPropagatePooling(uint32_t position, uint32_t batch, NNFloat alpha)
 {
     // Special case single GPU
-    if (getGpu()._numprocs == 1)
     {
         // Cycle through incoming layers and process gradient and delta contributions
         NNFloat pooling_alpha                   = (NNFloat)1.0;

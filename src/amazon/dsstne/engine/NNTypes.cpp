@@ -149,14 +149,12 @@ ostream& operator<< (ostream& out, NNDataSetEnums::Kind& k)
 
 static std::pair<NNDataSetEnums::Attributes, string> sAttributesPair[] =
 {
-    std::pair<NNDataSetEnums::Attributes, string>(NNDataSetEnums::Sparse,                        "Sparse"),
-    std::pair<NNDataSetEnums::Attributes, string>(NNDataSetEnums::Boolean,                       "Boolean"),
-    std::pair<NNDataSetEnums::Attributes, string>(NNDataSetEnums::Compressed,                    "Compressed"),
-    std::pair<NNDataSetEnums::Attributes, string>(NNDataSetEnums::Recurrent,                     "Recurrent"),
-    std::pair<NNDataSetEnums::Attributes, string>(NNDataSetEnums::Mutable,                       "Mutable"),
-    std::pair<NNDataSetEnums::Attributes, string>(NNDataSetEnums::Attributes::SparseIgnoreZero,   "SparseIgnoreZero"),
-    std::pair<NNDataSetEnums::Attributes, string>(NNDataSetEnums::Attributes::Streaming,          "Streaming"),        
-
+    std::pair<NNDataSetEnums::Attributes, string>(NNDataSetEnums::Sparse,                       "Sparse"),
+    std::pair<NNDataSetEnums::Attributes, string>(NNDataSetEnums::Boolean,                      "Boolean"),
+    std::pair<NNDataSetEnums::Attributes, string>(NNDataSetEnums::Compressed,                   "Compressed"),
+    std::pair<NNDataSetEnums::Attributes, string>(NNDataSetEnums::Recurrent,                    "Recurrent"),
+    std::pair<NNDataSetEnums::Attributes, string>(NNDataSetEnums::Mutable,                      "Mutable"),
+    std::pair<NNDataSetEnums::Attributes, string>(NNDataSetEnums::Attributes::SparseIgnoreZero, "SparseIgnoreZero"),
 };
 
 static std::map<NNDataSetEnums::Attributes, string> sAttributesMap =
@@ -309,6 +307,7 @@ _pbSparseTransposedEnd(),
 _pbSparseTransposedIndex(),
 _batch(0),
 _pbDenoisingRandom(),
+_bStreaming(false),
 _bDirty(true)
 {
 
@@ -992,6 +991,29 @@ template<typename T> bool NNDataSet<T>::SetDenoising(bool flag)
     return true;
 }
 
+template<typename T> bool NNDataSet<T>::SetStreaming(bool flag)
+{
+    // Check for streaming capability, warn on each GPU that doesn't support it
+    if (getGpu()._bUnifiedMemory)
+    {
+        printf("NNDataSet::SetStreaming: Streaming datasets not supported on GPU %d\n", getGpu()._id);
+    }
+    
+    // Set dirty if streaming state has changed
+    if (flag != _bStreaming)
+    {
+        _bStreaming = flag & getGpu()._bUnifiedMemory;
+        _bDirty     = true;
+    }
+    
+    return true;
+}
+
+template<typename T> bool NNDataSet<T>::GetStreaming()
+{
+    return _bStreaming;
+}
+
 template<typename T> bool NNDataSet<T>::GenerateDenoisingData()
 {
     if (!(_attributes & NNDataSetEnums::Sparse))
@@ -1113,15 +1135,15 @@ template<typename T> bool NNDataSet<T>::UnShard()
                     _vSparseData                = vTempSparseData;
                     
                 // Reallocate GPU data
-                _pbSparseStart.reset(new GpuBuffer<uint64_t>(_examples));
-                _pbSparseEnd.reset(new GpuBuffer<uint64_t>(_examples));
-                _pbSparseIndex.reset(new GpuBuffer<uint32_t>((uint64_t)_vSparseIndex.size()));
+                _pbSparseStart.reset(new GpuBuffer<uint64_t>(_examples, false, _bStreaming));
+                _pbSparseEnd.reset(new GpuBuffer<uint64_t>(_examples, false, _bStreaming));
+                _pbSparseIndex.reset(new GpuBuffer<uint32_t>((uint64_t)_vSparseIndex.size(), false, _bStreaming));
                 _pbSparseStart->Upload(_vSparseStart.data());
                 _pbSparseEnd->Upload(_vSparseEnd.data());
                 _pbSparseIndex->Upload(_vSparseIndex.data());
                 if (!(_attributes & NNDataSetEnums::Boolean))
                 {
-                    _pbSparseData.reset(new GpuBuffer<T>((uint64_t)_vSparseData.size()));
+                    _pbSparseData.reset(new GpuBuffer<T>((uint64_t)_vSparseData.size(), false, _bStreaming));
                     _pbSparseData->Upload(_vSparseData.data());           
                 }                    
             }
@@ -1174,7 +1196,7 @@ template<typename T> bool NNDataSet<T>::UnShard()
                 }
 
                 // Reallocate GPU data
-                _pbData.reset(new GpuBuffer<T>((uint64_t)_vData.size()));
+                _pbData.reset(new GpuBuffer<T>((uint64_t)_vData.size(), false, _bStreaming));
                 _pbData->Upload(_vData.data()); 
           
             }
@@ -1306,9 +1328,9 @@ template<typename T> bool NNDataSet<T>::Shard(NNDataSetEnums::Sharding sharding)
             }
 
             // Allocate GPU buffers and upload
-            _pbSparseStart.reset(new GpuBuffer<uint64_t>(_examples));
-            _pbSparseEnd.reset(new GpuBuffer<uint64_t>(_examples));
-            _pbSparseIndex.reset(new GpuBuffer<uint32_t>((uint64_t)_vSparseIndex.size()));
+            _pbSparseStart.reset(new GpuBuffer<uint64_t>(_examples, false, _bStreaming));
+            _pbSparseEnd.reset(new GpuBuffer<uint64_t>(_examples, false, _bStreaming));
+            _pbSparseIndex.reset(new GpuBuffer<uint32_t>((uint64_t)_vSparseIndex.size(), false, _bStreaming));
             _pbSparseStart->Upload(_vSparseStart.data());
             _pbSparseEnd->Upload(_vSparseEnd.data());
             //for (int i = 0; i < 100; i++)
@@ -1317,7 +1339,7 @@ template<typename T> bool NNDataSet<T>::Shard(NNDataSetEnums::Sharding sharding)
             _pbSparseIndex->Upload(_vSparseIndex.data());
             if (!(_attributes & NNDataSetEnums::Boolean))
             {
-                _pbSparseData.reset(new GpuBuffer<T>((uint64_t)_vSparseData.size()));
+                _pbSparseData.reset(new GpuBuffer<T>((uint64_t)_vSparseData.size(), false, _bStreaming));
                 _pbSparseData->Upload(_vSparseData.data());            
             }
         }
@@ -1374,7 +1396,7 @@ template<typename T> bool NNDataSet<T>::Shard(NNDataSetEnums::Sharding sharding)
 
 
             // Allocate space then upload data to GPU memory
-            _pbData.reset(new GpuBuffer<T>((uint64_t)_vData.size()));
+            _pbData.reset(new GpuBuffer<T>((uint64_t)_vData.size(), false, _bStreaming));
             _pbData->Upload(_vData.data()); 
         }
     }
@@ -1423,13 +1445,12 @@ template<typename T> bool NNDataSet<T>::Shard(NNDataSetEnums::Sharding sharding)
         }
         
         // Allocate space then upload data to GPU memory
-        _pbData.reset(new GpuBuffer<T>((uint64_t)_vData.size()));
+        _pbData.reset(new GpuBuffer<T>((uint64_t)_vData.size(), false, _bStreaming));
         _pbData->Upload(_vData.data()); 
     }
 
     return true;
 }
-
 
 // Saves data set to NetCDF file
 template<typename T> bool NNDataSet<T>::SaveNetCDF(const string& fname)
