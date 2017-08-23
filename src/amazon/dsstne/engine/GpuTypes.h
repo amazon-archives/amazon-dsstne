@@ -502,7 +502,7 @@ void GpuBuffer<T>::Deallocate()
     getGpu()._totalGPUMemory           -=  _length * sizeof(T);
     
     // Delete system memory if present
-    if (_bSysMem)
+    if (_bSysMem && !_bManaged)
     {
         delete[] _pSysData;
         getGpu()._totalCPUMemory           -=  _length * sizeof(T);   
