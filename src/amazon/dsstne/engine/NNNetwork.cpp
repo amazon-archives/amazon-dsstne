@@ -32,6 +32,9 @@ _LRN_k(2),
 _LRN_n(5),
 _LRN_alpha((NNFloat)0.0001),
 _LRN_beta((NNFloat)0.75),
+_RELUSlope((NNFloat)1.0),
+_ELUAlpha((NNFloat)1),
+_SELULambda((NNFloat)1.0507),
 _bSparsenessPenalty(false),
 _sparsenessPenalty_p((NNFloat)0.0),
 _sparsenessPenalty_beta((NNFloat)0.0),
@@ -2953,6 +2956,20 @@ NNNetwork* LoadNeuralNetworkJSON(const string& fname, const uint32_t batch, cons
                     nd._bShuffleIndices             = value.asBool();
                 }
 
+                // Read default ELU parameters
+                else if ((name.compare("reluslope") == 0) || (name.compare("slope") == 0))
+                {
+                    nd._RELUSlope                   = value.asFloat();
+                }
+                else if (name.compare("elualpha") == 0)
+                {
+                    nd._ELUAlpha                    = value.asFloat();                    
+                }
+                else if (name.compare("selulambda") == 0)
+                {
+                    nd._SELULambda                  = value.asFloat();
+                }
+                
                 // Read error function
                 else if (name.compare("errorfunction") == 0)
                 {
@@ -3304,7 +3321,7 @@ NNNetwork* LoadNeuralNetworkJSON(const string& fname, const uint32_t batch, cons
 
                             }
 
-                            // Input and output layer-specific features
+                            // Hidden and output layer-specific features
                             if ((ldl._kind == NNLayer::Kind::Hidden) || (ldl._kind == NNLayer::Kind::Output))
                             {
                                 // Read skip(s) if present
@@ -3320,17 +3337,6 @@ NNNetwork* LoadNeuralNetworkJSON(const string& fname, const uint32_t batch, cons
                                 }
 
                                 // Read activation if present
-                                else if (lname.compare("slope") == 0)
-                                {
-                                    ldl._slope           = lvalue.asFloat();
-                                    if (ldl._slope < 0) {
-                                        printf("slope is negative \n");
-                                        bValid      = false;
-                                        goto exit;
-                                    }
-                                    continue;
-                                }
-                                // Read activation if present
                                 else if (lname.compare("activation") == 0)
                                 {
                                     string s        = lvalue.asString();
@@ -3345,6 +3351,10 @@ NNNetwork* LoadNeuralNetworkJSON(const string& fname, const uint32_t batch, cons
                                         ldl._activation = Activation::RectifiedLinear;
                                     else if ((s.compare("lrelu") == 0) || (s.compare("leakyrectifiedlinear") == 0))
                                         ldl._activation = Activation::LeakyRectifiedLinear;
+                                    else if ((s.compare("elu") == 0) || (s.compare("exponentiallinear") == 0))
+                                        ldl._activation = Activation::ExponentialLinear;
+                                    else if ((s.compare("selu") == 0) || (s.compare("selfnormalizingexponentiallinear") == 0))
+                                        ldl._activation = Activation::SelfNormalizingExponentialLinear;                                        
                                     else if (s.compare("softplus") == 0)
                                         ldl._activation = Activation::SoftPlus;
                                     else if (s.compare("softsign") == 0)
@@ -3363,8 +3373,21 @@ NNNetwork* LoadNeuralNetworkJSON(const string& fname, const uint32_t batch, cons
                                     }
                                     continue;
                                 }
-
-
+                                
+                                // Read layer-specific ELU parameters
+                                else if ((lname.compare("reluslope") == 0) || (lname.compare("slope") == 0))
+                                {
+                                    ldl._RELUSlope              = value.asFloat();
+                                }
+                                else if (lname.compare("elualpha") == 0)
+                                {
+                                    ldl._ELUAlpha               = value.asFloat();                    
+                                }
+                                else if (lname.compare("selulambda") == 0)
+                                {
+                                    ldl._SELULambda             = value.asFloat();
+                                }
+                                
                                 // Weight normalization
                                 else if (lname.compare("weightnorm") == 0)
                                 {
@@ -3608,7 +3631,7 @@ NNNetwork* LoadNeuralNetworkJSON(const string& fname, const uint32_t batch, cons
         if (nd._denoising_p > (NNFloat)0.0)
         {
             nd._bDenoising                              = true;
-            for (uint32_t i = 0; i <  nd._vLayerDescriptor.size(); i++)
+            for (size_t i = 0; i <  nd._vLayerDescriptor.size(); i++)
             {
                 if ((nd._vLayerDescriptor[i]._kind == NNLayer::Kind::Input) && ((nd._vLayerDescriptor[i]._attributes & NNLayer::Attributes::Sparse) != 0))
                 {
@@ -3616,6 +3639,17 @@ NNNetwork* LoadNeuralNetworkJSON(const string& fname, const uint32_t batch, cons
                 }
             }
         }
+    }
+    
+    // Grab default network values for unspecified layer attributes
+    for (size_t i = 0; i <  nd._vLayerDescriptor.size(); i++)
+    {
+        if (isnan(nd._vLayerDescriptor[i]._RELUSlope))
+            nd._vLayerDescriptor[i]._RELUSlope          = nd._RELUSlope;
+        if (isnan(nd._vLayerDescriptor[i]._ELUAlpha))
+            nd._vLayerDescriptor[i]._ELUAlpha           = nd._ELUAlpha;
+        if (isnan(nd._vLayerDescriptor[i]._SELULambda))
+            nd._vLayerDescriptor[i]._SELULambda         = nd._SELULambda;
     }
 
     // Calculate dimensions for unspecified convolution and pooling layers
@@ -3641,7 +3675,7 @@ exit:
     }
 
     // Now create network;
-    pNetwork                                        = new NNNetwork(nd, batch);
+    pNetwork                                    = new NNNetwork(nd, batch);
     pNetwork->RefreshState();
     return pNetwork;
 }

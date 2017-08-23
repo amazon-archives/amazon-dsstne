@@ -89,7 +89,9 @@ private:
     WeightInitialization        _weightInit;                // Weight initialization scheme
     NNFloat                     _weightInitScale;           // Weight Initialization scaling factor
     NNFloat                     _biasInit;                  // Bias initialization value
-    NNFloat                     _slope;                     // Slope parameter for Leaky ReLU
+    NNFloat                     _RELUSlope;                 // Leaky RELU slope parameter
+    NNFloat                     _ELUAlpha;                  // Alpha parameter for ELU and SELU activations
+    NNFloat                     _SELULambda;                // Lambda parameter for SELU activations    
     bool                        _bBatchNormalization;       // Perform batch normalization
     const uint32_t              _kernelX;                   // kernel X size
     const uint32_t              _kernelY;                   // kernel Y size
@@ -224,7 +226,9 @@ struct NNLayerDescriptor
     NNFloat                 _sparsenessPenalty_p;       // Layer-specific sparseness target
     NNFloat                 _sparsenessPenalty_beta;    // Layer-specific sparseness penalty weight    
     uint32_t                _attributes;                // Specific layer properties
-    NNFloat                 _slope;                     // Leaky Relu slope
+    NNFloat                 _RELUSlope;                 // Leaky RELU slope parameter
+    NNFloat                 _ELUAlpha;                  // Alpha parameter for ELU and SELU activations
+    NNFloat                 _SELULambda;                // Lambda parameter for SELU activations
     NNLayerDescriptor();
 };
 

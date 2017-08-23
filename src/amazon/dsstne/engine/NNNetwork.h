@@ -55,6 +55,11 @@ private:
     uint32_t                    _LRN_n;                     // LRN spread
     NNFloat                     _LRN_alpha;                 // LRN scaling
     NNFloat                     _LRN_beta;                  // LRN exponent
+    
+    // Default ELU parameters
+    NNFloat                     _RELUSlope;                 // Default leaky RELU slope parameter
+    NNFloat                     _ELUAlpha;                  // Default alpha parameter for ELU and SELU activations
+    NNFloat                     _SELULambda;                // Default lambda parameter for SELU activations     
 
     // Maxout parameters
     uint32_t                    _maxout_k;                  // Maxout neighborhood
@@ -225,6 +230,9 @@ struct NNNetworkDescriptor
     uint32_t                    _LRN_n;                     // Local Response Normalization spread (default 5)
     NNFloat                     _LRN_alpha;                 // Local Response Normalization scaling (default 0.0001)
     NNFloat                     _LRN_beta;                  // Local Response Normalization exponent (default 0.75)
+    NNFloat                     _RELUSlope;                 // Global default leaky RELU slope parameter
+    NNFloat                     _ELUAlpha;                  // Global default alpha parameter for ELU and SELU activations
+    NNFloat                     _SELULambda;                // Global default lambda parameter for SELU activations     
     bool                        _bSparsenessPenalty;        // Specifies whether to use sparseness penalty on hidden layers or not
     NNFloat                     _sparsenessPenalty_p;       // Target sparseness probability for hidden layers
     NNFloat                     _sparsenessPenalty_beta;    // Sparseness penalty weight 

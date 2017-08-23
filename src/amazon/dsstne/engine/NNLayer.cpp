@@ -67,7 +67,9 @@ _deltaUpdateCount(0),
 _unitUpdateCount(0),
 _batch(batch),
 _localBatch(batch),
-_slope(d._slope),
+_RELUSlope(d._RELUSlope),
+_ELUAlpha(d._ELUAlpha),
+_SELULambda(d._SELULambda),
 _bBatchNormalization(d._attributes & NNLayer::Attributes::BatchNormalization)
 {  
     _stride                         = _Nx * _Ny * _Nz * _Nw;
@@ -1171,8 +1173,16 @@ void NNLayer::CalculateActivation(uint32_t batch)
             break;
 
         case LeakyRectifiedLinear:
-            kCalculateLeakyReluActivation(_pbUnit->_pDevData, size, _slope);
+            kCalculateLeakyReluActivation(_pbUnit->_pDevData, size, _RELUSlope);
             break;
+            
+        case ExponentialLinear:
+            kCalculateELUActivation(_pbUnit->_pDevData, size, _ELUAlpha);        
+            break;
+            
+        case SelfNormalizingExponentialLinear:
+            kCalculateSELUActivation(_pbUnit->_pDevData, size, _ELUAlpha, _SELULambda);        
+            break;            
 
         case SoftMax:
             kCalculateSoftMaxActivation(_pbUnit->_pDevData, batch, _localStride);
@@ -1251,7 +1261,7 @@ void NNLayer::CalculateOutputDelta(uint32_t position, uint32_t batch, ErrorFunct
     switch (ef)
     {
         case L1:
-            _pDataSet->CalculateL1OutputDelta(_activation, position, batch, _localStride, _pbUnit->_pDevData, _pbDelta->_pDevData, _slope);
+            _pDataSet->CalculateL1OutputDelta(_activation, position, batch, _localStride, _pbUnit->_pDevData, _pbDelta->_pDevData, _RELUSlope, _ELUAlpha, _SELULambda);
             break;
 
         case CrossEntropy:
@@ -1263,7 +1273,7 @@ void NNLayer::CalculateOutputDelta(uint32_t position, uint32_t batch, ErrorFunct
             break;
 
         case L2:
-            _pDataSet->CalculateOutputDelta(_activation, position, batch, _localStride, _pbUnit->_pDevData, _pbDelta->_pDevData, _slope);
+            _pDataSet->CalculateOutputDelta(_activation, position, batch, _localStride, _pbUnit->_pDevData, _pbDelta->_pDevData, _RELUSlope, _ELUAlpha, _SELULambda);
             break;
 
         case Hinge:
@@ -1334,7 +1344,7 @@ void NNLayer::BackPropagateConvolutional(uint32_t position, uint32_t batch, NNFl
 
             // Account for dropout when calculating deltas (100% local calculation)
             NNFloat scale                           = (NNFloat)1.0 / ((NNFloat)1.0 - _pDropout);
-            kCalculateHadamardProduct(_activation, batch * _localStride, scale, _pbUnit->_pDevData, _pbDelta->_pDevData, _slope);
+            kCalculateHadamardProduct(_activation, batch * _localStride, scale, _pbUnit->_pDevData, _pbDelta->_pDevData, _RELUSlope, _ELUAlpha, _SELULambda);
             
             // Normalize deltas if desired
             if (_deltaNorm > (NNFloat)0.0)
@@ -1577,7 +1587,7 @@ void NNLayer::BackPropagateFullyConnected(uint32_t position, uint32_t batch, NNF
 
             // Account for dropout when calculating deltas (100% local calculation)
             NNFloat scale                           = (NNFloat)1.0 / ((NNFloat)1.0 - _pDropout);
-            kCalculateHadamardProduct(_activation, batch * _localStride, scale, _pbUnit->_pDevData, _pbDelta->_pDevData, _slope);
+            kCalculateHadamardProduct(_activation, batch * _localStride, scale, _pbUnit->_pDevData, _pbDelta->_pDevData, _RELUSlope, _ELUAlpha, _SELULambda);
             
             // Normalize deltas if desired (Norms must be reduced across all GPUs)
             if (_deltaNorm > (NNFloat)0.0)
@@ -1871,7 +1881,7 @@ void NNLayer::BackPropagateFullyConnected(uint32_t position, uint32_t batch, NNF
 
             // Account for dropout when calculating deltas (100% local calculation)
             NNFloat scale                           = (NNFloat)1.0 / ((NNFloat)1.0 - _pDropout);
-            kCalculateHadamardProduct(_activation, batch * _localStride, scale, _pbUnit->_pDevData, _pbDelta->_pDevData, _slope);
+            kCalculateHadamardProduct(_activation, batch * _localStride, scale, _pbUnit->_pDevData, _pbDelta->_pDevData, _RELUSlope, _ELUAlpha, _SELULambda);
             
             // Normalize deltas if desired (Norms must be reduced across all GPUs)
             if (_deltaNorm > (NNFloat)0.0)
@@ -2326,6 +2336,9 @@ _pDropout((NNFloat)0.0),
 _activation(Activation::Sigmoid),
 _sparsenessPenalty_p((NNFloat)0.0),
 _sparsenessPenalty_beta((NNFloat)0.0),
+_RELUSlope(NAN),
+_ELUAlpha(NAN),
+_SELULambda(NAN),
 _attributes(NNLayer::Attributes::None)
 {
 
@@ -2532,7 +2545,6 @@ bool LoadNNLayerDescriptorNetCDF(const string& fname, netCDF::NcFile& nc, uint32
             if (pDropoutAtt.isNull())
             {
                 throw NcException("NcException", "NNLayer::NNLayer: No pDropout supplied in NetCDF input file " + fname, __FILE__, __LINE__);
-                ld._pDropout                    = (NNFloat)0.0;
             }
             else
                 pDropoutAtt.getValues(&ld._pDropout);
@@ -2544,30 +2556,41 @@ bool LoadNNLayerDescriptorNetCDF(const string& fname, netCDF::NcFile& nc, uint32
             }
             activationAtt.getValues(&ld._activation);
 
+            // Version 0.85, RELU slope for leaky RELUs
+            NcGroupAtt RELUSlopeAtt             = nc.getAtt(lstring + "RELUSlope");
+            if (RELUSlopeAtt.isNull())
+            {
+                throw NcException("NcException", "NNLayer::NNLayer: No RELUSlope supplied in NetCDF input file " + fname, __FILE__, __LINE__);
+            }
+            RELUSlopeAtt.getValues(&(ld._RELUSlope));
 
-            NcGroupAtt slopeAtt   = nc.getAtt(lstring + "slope");
-            if (slopeAtt.isNull())
-            {
-                ld._slope = (NNFloat)0.0;
-            }
-            else
-            {
-                slopeAtt.getValues(&(ld._slope));
-            }
             
-            // Added in version 0.81, supply default values here if not present, eventually throw exception            
+            // Version 0.85, ELU alpha for ELUs
+            NcGroupAtt ELUAlphaAtt              = nc.getAtt(lstring + "ELUAlpha");
+            if (ELUAlphaAtt.isNull())
+            {
+                throw NcException("NcException", "NNLayer::NNLayer: No ELUAlpha supplied in NetCDF input file " + fname, __FILE__, __LINE__);
+            }
+            ELUAlphaAtt.getValues(&(ld._ELUAlpha));
+            
+            // Version 0.85, SELU lambda for SELUs
+            NcGroupAtt SELULambdaAtt            = nc.getAtt(lstring + "SELULambda");
+            if (SELULambdaAtt.isNull())
+            {
+                throw NcException("NcException", "NNLayer::NNLayer: No SELULambda supplied in NetCDF input file " + fname, __FILE__, __LINE__);
+            }
+            SELULambdaAtt.getValues(&(ld._SELULambda)); 
+            
             NcGroupAtt sparsenessPenalty_pAtt   = nc.getAtt("sparsenessPenalty_p");   
             if (sparsenessPenalty_pAtt.isNull())
             {
                 throw NcException("NcException", "NNLayer::NNLayer: No sparsenessPenalty_p supplied in NetCDF input file " + fname, __FILE__, __LINE__);
-                ld._sparsenessPenalty_p = (NNFloat)0.0;
             }
             else
             {
                 sparsenessPenalty_pAtt.getValues(&(ld._sparsenessPenalty_p));
             }
 
-            // Added in version 0.81, supply default values here if not present, eventually throw exception     
             NcGroupAtt sparsenessPenalty_betaAtt= nc.getAtt("sparsenessPenalty_beta");
             if (sparsenessPenalty_betaAtt.isNull())
             {
@@ -2673,8 +2696,10 @@ ostream& operator<< (ostream& out, NNLayerDescriptor& d)
         out << "weightNorm:            " << d._weightNorm << endl;
         out << "deltaNorm:             " << d._deltaNorm << endl;
         out << "activation:            " << d._activation << endl;
+        out << "RELUSlope:             " << d._RELUSlope << endl;
+        out << "ELUAlpha:              " << d._ELUAlpha << endl;
+        out << "SELULambda:            " << d._SELULambda << endl; 
         out << "Sparse:                " << ((d._attributes & NNLayer::Attributes::Sparse) != 0) << endl;
-        out << "slope:                 " << d._slope << endl;
         out << "batchNormalization:    " << ((d._attributes & NNLayer::Attributes::BatchNormalization) != 0) << endl;
         if (d._type == NNLayer::Type::FullyConnected)
         {
@@ -2728,7 +2753,9 @@ uint32_t MPI_Bcast_NNLayerDescriptor(NNLayerDescriptor& d)
     MPI_Bcast(&d._sparsenessPenalty_p, 1, MPI_FLOAT, 0, MPI_COMM_WORLD);
     MPI_Bcast(&d._sparsenessPenalty_beta, 1, MPI_FLOAT, 0, MPI_COMM_WORLD);    
     MPI_Bcast(&d._attributes, 1, MPI_UINT32_T, 0, MPI_COMM_WORLD);
-    MPI_Bcast(&d._slope, 1, MPI_FLOAT, 0, MPI_COMM_WORLD);
+    MPI_Bcast(&d._RELUSlope, 1, MPI_FLOAT, 0, MPI_COMM_WORLD);
+    MPI_Bcast(&d._ELUAlpha, 1, MPI_FLOAT, 0, MPI_COMM_WORLD);
+    MPI_Bcast(&d._SELULambda, 1, MPI_FLOAT, 0, MPI_COMM_WORLD);
 
     MPI_Bcast_string(d._dataSet);
     size_t size                         = d._vSource.size();
@@ -2779,8 +2806,10 @@ bool NNLayer::WriteNetCDF(NcFile& nc, uint32_t index)
         nc.putAtt(lstring + "activation", ncUint, _activation);
         nc.putAtt(lstring + "sparsenessPenalty_p", ncFloat, _sparsenessPenalty_p);
         nc.putAtt(lstring + "sparsenessPenalty_beta", ncFloat, _sparsenessPenalty_beta);
-        nc.putAtt(lstring + "slope", ncFloat, _slope);
-
+        nc.putAtt(lstring + "RELUSlope", ncFloat, _RELUSlope);
+        nc.putAtt(lstring + "ELUAlpha", ncFloat, _ELUAlpha);
+        nc.putAtt(lstring + "SELULambda", ncFloat, _SELULambda);
+                
         uint32_t attributes             = 0;
         if (_bSparse)
             attributes                 |= NNLayer::Attributes::Sparse;

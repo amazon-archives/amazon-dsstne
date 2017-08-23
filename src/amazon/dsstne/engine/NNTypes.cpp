@@ -71,6 +71,8 @@ static std::pair<Activation, string> sActivationPair[] =
     std::pair<Activation, string>(Activation::SoftMax,                              "SoftMax"),
     std::pair<Activation, string>(Activation::ReluMax,                              "ReluMax"),
     std::pair<Activation, string>(Activation::LinearMax,                            "LinearMax"),
+    std::pair<Activation, string>(Activation::ExponentialLinear,                    "ExponentialLinear"),
+    std::pair<Activation, string>(Activation::SelfNormalizingExponentialLinear,     "SelfNormalizingExponentialLinear"),        
 };
 
 static std::map<Activation, string> sActivationMap =

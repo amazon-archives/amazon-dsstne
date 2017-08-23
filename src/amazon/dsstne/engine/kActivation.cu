@@ -113,6 +113,45 @@ void kCalculateLeakyReluActivation(NNFloat* pData, uint64_t size, NNFloat slope)
     kCalculateLeakyReluActivation_kernel<<<blocks, getGpu()._threadsPerBlock>>>(pData, size, slope);
     LAUNCHERROR("kCalculateReluActivation_kernel");
 }
+
+__global__ void
+LAUNCH_BOUNDS()
+kCalculateELUActivation_kernel(NNFloat* pData, uint64_t size, NNFloat alpha)
+{
+    uint64_t pos                = blockIdx.x * blockDim.x + threadIdx.x;
+    if (pos < size)
+    {   
+        NNFloat x               = pData[pos];
+        pData[pos]              = (x > (NNFloat)0.0) ? x : alpha * (exp(x) - (NNFloat)1.0);
+    }
+}
+
+void kCalculateELUActivation(NNFloat* pData, uint64_t size, NNFloat alpha)
+{
+    uint32_t blocks             = CalculateBlocks(size);
+    kCalculateELUActivation_kernel<<<blocks, getGpu()._threadsPerBlock>>>(pData, size, alpha);
+    LAUNCHERROR("kCalculateELUActivation_kernel");
+}
+
+__global__ void
+LAUNCH_BOUNDS()
+kCalculateSELUActivation_kernel(NNFloat* pData, uint64_t size, NNFloat alpha, NNFloat lambda)
+{
+    uint64_t pos                = blockIdx.x * blockDim.x + threadIdx.x;
+    if (pos < size)
+    {   
+        NNFloat x               = pData[pos];
+        pData[pos]              = (x > (NNFloat)0.0) ? lambda * x : lambda * alpha * (exp(x) - (NNFloat)1.0);
+    }
+}
+
+void kCalculateSELUActivation(NNFloat* pData, uint64_t size, NNFloat alpha, NNFloat lambda)
+{
+    uint32_t blocks             = CalculateBlocks(size);
+    kCalculateSELUActivation_kernel<<<blocks, getGpu()._threadsPerBlock>>>(pData, size, alpha, lambda);
+    LAUNCHERROR("kCalculateSELUActivation_kernel");
+}
+
 __global__ void
 LAUNCH_BOUNDS()
 kCalculateSoftMaxActivation_kernel(NNFloat* pData, uint32_t stride)
