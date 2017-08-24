@@ -23,7 +23,7 @@ RUN cd /tmp  &&  \
     tar xvfz openmpi-1.8.2.tar.gz && \
     cd openmpi-1.8.2 && \
     ./configure --prefix=/usr/local/openmpi && \
-    make && \
+    make -j 8 && \
     sudo make install && rm -rf /tmp/*
 
 # Install JSONCPP
@@ -34,16 +34,16 @@ RUN cd /tmp  && \
     mkdir -p build/release && \
     cd build/release && \
     cmake -DCMAKE_BUILD_TYPE=release -DJSONCPP_LIB_BUILD_SHARED=OFF -G "Unix Makefiles" ../.. && \
-    make && \
+    make -j 8 && \
     make install && rm -rf /tmp/*
 
 # Install hdf5
 RUN cd /tmp && \
-    wget https://support.hdfgroup.org/ftp/HDF5/releases/hdf5-1.8.12/src/hdf5-1.8.12.tar.gz && \
+    wget https://support.hdfgroup.org/ftp/HDF5/releases/hdf5-1.8/hdf5-1.8.12/src/hdf5-1.8.12.tar.gz && \
     tar xvfz hdf5-1.8.12.tar.gz && \
     cd hdf5-1.8.12 && \
     ./configure --prefix=/usr/local && \
-    make && \
+    make -j 8 && \
     make install && rm -rf /tmp/*
 
 # Install zlib
@@ -52,7 +52,7 @@ RUN cd /tmp && \
     tar xvf zlib-1.2.8.tar.gz && \
     cd zlib-1.2.8 && \
     ./configure && \
-    make && \
+    make -j 8 && \
     make install && rm -rf /tmp/*
 
 # Install netcdf
@@ -61,7 +61,7 @@ RUN cd /tmp && \
     tar xvf netcdf-4.1.3.tar.gz && \
     cd netcdf-4.1.3 && \
     ./configure --prefix=/usr/local && \
-    make && \
+    make -j 8 && \
     make install && rm -rf /tmp/*
 
 # Install netcdf-cxx
@@ -70,7 +70,7 @@ RUN cd /tmp && \
     tar xvf netcdf-cxx4-4.2.tar.gz && \
     cd netcdf-cxx4-4.2 && \
     ./configure --prefix=/usr/local && \
-    make && \
+    make -j 8 && \
     make install && rm -rf /tmp/*
 
 # Installing CUBG
