@@ -63,16 +63,17 @@ static std::pair<Activation, string> sActivationPair[] =
 {
     std::pair<Activation, string>(Activation::Sigmoid,                              "Sigmoid"),
     std::pair<Activation, string>(Activation::Tanh,                                 "Tanh"),
-    std::pair<Activation, string>(Activation::RectifiedLinear,                      "RectifiedLinear"),
     std::pair<Activation, string>(Activation::Linear,                               "Linear"),
     std::pair<Activation, string>(Activation::ParametricRectifiedLinear,            "ParametricRectifiedLinear"),
     std::pair<Activation, string>(Activation::SoftSign,                             "SoftSign"),
     std::pair<Activation, string>(Activation::SoftPlus,                             "SoftPlus"),
     std::pair<Activation, string>(Activation::SoftMax,                              "SoftMax"),
-    std::pair<Activation, string>(Activation::ReluMax,                              "ReluMax"),
+    std::pair<Activation, string>(Activation::RELUMax,                              "RELUMax"),
     std::pair<Activation, string>(Activation::LinearMax,                            "LinearMax"),
+    std::pair<Activation, string>(Activation::RectifiedLinear,                      "RectifiedLinear"),
+    std::pair<Activation, string>(Activation::LeakyRectifiedLinear,                 "LeakyRectifiedLinear"),        
     std::pair<Activation, string>(Activation::ExponentialLinear,                    "ExponentialLinear"),
-    std::pair<Activation, string>(Activation::SelfNormalizingExponentialLinear,     "SelfNormalizingExponentialLinear"),        
+    std::pair<Activation, string>(Activation::ScaledExponentialLinear,              "ScaledExponentialLinear"),        
 };
 
 static std::map<Activation, string> sActivationMap =

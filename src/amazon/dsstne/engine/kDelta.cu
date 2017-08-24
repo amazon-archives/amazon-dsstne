@@ -177,7 +177,7 @@ kCalculateLinearOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t s
 template<typename T>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateReluOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, T* pData)
+kCalculateRELUOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, T* pData)
 {
     uint64_t pos                = (blockIdx.y * blockDim.x) + threadIdx.x;
     if (pos < stride)
@@ -193,7 +193,7 @@ kCalculateReluOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t str
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateReluOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, unsigned char* pData)
+kCalculateRELUOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, unsigned char* pData)
 {
     uint64_t pos                = (blockIdx.y * blockDim.x) + threadIdx.x;
     if (pos < stride)
@@ -209,7 +209,7 @@ kCalculateReluOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t str
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateReluOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, char* pData)
+kCalculateRELUOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, char* pData)
 {
     uint64_t pos                = (blockIdx.y * blockDim.x) + threadIdx.x;
     if (pos < stride)
@@ -225,7 +225,7 @@ kCalculateReluOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t str
 template<typename T>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateLeakyReluOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, T* pData, NNFloat slope)
+kCalculateLRELUOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, T* pData, NNFloat slope)
 {
     uint64_t pos                = (blockIdx.y * blockDim.x) + threadIdx.x;
     if (pos < stride)
@@ -241,7 +241,7 @@ kCalculateLeakyReluOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateLeakyReluOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, unsigned char* pData, NNFloat slope)
+kCalculateLRELUOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, unsigned char* pData, NNFloat slope)
 {
     uint64_t pos                = (blockIdx.y * blockDim.x) + threadIdx.x;
     if (pos < stride)
@@ -257,7 +257,7 @@ kCalculateLeakyReluOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateLeakyReluOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, char* pData, NNFloat slope)
+kCalculateLRELUOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, char* pData, NNFloat slope)
 {
     uint64_t pos                = (blockIdx.y * blockDim.x) + threadIdx.x;
     if (pos < stride)
@@ -435,13 +435,13 @@ template<typename T> void kCalculateOutputDelta(Activation activation, uint32_t 
             break;
 
         case RectifiedLinear:
-            kCalculateReluOutputDelta_kernel<<<grid, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pData);
-            LAUNCHERROR("kCalculateReluOutputDelta_kernel");
+            kCalculateRELUOutputDelta_kernel<<<grid, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pData);
+            LAUNCHERROR("kCalculateRELUOutputDelta_kernel");
             break;
             
         case LeakyRectifiedLinear:
-            kCalculateLeakyReluOutputDelta_kernel<<<grid, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pData, slope);
-            LAUNCHERROR("kCalculateLeakyReluOutputDelta_kernel");
+            kCalculateLRELUOutputDelta_kernel<<<grid, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pData, slope);
+            LAUNCHERROR("kCalculateLRELUOutputDelta_kernel");
             break;
 
         case ExponentialLinear:
@@ -449,7 +449,7 @@ template<typename T> void kCalculateOutputDelta(Activation activation, uint32_t 
             LAUNCHERROR("kCalculateELUOutputDelta_kernel");
             break;
 
-        case SelfNormalizingExponentialLinear:
+        case ScaledExponentialLinear:
             kCalculateSELUOutputDelta_kernel<<<grid, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pData, alpha, lambda);
             LAUNCHERROR("kCalculateSELUOutputDelta_kernel");
             break;
@@ -700,7 +700,7 @@ kCalculateSparseNonZeroLinearOutputDelta_kernel(uint32_t position, uint32_t batc
 
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateSparseRawReluOutputDelta_kernel(uint64_t size, NNFloat* pUnit,  NNFloat* pDelta)
+kCalculateSparseRawRELUOutputDelta_kernel(uint64_t size, NNFloat* pUnit,  NNFloat* pDelta)
 {
     uint64_t pos                = (blockIdx.x * blockDim.x) + threadIdx.x;
     if (pos < size)
@@ -712,7 +712,7 @@ kCalculateSparseRawReluOutputDelta_kernel(uint64_t size, NNFloat* pUnit,  NNFloa
 
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateSparseRawLeakyReluOutputDelta_kernel(uint64_t size, NNFloat* pUnit,  NNFloat* pDelta, NNFloat slope)
+kCalculateSparseRawLRELUOutputDelta_kernel(uint64_t size, NNFloat* pUnit,  NNFloat* pDelta, NNFloat slope)
 {
     uint64_t pos                = (blockIdx.x * blockDim.x) + threadIdx.x;
     if (pos < size)
@@ -750,7 +750,7 @@ kCalculateSparseRawSELUOutputDelta_kernel(uint64_t size, NNFloat* pUnit,  NNFloa
 
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateSparseNonZeroReluOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex)
+kCalculateSparseNonZeroRELUOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex)
 {
     uint64_t pos                = ((blockIdx.x * blockDim.x) + threadIdx.x) / cData._warpSize;
     if (pos < batch)
@@ -771,7 +771,7 @@ kCalculateSparseNonZeroReluOutputDelta_kernel(uint32_t position, uint32_t batch,
 
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateSparseNonZeroLeakyReluOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat slope)
+kCalculateSparseNonZeroLRELUOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat slope)
 {
     uint64_t pos                = ((blockIdx.x * blockDim.x) + threadIdx.x) / cData._warpSize;
     if (pos < batch)
@@ -914,21 +914,21 @@ void kCalculateSparseOutputDelta(Activation activation, uint32_t position, uint3
         case RectifiedLinear:
             if (!bSparseIgnoreZero)
             {
-                kCalculateSparseRawReluOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(size, pUnit, pDelta);
-                LAUNCHERROR("kCalculateSparseRawReluOutputDelta_kernel");
+                kCalculateSparseRawRELUOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(size, pUnit, pDelta);
+                LAUNCHERROR("kCalculateSparseRawRELUOutputDelta_kernel");
             }
-            kCalculateSparseNonZeroReluOutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pSparseStart, pSparseEnd, pSparseIndex);
-            LAUNCHERROR("kCalculateSparseNonZeroReluOutputDelta_kernel");
+            kCalculateSparseNonZeroRELUOutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pSparseStart, pSparseEnd, pSparseIndex);
+            LAUNCHERROR("kCalculateSparseNonZeroRELUOutputDelta_kernel");
             break;
 
         case LeakyRectifiedLinear:
             if (!bSparseIgnoreZero)
             {
-                kCalculateSparseRawLeakyReluOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(size, pUnit, pDelta, slope);
-                LAUNCHERROR("kCalculateSparseRawLeakyReluOutputDelta_kernel");
+                kCalculateSparseRawLRELUOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(size, pUnit, pDelta, slope);
+                LAUNCHERROR("kCalculateSparseRawLRELUOutputDelta_kernel");
             }
-            kCalculateSparseNonZeroLeakyReluOutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pSparseStart, pSparseEnd, pSparseIndex, slope);
-            LAUNCHERROR("kCalculateSparseNonZeroLeakyReluOutputDelta_kernel");
+            kCalculateSparseNonZeroLRELUOutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pSparseStart, pSparseEnd, pSparseIndex, slope);
+            LAUNCHERROR("kCalculateSparseNonZeroLRELUOutputDelta_kernel");
             break;
 
         case ExponentialLinear:
@@ -941,7 +941,7 @@ void kCalculateSparseOutputDelta(Activation activation, uint32_t position, uint3
             LAUNCHERROR("kCalculateSparseNonZeroELUOutputDelta_kernel");
             break;
 
-        case SelfNormalizingExponentialLinear:
+        case ScaledExponentialLinear:
             if (!bSparseIgnoreZero)
             {
                 kCalculateSparseRawSELUOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(size, pUnit, pDelta, alpha, lambda);
@@ -1173,7 +1173,7 @@ kCalculateSparseAnalogNonZeroLinearOutputDelta_kernel(uint32_t position, uint32_
 template<typename T>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateSparseAnalogNonZeroReluOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, T* pSparseData)
+kCalculateSparseAnalogNonZeroRELUOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, T* pSparseData)
 {
     uint64_t pos                = ((blockIdx.x * blockDim.x) + threadIdx.x) / cData._warpSize;
     if (pos < batch)
@@ -1196,7 +1196,7 @@ kCalculateSparseAnalogNonZeroReluOutputDelta_kernel(uint32_t position, uint32_t 
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateSparseAnalogNonZeroReluOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, unsigned char* pSparseData)
+kCalculateSparseAnalogNonZeroRELUOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, unsigned char* pSparseData)
 {
     uint64_t pos                = ((blockIdx.x * blockDim.x) + threadIdx.x) / cData._warpSize;
     if (pos < batch)
@@ -1219,7 +1219,7 @@ kCalculateSparseAnalogNonZeroReluOutputDelta_kernel(uint32_t position, uint32_t 
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateSparseAnalogNonZeroReluOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, char* pSparseData)
+kCalculateSparseAnalogNonZeroRELUOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, char* pSparseData)
 {
     uint64_t pos                = ((blockIdx.x * blockDim.x) + threadIdx.x) / cData._warpSize;
     if (pos < batch)
@@ -1242,7 +1242,7 @@ kCalculateSparseAnalogNonZeroReluOutputDelta_kernel(uint32_t position, uint32_t 
 template<typename T>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateSparseAnalogNonZeroLeakyReluOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, T* pSparseData, NNFloat slope)
+kCalculateSparseAnalogNonZeroLRELUOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, T* pSparseData, NNFloat slope)
 {
     uint64_t pos                = ((blockIdx.x * blockDim.x) + threadIdx.x) / cData._warpSize;
     if (pos < batch)
@@ -1265,7 +1265,7 @@ kCalculateSparseAnalogNonZeroLeakyReluOutputDelta_kernel(uint32_t position, uint
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateSparseAnalogNonZeroLeakyReluOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, unsigned char* pSparseData, NNFloat slope)
+kCalculateSparseAnalogNonZeroLRELUOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, unsigned char* pSparseData, NNFloat slope)
 {
     uint64_t pos                = ((blockIdx.x * blockDim.x) + threadIdx.x) / cData._warpSize;
     if (pos < batch)
@@ -1288,7 +1288,7 @@ kCalculateSparseAnalogNonZeroLeakyReluOutputDelta_kernel(uint32_t position, uint
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateSparseAnalogNonZeroLeakyReluOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, char* pSparseData, NNFloat slope)
+kCalculateSparseAnalogNonZeroLRELUOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, char* pSparseData, NNFloat slope)
 {
     uint64_t pos                = ((blockIdx.x * blockDim.x) + threadIdx.x) / cData._warpSize;
     if (pos < batch)
@@ -1563,21 +1563,21 @@ void kCalculateSparseAnalogOutputDelta(Activation activation, uint32_t position,
         case RectifiedLinear:
             if (!bSparseIgnoreZero)
             {
-                kCalculateSparseRawReluOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(size, pUnit, pDelta);
-                LAUNCHERROR("kCalculateSparseRawReluOutputDelta_kernel");
+                kCalculateSparseRawRELUOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(size, pUnit, pDelta);
+                LAUNCHERROR("kCalculateSparseRawRELUOutputDelta_kernel");
             }
-            kCalculateSparseAnalogNonZeroReluOutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pSparseStart, pSparseEnd, pSparseIndex, pSparseData);
-            LAUNCHERROR("kCalculateSparseAnalogNonZeroReluOutputDelta_kernel");
+            kCalculateSparseAnalogNonZeroRELUOutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pSparseStart, pSparseEnd, pSparseIndex, pSparseData);
+            LAUNCHERROR("kCalculateSparseAnalogNonZeroRELUOutputDelta_kernel");
             break;
             
         case LeakyRectifiedLinear:
             if (!bSparseIgnoreZero)
             {
-                kCalculateSparseRawLeakyReluOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(size, pUnit, pDelta, slope);
-                LAUNCHERROR("kCalculateSparseRawLeakyReluOutputDelta_kernel");
+                kCalculateSparseRawLRELUOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(size, pUnit, pDelta, slope);
+                LAUNCHERROR("kCalculateSparseRawLRELUOutputDelta_kernel");
             }
-            kCalculateSparseAnalogNonZeroLeakyReluOutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pSparseStart, pSparseEnd, pSparseIndex, pSparseData, slope);
-            LAUNCHERROR("kCalculateSparseAnalogNonZeroLeakyReluOutputDelta_kernel");
+            kCalculateSparseAnalogNonZeroLRELUOutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pSparseStart, pSparseEnd, pSparseIndex, pSparseData, slope);
+            LAUNCHERROR("kCalculateSparseAnalogNonZeroLRELUOutputDelta_kernel");
             break;
 
         case ExponentialLinear:
@@ -1590,7 +1590,7 @@ void kCalculateSparseAnalogOutputDelta(Activation activation, uint32_t position,
             LAUNCHERROR("kCalculateSparseAnalogNonZeroELUOutputDelta_kernel");
             break;
 
-        case SelfNormalizingExponentialLinear:
+        case ScaledExponentialLinear:
             if (!bSparseIgnoreZero)
             {
                 kCalculateSparseRawSELUOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(size, pUnit, pDelta, alpha, lambda);
@@ -2184,7 +2184,7 @@ kCalculateLinearL1OutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t
 template<typename T>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateReluL1OutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, T* pData)
+kCalculateRELUL1OutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, T* pData)
 {
     uint64_t pos                = (blockIdx.y * blockDim.x) + threadIdx.x;
     if (pos < stride)
@@ -2200,7 +2200,7 @@ kCalculateReluL1OutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t s
 template<typename T>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateLeakyReluL1OutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, T* pData, NNFloat slope)
+kCalculateLRELUL1OutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, T* pData, NNFloat slope)
 {
     uint64_t pos                = (blockIdx.y * blockDim.x) + threadIdx.x;
     if (pos < stride)
@@ -2297,7 +2297,7 @@ kCalculateLinearL1OutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateReluL1OutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, unsigned char* pData)
+kCalculateRELUL1OutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, unsigned char* pData)
 {
     uint64_t pos                = (blockIdx.y * blockDim.x) + threadIdx.x;
     if (pos < stride)
@@ -2313,7 +2313,7 @@ kCalculateReluL1OutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t s
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateLeakyReluL1OutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, unsigned char* pData, NNFloat slope)
+kCalculateLRELUL1OutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, unsigned char* pData, NNFloat slope)
 {
     uint64_t pos                = (blockIdx.y * blockDim.x) + threadIdx.x;
     if (pos < stride)
@@ -2409,7 +2409,7 @@ kCalculateLinearL1OutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateReluL1OutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, char* pData)
+kCalculateRELUL1OutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, char* pData)
 {
     uint64_t pos                = (blockIdx.y * blockDim.x) + threadIdx.x;
     if (pos < stride)
@@ -2425,7 +2425,7 @@ kCalculateReluL1OutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t s
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateLeakyReluL1OutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, char* pData, NNFloat slope)
+kCalculateLRELUL1OutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, char* pData, NNFloat slope)
 {
     uint64_t pos                = (blockIdx.y * blockDim.x) + threadIdx.x;
     if (pos < stride)
@@ -2491,13 +2491,13 @@ template<typename T> void kCalculateL1OutputDelta(Activation activation, uint32_
             break;
 
         case RectifiedLinear:
-            kCalculateReluL1OutputDelta_kernel<<<grid, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pData);
-            LAUNCHERROR("kCalculateReluL1OutputDelta_kernel");
+            kCalculateRELUL1OutputDelta_kernel<<<grid, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pData);
+            LAUNCHERROR("kCalculateRELUL1OutputDelta_kernel");
             break;
 
         case LeakyRectifiedLinear:
-            kCalculateLeakyReluL1OutputDelta_kernel<<<grid, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pData, slope);
-            LAUNCHERROR("kCalculateLeakyReluL1OutputDelta_kernel");
+            kCalculateLRELUL1OutputDelta_kernel<<<grid, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pData, slope);
+            LAUNCHERROR("kCalculateLRELUL1OutputDelta_kernel");
             break;
             
         case ExponentialLinear:
@@ -2505,7 +2505,7 @@ template<typename T> void kCalculateL1OutputDelta(Activation activation, uint32_
             LAUNCHERROR("kCalculateELUL1OutputDelta_kernel");
             break;            
 
-        case SelfNormalizingExponentialLinear:
+        case ScaledExponentialLinear:
             kCalculateSELUL1OutputDelta_kernel<<<grid, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pData, alpha, lambda);
             LAUNCHERROR("kCalculateSELUL1OutputDelta_kernel");
             break;   
@@ -2613,7 +2613,7 @@ kCalculateSparseNonZeroLinearL1OutputDelta_kernel(uint32_t position, uint32_t ba
 
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateSparseRawReluL1OutputDelta_kernel(uint64_t size, NNFloat* pUnit, NNFloat* pDelta)
+kCalculateSparseRawRELUL1OutputDelta_kernel(uint64_t size, NNFloat* pUnit, NNFloat* pDelta)
 {
     uint64_t pos                = (blockIdx.x * blockDim.x) + threadIdx.x;
     if (pos < size)
@@ -2625,7 +2625,7 @@ kCalculateSparseRawReluL1OutputDelta_kernel(uint64_t size, NNFloat* pUnit, NNFlo
 
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateSparseNonZeroReluL1OutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint64_t* pSparseStart, uint64_t *pSparseEnd, uint32_t *pSparseIndex)
+kCalculateSparseNonZeroRELUL1OutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint64_t* pSparseStart, uint64_t *pSparseEnd, uint32_t *pSparseIndex)
 {
     uint64_t pos                = ((blockIdx.x * blockDim.x) + threadIdx.x) / cData._warpSize;
     if (pos < batch)
@@ -2712,7 +2712,7 @@ kCalculateSparseNonZeroSELUL1OutputDelta_kernel(uint32_t position, uint32_t batc
 
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateSparseRawLeakyReluL1OutputDelta_kernel(uint64_t size, NNFloat* pUnit, NNFloat* pDelta, NNFloat slope)
+kCalculateSparseRawLRELUL1OutputDelta_kernel(uint64_t size, NNFloat* pUnit, NNFloat* pDelta, NNFloat slope)
 {
     uint64_t pos                = (blockIdx.x * blockDim.x) + threadIdx.x;
     if (pos < size)
@@ -2724,7 +2724,7 @@ kCalculateSparseRawLeakyReluL1OutputDelta_kernel(uint64_t size, NNFloat* pUnit, 
 
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateSparseNonZeroRawLeakyReluL1OutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint64_t* pSparseStart, uint64_t *pSparseEnd, uint32_t *pSparseIndex, NNFloat slope)
+kCalculateSparseNonZeroRawLRELUL1OutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint64_t* pSparseStart, uint64_t *pSparseEnd, uint32_t *pSparseIndex, NNFloat slope)
 {
     uint64_t pos                = ((blockIdx.x * blockDim.x) + threadIdx.x) / cData._warpSize;
     if (pos < batch)
@@ -2790,21 +2790,21 @@ void kCalculateSparseL1OutputDelta(Activation activation, uint32_t position, uin
         case RectifiedLinear:
             if (!bSparseIgnoreZero)
             {
-                kCalculateSparseRawReluL1OutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(size, pUnit, pDelta);
-                LAUNCHERROR("kCalculateSparseRawReluL1OutputDelta_kernel");
+                kCalculateSparseRawRELUL1OutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(size, pUnit, pDelta);
+                LAUNCHERROR("kCalculateSparseRawRELUL1OutputDelta_kernel");
             }
-            kCalculateSparseNonZeroReluL1OutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pSparseStart, pSparseEnd, pSparseIndex);
-            LAUNCHERROR("kCalculateSparseNonZeroReluL1OutputDelta_kernel");
+            kCalculateSparseNonZeroRELUL1OutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pSparseStart, pSparseEnd, pSparseIndex);
+            LAUNCHERROR("kCalculateSparseNonZeroRELUL1OutputDelta_kernel");
             break;
 
         case LeakyRectifiedLinear:
             if (!bSparseIgnoreZero)
             {
-                kCalculateSparseRawLeakyReluL1OutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(size, pUnit, pDelta, slope);
-                LAUNCHERROR("kCalculateSparseRawLeakyReluL1OutputDelta_kernel");
+                kCalculateSparseRawLRELUL1OutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(size, pUnit, pDelta, slope);
+                LAUNCHERROR("kCalculateSparseRawLRELUL1OutputDelta_kernel");
             }
-            kCalculateSparseNonZeroRawLeakyReluL1OutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pSparseStart, pSparseEnd, pSparseIndex, slope);
-            LAUNCHERROR("kCalculateSparseNonZeroRawLeakyReluL1OutputDelta_kernel");
+            kCalculateSparseNonZeroRawLRELUL1OutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pSparseStart, pSparseEnd, pSparseIndex, slope);
+            LAUNCHERROR("kCalculateSparseNonZeroRawLRELUL1OutputDelta_kernel");
             break;
             
         case ExponentialLinear:
@@ -2817,7 +2817,7 @@ void kCalculateSparseL1OutputDelta(Activation activation, uint32_t position, uin
             LAUNCHERROR("kCalculateSparseNonZeroELUL1OutputDelta_kernel");
             break;
             
-        case SelfNormalizingExponentialLinear:
+        case ScaledExponentialLinear:
             if (!bSparseIgnoreZero)
             {
                 kCalculateSparseRawSELUL1OutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(size, pUnit, pDelta, alpha, lambda);
@@ -2901,7 +2901,7 @@ kCalculateTanhHadamardProduct_kernel(uint64_t size, NNFloat* pUnit, NNFloat* pDe
 
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateReluHadamardProduct_kernel(uint64_t size, NNFloat* pUnit, NNFloat* pDelta)
+kCalculateRELUHadamardProduct_kernel(uint64_t size, NNFloat* pUnit, NNFloat* pDelta)
 {
     uint64_t pos                = blockIdx.x * blockDim.x + threadIdx.x;
     if (pos < size)
@@ -2914,7 +2914,7 @@ kCalculateReluHadamardProduct_kernel(uint64_t size, NNFloat* pUnit, NNFloat* pDe
 
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateLeakyReluHadamardProduct_kernel(uint64_t size, NNFloat* pUnit, NNFloat* pDelta, NNFloat slope)
+kCalculateLRELUHadamardProduct_kernel(uint64_t size, NNFloat* pUnit, NNFloat* pDelta, NNFloat slope)
 {
     uint64_t pos                = blockIdx.x * blockDim.x + threadIdx.x;
     if (pos < size)
@@ -2983,13 +2983,13 @@ void kCalculateHadamardProduct(Activation activation, uint64_t size, NNFloat sca
             break;
 
         case RectifiedLinear:
-            kCalculateReluHadamardProduct_kernel<<<blocks, getGpu()._threadsPerBlock>>>(size, pUnit, pDelta);
-            LAUNCHERROR("kCalculateReluHadamardProduct_kernel");
+            kCalculateRELUHadamardProduct_kernel<<<blocks, getGpu()._threadsPerBlock>>>(size, pUnit, pDelta);
+            LAUNCHERROR("kCalculateRELUHadamardProduct_kernel");
             break;
 
         case LeakyRectifiedLinear:
-            kCalculateLeakyReluHadamardProduct_kernel<<<blocks, getGpu()._threadsPerBlock>>>(size, pUnit, pDelta, slope);
-            LAUNCHERROR("kCalculateLeakyReluHadamardProduct_kernel");
+            kCalculateLRELUHadamardProduct_kernel<<<blocks, getGpu()._threadsPerBlock>>>(size, pUnit, pDelta, slope);
+            LAUNCHERROR("kCalculateLRELUHadamardProduct_kernel");
             break;
             
         case ExponentialLinear:
@@ -2997,7 +2997,7 @@ void kCalculateHadamardProduct(Activation activation, uint64_t size, NNFloat sca
             LAUNCHERROR("kCalculateELUHadamardProduct_kernel");
             break;
 
-        case SelfNormalizingExponentialLinear:
+        case ScaledExponentialLinear:
             kCalculateSELUHadamardProduct_kernel<<<blocks, getGpu()._threadsPerBlock>>>(size, pUnit, pDelta, alpha, lambda);
             LAUNCHERROR("kCalculateSELUHadamardProduct_kernel");
             break;               

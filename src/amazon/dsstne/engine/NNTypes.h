@@ -97,11 +97,11 @@ enum Activation {
     SoftPlus,
     SoftSign,
     SoftMax,
-    ReluMax,
+    RELUMax,
     LinearMax,
     ExponentialLinear,
     LeakyRectifiedLinear,
-    SelfNormalizingExponentialLinear,
+    ScaledExponentialLinear,
 };
 
 ostream& operator<< (ostream& out, const Activation& a);

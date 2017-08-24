@@ -140,10 +140,10 @@ void kCalculateHadamardProduct(Activation activation, uint64_t size, NNFloat sca
 // Activation functions
 void kCalculateSigmoidActivation(NNFloat* pData, uint64_t size);
 void kCalculateTanhActivation(NNFloat* pData, uint64_t size);
-void kCalculateReluActivation(NNFloat* pData, uint64_t size);
+void kCalculateRELUActivation(NNFloat* pData, uint64_t size);
 void kCalculateELUActivation(NNFloat* pData, uint64_t size, NNFloat alpha);
 void kCalculateSELUActivation(NNFloat* pData, uint64_t size, NNFloat alpha, NNFloat lambda);
-void kCalculateLeakyReluActivation(NNFloat* pData, uint64_t size, NNFloat slope);
+void kCalculateLRELUActivation(NNFloat* pData, uint64_t size, NNFloat slope);
 void kCalculateSoftMaxActivation(NNFloat* pData, uint32_t batch, uint32_t stride);
 
 // SGD/Momentum/AdaGrad/Nesterov weight update kernels

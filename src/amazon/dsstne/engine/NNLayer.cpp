@@ -1169,18 +1169,18 @@ void NNLayer::CalculateActivation(uint32_t batch)
             break;
 
         case RectifiedLinear:
-            kCalculateReluActivation(_pbUnit->_pDevData, size);
+            kCalculateRELUActivation(_pbUnit->_pDevData, size);
             break;
 
         case LeakyRectifiedLinear:
-            kCalculateLeakyReluActivation(_pbUnit->_pDevData, size, _RELUSlope);
+            kCalculateLRELUActivation(_pbUnit->_pDevData, size, _RELUSlope);
             break;
             
         case ExponentialLinear:
             kCalculateELUActivation(_pbUnit->_pDevData, size, _ELUAlpha);        
             break;
             
-        case SelfNormalizingExponentialLinear:
+        case ScaledExponentialLinear:
             kCalculateSELUActivation(_pbUnit->_pDevData, size, _ELUAlpha, _SELULambda);        
             break;            
 

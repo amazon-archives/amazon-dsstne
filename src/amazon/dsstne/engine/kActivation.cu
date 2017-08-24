@@ -81,23 +81,23 @@ void kCalculateTanhActivation(NNFloat* pData, uint64_t size)
 
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateReluActivation_kernel(NNFloat* pData, uint64_t size)
+kCalculateRELUActivation_kernel(NNFloat* pData, uint64_t size)
 {
     uint64_t pos                = blockIdx.x * blockDim.x + threadIdx.x;
     if (pos < size)
         pData[pos]              = max(0.0f, pData[pos]);
 }
 
-void kCalculateReluActivation(NNFloat* pData, uint64_t size)
+void kCalculateRELUActivation(NNFloat* pData, uint64_t size)
 {
     uint32_t blocks             = CalculateBlocks(size);
-    kCalculateReluActivation_kernel<<<blocks, getGpu()._threadsPerBlock>>>(pData, size);
-    LAUNCHERROR("kCalculateReluActivation_kernel");
+    kCalculateRELUActivation_kernel<<<blocks, getGpu()._threadsPerBlock>>>(pData, size);
+    LAUNCHERROR("kCalculateRELUActivation_kernel");
 }
 
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateLeakyReluActivation_kernel(NNFloat* pData, uint64_t size, NNFloat slope)
+kCalculateLRELUActivation_kernel(NNFloat* pData, uint64_t size, NNFloat slope)
 {
     uint64_t pos                = blockIdx.x * blockDim.x + threadIdx.x;
     if (pos < size)
@@ -107,11 +107,11 @@ kCalculateLeakyReluActivation_kernel(NNFloat* pData, uint64_t size, NNFloat slop
     }
 }
 
-void kCalculateLeakyReluActivation(NNFloat* pData, uint64_t size, NNFloat slope)
+void kCalculateLRELUActivation(NNFloat* pData, uint64_t size, NNFloat slope)
 {
     uint32_t blocks             = CalculateBlocks(size);
-    kCalculateLeakyReluActivation_kernel<<<blocks, getGpu()._threadsPerBlock>>>(pData, size, slope);
-    LAUNCHERROR("kCalculateReluActivation_kernel");
+    kCalculateLRELUActivation_kernel<<<blocks, getGpu()._threadsPerBlock>>>(pData, size, slope);
+    LAUNCHERROR("kCalculateLRELUActivation_kernel");
 }
 
 __global__ void

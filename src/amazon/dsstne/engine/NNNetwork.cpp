@@ -3353,8 +3353,8 @@ NNNetwork* LoadNeuralNetworkJSON(const string& fname, const uint32_t batch, cons
                                         ldl._activation = Activation::LeakyRectifiedLinear;
                                     else if ((s.compare("elu") == 0) || (s.compare("exponentiallinear") == 0))
                                         ldl._activation = Activation::ExponentialLinear;
-                                    else if ((s.compare("selu") == 0) || (s.compare("selfnormalizingexponentiallinear") == 0))
-                                        ldl._activation = Activation::SelfNormalizingExponentialLinear;                                        
+                                    else if ((s.compare("selu") == 0) || (s.compare("scaledexponentiallinear") == 0))
+                                        ldl._activation = Activation::ScaledExponentialLinear;                                        
                                     else if (s.compare("softplus") == 0)
                                         ldl._activation = Activation::SoftPlus;
                                     else if (s.compare("softsign") == 0)
@@ -3362,7 +3362,7 @@ NNNetwork* LoadNeuralNetworkJSON(const string& fname, const uint32_t batch, cons
                                     else if (s.compare("softmax") == 0)
                                         ldl._activation = Activation::SoftMax;
                                     else if (s.compare("relumax") == 0)
-                                        ldl._activation = Activation::ReluMax;
+                                        ldl._activation = Activation::RELUMax;
                                     else if (s.compare("linearmax") == 0)
                                         ldl._activation = Activation::LinearMax;
                                     else
