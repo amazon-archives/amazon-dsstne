@@ -94,6 +94,7 @@ static std::pair<WeightInitialization, string> sWeightInitializationPair[] =
     std::pair<WeightInitialization, string>(WeightInitialization::Uniform,          "Uniform"),
     std::pair<WeightInitialization, string>(WeightInitialization::UnitBall,         "UnitBall"),
     std::pair<WeightInitialization, string>(WeightInitialization::Constant,         "Constant"),
+    std::pair<WeightInitialization, string>(WeightInitialization::SELU,             "SELU"),    
 };
 static std::map<WeightInitialization, string> sWeightInitializationMap =
 std::map<WeightInitialization, string>(sWeightInitializationPair, sWeightInitializationPair + sizeof(sWeightInitializationPair) / 

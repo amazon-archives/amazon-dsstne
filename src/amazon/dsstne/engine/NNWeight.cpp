@@ -536,6 +536,11 @@ void NNWeight::Randomize()
             scale               = _outputLayer._weightInitScale;              
             kScaleAndBias(_pbWeight->_pDevData, _localSize, scale, 0.0f);     
             break;
+            
+        case SELU:
+            // Initialize weights to be compatible with SELU activation
+            curandGenerateNormal(getGpu()._RNG, _pbWeight->_pDevData, _localSize, 0.0f, 1.0f / _inputLayer._stride);
+            break;
           
         case Constant:
             // Initialize all weights to _weightInitScale

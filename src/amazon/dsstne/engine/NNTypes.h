@@ -113,7 +113,8 @@ enum WeightInitialization
     Gaussian,
     Uniform,
     UnitBall,
-    Constant 
+    Constant,
+    SELU, 
 };
     
 ostream& operator<< (ostream& out, const WeightInitialization& w);
