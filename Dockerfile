@@ -19,10 +19,10 @@ RUN apt-get update && \
 
 # Install OpenMPI
 RUN cd /tmp  &&  \
-    wget http://www.open-mpi.org/software/ompi/v1.8/downloads/openmpi-1.8.2.tar.gz && \
-    tar xvfz openmpi-1.8.2.tar.gz && \
-    cd openmpi-1.8.2 && \
-    ./configure --prefix=/usr/local/openmpi && \
+    wget https://www.open-mpi.org/software/ompi/v2.1/downloads/openmpi-2.1.1.tar.gz && \
+    tar xvfz openmpi-2.1.1.tar.gz && \
+    cd openmpi-2.1.1 && \
+    ./configure CC=gcc CXX=g++ --enable-mpi-cxx --prefix=/usr/local/openmpi && \
     make -j 8 && \
     sudo make install && rm -rf /tmp/*
 
@@ -80,9 +80,9 @@ RUN cd /tmp && \
     cp -rf cub-1.5.2/cub/ /usr/local/include/ && \
     rm -rf /tmp/*
 
-# Ensure OpenMPI is avaiable on path
+# Ensure OpenMPI is available on path
 ENV PATH=/usr/local/openmpi/bin/:${PATH} \
-    LD_LIBRARY_PATH=/usr/local/lib/:${LD_LIBRARY_PATH}
+    LD_LIBRARY_PATH=/usr/local/lib/:/usr/local/openmpi/lib/:${LD_LIBRARY_PATH}
 
 # Build latest version of DSSTNE from source
 COPY . /opt/amazon/dsstne
@@ -91,4 +91,3 @@ RUN cd /opt/amazon/dsstne/src/amazon/dsstne && \
 
 # Add DSSTNE binaries to PATH
 ENV PATH=/opt/amazon/dsstne/src/amazon/dsstne/bin/:${PATH}
-
