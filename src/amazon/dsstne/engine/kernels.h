@@ -108,7 +108,8 @@ void kCalculateDeltaMagnitudes(uint32_t batch, uint32_t stride, NNFloat* pDelta,
 void kNormalizeDeltaMagnitudes(NNFloat norm, uint32_t batch, uint32_t stride, NNFloat* pDelta, NNFloat* pMagnitude);
 
 // Dropout kernels
-void kCalculateDropout(NNFloat* pUnit, NNFloat* pRandom, uint32_t batch, uint32_t stride, NNFloat p);
+void kCalculateScaledBiasedDropout(NNFloat* pUnit, NNFloat* pRandom, uint32_t batch, uint32_t stride, NNFloat p, NNFloat target, NNFloat a, NNFloat b);
+void kCalculateDropout(NNFloat* pUnit, NNFloat* pRandom, uint32_t batch, uint32_t stride, NNFloat p, NNFloat target);
 
 // Delta functions for dense output layers
 template<typename T> void kCalculateL1OutputDelta(Activation activation, uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, T* pData, NNFloat slope, NNFloat alpha, NNFloat lambda);

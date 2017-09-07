@@ -1196,7 +1196,27 @@ void NNLayer::CalculateActivation(uint32_t batch)
 
 void NNLayer::CalculateDropout(uint32_t batch)
 {
-    kCalculateDropout(_pbUnit->_pDevData, _pbDropout->_pDevData, batch, _localStride, _pDropout);
+    // Perform different dropouts depending on activation
+    NNFloat lambda              = (_activation == ScaledExponentialLinear) ? _SELULambda : (NNFloat)1.0;
+    NNFloat alpha               = -lambda * _ELUAlpha;
+    NNFloat q                   = (NNFloat)1.0 - _pDropout;
+    NNFloat a                   = (NNFloat)1.0 / sqrt(q + alpha * alpha * _pDropout * q);
+    NNFloat b                   = -a * _pDropout * alpha;
+    NNFloat target              = (_activation == Sigmoid) ? (NNFloat)0.5 : (NNFloat)0.0;
+
+
+    
+    switch (_activation)
+    {
+        case ExponentialLinear:
+        case ScaledExponentialLinear:
+            kCalculateScaledBiasedDropout(_pbUnit->_pDevData, _pbDropout->_pDevData, batch, _localStride, _pDropout, alpha, a, b);
+            break;
+            
+        default:
+            kCalculateDropout(_pbUnit->_pDevData, _pbDropout->_pDevData, batch, _localStride, _pDropout, target);
+            break;
+    }
 }
 
 NNFloat NNLayer::CalculateError(uint32_t position, uint32_t batch, ErrorFunction ef)

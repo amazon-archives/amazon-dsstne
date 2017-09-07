@@ -2873,15 +2873,14 @@ void kCalculateSparsenessPenalty(uint32_t batch, uint32_t stride, NNFloat* pUnit
 
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateSigmoidHadamardProduct_kernel(uint64_t size, NNFloat* pUnit, NNFloat* pDelta, NNFloat scale, NNFloat oneOverScale)
+kCalculateSigmoidHadamardProduct_kernel(uint64_t size, NNFloat* pUnit, NNFloat* pDelta)
 {
     uint64_t pos                = blockIdx.x * blockDim.x + threadIdx.x;
     if (pos < size)
     {
         NNFloat x               = pUnit[pos];
         NNFloat d               = pDelta[pos];
-        x                      *= oneOverScale;
-        pDelta[pos]             = scale * x * ((NNFloat)1.0 - x) * d;
+        pDelta[pos]             = x * ((NNFloat)1.0 - x) * d;
     }
 }
 
@@ -2969,7 +2968,7 @@ void kCalculateHadamardProduct(Activation activation, uint64_t size, NNFloat sca
     switch (activation)
     {
         case Sigmoid:
-            kCalculateSigmoidHadamardProduct_kernel<<<blocks, getGpu()._threadsPerBlock>>>(size, pUnit, pDelta, scale, oneOverScale);
+            kCalculateSigmoidHadamardProduct_kernel<<<blocks, getGpu()._threadsPerBlock>>>(size, pUnit, pDelta);
             LAUNCHERROR("kCalculateSigmoidHadamardProduct_kernel");
             break;   
 

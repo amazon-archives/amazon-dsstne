@@ -2647,22 +2647,42 @@ void kNormalizeWeightMagnitudes(NNFloat norm, uint32_t outputStride, uint32_t in
 
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateDropout_kernel(NNFloat* pUnit, NNFloat* pRandom, NNFloat p, NNFloat scale, size_t size)
+kCalculateScaledBiasedDropout_kernel(NNFloat* pUnit, NNFloat* pRandom, NNFloat p, NNFloat target, NNFloat a, NNFloat b, size_t size)
 {
     uint64_t pos                            = blockIdx.x * blockDim.x + threadIdx.x;
     if (pos < size)
     {
         NNFloat r                           = pRandom[pos];
-        pUnit[pos]                          = (r < p) ? (NNFloat)0.0 : scale * pUnit[pos];
+        pUnit[pos]                          = (r < p) ? target : a * pUnit[pos] + b;
     }
 }
 
-void kCalculateDropout(NNFloat* pUnit, NNFloat* pRandom, uint32_t batch, uint32_t stride, NNFloat p)
+void kCalculateScaledBiasedDropout(NNFloat* pUnit, NNFloat* pRandom, uint32_t batch, uint32_t stride, NNFloat p, NNFloat target, NNFloat a, NNFloat b)
 {
     curandGenerateUniform(getGpu()._RNG, pRandom, batch * stride);
     unsigned long blocks                = CalculateBlocks(batch * stride);
-    NNFloat scale                       = (NNFloat)1.0 / ((NNFloat)1.0 - p);
-    kCalculateDropout_kernel<<<blocks, getGpu()._threadsPerBlock>>>(pUnit, pRandom, p, scale, batch * stride);
+    kCalculateScaledBiasedDropout_kernel<<<blocks, getGpu()._threadsPerBlock>>>(pUnit, pRandom, p, a * target + b, a, b, batch * stride);
+    LAUNCHERROR("kCalculateScaledBiasedDropout_kernel");
+}
+
+__global__ void
+LAUNCH_BOUNDS()
+kCalculateDropout_kernel(NNFloat* pUnit, NNFloat* pRandom, NNFloat p, NNFloat scale, NNFloat target, size_t size)
+{
+    uint64_t pos                            = blockIdx.x * blockDim.x + threadIdx.x;
+    if (pos < size)
+    {
+        NNFloat r                           = pRandom[pos];
+        pUnit[pos]                          = (r < p) ? target : scale * pUnit[pos];
+    }
+}
+
+void kCalculateDropout(NNFloat* pUnit, NNFloat* pRandom, uint32_t batch, uint32_t stride, NNFloat p, NNFloat target)
+{
+    curandGenerateUniform(getGpu()._RNG, pRandom, batch * stride);
+    unsigned long blocks                = CalculateBlocks(batch * stride);
+    NNFloat scale                       = (target == (NNFloat)0.0) ? (NNFloat)1.0 / ((NNFloat)1.0 - p) : (NNFloat)1.0;
+    kCalculateDropout_kernel<<<blocks, getGpu()._threadsPerBlock>>>(pUnit, pRandom, p, scale, target, batch * stride);
     LAUNCHERROR("kCalculateDropout_kernel");
 }
 
