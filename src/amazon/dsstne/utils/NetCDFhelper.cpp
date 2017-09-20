@@ -358,9 +358,9 @@ void writeNetCDFFile(vector<unsigned int> &vSparseStart,
         nc.putAtt("width0", ncUint, maxFeatureIndex);
         NcDim examplesDim = nc.addDim("examplesDim0", vSparseStart.size());
         NcDim sparseDataDim = nc.addDim("sparseDataDim0", vSparseIndex.size());
-        NcVar sparseStartVar = nc.addVar("sparseStart0", ncUint, examplesDim);
-        NcVar sparseEndVar = nc.addVar("sparseEnd0", ncUint, examplesDim);
-        NcVar sparseIndexVar = nc.addVar("sparseIndex0", ncUint, sparseDataDim);
+        NcVar sparseStartVar = nc.addVar("sparseStart0", "uint", "examplesDim0");
+        NcVar sparseEndVar = nc.addVar("sparseEnd0", "uint", "examplesDim0");
+        NcVar sparseIndexVar = nc.addVar("sparseIndex0", "uint", "sparseDataDim0");
         NcVar sparseDataVar = nc.addVar("sparseData0", ncFloat, sparseDataDim);
         sparseStartVar.putVar(&vSparseStart[0]);
         sparseEndVar.putVar(&vSparseEnd[0]);
@@ -402,9 +402,9 @@ void writeNetCDFFile(vector<unsigned int> &vSparseStart,
         nc.putAtt("width0", ncUint, maxFeatureIndex);
         NcDim examplesDim = nc.addDim("examplesDim0", vSparseStart.size());
         NcDim sparseDataDim = nc.addDim("sparseDataDim0", vSparseIndex.size());
-        NcVar sparseStartVar = nc.addVar("sparseStart0", ncUint, examplesDim);
-        NcVar sparseEndVar = nc.addVar("sparseEnd0", ncUint, examplesDim);
-        NcVar sparseIndexVar = nc.addVar("sparseIndex0", ncUint, sparseDataDim);
+        NcVar sparseStartVar = nc.addVar("sparseStart0", "uint", "examplesDim0");
+        NcVar sparseEndVar = nc.addVar("sparseEnd0", "uint", "examplesDim0");
+        NcVar sparseIndexVar = nc.addVar("sparseIndex0", "uint", "sparseDataDim0");
         sparseStartVar.putVar(&vSparseStart[0]);
         sparseEndVar.putVar(&vSparseEnd[0]);
         sparseIndexVar.putVar(&vSparseIndex[0]);
@@ -447,7 +447,7 @@ bool addDataToNetCDF(NcFile& nc, const long long dataIndex, const string& dataNa
     }
     NcVar indToFeatureVar;
     if (vFeatureNameC.size()) {
-        indToFeatureVar = nc.addVar((string("indToFeature") + sDataIndex).c_str(), ncString, indToFeatureDim); // ind to Feature mapping
+        indToFeatureVar = nc.addVar((string("indToFeature") + sDataIndex).c_str(), "string", (string("indToFeatureDim") + sDataIndex).c_str()); // ind to Feature mapping
     }
     if (vFeatureNameC.size()) {
         indToFeatureVar.putVar(vector<size_t>(1, 0), vector<size_t>(1, mFeatureNameToIndex.size()),
@@ -514,12 +514,12 @@ bool addDataToNetCDF(NcFile& nc, const long long dataIndex, const string& dataNa
         nc.putAtt((string("width") + sDataIndex).c_str(), ncUint, width);
         NcDim examplesDim = nc.addDim((string("examplesDim") + sDataIndex).c_str(), vSparseInputStart.size()); // number of training samples
         NcDim sparseDataDim = nc.addDim((string("sparseDataDim") + sDataIndex).c_str(), vSparseInputIndex.size()); // number of all purchases
-        NcVar sparseStartVar = nc.addVar((string("sparseStart") + sDataIndex).c_str(), ncUint, examplesDim);
-        NcVar sparseEndVar = nc.addVar((string("sparseEnd") + sDataIndex).c_str(), ncUint, examplesDim);
-        NcVar sparseIndexVar = nc.addVar((string("sparseIndex") + sDataIndex).c_str(), ncUint, sparseDataDim);
+        NcVar sparseStartVar = nc.addVar((string("sparseStart") + sDataIndex).c_str(), "uint", (string("examplesDim") + sDataIndex).c_str());
+        NcVar sparseEndVar = nc.addVar((string("sparseEnd") + sDataIndex).c_str(), "uint", (string("examplesDim") + sDataIndex).c_str());
+        NcVar sparseIndexVar = nc.addVar((string("sparseIndex") + sDataIndex).c_str(), "uint", (string("sparseDataDim") + sDataIndex).c_str());
         NcVar sparseTimeVar;
         if (vSparseInputTime.size()) {
-            sparseTimeVar = nc.addVar((string("sparseTime") + sDataIndex).c_str(), ncUint, sparseDataDim);
+            sparseTimeVar = nc.addVar((string("sparseTime") + sDataIndex).c_str(), "uint", (string("sparseDataDim") + sDataIndex).c_str());
         }
 
         NcVar sparseDataVar;
@@ -654,6 +654,6 @@ void writeNETCDF(const string& fileName, const vector<string>& vSamplesName,
     }
 
     NcDim samplesDim = nc.addDim("samplesDim", vSamplesName.size()); // number of training samples (it has to be the same for input and output data sets)
-    NcVar sparseSamplesVar = nc.addVar("samples", ncString, samplesDim);
+    NcVar sparseSamplesVar = nc.addVar("samples", "string", "samplesDim");
     sparseSamplesVar.putVar(vector<size_t>(1, 0), vector<size_t>(1, vSamplesChars.size()), vSamplesChars.data());
 }
