@@ -39,9 +39,9 @@ RUN cd /tmp  && \
 
 # Install hdf5
 RUN cd /tmp && \
-    wget https://support.hdfgroup.org/ftp/HDF5/current18/src/hdf5-1.8.19.tar.gz && \
-    tar xvfz hdf5-1.8.19.tar.gz && \
-    cd hdf5-1.8.19 && \
+    wget ftp://ftp.unidata.ucar.edu/pub/netcdf/netcdf-4/hdf5-1.8.12.tar.gz && \
+    tar xvfz hdf5-1.8.12.tar.gz && \
+    cd hdf5-1.8.12 && \
     ./configure --prefix=/usr/local && \
     make && \
     make install && rm -rf /tmp/*
