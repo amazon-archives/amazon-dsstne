@@ -2,7 +2,7 @@
 # AUTHOR:         DSSTNE Docker <dsstne-docker@amazon.com>
 # DESCRIPTION:    Docker image for Amazon DSSTNE
 
-FROM nvidia/cuda:7.5-cudnn5-devel-ubuntu14.04
+FROM nvidia/cuda:8.0-cudnn6-devel-ubuntu14.04
 
 # Suppress interactive prompts while installing base packages
 ENV DEBIAN_FRONTEND=noninteractive
