@@ -3377,15 +3377,18 @@ NNNetwork* LoadNeuralNetworkJSON(const string& fname, const uint32_t batch, cons
                                 // Read layer-specific ELU parameters
                                 else if ((lname.compare("reluslope") == 0) || (lname.compare("slope") == 0))
                                 {
-                                    ldl._RELUSlope              = value.asFloat();
+                                    ldl._RELUSlope              = lvalue.asFloat();
+                                    continue;
                                 }
                                 else if (lname.compare("elualpha") == 0)
                                 {
-                                    ldl._ELUAlpha               = value.asFloat();                    
+                                    ldl._ELUAlpha               = lvalue.asFloat();
+                                    continue;                    
                                 }
                                 else if (lname.compare("selulambda") == 0)
                                 {
-                                    ldl._SELULambda             = value.asFloat();
+                                    ldl._SELULambda             = lvalue.asFloat();
+                                    continue;
                                 }
                                 
                                 // Weight normalization
