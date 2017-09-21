@@ -1,14 +1,20 @@
-# VERSION 0.2
-# AUTHOR:         DSSTNE Docker <dsstne-docker@amazon.com>
-# DESCRIPTION:    Docker image for Amazon DSSTNE
+Bootstrap: docker
+From: nvidia/cuda:7.5-cudnn5-devel-ubuntu14.04
 
-FROM nvidia/cuda:8.0-cudnn6-devel-ubuntu14.04
+%environment
+    DEBIAN_FRONTEND=noninteractive
+    LD_LIBRARY_PATH=/usr/local/lib/:/usr/local/openmpi/lib/
+    PATH=/amazon-dsstne/src/amazon/dsstne/bin/:/usr/local/openmpi/bin/:${PATH}
+    export DEBIAN_FRONTEND LD_LIBRARY_PATH PATH
 
-# Suppress interactive prompts while installing base packages
-ENV DEBIAN_FRONTEND=noninteractive
+%setup
+    echo $SINGULARITY_ROOTFS
+    echo "cp -r . $SINGULARITY_ROOTFS/"
+    cp Singularity $SINGULARITY_ROOTFS/
+    cp -r ./amazon-dsstne/ $SINGULARITY_ROOTFS/
 
-# Add repositories and install base packages
-RUN apt-get update && \
+%post
+    apt-get update && \
     apt-get install -y build-essential libcppunit-dev libatlas-base-dev pkg-config python \
         software-properties-common unzip wget && \
     add-apt-repository ppa:george-edison55/cmake-3.x && \
@@ -17,8 +23,7 @@ RUN apt-get update && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
-# Install OpenMPI
-RUN cd /tmp  &&  \
+    cd /tmp  &&  \
     wget https://www.open-mpi.org/software/ompi/v2.1/downloads/openmpi-2.1.1.tar.gz && \
     tar xvfz openmpi-2.1.1.tar.gz && \
     cd openmpi-2.1.1 && \
@@ -26,8 +31,7 @@ RUN cd /tmp  &&  \
     make -j 8 && \
     sudo make install && rm -rf /tmp/*
 
-# Install JSONCPP
-RUN cd /tmp  && \
+    cd /tmp  && \
     wget https://github.com/open-source-parsers/jsoncpp/archive/svn-import.tar.gz && \
     tar xvfz svn-import.tar.gz && \
     cd jsoncpp-svn-import && \
@@ -37,17 +41,15 @@ RUN cd /tmp  && \
     make -j 8 && \
     make install && rm -rf /tmp/*
 
-# Install hdf5
-RUN cd /tmp && \
-    wget ftp://ftp.unidata.ucar.edu/pub/netcdf/netcdf-4/hdf5-1.8.12.tar.gz && \
-    tar xvfz hdf5-1.8.12.tar.gz && \
-    cd hdf5-1.8.12 && \
-    ./configure --prefix=/usr/local && \
+    cd /tmp && \
+    wget ftp://ftp.unidata.ucar.edu/pub/netcdf/netcdf-4/hdf5-1.8.9.tar.gz && \
+    tar xvfz hdf5-1.8.9.tar.gz && \
+    cd hdf5-1.8.9 && \
+    ./configure --prefix=/usr/local &&\
     make -j 8 && \
     make install && rm -rf /tmp/*
 
-# Install zlib
-RUN cd /tmp && \
+    cd /tmp && \
     wget https://www.unidata.ucar.edu/downloads/netcdf/ftp/netcdf-4/zlib-1.2.8.tar.gz && \
     tar xvf zlib-1.2.8.tar.gz && \
     cd zlib-1.2.8 && \
@@ -55,8 +57,7 @@ RUN cd /tmp && \
     make -j 8 && \
     make install && rm -rf /tmp/*
 
-# Install netcdf
-RUN cd /tmp && \
+    cd /tmp && \
     wget https://www.unidata.ucar.edu/downloads/netcdf/ftp/netcdf-4.1.3.tar.gz && \
     tar xvf netcdf-4.1.3.tar.gz && \
     cd netcdf-4.1.3 && \
@@ -64,8 +65,7 @@ RUN cd /tmp && \
     make -j 8 && \
     make install && rm -rf /tmp/*
 
-# Install netcdf-cxx
-RUN cd /tmp && \
+    cd /tmp && \
     wget https://www.unidata.ucar.edu/downloads/netcdf/ftp/netcdf-cxx4-4.2.tar.gz && \
     tar xvf netcdf-cxx4-4.2.tar.gz && \
     cd netcdf-cxx4-4.2 && \
@@ -73,21 +73,13 @@ RUN cd /tmp && \
     make -j 8 && \
     make install && rm -rf /tmp/*
 
-# Installing CUBG
-RUN cd /tmp && \
+    cd /tmp && \
     wget https://github.com/NVlabs/cub/archive/1.5.2.zip && \
     unzip 1.5.2.zip && \
     cp -rf cub-1.5.2/cub/ /usr/local/include/ && \
     rm -rf /tmp/*
 
-# Ensure OpenMPI is available on path
-ENV PATH=/usr/local/openmpi/bin/:${PATH} \
-    LD_LIBRARY_PATH=/usr/local/lib/:/usr/local/openmpi/lib/:${LD_LIBRARY_PATH}
-
-# Build latest version of DSSTNE from source
-COPY . /opt/amazon/dsstne
-RUN cd /opt/amazon/dsstne/src/amazon/dsstne && \
+    export LD_LIBRARY_PATH=/usr/local/lib/:/usr/local/openmpi/lib/:${LD_LIBRARY_PATH}
+    export PATH=/amazon-dsstne/src/amazon/dsstne/bin:/usr/local/openmpi/bin:/usr/local/bin:/usr/local/include/bin:/usr/local/cuda-7.5/bin:${PATH}
+    cd /amazon-dsstne/src/amazon/dsstne && \
     make install
-
-# Add DSSTNE binaries to PATH
-ENV PATH=/opt/amazon/dsstne/src/amazon/dsstne/bin/:${PATH}
