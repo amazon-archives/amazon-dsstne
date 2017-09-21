@@ -39,7 +39,7 @@ The definitions for the Neural Network fed into DSSTNE is represented in a Json 
 {
     "Version" : 0.8,
     "Name" : "2 Hidden Layer",
-    "Kind" : "FeedForward",  
+    "Kind" : "FeedForward",
 
     "ShuffleIndices" : false,
 
@@ -89,9 +89,11 @@ Activation function for each layer is passed on as a parameter to the Layer Defi
 
 * Sigmoid
 * Tanh
-* RectifiedLinear
 * Linear
-* ParametricRectifiedLinear
+* RectifiedLinear (RELU)
+* LeakyRectifiedLinear (LRELU)
+* ExponentialLinear (ELU)
+* ScaledExponentialLinear (SELU)
 * SoftPlus
 * SoftSign
 * SoftMax
@@ -118,6 +120,7 @@ Weight Initialization between the Layers are defined by *WeightInit* filed in th
 * Gaussian
 * Uniform
 * UnitBall
+* SELU
 * Constant
 
 
@@ -135,3 +138,4 @@ Optimization for the Network is currently passed through the code. Currently sup
 * Nesterov
 * RMSProp
 * AdaDelta
+* Adam
