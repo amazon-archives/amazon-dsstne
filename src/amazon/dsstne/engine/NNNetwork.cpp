@@ -3433,6 +3433,8 @@ NNNetwork* LoadNeuralNetworkJSON(const string& fname, const uint32_t batch, cons
                                                     ldl._weightInit     = UnitBall;
                                                 else if (scheme.compare("constant") == 0)
                                                     ldl._weightInit     = Constant;
+                                                else if (scheme.compare("selu") == 0)
+                                                    ldl._weightInit     = SELU;                                                    
                                                 else
                                                 {
                                                     printf("LoadNeuralNetworkJSON: Invalid weight initialization scheme: %s\n", scheme.c_str());
