@@ -4,3 +4,6 @@
 /src/amazon/dsstne/utils/generateNetCDF
 /src/amazon/dsstne/utils/predict
 /src/amazon/dsstne/utils/train
+*.o
+*.swp
+
