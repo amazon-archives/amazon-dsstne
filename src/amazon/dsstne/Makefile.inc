@@ -22,5 +22,6 @@ CU_INCLUDES = -I/usr/local/cuda/include -IB40C -IB40C/KernelCommon -I/usr/local/
 CU_LIBS = -L/usr/lib/atlas-base -L/usr/local/cuda/lib64 -L. -L/usr/local/lib/
 CU_LOADLIBS = -lcudnn -lcurand -lcublas -lcudart -lmpi -lmpi_cxx -ljsoncpp -lnetcdf_c++4 -lnetcdf -lblas -ldl -lstdc++  
 
+
 LOAD = mpiCC
 
