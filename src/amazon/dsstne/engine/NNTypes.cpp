@@ -27,6 +27,7 @@ static std::pair<TrainingMode, string> sTrainingModePair[] =
     std::pair<TrainingMode, string>(TrainingMode::Nesterov, "Nesterov"),
     std::pair<TrainingMode, string>(TrainingMode::RMSProp,  "RMSProp"),
     std::pair<TrainingMode, string>(TrainingMode::AdaDelta, "AdaDelta"),  
+    std::pair<TrainingMode, string>(TrainingMode::Adam,     "Adam"),  
 };
 
 static std::map<TrainingMode, string> sTrainingModeMap =
@@ -43,7 +44,8 @@ static std::pair<ErrorFunction, string> sErrorFunctionPair[] =
     std::pair<ErrorFunction, string>(ErrorFunction::L1,                             "L1"),
     std::pair<ErrorFunction, string>(ErrorFunction::L2,                             "L2"),
     std::pair<ErrorFunction, string>(ErrorFunction::CrossEntropy,                   "CrossEntropy"),
-    std::pair<ErrorFunction, string>(ErrorFunction::ScaledMarginalCrossEntropy,     "ScaledMarginalCrossEntropy")
+    std::pair<ErrorFunction, string>(ErrorFunction::ScaledMarginalCrossEntropy,     "ScaledMarginalCrossEntropy"),
+    std::pair<ErrorFunction, string>(ErrorFunction::Hinge,                          "Hinge"),
 };
 
 static std::map<ErrorFunction, string> sErrorFunctionMap =
@@ -61,14 +63,17 @@ static std::pair<Activation, string> sActivationPair[] =
 {
     std::pair<Activation, string>(Activation::Sigmoid,                              "Sigmoid"),
     std::pair<Activation, string>(Activation::Tanh,                                 "Tanh"),
-    std::pair<Activation, string>(Activation::RectifiedLinear,                      "RectifiedLinear"),
     std::pair<Activation, string>(Activation::Linear,                               "Linear"),
     std::pair<Activation, string>(Activation::ParametricRectifiedLinear,            "ParametricRectifiedLinear"),
     std::pair<Activation, string>(Activation::SoftSign,                             "SoftSign"),
     std::pair<Activation, string>(Activation::SoftPlus,                             "SoftPlus"),
     std::pair<Activation, string>(Activation::SoftMax,                              "SoftMax"),
-    std::pair<Activation, string>(Activation::ReluMax,                              "ReluMax"),
+    std::pair<Activation, string>(Activation::RELUMax,                              "RELUMax"),
     std::pair<Activation, string>(Activation::LinearMax,                            "LinearMax"),
+    std::pair<Activation, string>(Activation::RectifiedLinear,                      "RectifiedLinear"),
+    std::pair<Activation, string>(Activation::LeakyRectifiedLinear,                 "LeakyRectifiedLinear"),        
+    std::pair<Activation, string>(Activation::ExponentialLinear,                    "ExponentialLinear"),
+    std::pair<Activation, string>(Activation::ScaledExponentialLinear,              "ScaledExponentialLinear"),        
 };
 
 static std::map<Activation, string> sActivationMap =
@@ -89,6 +94,7 @@ static std::pair<WeightInitialization, string> sWeightInitializationPair[] =
     std::pair<WeightInitialization, string>(WeightInitialization::Uniform,          "Uniform"),
     std::pair<WeightInitialization, string>(WeightInitialization::UnitBall,         "UnitBall"),
     std::pair<WeightInitialization, string>(WeightInitialization::Constant,         "Constant"),
+    std::pair<WeightInitialization, string>(WeightInitialization::SELU,             "SELU"),    
 };
 static std::map<WeightInitialization, string> sWeightInitializationMap =
 std::map<WeightInitialization, string>(sWeightInitializationPair, sWeightInitializationPair + sizeof(sWeightInitializationPair) / 
@@ -106,6 +112,8 @@ static std::pair<PoolingFunction, string> sPoolingFunctionPair[] =
     std::pair<PoolingFunction, string>(PoolingFunction::Max,                        "Max"),
     std::pair<PoolingFunction, string>(PoolingFunction::Average,                    "Average"),
     std::pair<PoolingFunction, string>(PoolingFunction::Maxout,                     "Maxout"),
+    std::pair<PoolingFunction, string>(PoolingFunction::DotProduct,                 "DotProduct"),    
+    std::pair<PoolingFunction, string>(PoolingFunction::Cosine,                     "Cosine"), 
     std::pair<PoolingFunction, string>(PoolingFunction::Stochastic,                 "Stochastic"),
     std::pair<PoolingFunction, string>(PoolingFunction::LCN,                        "LocalContrastNormalization"),
     std::pair<PoolingFunction, string>(PoolingFunction::LRN,                        "LocalResponseNormalization"),
@@ -145,14 +153,12 @@ ostream& operator<< (ostream& out, NNDataSetEnums::Kind& k)
 
 static std::pair<NNDataSetEnums::Attributes, string> sAttributesPair[] =
 {
-    std::pair<NNDataSetEnums::Attributes, string>(NNDataSetEnums::Sparse,                        "Sparse"),
-    std::pair<NNDataSetEnums::Attributes, string>(NNDataSetEnums::Boolean,                       "Boolean"),
-    std::pair<NNDataSetEnums::Attributes, string>(NNDataSetEnums::Compressed,                    "Compressed"),
-    std::pair<NNDataSetEnums::Attributes, string>(NNDataSetEnums::Recurrent,                     "Recurrent"),
-    std::pair<NNDataSetEnums::Attributes, string>(NNDataSetEnums::Mutable,                       "Mutable"),
-    std::pair<NNDataSetEnums::Attributes, string>(NNDataSetEnums::Attributes::SparseIgnoreZero,   "SparseIgnoreZero"),
-    std::pair<NNDataSetEnums::Attributes, string>(NNDataSetEnums::Attributes::Streaming,          "Streaming"),        
-
+    std::pair<NNDataSetEnums::Attributes, string>(NNDataSetEnums::Sparse,                       "Sparse"),
+    std::pair<NNDataSetEnums::Attributes, string>(NNDataSetEnums::Boolean,                      "Boolean"),
+    std::pair<NNDataSetEnums::Attributes, string>(NNDataSetEnums::Compressed,                   "Compressed"),
+    std::pair<NNDataSetEnums::Attributes, string>(NNDataSetEnums::Recurrent,                    "Recurrent"),
+    std::pair<NNDataSetEnums::Attributes, string>(NNDataSetEnums::Mutable,                      "Mutable"),
+    std::pair<NNDataSetEnums::Attributes, string>(NNDataSetEnums::Attributes::SparseIgnoreZero, "SparseIgnoreZero"),
 };
 
 static std::map<NNDataSetEnums::Attributes, string> sAttributesMap =
@@ -305,6 +311,7 @@ _pbSparseTransposedEnd(),
 _pbSparseTransposedIndex(),
 _batch(0),
 _pbDenoisingRandom(),
+_bStreaming(false),
 _bDirty(true)
 {
 
@@ -988,6 +995,29 @@ template<typename T> bool NNDataSet<T>::SetDenoising(bool flag)
     return true;
 }
 
+template<typename T> bool NNDataSet<T>::SetStreaming(bool flag)
+{
+    // Check for streaming capability, warn on each GPU that doesn't support it
+    if (getGpu()._bUnifiedMemory)
+    {
+        printf("NNDataSet::SetStreaming: Streaming datasets not supported on GPU %d\n", getGpu()._id);
+    }
+    
+    // Set dirty if streaming state has changed
+    if (flag != _bStreaming)
+    {
+        _bStreaming = flag & getGpu()._bUnifiedMemory;
+        _bDirty     = true;
+    }
+    
+    return true;
+}
+
+template<typename T> bool NNDataSet<T>::GetStreaming()
+{
+    return _bStreaming;
+}
+
 template<typename T> bool NNDataSet<T>::GenerateDenoisingData()
 {
     if (!(_attributes & NNDataSetEnums::Sparse))
@@ -1109,15 +1139,15 @@ template<typename T> bool NNDataSet<T>::UnShard()
                     _vSparseData                = vTempSparseData;
                     
                 // Reallocate GPU data
-                _pbSparseStart.reset(new GpuBuffer<uint64_t>(_examples));
-                _pbSparseEnd.reset(new GpuBuffer<uint64_t>(_examples));
-                _pbSparseIndex.reset(new GpuBuffer<uint32_t>((uint64_t)_vSparseIndex.size()));
+                _pbSparseStart.reset(new GpuBuffer<uint64_t>(_examples, false, _bStreaming));
+                _pbSparseEnd.reset(new GpuBuffer<uint64_t>(_examples, false, _bStreaming));
+                _pbSparseIndex.reset(new GpuBuffer<uint32_t>((uint64_t)_vSparseIndex.size(), false, _bStreaming));
                 _pbSparseStart->Upload(_vSparseStart.data());
                 _pbSparseEnd->Upload(_vSparseEnd.data());
                 _pbSparseIndex->Upload(_vSparseIndex.data());
                 if (!(_attributes & NNDataSetEnums::Boolean))
                 {
-                    _pbSparseData.reset(new GpuBuffer<T>((uint64_t)_vSparseData.size()));
+                    _pbSparseData.reset(new GpuBuffer<T>((uint64_t)_vSparseData.size(), false, _bStreaming));
                     _pbSparseData->Upload(_vSparseData.data());           
                 }                    
             }
@@ -1170,7 +1200,7 @@ template<typename T> bool NNDataSet<T>::UnShard()
                 }
 
                 // Reallocate GPU data
-                _pbData.reset(new GpuBuffer<T>((uint64_t)_vData.size()));
+                _pbData.reset(new GpuBuffer<T>((uint64_t)_vData.size(), false, _bStreaming));
                 _pbData->Upload(_vData.data()); 
           
             }
@@ -1256,7 +1286,7 @@ template<typename T> bool NNDataSet<T>::Shard(NNDataSetEnums::Sharding sharding)
                 }
 
                 // Finally derive local shard
-                vector<uint64_t> vTempSparseStart	= _vSparseStart;
+                vector<uint64_t> vTempSparseStart   = _vSparseStart;
                 vector<uint64_t> vTempSparseEnd     = _vSparseEnd;
                 vector<uint32_t> vTempSparseIndex   = _vSparseIndex;
                 vector<T> vTempSparseData           = _vSparseData;
@@ -1302,9 +1332,9 @@ template<typename T> bool NNDataSet<T>::Shard(NNDataSetEnums::Sharding sharding)
             }
 
             // Allocate GPU buffers and upload
-            _pbSparseStart.reset(new GpuBuffer<uint64_t>(_examples));
-            _pbSparseEnd.reset(new GpuBuffer<uint64_t>(_examples));
-            _pbSparseIndex.reset(new GpuBuffer<uint32_t>((uint64_t)_vSparseIndex.size()));
+            _pbSparseStart.reset(new GpuBuffer<uint64_t>(_examples, false, _bStreaming));
+            _pbSparseEnd.reset(new GpuBuffer<uint64_t>(_examples, false, _bStreaming));
+            _pbSparseIndex.reset(new GpuBuffer<uint32_t>((uint64_t)_vSparseIndex.size(), false, _bStreaming));
             _pbSparseStart->Upload(_vSparseStart.data());
             _pbSparseEnd->Upload(_vSparseEnd.data());
             //for (int i = 0; i < 100; i++)
@@ -1313,7 +1343,7 @@ template<typename T> bool NNDataSet<T>::Shard(NNDataSetEnums::Sharding sharding)
             _pbSparseIndex->Upload(_vSparseIndex.data());
             if (!(_attributes & NNDataSetEnums::Boolean))
             {
-                _pbSparseData.reset(new GpuBuffer<T>((uint64_t)_vSparseData.size()));
+                _pbSparseData.reset(new GpuBuffer<T>((uint64_t)_vSparseData.size(), false, _bStreaming));
                 _pbSparseData->Upload(_vSparseData.data());            
             }
         }
@@ -1370,7 +1400,7 @@ template<typename T> bool NNDataSet<T>::Shard(NNDataSetEnums::Sharding sharding)
 
 
             // Allocate space then upload data to GPU memory
-            _pbData.reset(new GpuBuffer<T>((uint64_t)_vData.size()));
+            _pbData.reset(new GpuBuffer<T>((uint64_t)_vData.size(), false, _bStreaming));
             _pbData->Upload(_vData.data()); 
         }
     }
@@ -1419,13 +1449,12 @@ template<typename T> bool NNDataSet<T>::Shard(NNDataSetEnums::Sharding sharding)
         }
         
         // Allocate space then upload data to GPU memory
-        _pbData.reset(new GpuBuffer<T>((uint64_t)_vData.size()));
+        _pbData.reset(new GpuBuffer<T>((uint64_t)_vData.size(), false, _bStreaming));
         _pbData->Upload(_vData.data()); 
     }
 
     return true;
 }
-
 
 // Saves data set to NetCDF file
 template<typename T> bool NNDataSet<T>::SaveNetCDF(const string& fname)
@@ -1572,7 +1601,7 @@ template<typename T> bool NNDataSet<T>::WriteNetCDF(NcFile& nfc, const string& f
                 } 
                 
                 vname                       = "sparseStart" + nstring;
-                NcVar sparseStartVar        = nfc.addVar(vname, ncUint, examplesDim);
+                NcVar sparseStartVar        = nfc.addVar(vname, "uint", examplesDim.getName());
                 if (sparseStartVar.isNull())
                 {
                     throw NcException("NcException", "NNDataSet::WriteNetCDF: Failed to create dataset sparse start variable NetCDF file " + fname, __FILE__, __LINE__);
@@ -1580,7 +1609,7 @@ template<typename T> bool NNDataSet<T>::WriteNetCDF(NcFile& nfc, const string& f
                 sparseStartVar.putVar(_vSparseStart.data());
                 
                 vname                       = "sparseEnd" + nstring;
-                NcVar sparseEndVar          = nfc.addVar(vname, ncUint, examplesDim);
+                NcVar sparseEndVar          = nfc.addVar(vname, "uint", examplesDim.getName());
                 if (sparseEndVar.isNull())
                 {
                     throw NcException("NcException", "NNDataSet::WriteNetCDF: Failed to create dataset sparse end variable NetCDF file " + fname, __FILE__, __LINE__);
@@ -1588,7 +1617,7 @@ template<typename T> bool NNDataSet<T>::WriteNetCDF(NcFile& nfc, const string& f
                 sparseEndVar.putVar(_vSparseEnd.data());
  
                 vname                       = "sparseIndex" + nstring;
-                NcVar sparseIndexVar        = nfc.addVar(vname, ncUint64, sparseDataDim);
+                NcVar sparseIndexVar        = nfc.addVar(vname, "uint64", sparseDataDim.getName());
                 if (sparseIndexVar.isNull())
                 {
                     throw NcException("NcException", "NNDataSet::WriteNetCDF: Failed to create dataset sparse index variable NetCDF file " + fname, __FILE__, __LINE__);
@@ -1600,7 +1629,7 @@ template<typename T> bool NNDataSet<T>::WriteNetCDF(NcFile& nfc, const string& f
                 {
                     vname                       = "sparseData" + nstring;    
                     NcType sparseType           = getNetCDFDataType(_dataType);
-                    NcVar sparseDataVar         = nfc.addVar(vname, sparseType, sparseDataDim);
+                    NcVar sparseDataVar         = nfc.addVar(vname, sparseType.getName(), sparseDataDim.getName());
                     if (sparseDataVar.isNull())
                     {
                         throw NcException("NcException", "NNDataSet::WriteNetCDF: Failed to create dataset sparse data variable NetCDF file " + fname, __FILE__, __LINE__);

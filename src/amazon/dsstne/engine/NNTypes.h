@@ -14,7 +14,6 @@
 #define NNTYPES_H
 #include <vector>
 #include <set>
-
 #include <string>
 #include <iostream>
 #include <iomanip>
@@ -23,7 +22,7 @@
 #include <netcdf>
 #ifndef __NVCC__
 #include <tuple>
-#include <json/json.h>
+#include <jsoncpp/json/json.h>
 #endif
 #include <sys/time.h>
 #include <cmath>
@@ -44,7 +43,7 @@ extern "C"
 #endif
 
 
-static const float NN_VERSION       = 0.85f;
+static const float NN_VERSION       = 0.9f;
 static const float MIN_ERROR        = 1.0e-12f;
 static const float MIN_ACTIVATION   = 0.000001f;
 static const float MAX_ACTIVATION   = 0.999999f;
@@ -72,6 +71,7 @@ enum TrainingMode
     Nesterov = 3,
     RMSProp = 4,
     AdaDelta = 5,
+    Adam = 6,
 };
 
 ostream& operator<< (ostream& out, const TrainingMode& e);
@@ -83,6 +83,7 @@ enum ErrorFunction
     CrossEntropy,
     ScaledMarginalCrossEntropy,
     DataScaledMarginalCrossEntropy,
+    Hinge,
 };
 
 ostream& operator<< (ostream& out, const ErrorFunction& e);
@@ -96,10 +97,11 @@ enum Activation {
     SoftPlus,
     SoftSign,
     SoftMax,
-    ReluMax,
+    RELUMax,
     LinearMax,
     ExponentialLinear,
     LeakyRectifiedLinear,
+    ScaledExponentialLinear,
 };
 
 ostream& operator<< (ostream& out, const Activation& a);
@@ -111,7 +113,8 @@ enum WeightInitialization
     Gaussian,
     Uniform,
     UnitBall,
-    Constant 
+    Constant,
+    SELU, 
 };
     
 ostream& operator<< (ostream& out, const WeightInitialization& w);
@@ -122,6 +125,8 @@ enum PoolingFunction {
     Average,
     LRN,
     Maxout,
+    DotProduct,
+    Cosine,
     Stochastic,
     LCN,
     GlobalTemporal,
@@ -184,6 +189,7 @@ struct NNDataSetBase {
     // States
     bool                        _bDenoising;
     bool                        _bDirty;
+    bool                        _bStreaming;
     uint32_t                    _batch;
     
       
@@ -199,6 +205,8 @@ struct NNDataSetBase {
     virtual void RefreshState(uint32_t batch) = 0;
     virtual bool Shard(NNDataSetEnums::Sharding sharding) = 0;
     virtual bool UnShard() = 0;
+    virtual bool SetStreaming(bool flag) = 0;
+    virtual bool GetStreaming() = 0;
     virtual vector<tuple<uint64_t, uint64_t> > getMemoryUsage() = 0;
     virtual bool CalculateSparseDatapointCounts() = 0;
     virtual bool GenerateSparseTransposedMatrix(uint32_t batch, NNLayer* pLayer) = 0;
@@ -218,12 +226,14 @@ struct NNDataSetBase {
     virtual float CalculateScaledMarginalCrossEntropyError(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit) = 0;
     virtual float CalculateMultinomialCrossEntropyError(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit) = 0;
     virtual float CalculateMultinomialScaledMarginalCrossEntropyError(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit) = 0;
-    virtual bool CalculateL1OutputDelta(Activation activation, uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, NNFloat slope) = 0;
+    virtual float CalculateDataScaledMarginalCrossEntropyError(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit) = 0;
+    virtual float CalculateHingeError(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit) = 0;
+    virtual bool CalculateL1OutputDelta(Activation activation, uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, NNFloat slope, NNFloat alpha, NNFloat lambda) = 0;
     virtual bool CalculateCrossEntropyOutputDelta(Activation activation, uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta) = 0;   
     virtual bool CalculateScaledMarginalCrossEntropyOutputDelta(Activation activation, uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta) = 0;   
-    virtual bool CalculateOutputDelta(Activation activation, uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, NNFloat slope) = 0;
-    virtual float CalculateDataScaledMarginalCrossEntropyError(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit) = 0;
+    virtual bool CalculateOutputDelta(Activation activation, uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, NNFloat slope, NNFloat alpha, NNFloat lambda) = 0;
     virtual bool CalculateDataScaledMarginalCrossEntropyOutputDelta(Activation activation, uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta) = 0;
+    virtual bool CalculateHingeOutputDelta(Activation activation, uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta) = 0;
 };
 
 ostream& operator<< (ostream& out, NNDataSetEnums::Attributes& a);
@@ -241,20 +251,20 @@ public:
     friend bool SaveNetCDF(const string& fname, vector<NNDataSetBase*> vDataSet);
 
 private:
-
-    vector<T>               _vData;
-    unique_ptr<GpuBuffer<T>> _pbData;
-    vector<T>               _vSparseData;
-    unique_ptr<GpuBuffer<T>> _pbSparseData;
-    unique_ptr<GpuBuffer<T>> _pbSparseTransposedData;
-
+    // Type-specific data
+    vector<T>                   _vData;
+    unique_ptr<GpuBuffer<T>>    _pbData;
+    vector<T>                   _vSparseData;
+    unique_ptr<GpuBuffer<T>>    _pbSparseData;
+    unique_ptr<GpuBuffer<T>>    _pbSparseTransposedData;
+  
 
     // Force constructor private
     NNDataSet(const string& fname, uint32_t n);
     bool Rename(const string& name);
     bool SaveNetCDF(const string& fname);
     bool WriteNetCDF(netCDF::NcFile& nfc, const string& fname, const uint32_t n);
-    void RefreshState(uint32_t batch) {}    
+    void RefreshState(uint32_t batch) {} 
     bool Shard(NNDataSetEnums::Sharding sharding);
     bool UnShard();
     vector<tuple<uint64_t, uint64_t> > getMemoryUsage();
@@ -263,6 +273,8 @@ private:
     bool CalculateSparseTransposedMatrix(uint32_t position, uint32_t batch, NNLayer* pLayer);
     bool CalculateSparseTransposedDenoisedMatrix(uint32_t position, uint32_t batch, NNLayer* pLayer);
     bool CalculateSparseTransposedWeightGradient(NNFloat alpha, NNFloat beta, uint32_t m, uint32_t n, NNFloat* pDelta, NNFloat* pWeightGradient);     
+    bool SetStreaming(bool flag);
+    bool GetStreaming();  
     bool SetDenoising(bool flag);
     bool GenerateDenoisingData();
     bool LoadInputUnit(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit);
@@ -276,12 +288,14 @@ private:
     float CalculateScaledMarginalCrossEntropyError(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit);
     float CalculateMultinomialCrossEntropyError(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit);
     float CalculateMultinomialScaledMarginalCrossEntropyError(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit);
-    bool CalculateL1OutputDelta(Activation activation, uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, NNFloat slope);
+    float CalculateDataScaledMarginalCrossEntropyError(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit);
+    float CalculateHingeError(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit);
+    bool CalculateL1OutputDelta(Activation activation, uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, NNFloat slope, NNFloat alpha, NNFloat lambda);
     bool CalculateCrossEntropyOutputDelta(Activation activation, uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta);
     bool CalculateScaledMarginalCrossEntropyOutputDelta(Activation activation, uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta);    
-    bool CalculateOutputDelta(Activation activation, uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, NNFloat slope);
-    float CalculateDataScaledMarginalCrossEntropyError(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit);
+    bool CalculateOutputDelta(Activation activation, uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, NNFloat slope, NNFloat alpha, NNFloat lambda);
     bool CalculateDataScaledMarginalCrossEntropyOutputDelta(Activation activation, uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta);
+    bool CalculateHingeOutputDelta(Activation activation, uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta);    
 
 public:
 
@@ -543,16 +557,21 @@ template<typename T> float NNDataSet<T>::CalculateDataScaledMarginalCrossEntropy
     }
 }
 
-template<typename T> bool NNDataSet<T>::CalculateL1OutputDelta(Activation activation, uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, NNFloat slope)
+template<typename T> float NNDataSet<T>::CalculateHingeError(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit)
+{
+    return kCalculateHingeError(position, batch, stride, pUnit, _pbData->_pDevData);
+}
+
+template<typename T> bool NNDataSet<T>::CalculateL1OutputDelta(Activation activation, uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, NNFloat slope, NNFloat alpha, NNFloat lambda)
 {
     if (_attributes & NNDataSetEnums::Sparse)
     {
         bool bSparseIgnoreZero = _attributes & NNDataSetEnums::SparseIgnoreZero;
-        kCalculateSparseL1OutputDelta(activation, position, batch, stride, pUnit, pDelta, _pbSparseStart->_pDevData, _pbSparseEnd->_pDevData, _pbSparseIndex->_pDevData, bSparseIgnoreZero, slope);
+        kCalculateSparseL1OutputDelta(activation, position, batch, stride, pUnit, pDelta, _pbSparseStart->_pDevData, _pbSparseEnd->_pDevData, _pbSparseIndex->_pDevData, bSparseIgnoreZero, slope, alpha, lambda);
     }
     else
     {
-        kCalculateL1OutputDelta(activation, position, batch, stride, pUnit, pDelta, _pbData->_pDevData, slope);
+        kCalculateL1OutputDelta(activation, position, batch, stride, pUnit, pDelta, _pbData->_pDevData, slope, alpha, lambda);
     }
     return true;
 }
@@ -585,22 +604,22 @@ template<typename T> bool NNDataSet<T>::CalculateScaledMarginalCrossEntropyOutpu
     return true;
 }
 
-template<typename T> bool NNDataSet<T>::CalculateOutputDelta(Activation activation, uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, NNFloat slope)
+template<typename T> bool NNDataSet<T>::CalculateOutputDelta(Activation activation, uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, NNFloat slope, NNFloat alpha, NNFloat lambda)
 {
     if (_attributes & NNDataSetEnums::Sparse) {
         bool bSparseIgnoreZero = _attributes & NNDataSetEnums::SparseIgnoreZero;        
         if (_attributes & NNDataSetEnums::Boolean) 
         {
-            kCalculateSparseOutputDelta(activation, position, batch, stride, pUnit, pDelta, _pbSparseStart->_pDevData, _pbSparseEnd->_pDevData, _pbSparseIndex->_pDevData, bSparseIgnoreZero, slope);
+            kCalculateSparseOutputDelta(activation, position, batch, stride, pUnit, pDelta, _pbSparseStart->_pDevData, _pbSparseEnd->_pDevData, _pbSparseIndex->_pDevData, bSparseIgnoreZero, slope, alpha, lambda);
         } 
         else 
         {
-            kCalculateSparseAnalogOutputDelta(activation, position, batch, stride, pUnit,  pDelta, _pbSparseStart->_pDevData, _pbSparseEnd->_pDevData, _pbSparseIndex->_pDevData, _pbSparseData->_pDevData, bSparseIgnoreZero, slope);
+            kCalculateSparseAnalogOutputDelta(activation, position, batch, stride, pUnit,  pDelta, _pbSparseStart->_pDevData, _pbSparseEnd->_pDevData, _pbSparseIndex->_pDevData, _pbSparseData->_pDevData, bSparseIgnoreZero, slope, alpha, lambda);
         }
     } 
     else 
     {
-        kCalculateOutputDelta(activation, position, batch, stride, pUnit, pDelta, _pbData->_pDevData, slope);
+        kCalculateOutputDelta(activation, position, batch, stride, pUnit, pDelta, _pbData->_pDevData, slope, alpha, lambda);
     }
     return true;
 }
@@ -619,6 +638,12 @@ template<typename T> bool NNDataSet<T>::CalculateDataScaledMarginalCrossEntropyO
         getGpu().Shutdown();
         exit(-1);
     }
+    return true;
+}
+
+template<typename T> bool NNDataSet<T>::CalculateHingeOutputDelta(Activation activation, uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta)
+{
+    kCalculateHingeOutputDelta(activation, position, batch, stride, pUnit, pDelta, _pbData->_pDevData);
     return true;
 }
 

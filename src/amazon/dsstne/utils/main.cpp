@@ -35,7 +35,9 @@ int main(int argc, char** argv)
     int epochs              = 0;
     float alpha             = 0.025f;
     float lambda            = 0.0001f;
+    float lambda1           = 0.0f;
     float mu                = 0.5f;
+    float mu1               = 0.0f;
     NNNetwork* pNetwork;
 
     // Load training data
@@ -85,7 +87,7 @@ int main(int argc, char** argv)
         {
             //float margin        = (float)phase * 0.01f;
             //pNetwork->SetSMCE(1.0f - margin, margin, 30.0f, 1.0f); 
-            pNetwork->Train(training_epochs, alpha, lambda, mu);
+            pNetwork->Train(training_epochs, alpha, lambda, lambda1, mu, mu1);
             alpha              *= 0.8f;
             epochs             += training_epochs;
         }

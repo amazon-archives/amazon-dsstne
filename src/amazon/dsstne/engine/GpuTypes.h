@@ -112,16 +112,24 @@ static const MPI_Datatype MPI_NNACCUMULATOR     = MPI_LONG_LONG_INT;
 // atomic operations, and a 32-bit blockDim.x
 static const int SM_3X_THREADS_PER_BLOCK                        = 128;
 static const int SM_5X_THREADS_PER_BLOCK                        = 128;
+static const int SM_6X_THREADS_PER_BLOCK                        = 128;
 
-#if (__CUDA_ARCH__ >= 500)
+#if (__CUDA_ARCH__ >= 600)
+#define LAUNCH_BOUNDS() __launch_bounds__(SM_6X_THREADS_PER_BLOCK, 8)
+#define LAUNCH_BOUNDS256() __launch_bounds__(256, 5)
+#elif (__CUDA_ARCH__ >= 500)
 #define LAUNCH_BOUNDS() __launch_bounds__(SM_5X_THREADS_PER_BLOCK, 8)
 #define LAUNCH_BOUNDS256() __launch_bounds__(256, 5)
 #else
 #define LAUNCH_BOUNDS() __launch_bounds__(SM_3X_THREADS_PER_BLOCK, 10)
 #define LAUNCH_BOUNDS256() __launch_bounds__(256, 4)
 #endif
+#define LAUNCH_BOUNDS512() __launch_bounds__(512, 2)
+#define LAUNCH_BOUNDS1024() __launch_bounds__(1024, 1)
 
 // Sparse kernel limits
+static const uint32_t SM_6X_MAXSPARSE = 4608;
+static const uint32_t SM_6X_MAXSPARSEANALOG = 2304;
 static const uint32_t SM_5X_MAXSPARSE = 4608;
 static const uint32_t SM_5X_MAXSPARSEANALOG = 2304;
 static const uint32_t SM_3X_MAXSPARSE = 2304;
@@ -311,6 +319,7 @@ struct GpuContext {
     {
         SM_3X,
         SM_5X,
+        SM_6X,
     };
 
    enum {
@@ -326,6 +335,7 @@ struct GpuContext {
     aligned_lli                         _totalMemory;               // Total memory on GPU
     aligned_lli                         _totalCPUMemory;            // Approximate total allocated CPU memory
     aligned_lli                         _totalGPUMemory;            // Approximate total allocated CPU memory
+    bool                                _bUnifiedMemory;            // Unified memory flag
     
     // SM/SMX parameters
     SM_VERSION                          _sm_version;                // SM revision
@@ -382,13 +392,13 @@ struct GpuBuffer
 {
     unsigned long long int  _length;
     bool                    _bSysMem;
-    bool                    _bPinned;
+    bool                    _bManaged;
     T*                      _pSysData;
     T*                      _pDevData;
-    GpuBuffer(int length, bool bSysMem = false, bool bPinned = false);
-    GpuBuffer(unsigned int length, bool bSysMem = false, bool bPinned = false);
-    GpuBuffer(unsigned long long int length, bool bSysMem = false, bool bPinned = false);
-    GpuBuffer(size_t length, bool bSysMem = false, bool bPinned = false);
+    GpuBuffer(int length, bool bSysMem = false, bool bManaged = false);
+    GpuBuffer(unsigned int length, bool bSysMem = false, bool bManaged = false);
+    GpuBuffer(unsigned long long int length, bool bSysMem = false, bool bManaged = false);
+    GpuBuffer(size_t length, bool bSysMem = false, bool bManaged = false);
     virtual ~GpuBuffer();
     void Allocate();
     void Deallocate();
@@ -398,25 +408,25 @@ struct GpuBuffer
 };
 
 template <typename T>
-GpuBuffer<T>::GpuBuffer(int length, bool bSysMem, bool bPinned) : _length(length), _bSysMem(bSysMem), _bPinned(bPinned), _pSysData(NULL), _pDevData(NULL)
+GpuBuffer<T>::GpuBuffer(int length, bool bSysMem, bool bManaged) : _length(length), _bSysMem(bSysMem), _bManaged(bManaged), _pSysData(NULL), _pDevData(NULL)
 {
     Allocate();   
 }
 
 template <typename T>
-GpuBuffer<T>::GpuBuffer(unsigned int length, bool bSysMem, bool bPinned) : _length(length), _bSysMem(bSysMem), _bPinned(bPinned), _pSysData(NULL), _pDevData(NULL)
+GpuBuffer<T>::GpuBuffer(unsigned int length, bool bSysMem, bool bManaged) : _length(length), _bSysMem(bSysMem), _bManaged(bManaged), _pSysData(NULL), _pDevData(NULL)
 {
     Allocate();   
 }
 
 template <typename T>
-GpuBuffer<T>::GpuBuffer(unsigned long long int length, bool bSysMem, bool bPinned) : _length(length), _bSysMem(bSysMem), _bPinned(bPinned), _pSysData(NULL), _pDevData(NULL)
+GpuBuffer<T>::GpuBuffer(unsigned long long int length, bool bSysMem, bool bManaged) : _length(length), _bSysMem(bSysMem), _bManaged(bManaged), _pSysData(NULL), _pDevData(NULL)
 {
     Allocate();   
 }
 
 template <typename T>
-GpuBuffer<T>::GpuBuffer(size_t length, bool bSysMem, bool bPinned) : _length(length), _bSysMem(bSysMem), _bPinned(bPinned), _pSysData(NULL), _pDevData(NULL)
+GpuBuffer<T>::GpuBuffer(size_t length, bool bSysMem, bool bManaged) : _length(length), _bSysMem(bSysMem), _bManaged(bManaged), _pSysData(NULL), _pDevData(NULL)
 {
     Allocate();   
 }
@@ -430,40 +440,52 @@ GpuBuffer<T>::~GpuBuffer()
 template <typename T>
 void GpuBuffer<T>::Allocate()
 {
+    cudaError_t status;
+
+    // Force system memory shadowing on for managed buffers
+    if (_bManaged)
+        _bSysMem    = true;
+         
 #ifdef MEMTRACKING
     printf("Allocating %llu bytes of GPU memory", _length * sizeof(T));
-    if (!_bSysMem && !_bPinned)
+    if (!_bSysMem)
+    {
         printf(", unshadowed");
-    else if (_bPinned)
-        printf(", pinned");
+    }
+    else if (_bManaged)
+    {
+        printf(", managed");
+    }
     printf("\n");   
 #endif
-    cudaError_t status;
-    if (_bPinned)
+    
+    // Allocate managed if managed
+    if (_bManaged)
     {
-        status = cudaHostAlloc((void **)&_pSysData, _length * sizeof(T), cudaHostAllocMapped);
-        RTERROR(status, "cudaHostalloc GpuBuffer::Allocate failed");
-        getGpu()._totalCPUMemory                    += _length * sizeof(T);
-        getGpu()._totalGPUMemory                    += _length * sizeof(T);
-        status = cudaHostGetDevicePointer((void **)&_pDevData, (void *)_pSysData, 0);
-        RTERROR(status, "cudaGetDevicePointer GpuBuffer::failed to get device pointer");
+        status = cudaMallocManaged((void **) &_pDevData, _length * sizeof(T), cudaMemAttachGlobal);
+        getGpu()._totalGPUMemory           +=  _length * sizeof(T);
+        _pSysData = _pDevData;
+        RTERROR(status, "GpuBuffer::Allocate failed (cudaMallocManaged)");
         memset(_pSysData, 0, _length * sizeof(T));
     }
-    else 
+    else
     {
+        // Allocate in GPU space
+        status = cudaMalloc((void **) &_pDevData, _length * sizeof(T));
+        getGpu()._totalGPUMemory           +=  _length * sizeof(T);
+        RTERROR(status, "GpuBuffer::Allocate failed (cudaMalloc)");
+        status = cudaMemset((void *) _pDevData, 0, _length * sizeof(T));
+        RTERROR(status, "GpuBuffer::Allocate failed (cudaMemset)");
+
+        // Allocate system memory
         if (_bSysMem)
         {
-            _pSysData =     new T[_length];
-            getGpu()._totalCPUMemory            +=  _length * sizeof(T);
+            _pSysData                           =  new T[_length];
+            getGpu()._totalCPUMemory           +=  _length * sizeof(T);
             memset(_pSysData, 0, _length * sizeof(T));
         }
-
-        status = cudaMalloc((void **) &_pDevData, _length * sizeof(T));
-        getGpu()._totalGPUMemory                +=  _length * sizeof(T);
-        RTERROR(status, "cudaMalloc GpuBuffer::Allocate failed");
-        status = cudaMemset((void *) _pDevData, 0, _length * sizeof(T));
-        RTERROR(status, "cudaMemset GpuBuffer::Allocate failed");
     }
+
 #ifdef MEMTRACKING
     printf("Mem++: %llu %llu\n", getGpu()._totalGPUMemory, getGpu()._totalCPUMemory);     
 #endif
@@ -473,23 +495,19 @@ template <typename T>
 void GpuBuffer<T>::Deallocate()
 {
     cudaError_t status;
-    if (_bPinned)
+    
+    // Deallocate GPU memory    
+    status = cudaFree(_pDevData);
+    RTERROR(status, "GpuBuffer::Deallocate failed (cudaFree)");        
+    getGpu()._totalGPUMemory           -=  _length * sizeof(T);
+    
+    // Delete system memory if present
+    if (_bSysMem && !_bManaged)
     {
-        status = cudaFreeHost(_pSysData);
-        getGpu()._totalCPUMemory                -=  _length * sizeof(T);
-        getGpu()._totalGPUMemory                -=  _length * sizeof(T);        
+        delete[] _pSysData;
+        getGpu()._totalCPUMemory           -=  _length * sizeof(T);   
     }
-    else
-    {
-        if (_bSysMem)
-        {
-            delete[] _pSysData;
-            getGpu()._totalCPUMemory            -=  _length * sizeof(T);   
-        }         
-        status = cudaFree(_pDevData);
-        getGpu()._totalGPUMemory                -=  _length * sizeof(T);
-    }
-    RTERROR(status, "cudaFree GpuBuffer::Deallocate failed");   
+    
     _pSysData = NULL;
     _pDevData = NULL;
 #ifdef MEMTRACKING    
@@ -514,7 +532,7 @@ void GpuBuffer<T>::Upload(T* pBuff)
         status = cudaMemcpy(_pDevData, pBuff, _length * sizeof(T), cudaMemcpyHostToDevice);
         RTERROR(status, "cudaMemcpy GpuBuffer::Upload failed");
     }
-    else if (_bSysMem)
+    else if (_bSysMem && !_bManaged)
     {
         cudaError_t status;
         status = cudaMemcpy(_pDevData, _pSysData, _length * sizeof(T), cudaMemcpyHostToDevice);
@@ -531,7 +549,7 @@ void GpuBuffer<T>::Download(T* pBuff)
         status = cudaMemcpy(pBuff, _pDevData, _length * sizeof(T), cudaMemcpyDeviceToHost);
         RTERROR(status, "cudaMemcpy GpuBuffer::Download failed");
     }
-    else if (_bSysMem)
+    else if (_bSysMem && !_bManaged)
     {
         cudaError_t status;
         status = cudaMemcpy(_pSysData, _pDevData, _length * sizeof(T), cudaMemcpyDeviceToHost);

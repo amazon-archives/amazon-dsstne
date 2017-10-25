@@ -15,7 +15,7 @@ install: all
 
 ../lib/libdsstne.a: $(OBJS)
 	mkdir -p ../lib
-	ar -cvq $@ $^
+	ar -cvr $@ $^
 
 clean:
 	rm -f *cudafe* *.fatbin.* *.fatbin *.ii *.cubin *cu.cpp *.ptx *.cpp?.* *.hash *.o *.d work.pc* ../lib/libdsstne.a
