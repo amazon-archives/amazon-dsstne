@@ -61,7 +61,9 @@ int main(int argc, char** argv)
     // Hyper parameters
     float alpha = stof(getOptionalArgValue(argc, argv, "-alpha", "0.025f"));
     float lambda = stof(getOptionalArgValue(argc, argv, "-lambda", "0.0001f"));
+    float lambda1 = stof(getOptionalArgValue(argc, argv, "-lambda1", "0.0f"));
     float mu = stof(getOptionalArgValue(argc, argv, "-mu", "0.5f"));
+    float mu1 = stof(getOptionalArgValue(argc, argv, "-mu1", "0.0f"));
 
 
    if (isArgSet(argc, argv, "-h")) {
@@ -110,6 +112,7 @@ int main(int argc, char** argv)
     unsigned int epoch =  stoi(getOptionalArgValue(argc, argv, "-e", "40"));
     cout << "Train will use number of epochs: " << epoch << endl;
     cout << "Train alpha " << alpha << ", lambda " << lambda <<", mu "<< mu <<".Please check CDL.txt for meanings" << endl;
+    cout << "Train alpha " << alpha << ", lambda " << lambda << ", lambda1 " << lambda1 << ", mu " << mu << ", mu1 " << mu1 << ".Please check CDL.txt for meanings" << endl;    
 	
     // Initialize GPU network
     getGpu().Startup(argc, argv);
@@ -143,7 +146,7 @@ int main(int argc, char** argv)
     gettimeofday(&trainingStart, NULL);
     // Start Training
     for(unsigned int x = 0 ; x < epoch; ++x) {
-        float error = pNetwork->Train(1, alpha, lambda, mu);
+        float error = pNetwork->Train(1, alpha, lambda, lambda1, mu, mu1);
         CWMetric::updateMetrics("Average_Error",error);
         CWMetric::updateMetrics("Epochs",x+1);
     }

@@ -16,20 +16,6 @@
 
 static __constant__ GpuData cData;
 
-__device__ inline uint64_t llitoulli(int64_t l)
-{
-    uint64_t u;
-    asm("mov.b64    %0, %1;" : "=l"(u) : "l"(l));
-    return u;
-}
-
-__device__ inline int64_t ullitolli(uint64_t u)
-{
-    int64_t l;
-    asm("mov.b64    %0, %1;" : "=l"(l) : "l"(u));
-    return l;
-}
-
 void SetKernelsGpuData()
 {
     cudaError_t status;
@@ -448,7 +434,10 @@ void kAddQuadBias(NNFloat* pUnit, NNFloat* pBias1, NNFloat* pBias2, NNFloat* pBi
     LAUNCHERROR("kAddQuadBias_kernel");
 }
 
-#if (__CUDA_ARCH__ >= 500)
+#if (__CUDA_ARCH__ >= 600)
+static const uint32_t MAXSPARSE = SM_6X_MAXSPARSE;
+static const uint32_t MAXSPARSEANALOG = SM_6X_MAXSPARSEANALOG;
+#elif (__CUDA_ARCH__ >= 500)
 static const uint32_t MAXSPARSE = SM_5X_MAXSPARSE;
 static const uint32_t MAXSPARSEANALOG = SM_5X_MAXSPARSEANALOG;
 #else
@@ -504,7 +493,7 @@ __shared__ uint32_t sOffset[MAXSPARSE];                         // Shared set of
         {
             opos                = atomicAdd(&sOpos, cData._warpSize);
         }
-        opos                    = __shfl(opos, 0);
+        opos                    = SHFL(opos, 0);
         opos                   += tgx;
     }
 }
@@ -567,7 +556,7 @@ __shared__ T sValue[MAXSPARSEANALOG];
         {
             opos                = atomicAdd(&sOpos, cData._warpSize);
         }
-        opos                    = __shfl(opos, 0);
+        opos                    = SHFL(opos, 0);
         opos                   += tgx;
     }
 }
@@ -622,7 +611,7 @@ __shared__ NNFloat sValue[MAXSPARSEANALOG];
         {
             opos                = atomicAdd(&sOpos, cData._warpSize);
         }
-        opos                    = __shfl(opos, 0);
+        opos                    = SHFL(opos, 0);
         opos                   += tgx;
     }
 }
@@ -677,7 +666,7 @@ __shared__ NNFloat sValue[MAXSPARSEANALOG];
         {
             opos                = atomicAdd(&sOpos, cData._warpSize);
         }
-        opos                    = __shfl(opos, 0);
+        opos                    = SHFL(opos, 0);
         opos                   += tgx;
     }
 }
@@ -752,7 +741,7 @@ __shared__ uint32_t sOffset[MAXSPARSE];                         // Shared set of
         {
             opos                = atomicAdd(&sOpos, cData._warpSize);
         }
-        opos                    = __shfl(opos, 0);
+        opos                    = SHFL(opos, 0);
         opos                   += tgx;
     }
 }
@@ -816,7 +805,7 @@ __shared__ T sValue[MAXSPARSEANALOG];
         {
             opos                = atomicAdd(&sOpos, cData._warpSize);
         }
-        opos                    = __shfl(opos, 0);
+        opos                    = SHFL(opos, 0);
         opos                   += tgx;
     }
 }
@@ -873,7 +862,7 @@ __shared__ NNFloat sValue[MAXSPARSEANALOG];
         {
             opos                = atomicAdd(&sOpos, cData._warpSize);
         }
-        opos                    = __shfl(opos, 0);
+        opos                    = SHFL(opos, 0);
         opos                   += tgx;
     }
 }
@@ -930,7 +919,7 @@ __shared__ NNFloat sValue[MAXSPARSEANALOG];
         {
             opos                = atomicAdd(&sOpos, cData._warpSize);
         }
-        opos                    = __shfl(opos, 0);
+        opos                    = SHFL(opos, 0);
         opos                   += tgx;
     }
 }
@@ -1146,7 +1135,7 @@ __shared__ uint32_t sOffset[MAXSPARSE];                         // Shared set of
         {
             opos                = atomicAdd(&sOpos, cData._warpSize);
         }
-        opos                    = __shfl(opos, 0);
+        opos                    = SHFL(opos, 0);
         opos                   += tgx;
     }
 }
@@ -1213,7 +1202,7 @@ __shared__ T sValue[MAXSPARSEANALOG];
         {
             opos                = atomicAdd(&sOpos, cData._warpSize);
         }
-        opos                    = __shfl(opos, 0);
+        opos                    = SHFL(opos, 0);
         opos                   += tgx;
     }
 }
@@ -1271,7 +1260,7 @@ __shared__ NNFloat sValue[MAXSPARSEANALOG];
         {
             opos                = atomicAdd(&sOpos, cData._warpSize);
         }
-        opos                    = __shfl(opos, 0);
+        opos                    = SHFL(opos, 0);
         opos                   += tgx;
     }
 }
@@ -1329,7 +1318,7 @@ __shared__ NNFloat sValue[MAXSPARSEANALOG];
         {
             opos                = atomicAdd(&sOpos, cData._warpSize);
         }
-        opos                    = __shfl(opos, 0);
+        opos                    = SHFL(opos, 0);
         opos                   += tgx;
     }
 }
@@ -1385,39 +1374,29 @@ void kUpdateBiases(NNFloat alpha, uint32_t batch, uint32_t width, NNFloat* pDelt
 
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateRegularizationError_kernel(NNFloat* pWeight, uint64_t size)
+kCalculateRegularizationError_kernel(NNFloat* pWeight, uint64_t size, NNFloat lambda, NNFloat lambda1)
 {
     uint64_t pos                = (blockIdx.x * blockDim.x) + threadIdx.x;
     NNFloat error               = (NNFloat)0.0;
     if (pos < size)
     {
         NNFloat w               = pWeight[pos];
-        error                   = w * w;   
+        error                   = lambda * w * w + lambda1 * abs(w);   
     }
 
     // Reduce error across threads
-    error                      += __shfl(error, threadIdx.x ^ 1);
-    error                      += __shfl(error, threadIdx.x ^ 2);
-    error                      += __shfl(error, threadIdx.x ^ 4);
-    error                      += __shfl(error, threadIdx.x ^ 8);
-    error                      += __shfl(error, threadIdx.x ^ 16);
-
-    if ((threadIdx.x & cData._warpMask) == 0)
-    {
-        atomicAdd(cData._pAccumulator, llitoulli(llrintf(ERRORSCALEF * error)));
-    }  
+    REDUCEERROR(error)
 }
 
 // Calculates raw weight decay/regularization error
-NNFloat kCalculateRegularizationError(NNFloat lambda, NNFloat* pWeight, uint64_t size)
+NNFloat kCalculateRegularizationError(NNFloat lambda, NNFloat lambda1, NNFloat* pWeight, uint64_t size)
 {
     uint32_t blocks         = CalculateBlocks(size);
     cudaMemset(getGpu()._data._pAccumulator, 0, sizeof(uint64_t));
-    kCalculateRegularizationError_kernel<<<blocks, getGpu()._threadsPerBlock>>>(pWeight, size);
+    kCalculateRegularizationError_kernel<<<blocks, getGpu()._threadsPerBlock>>>(pWeight, size, (NNFloat)0.5 * lambda, lambda1);
     LAUNCHERROR("kCalculateRegularizationError_kernel");
     getGpu()._pbAccumulator->Download(); 
-    //printf("Reg %llu %f\n", size, lambda * 0.5f * (double)(getGpu()._pbAccumulator->_pSysData[0]) * ONEOVERERRORSCALE);
-    return (NNFloat)(lambda * 0.5f * (double)(getGpu()._pbAccumulator->_pSysData[0]) * ONEOVERERRORSCALE);
+    return (NNFloat)((double)(getGpu()._pbAccumulator->_pSysData[0]) * ONEOVERERRORSCALE);    
 }
 
 // Instantiates allowable templated functions so we can hide the implementations here
@@ -1511,21 +1490,21 @@ void KernelsTempFunction()
 
 __global__ void
 LAUNCH_BOUNDS()
-kSGDUpdateWeights_kernel(NNFloat alpha, NNFloat lambda, uint64_t size, NNFloat* pWeightGradient, NNFloat* pWeight)
+kSGDUpdateWeights_kernel(NNFloat alpha, NNFloat lambda, NNFloat lambda1, uint64_t size, NNFloat* pWeightGradient, NNFloat* pWeight)
 {
     uint64_t pos                = blockIdx.x * blockDim.x + threadIdx.x;
     if (pos < size)
     {
         NNFloat g               = pWeightGradient[pos];
         NNFloat w               = pWeight[pos];
-        pWeight[pos]            = w + alpha * g - alpha * lambda * w;
+        pWeight[pos]            = w + alpha * (g - lambda * w - lambda1 * sgn(w));
     }
 }
 
-void kSGDUpdateWeights(NNFloat alpha, NNFloat lambda, uint64_t size, NNFloat* pWeightGradient, NNFloat* pWeight)
+void kSGDUpdateWeights(NNFloat alpha, NNFloat lambda, NNFloat lambda1, uint64_t size, NNFloat* pWeightGradient, NNFloat* pWeight)
 {
     uint32_t blocks             = CalculateBlocks(size);
-    kSGDUpdateWeights_kernel<<<blocks, getGpu()._threadsPerBlock>>>(alpha, lambda, size, pWeightGradient, pWeight);
+    kSGDUpdateWeights_kernel<<<blocks, getGpu()._threadsPerBlock>>>(alpha, lambda, lambda1, size, pWeightGradient, pWeight);
     LAUNCHERROR("kSGDUpdateWeights_kernel");
 }
 
@@ -1563,7 +1542,7 @@ void kSGDUpdateBiases(NNFloat alpha, uint32_t batch, uint32_t width, NNFloat* pD
 
 __global__ void
 LAUNCH_BOUNDS()
-kMomentumUpdateWeights_kernel(NNFloat alpha, NNFloat lambda, NNFloat mu, uint64_t size, NNFloat* pWeightVelocity, NNFloat* pWeightGradient, NNFloat* pWeight)
+kMomentumUpdateWeights_kernel(NNFloat alpha, NNFloat lambda, NNFloat lambda1, NNFloat mu, uint64_t size, NNFloat* pWeightVelocity, NNFloat* pWeightGradient, NNFloat* pWeight)
 {
     uint64_t pos                = blockIdx.x * blockDim.x + threadIdx.x;
     if (pos < size)
@@ -1571,16 +1550,16 @@ kMomentumUpdateWeights_kernel(NNFloat alpha, NNFloat lambda, NNFloat mu, uint64_
         NNFloat g               = pWeightGradient[pos];
         NNFloat w               = pWeight[pos];
         NNFloat v               = pWeightVelocity[pos];
-        v                       = mu * v + alpha * g - alpha * lambda * w;
+        v                       = mu * v + alpha * (g - lambda * w - lambda1 * sgn(w));
         pWeightVelocity[pos]    = v;
         pWeight[pos]            = w + v;
     }
 }
 
-void kMomentumUpdateWeights(NNFloat alpha, NNFloat lambda, NNFloat mu, uint64_t size, NNFloat* pWeightVelocity, NNFloat* pWeightGradient, NNFloat* pWeight)
+void kMomentumUpdateWeights(NNFloat alpha, NNFloat lambda, NNFloat lambda1, NNFloat mu, uint64_t size, NNFloat* pWeightVelocity, NNFloat* pWeightGradient, NNFloat* pWeight)
 {
     uint32_t blocks             = CalculateBlocks(size);
-    kMomentumUpdateWeights_kernel<<<blocks, getGpu()._threadsPerBlock>>>(alpha, lambda, mu, size, pWeightVelocity, pWeightGradient, pWeight);
+    kMomentumUpdateWeights_kernel<<<blocks, getGpu()._threadsPerBlock>>>(alpha, lambda, lambda1, mu, size, pWeightVelocity, pWeightGradient, pWeight);
     LAUNCHERROR("kMomentumUpdateWeights_kernel");
 }
 
@@ -1619,7 +1598,7 @@ void kMomentumUpdateBiases(NNFloat alpha, NNFloat mu, uint32_t batch, uint32_t w
 
 __global__ void
 LAUNCH_BOUNDS()
-kAdaGradUpdateWeights_kernel(NNFloat alpha, NNFloat lambda, uint64_t size, NNFloat* pWeightVelocity, NNFloat* pWeightGradient, NNFloat* pWeight)
+kAdaGradUpdateWeights_kernel(NNFloat alpha, NNFloat lambda, NNFloat lambda1, uint64_t size, NNFloat* pWeightVelocity, NNFloat* pWeightGradient, NNFloat* pWeight)
 {
     uint64_t pos                = blockIdx.x * blockDim.x + threadIdx.x;
     if (pos < size)
@@ -1627,17 +1606,17 @@ kAdaGradUpdateWeights_kernel(NNFloat alpha, NNFloat lambda, uint64_t size, NNFlo
         NNFloat g               = pWeightGradient[pos];
         NNFloat w               = pWeight[pos];
         NNFloat v               = pWeightVelocity[pos];
-        g                      -= lambda * w;
+        g                      -= lambda * w + lambda1 * sgn(w);
         v                      += g * g;
         pWeightVelocity[pos]    = v;
         pWeight[pos]            = w + alpha * g * rsqrt(max(0.000000001f, v));
     }
 }
 
-void kAdaGradUpdateWeights(NNFloat alpha, NNFloat lambda, uint64_t size, NNFloat* pWeightVelocity, NNFloat* pWeightGradient, NNFloat* pWeight)
+void kAdaGradUpdateWeights(NNFloat alpha, NNFloat lambda, NNFloat lambda1, uint64_t size, NNFloat* pWeightVelocity, NNFloat* pWeightGradient, NNFloat* pWeight)
 {
     unsigned long blocks        = CalculateBlocks(size);
-    kAdaGradUpdateWeights_kernel<<<blocks, getGpu()._threadsPerBlock>>>(alpha, lambda, size, pWeightVelocity, pWeightGradient, pWeight);
+    kAdaGradUpdateWeights_kernel<<<blocks, getGpu()._threadsPerBlock>>>(alpha, lambda, lambda1, size, pWeightVelocity, pWeightGradient, pWeight);
     LAUNCHERROR("kAdaGradUpdateWeights_kernel");
 }
 
@@ -1676,7 +1655,7 @@ void kAdaGradUpdateBiases(NNFloat alpha, uint32_t batch, uint32_t width, NNFloat
 
 __global__ void
 LAUNCH_BOUNDS()
-kAdaDeltaUpdateWeights_kernel(NNFloat lambda, NNFloat mu, uint64_t size, NNFloat* pWeightVelocity, NNFloat* pWeightGradient, NNFloat* pWeightGradientVelocity, NNFloat* pWeight)
+kAdaDeltaUpdateWeights_kernel(NNFloat lambda, NNFloat lambda1, NNFloat mu, uint64_t size, NNFloat* pWeightVelocity, NNFloat* pWeightGradient, NNFloat* pWeightGradientVelocity, NNFloat* pWeight)
 {
     uint64_t pos                = blockIdx.x * blockDim.x + threadIdx.x;
     if (pos < size)
@@ -1685,7 +1664,7 @@ kAdaDeltaUpdateWeights_kernel(NNFloat lambda, NNFloat mu, uint64_t size, NNFloat
         NNFloat w                       = pWeight[pos];
         NNFloat v                       = pWeightVelocity[pos];
         NNFloat vg                      = pWeightGradientVelocity[pos];
-        g                              -= lambda * w;
+        g                              -= lambda * w + lambda1 * sgn(w);
         vg                              = mu * vg + ((NNFloat)1.0 - mu) * g * g;
         NNFloat dw                      = sqrt(max((NNFloat)0.000000001, v) / max((NNFloat)0.000000001, vg)) * g;
         v                               = mu * v + ((NNFloat)1.0 - mu) * dw * dw;
@@ -1695,10 +1674,10 @@ kAdaDeltaUpdateWeights_kernel(NNFloat lambda, NNFloat mu, uint64_t size, NNFloat
     }
 }
 
-void kAdaDeltaUpdateWeights(NNFloat lambda, NNFloat mu, uint64_t size, NNFloat* pWeightVelocity, NNFloat* pWeightGradient, NNFloat* pWeightGradientVelocity, NNFloat* pWeight)
+void kAdaDeltaUpdateWeights(NNFloat lambda, NNFloat lambda1, NNFloat mu, uint64_t size, NNFloat* pWeightVelocity, NNFloat* pWeightGradient, NNFloat* pWeightGradientVelocity, NNFloat* pWeight)
 {
     unsigned long blocks        = CalculateBlocks(size);
-    kAdaDeltaUpdateWeights_kernel<<<blocks, getGpu()._threadsPerBlock>>>(mu, lambda, size, pWeightVelocity, pWeightGradient, pWeightGradientVelocity, pWeight);
+    kAdaDeltaUpdateWeights_kernel<<<blocks, getGpu()._threadsPerBlock>>>(lambda, lambda1, mu, size, pWeightVelocity, pWeightGradient, pWeightGradientVelocity, pWeight);
     LAUNCHERROR("kAdaDeltaUpdateWeights_kernel");
 }
 
@@ -1741,7 +1720,76 @@ void kAdaDeltaUpdateBiases(NNFloat mu, uint32_t batch, uint32_t width, NNFloat* 
 
 __global__ void
 LAUNCH_BOUNDS()
-kNesterovUpdateWeights_kernel(NNFloat alpha, NNFloat lambda, NNFloat mu, uint64_t size, NNFloat* pWeightVelocity, NNFloat* pWeightGradient, NNFloat* pWeight)
+kAdamUpdateWeights_kernel(NNFloat alpha, NNFloat lambda, NNFloat lambda1, NNFloat mu, NNFloat mu1, NNFloat t, uint64_t size, NNFloat* pWeightVelocity, NNFloat* pWeightGradient, NNFloat* pWeightGradientVelocity, NNFloat* pWeight)
+{
+    uint64_t pos                = blockIdx.x * blockDim.x + threadIdx.x;
+    if (pos < size)
+    {
+        NNFloat g                       = pWeightGradient[pos];
+        NNFloat w                       = pWeight[pos];
+        NNFloat v                       = pWeightVelocity[pos];
+        NNFloat m                       = pWeightGradientVelocity[pos];
+        g                              -= lambda * w + lambda1 * sgn(w);
+        m                               = mu * m + ((NNFloat)1.0 - mu) * g;
+        v                               = mu1 * v + ((NNFloat)1.0 - mu1) * g * g;
+        m                              /= (NNFloat)1.0 - pow(mu, t);
+        v                              /= (NNFloat)1.0 - pow(mu1, t);        
+        NNFloat dw                      = alpha * m / (sqrt(v) + (NNFloat)1.0e-8);
+        pWeightVelocity[pos]            = v;
+        pWeightGradientVelocity[pos]    = m;
+        pWeight[pos]                    = w + dw;
+    }
+}
+
+void kAdamUpdateWeights(NNFloat alpha, NNFloat lambda, NNFloat lambda1, NNFloat mu, NNFloat mu1, NNFloat t, uint64_t size, NNFloat* pWeightVelocity, NNFloat* pWeightGradient, NNFloat* pWeightGradientVelocity, NNFloat* pWeight)
+{
+    unsigned long blocks        = CalculateBlocks(size);
+    kAdamUpdateWeights_kernel<<<blocks, getGpu()._threadsPerBlock>>>(alpha, lambda, lambda1, mu, mu1, t, size, pWeightVelocity, pWeightGradient, pWeightGradientVelocity, pWeight);
+    LAUNCHERROR("kAdamUpdateWeights_kernel");
+}
+
+__global__ void
+LAUNCH_BOUNDS()
+kAdamUpdateBiases_kernel(NNFloat alpha, NNFloat mu, NNFloat mu1, NNFloat t, uint32_t batch, uint32_t width, NNFloat* pDelta, NNFloat* pBiasVelocity, NNFloat* pBiasGradientVelocity, NNFloat* pBias)
+{
+    uint64_t pos                    = blockIdx.x * blockDim.x + threadIdx.x;
+    if (pos < width)
+    {
+        NNFloat sum                 = (NNFloat)0.0;
+        pDelta                     += pos;
+
+        // Calculate bias gradient
+        for (uint32_t i = 0; i < batch; i++)
+        {
+            sum                    += *pDelta;
+            pDelta                 += width;
+        }
+        sum                        /= (NNFloat)batch;
+
+        // Update velocity and bias
+        NNFloat v                   = pBiasVelocity[pos];
+        NNFloat m                   = pBiasGradientVelocity[pos];
+        m                           = mu * m + ((NNFloat)1.0 - mu) * sum;
+        v                           = mu1 * v + ((NNFloat)1.0 - mu1) * sum * sum;
+        m                          /= (NNFloat)1.0 - pow(mu, t);
+        v                          /= (NNFloat)1.0 - pow(mu1, t);        
+        NNFloat dw                  = alpha * m / (sqrt(v) + (NNFloat)1.0e-8);
+        pBiasVelocity[pos]          = v;
+        pBiasGradientVelocity[pos]  = m;
+        pBias[pos]                 -= dw;
+    }
+}
+
+void kAdamUpdateBiases(NNFloat alpha, NNFloat mu, NNFloat mu1, NNFloat t, uint32_t batch, uint32_t width, NNFloat* pDelta, NNFloat* pBiasVelocity, NNFloat* pBiasGradientVelocity, NNFloat* pBias)
+{
+    uint32_t blocks             = CalculateBlocks(width);
+    kAdamUpdateBiases_kernel<<<blocks, getGpu()._threadsPerBlock>>>(alpha, mu, mu1, t, batch, width, pDelta, pBiasVelocity, pBiasGradientVelocity, pBias);
+    LAUNCHERROR("kAdamUpdateBiases_kernel");
+}
+
+__global__ void
+LAUNCH_BOUNDS()
+kNesterovUpdateWeights_kernel(NNFloat alpha, NNFloat lambda, NNFloat lambda1, NNFloat mu, uint64_t size, NNFloat* pWeightVelocity, NNFloat* pWeightGradient, NNFloat* pWeight)
 {
     uint64_t pos                = blockIdx.x * blockDim.x + threadIdx.x;
     if (pos < size)
@@ -1749,17 +1797,17 @@ kNesterovUpdateWeights_kernel(NNFloat alpha, NNFloat lambda, NNFloat mu, uint64_
         NNFloat g               = pWeightGradient[pos];
         NNFloat w               = pWeight[pos];
         NNFloat vOld            = pWeightVelocity[pos];
-        NNFloat vNew            = mu * vOld + alpha * (g - lambda * w);
+        NNFloat vNew            = mu * vOld + alpha * (g - lambda * w - lambda1 * sgn(w));
         pWeightVelocity[pos]    = vNew;
         w                       = w + vNew + mu * (vNew - vOld);
         pWeight[pos]            = w;      
     }
 }
 
-void kNesterovUpdateWeights(NNFloat alpha, NNFloat lambda, NNFloat mu, uint64_t size, NNFloat* pWeightVelocity, NNFloat* pWeightGradient, NNFloat* pWeight)
+void kNesterovUpdateWeights(NNFloat alpha, NNFloat lambda, NNFloat lambda1, NNFloat mu, uint64_t size, NNFloat* pWeightVelocity, NNFloat* pWeightGradient, NNFloat* pWeight)
 {
     uint32_t blocks             = CalculateBlocks(size);
-    kNesterovUpdateWeights_kernel<<<blocks, getGpu()._threadsPerBlock>>>(alpha, lambda, mu, size, pWeightVelocity, pWeightGradient, pWeight);
+    kNesterovUpdateWeights_kernel<<<blocks, getGpu()._threadsPerBlock>>>(alpha, lambda, lambda1, mu, size, pWeightVelocity, pWeightGradient, pWeight);
     LAUNCHERROR("kNesterovUpdateWeights_kernel");
 }
 
@@ -1838,7 +1886,7 @@ void kNesterovShiftBiases(NNFloat mu, uint32_t width, NNFloat* pBiasVelocity, NN
 
 __global__ void
 LAUNCH_BOUNDS()
-kRMSPropUpdateWeights_kernel(NNFloat alpha, NNFloat lambda, NNFloat mu, uint64_t size, NNFloat* pWeightVelocity, NNFloat* pWeightGradient, NNFloat* pWeight)
+kRMSPropUpdateWeights_kernel(NNFloat alpha, NNFloat lambda, NNFloat lambda1, NNFloat mu, uint64_t size, NNFloat* pWeightVelocity, NNFloat* pWeightGradient, NNFloat* pWeight)
 {
     uint64_t pos  = blockIdx.x * blockDim.x + threadIdx.x;
     if (pos < size)
@@ -1846,17 +1894,17 @@ kRMSPropUpdateWeights_kernel(NNFloat alpha, NNFloat lambda, NNFloat mu, uint64_t
         NNFloat g               = pWeightGradient[pos];
         NNFloat w               = pWeight[pos];
         NNFloat v               = pWeightVelocity[pos];
-        g                      -= lambda * w;
+        g                      -= lambda * w + lambda1 * sgn(w);
         v                       = mu * v + (1.0f - mu) * g * g;
         pWeightVelocity[pos]    = v;
         pWeight[pos]            = w + alpha * g * rsqrt(max(0.000000001f, v));
     }
 }
 
-void kRMSPropUpdateWeights(NNFloat alpha, NNFloat lambda, NNFloat mu, uint64_t size, NNFloat* pWeightVelocity, NNFloat* pWeightGradient, NNFloat* pWeight)
+void kRMSPropUpdateWeights(NNFloat alpha, NNFloat lambda, NNFloat lambda1, NNFloat mu, uint64_t size, NNFloat* pWeightVelocity, NNFloat* pWeightGradient, NNFloat* pWeight)
 {
     uint32_t blocks             = CalculateBlocks(size);
-    kRMSPropUpdateWeights_kernel<<<blocks, getGpu()._threadsPerBlock>>>(alpha, lambda, mu, size, pWeightVelocity, pWeightGradient, pWeight);
+    kRMSPropUpdateWeights_kernel<<<blocks, getGpu()._threadsPerBlock>>>(alpha, lambda, lambda1, mu, size, pWeightVelocity, pWeightGradient, pWeight);
     LAUNCHERROR("kRMSPropUpdateWeights_kernel");
 }
 
@@ -1896,7 +1944,265 @@ void kRMSPropUpdateBiases(NNFloat alpha, NNFloat mu, uint32_t batch, uint32_t wi
 #include "bitonic.h"
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateTopK_kernel(NNFloat* pOutputBuffer, NNFloat* pKeyBuffer, uint32_t* pValueBuffer, uint32_t batch, uint32_t width, uint32_t k)
+kCalculateTopK_32_kernel(NNFloat* pOutputBuffer, NNFloat* pKeyBuffer, uint32_t* pValueBuffer, uint32_t batch, uint32_t width, uint32_t k)
+{
+__shared__ volatile NNFloat sKey[64 * 4];
+__shared__ volatile uint32_t sValue[64 * 4];
+
+
+    uint32_t pos                    = (blockIdx.x * blockDim.x + threadIdx.x) >> cData._warpBits;
+    uint32_t tgx                    = threadIdx.x & cData._warpMask;
+            
+    if (pos < batch)
+    {
+        NNFloat *pOutput            = pOutputBuffer + pos * width;
+        uint32_t offset             = threadIdx.x >> cData._warpBits;
+        volatile NNFloat* psKey     = &sKey[64 * offset];
+        volatile uint32_t* psValue  = &sValue[64 * offset];
+
+        // Initialize values to 
+        NNFloat k0                  = -MAX_VALUE;
+        NNFloat k1                  = -MAX_VALUE;
+        uint32_t v0                 = 0;
+        uint32_t v1                 = 0;
+
+        // Read first 32 elements into registers
+        uint32_t wpos               = tgx;
+        if (wpos < width)
+        {
+            k0                      = pOutput[wpos];
+            v0                      = wpos;
+        }
+        wpos                       += cData._warpSize;
+
+        // Run through remainder of data
+        NNFloat minValue            = -MAX_VALUE;
+        uint32_t rpos               = 32;
+        uint32_t bufferSize         = 0;
+        NNFloat key1, key2;
+        uint32_t value1, value2;
+        uint32_t otgx;
+        bool flag;
+        while (rpos < width)
+        {
+            // Read block of data
+            unsigned wpos           = rpos + tgx;
+            NNFloat key             = -MAX_VALUE;
+            uint32_t value          = wpos;
+            if (wpos < width)
+            {
+                key                 = pOutput[wpos];                
+            }
+            
+            // Add values > minValue to shared memory buffer
+            uint32_t count          = BALLOT(key > minValue);
+            if (key > minValue)
+            {
+                uint32_t mask       = 0xffffffff >> (32 - tgx);
+                uint32_t offset     = __popc(count & mask);
+                offset             += bufferSize;
+                psKey[offset]       = key;
+                psValue[offset]     = value;
+            }
+            bufferSize             += __popc(count);
+
+            // Check if buffer is full
+            if (bufferSize >= 32)
+            {
+                // Sort 64 elements
+                k1                  = psKey[tgx];
+                v1                  = psValue[tgx];
+                bool flag;
+                BITONICSORT64_64();
+
+                // Shift members in shared memory to beginning
+                bufferSize         -= 32;
+                if (tgx < bufferSize)
+                {
+                    psKey[tgx]      = psKey[tgx + 32];
+                    psValue[tgx]    = psValue[tgx + 32];
+                }
+            }
+
+            // Advance to next block of data
+            rpos                    += cData._warpSize;
+        }
+
+        // Do final sort if buffer has any remaining data
+        if ((bufferSize > 0) || (width <= 32))
+        {
+            // Store sentinel values in registers
+            k1                       = -MAX_VALUE;
+            v1                       = 0;
+
+            // Load last block of unsorted data into registers
+            if (tgx < bufferSize)
+            {
+                k1                   = psKey[tgx];
+                v1                   = psValue[tgx];
+            }
+            BITONICSORT64_64();
+        }
+
+        // Copy results to key and value pointers
+        NNFloat* pKey                = pKeyBuffer + pos * k;
+        uint32_t* pValue             = pValueBuffer + pos * k;                
+        wpos                         = tgx;
+        if (wpos < k)
+        {
+            pKey[wpos]               = k0;
+            pValue[wpos]             = v0;
+        }
+        wpos                        += cData._warpSize;
+    }
+}
+
+
+__global__ void
+LAUNCH_BOUNDS()
+kCalculateTopK_64_kernel(NNFloat* pOutputBuffer, NNFloat* pKeyBuffer, uint32_t* pValueBuffer, uint32_t batch, uint32_t width, uint32_t k)
+{
+__shared__ volatile NNFloat sKey[96 * 4];
+__shared__ volatile uint32_t sValue[96 * 4];
+
+
+    uint32_t pos                    = (blockIdx.x * blockDim.x + threadIdx.x) >> cData._warpBits;
+    uint32_t tgx                    = threadIdx.x & cData._warpMask;
+            
+    if (pos < batch)
+    {
+        NNFloat *pOutput            = pOutputBuffer + pos * width;
+        uint32_t offset             = threadIdx.x >> cData._warpBits;
+        volatile NNFloat* psKey     = &sKey[96 * offset];
+        volatile uint32_t* psValue  = &sValue[96 * offset];
+
+        // Initialize values to 
+        NNFloat k0                  = -MAX_VALUE;
+        NNFloat k1                  = -MAX_VALUE;
+        NNFloat k2                  = -MAX_VALUE;
+        NNFloat k3                  = -MAX_VALUE;
+        uint32_t v0                 = 0;
+        uint32_t v1                 = 0;
+        uint32_t v2                 = 0;
+        uint32_t v3                 = 0;
+
+        // Read first 64 elements into registers
+        uint32_t wpos               = tgx;
+        if (wpos < width)
+        {
+            k0                      = pOutput[wpos];
+            v0                      = wpos;
+        }
+        wpos                       += cData._warpSize;
+        if (wpos < width)
+        {
+            k1                      = pOutput[wpos];
+            v1                      = wpos;
+        }
+        wpos                       += cData._warpSize;
+
+     
+        // Run through remainder of data
+        NNFloat minValue            = -MAX_VALUE;
+        uint32_t rpos               = 64;
+        uint32_t bufferSize         = 0;
+        NNFloat key1, key2;
+        uint32_t value1, value2;
+        uint32_t otgx;
+        bool flag;
+        while (rpos < width)
+        {
+            // Read block of data
+            unsigned wpos           = rpos + tgx;
+            NNFloat key             = -MAX_VALUE;
+            uint32_t value          = wpos;
+            if (wpos < width)
+            {
+                key                 = pOutput[wpos];                
+            }
+            
+            // Add values > minValue to shared memory buffer
+            uint32_t count          = BALLOT(key > minValue);
+            if (key > minValue)
+            {
+                uint32_t mask       = 0xffffffff >> (32 - tgx);
+                uint32_t offset     = __popc(count & mask);
+                offset             += bufferSize;
+                psKey[offset]       = key;
+                psValue[offset]     = value;
+            }
+            bufferSize             += __popc(count);
+
+            // Check if buffer is full
+            if (bufferSize >= 64)
+            {
+                // Sort 128 elements
+                k2                  = psKey[tgx];
+                v2                  = psValue[tgx];
+                k3                  = psKey[tgx + cData._warpSize];
+                v3                  = psValue[tgx + cData._warpSize];
+                bool flag;
+                BITONICSORT128_128();
+
+                // Shift members in shared memory to beginning
+                bufferSize         -= 64;
+                if (tgx < bufferSize)
+                {
+                    psKey[tgx]      = psKey[tgx + 64];
+                    psValue[tgx]    = psValue[tgx + 64];
+                }
+            }
+
+            // Advance to next block of data
+            rpos                    += cData._warpSize;
+        }
+
+        // Do final sort if buffer has any remaining data
+        if ((bufferSize > 0) || (width <= 64))
+        {
+            // Store sentinel values in registers
+            k2                       = -MAX_VALUE;
+            k3                       = -MAX_VALUE;
+            v2                       = 0;
+            v3                       = 0;
+
+            // Load last block of unsorted data into registers
+            if (tgx < bufferSize)
+            {
+                k2                   = psKey[tgx];
+                v2                   = psValue[tgx];
+            }
+            if (tgx + cData._warpSize < bufferSize)
+            {
+                k3                   = psKey[tgx + cData._warpSize];
+                v3                   = psValue[tgx + cData._warpSize];
+            }
+
+            BITONICSORT128_128();
+        }
+
+        // Copy results to key and value pointers
+        NNFloat* pKey                = pKeyBuffer + pos * k;
+        uint32_t* pValue             = pValueBuffer + pos * k;                
+        wpos                         = tgx;
+        if (wpos < k)
+        {
+            pKey[wpos]               = k0;
+            pValue[wpos]             = v0;
+        }
+        wpos                        += cData._warpSize;
+        if (wpos < k)
+        {
+            pKey[wpos]               = k1;
+            pValue[wpos]             = v1;
+        }
+        wpos                        += cData._warpSize;
+    }
+}
+
+__global__ void
+LAUNCH_BOUNDS()
+kCalculateTopK_128_kernel(NNFloat* pOutputBuffer, NNFloat* pKeyBuffer, uint32_t* pValueBuffer, uint32_t batch, uint32_t width, uint32_t k)
 {
 __shared__ volatile NNFloat sKey[160 * 4];
 __shared__ volatile uint32_t sValue[160 * 4];
@@ -1977,7 +2283,7 @@ __shared__ volatile uint32_t sValue[160 * 4];
             }
             
             // Add values > minValue to shared memory buffer
-            uint32_t count          = __ballot(key > minValue);
+            uint32_t count          = BALLOT(key > minValue);
             if (key > minValue)
             {
                 uint32_t mask       = 0xffffffff >> (32 - tgx);
@@ -2084,11 +2390,321 @@ __shared__ volatile uint32_t sValue[160 * 4];
     }
 }
 
+
+__global__ void
+LAUNCH_BOUNDS()
+kCalculateTopK_256_kernel(NNFloat* pOutputBuffer, NNFloat* pKeyBuffer, uint32_t* pValueBuffer, uint32_t batch, uint32_t width, uint32_t k)
+{
+__shared__ volatile NNFloat sKey[288 * 4];
+__shared__ volatile uint32_t sValue[288 * 4];
+
+
+    uint32_t pos                    = (blockIdx.x * blockDim.x + threadIdx.x) >> cData._warpBits;
+    uint32_t tgx                    = threadIdx.x & cData._warpMask;
+        
+    
+    if (pos < batch)
+    {
+        NNFloat *pOutput            = pOutputBuffer + pos * width;
+        uint32_t offset             = threadIdx.x >> cData._warpBits;
+        volatile NNFloat* psKey     = &sKey[288 * offset];
+        volatile uint32_t* psValue  = &sValue[288 * offset];
+
+        // Initialize values to 
+        NNFloat k0                  = -MAX_VALUE;
+        NNFloat k1                  = -MAX_VALUE;
+        NNFloat k2                  = -MAX_VALUE;
+        NNFloat k3                  = -MAX_VALUE;
+        NNFloat k4                  = -MAX_VALUE;
+        NNFloat k5                  = -MAX_VALUE;
+        NNFloat k6                  = -MAX_VALUE;
+        NNFloat k7                  = -MAX_VALUE;
+        NNFloat k8                  = -MAX_VALUE;
+        NNFloat k9                  = -MAX_VALUE;
+        NNFloat k10                 = -MAX_VALUE;
+        NNFloat k11                 = -MAX_VALUE;
+        NNFloat k12                 = -MAX_VALUE;
+        NNFloat k13                 = -MAX_VALUE;
+        NNFloat k14                 = -MAX_VALUE;
+        NNFloat k15                 = -MAX_VALUE;
+        uint32_t v0                 = 0;
+        uint32_t v1                 = 0;
+        uint32_t v2                 = 0;
+        uint32_t v3                 = 0;
+        uint32_t v4                 = 0;
+        uint32_t v5                 = 0;
+        uint32_t v6                 = 0;
+        uint32_t v7                 = 0;
+        uint32_t v8                 = 0;
+        uint32_t v9                 = 0;
+        uint32_t v10                = 0;
+        uint32_t v11                = 0;
+        uint32_t v12                = 0;
+        uint32_t v13                = 0;
+        uint32_t v14                = 0;
+        uint32_t v15                = 0;
+        
+        // Read first 256 elements into registers
+        uint32_t wpos               = tgx;
+        if (wpos < width)
+        {
+            k0                      = pOutput[wpos];
+            v0                      = wpos;
+        }
+        wpos                       += cData._warpSize;
+        if (wpos < width)
+        {
+            k1                      = pOutput[wpos];
+            v1                      = wpos;
+        }
+        wpos                       += cData._warpSize;
+        if (wpos < width)
+        {
+            k2                      = pOutput[wpos];
+            v2                      = wpos;
+        }
+        wpos                       += cData._warpSize;
+        if (wpos < width)
+        {
+            k3                      = pOutput[wpos];
+            v3                      = wpos;
+        }
+        wpos                       += cData._warpSize;
+        if (wpos < width)
+        {
+            k4                      = pOutput[wpos];
+            v4                      = wpos;
+        }
+        wpos                       += cData._warpSize;
+        if (wpos < width)
+        {
+            k5                      = pOutput[wpos];
+            v5                      = wpos;
+        }
+        wpos                       += cData._warpSize;
+        if (wpos < width)
+        {
+            k6                      = pOutput[wpos];
+            v6                      = wpos;
+        }
+        wpos                       += cData._warpSize;
+        if (wpos < width)
+        {
+            k7                      = pOutput[wpos];
+            v7                      = wpos;
+        }
+             
+        // Run through remainder of data
+        NNFloat minValue            = -MAX_VALUE;
+        uint32_t rpos               = 256;
+        uint32_t bufferSize         = 0;
+        NNFloat key1, key2;
+        uint32_t value1, value2;
+        uint32_t otgx;
+        bool flag;
+        while (rpos < width)
+        {
+            // Read block of data
+            unsigned wpos           = rpos + tgx;
+            NNFloat key             = -MAX_VALUE;
+            uint32_t value          = wpos;
+            if (wpos < width)
+            {
+                key                 = pOutput[wpos];                
+            }
+            
+            // Add values > minValue to shared memory buffer
+            uint32_t count          = BALLOT(key > minValue);
+            if (key > minValue)
+            {
+                uint32_t mask       = 0xffffffff >> (32 - tgx);
+                uint32_t offset     = __popc(count & mask);
+                offset             += bufferSize;
+                psKey[offset]       = key;
+                psValue[offset]     = value;
+            }
+            bufferSize             += __popc(count);
+
+            // Check if buffer is full
+            if (bufferSize >= 256)
+            {
+                // Sort 512 elements
+                k8                  = psKey[tgx];
+                v8                  = psValue[tgx];
+                k9                  = psKey[tgx + cData._warpSize];
+                v9                  = psValue[tgx + cData._warpSize];
+                k10                 = psKey[tgx + 2 * cData._warpSize];
+                v10                 = psValue[tgx + 2 * cData._warpSize];
+                k11                 = psKey[tgx + 3 * cData._warpSize];
+                v11                 = psValue[tgx + 3 * cData._warpSize];
+                k12                 = psKey[tgx + 4 * cData._warpSize];
+                v12                 = psValue[tgx + 4 * cData._warpSize];
+                k13                 = psKey[tgx + 5 * cData._warpSize];
+                v13                 = psValue[tgx + 5 * cData._warpSize];
+                k14                 = psKey[tgx + 6 * cData._warpSize];
+                v14                 = psValue[tgx + 6 * cData._warpSize];                
+                k15                 = psKey[tgx + 7 * cData._warpSize];
+                v15                 = psValue[tgx + 7 * cData._warpSize];
+                bool flag;
+                BITONICSORT512_512();
+
+                // Shift members in shared memory to beginning
+                bufferSize         -= 256;
+                if (tgx < bufferSize)
+                {
+                    psKey[tgx]      = psKey[tgx + 256];
+                    psValue[tgx]    = psValue[tgx + 256];
+                }
+            }
+
+            // Advance to next block of data
+            rpos                    += cData._warpSize;
+        }
+
+        // Do final sort if buffer has any remaining data
+        if ((bufferSize > 0) || (width <= 256))
+        {
+            // Store sentinel values in registers
+            k8                       = -MAX_VALUE;
+            k9                       = -MAX_VALUE;
+            k10                      = -MAX_VALUE;
+            k11                      = -MAX_VALUE;
+            k12                      = -MAX_VALUE;
+            k13                      = -MAX_VALUE;
+            k14                      = -MAX_VALUE;
+            k15                      = -MAX_VALUE;
+            v8                       = 0;
+            v9                       = 0;
+            v10                      = 0;
+            v11                      = 0;
+            v12                      = 0;
+            v13                      = 0;
+            v14                      = 0;
+            v15                      = 0;
+
+            // Load last block of unsorted data into registers
+            if (tgx < bufferSize)
+            {
+                k8                   = psKey[tgx];
+                v8                   = psValue[tgx];
+            }
+            if (tgx + cData._warpSize < bufferSize)
+            {
+                k9                   = psKey[tgx + cData._warpSize];
+                v9                   = psValue[tgx + cData._warpSize];
+            }
+            if (tgx + 2 * cData._warpSize < bufferSize)
+            {
+                k10                  = psKey[tgx + 2 * cData._warpSize];
+                v10                  = psValue[tgx + 2 * cData._warpSize];
+            }
+            if (tgx + 3 * cData._warpSize < bufferSize)
+            {
+                k11                  = psKey[tgx + 3 * cData._warpSize];
+                v11                  = psValue[tgx + 3 * cData._warpSize];
+            }
+            if (tgx + 4 * cData._warpSize < bufferSize)
+            {
+                k12                  = psKey[tgx + 4 * cData._warpSize];
+                v12                  = psValue[tgx + 4 * cData._warpSize];
+            }
+            if (tgx + 5 * cData._warpSize < bufferSize)
+            {
+                k13                  = psKey[tgx + 5 * cData._warpSize];
+                v13                  = psValue[tgx + 5 * cData._warpSize];
+            }  
+            if (tgx + 6 * cData._warpSize < bufferSize)
+            {
+                k14                  = psKey[tgx + 6 * cData._warpSize];
+                v14                  = psValue[tgx + 6 * cData._warpSize];
+            }
+            if (tgx + 7 * cData._warpSize < bufferSize)
+            {
+                k15                  = psKey[tgx + 7 * cData._warpSize];
+                v15                  = psValue[tgx + 7 * cData._warpSize];
+            } 
+
+            BITONICSORT512_512();
+        }
+
+        // Copy results to key and value pointers
+        NNFloat* pKey                = pKeyBuffer + pos * k;
+        uint32_t* pValue             = pValueBuffer + pos * k;                
+        wpos                         = tgx;
+        if (wpos < k)
+        {
+            pKey[wpos]               = k8;
+            pValue[wpos]             = v8;
+        }
+        wpos                        += cData._warpSize;
+        if (wpos < k)
+        {
+            pKey[wpos]               = k9;
+            pValue[wpos]             = v9;
+        }
+        wpos                        += cData._warpSize;
+        if (wpos < k)
+        {
+            pKey[wpos]               = k10;
+            pValue[wpos]             = v10;
+        }
+        wpos                        += cData._warpSize;
+        if (wpos < k)
+        {
+            pKey[wpos]               = k11;
+            pValue[wpos]             = v11;
+        }
+        if (wpos < k)
+        {
+            pKey[wpos]               = k12;
+            pValue[wpos]             = v12;
+        }
+        wpos                        += cData._warpSize;
+        if (wpos < k)
+        {
+            pKey[wpos]               = k13;
+            pValue[wpos]             = v13;
+        }
+        wpos                        += cData._warpSize;
+        if (wpos < k)
+        {
+            pKey[wpos]               = k14;
+            pValue[wpos]             = v14;
+        }
+        wpos                        += cData._warpSize;
+        if (wpos < k)
+        {
+            pKey[wpos]               = k15;
+            pValue[wpos]             = v15;
+        }
+    }
+}
+
+
+
 void kCalculateTopK(NNFloat* pOutput, NNFloat *pKey, uint32_t* pValue, uint32_t batch, uint32_t width, uint32_t k)
 {
     uint32_t blocks                 = (batch + 3) / 4;
-    kCalculateTopK_kernel<<<blocks, 128>>>(pOutput, pKey, pValue, batch, width, k);
-    LAUNCHERROR("kCalculateTopK_kernel");
+    if (k <= 32)
+    {
+        kCalculateTopK_32_kernel<<<blocks, 128>>>(pOutput, pKey, pValue, batch, width, k);
+        LAUNCHERROR("kCalculateTopK_32_kernel");
+    }
+    else if (k <= 64)
+    {
+        kCalculateTopK_64_kernel<<<blocks, 128>>>(pOutput, pKey, pValue, batch, width, k);
+        LAUNCHERROR("kCalculateTopK_64_kernel");
+    }
+    else if (k <= 128)
+    {
+        kCalculateTopK_128_kernel<<<blocks, 128>>>(pOutput, pKey, pValue, batch, width, k);
+        LAUNCHERROR("kCalculateTopK_128_kernel");
+    }
+    else
+    {
+        kCalculateTopK_256_kernel<<<blocks, 128>>>(pOutput, pKey, pValue, batch, width, k);
+        LAUNCHERROR("kCalculateTopK_256_kernel");
+    }
 }
 
 
@@ -2177,7 +2793,7 @@ __shared__ volatile NNFloat sValue[160 * 4];
             }
             
             // Add values > minValue to shared memory buffer
-            uint32_t count          = __ballot(key > minValue);
+            uint32_t count          = BALLOT(key > minValue);
             if (key > minValue)
             {
                 uint32_t mask       = 0xffffffff >> (32 - tgx);
@@ -2372,7 +2988,7 @@ __shared__ volatile uint32_t sValue[160 * 4];
             }
             
             // Add values > minValue to shared memory buffer
-            uint32_t count                  = __ballot(key > minValue);
+            uint32_t count                  = BALLOT(key > minValue);
             if (key > minValue)
             {
                 uint32_t mask               = 0xffffffff >> (32 - tgx);
@@ -2599,22 +3215,42 @@ void kNormalizeWeightMagnitudes(NNFloat norm, uint32_t outputStride, uint32_t in
 
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateDropout_kernel(NNFloat* pUnit, NNFloat* pRandom, NNFloat p, NNFloat scale, size_t size)
+kCalculateScaledBiasedDropout_kernel(NNFloat* pUnit, NNFloat* pRandom, NNFloat p, NNFloat target, NNFloat a, NNFloat b, size_t size)
 {
     uint64_t pos                            = blockIdx.x * blockDim.x + threadIdx.x;
     if (pos < size)
     {
         NNFloat r                           = pRandom[pos];
-        pUnit[pos]                          = (r < p) ? (NNFloat)0.0 : scale * pUnit[pos];
+        pUnit[pos]                          = (r < p) ? target : a * pUnit[pos] + b;
     }
 }
 
-void kCalculateDropout(NNFloat* pUnit, NNFloat* pRandom, uint32_t batch, uint32_t stride, NNFloat p)
+void kCalculateScaledBiasedDropout(NNFloat* pUnit, NNFloat* pRandom, uint32_t batch, uint32_t stride, NNFloat p, NNFloat target, NNFloat a, NNFloat b)
 {
     curandGenerateUniform(getGpu()._RNG, pRandom, batch * stride);
     unsigned long blocks                = CalculateBlocks(batch * stride);
-    NNFloat scale                       = (NNFloat)1.0 / ((NNFloat)1.0 - p);
-    kCalculateDropout_kernel<<<blocks, getGpu()._threadsPerBlock>>>(pUnit, pRandom, p, scale, batch * stride);
+    kCalculateScaledBiasedDropout_kernel<<<blocks, getGpu()._threadsPerBlock>>>(pUnit, pRandom, p, a * target + b, a, b, batch * stride);
+    LAUNCHERROR("kCalculateScaledBiasedDropout_kernel");
+}
+
+__global__ void
+LAUNCH_BOUNDS()
+kCalculateDropout_kernel(NNFloat* pUnit, NNFloat* pRandom, NNFloat p, NNFloat scale, NNFloat target, size_t size)
+{
+    uint64_t pos                            = blockIdx.x * blockDim.x + threadIdx.x;
+    if (pos < size)
+    {
+        NNFloat r                           = pRandom[pos];
+        pUnit[pos]                          = (r < p) ? target : scale * pUnit[pos];
+    }
+}
+
+void kCalculateDropout(NNFloat* pUnit, NNFloat* pRandom, uint32_t batch, uint32_t stride, NNFloat p, NNFloat target)
+{
+    curandGenerateUniform(getGpu()._RNG, pRandom, batch * stride);
+    unsigned long blocks                = CalculateBlocks(batch * stride);
+    NNFloat scale                       = (target == (NNFloat)0.0) ? (NNFloat)1.0 / ((NNFloat)1.0 - p) : (NNFloat)1.0;
+    kCalculateDropout_kernel<<<blocks, getGpu()._threadsPerBlock>>>(pUnit, pRandom, p, scale, target, batch * stride);
     LAUNCHERROR("kCalculateDropout_kernel");
 }
 
@@ -2637,6 +3273,172 @@ void kCalculateMaxout(NNFloat* pSrc, size_t size, NNFloat* pDst)
     unsigned long blocks                = CalculateBlocks(size);
     kCalculateMaxout_kernel<<<blocks, getGpu()._threadsPerBlock>>>(pSrc, size, pDst);
     LAUNCHERROR("kCalculateMaxout_kernel");
+}
+
+__global__ void 
+LAUNCH_BOUNDS()
+kCalculateCosine_kernel(NNFloat* pVector1, NNFloat* pVector2, uint32_t stride, NNFloat* pDPOut, NNFloat* pAOut, NNFloat* pBOut, uint32_t outStride)
+{
+__shared__ NNFloat sDP[64];     // Shared memory accumulator between warps
+__shared__ NNFloat sA[64];      // Shared memory accumulator between warps
+__shared__ NNFloat sB[64];      // Shared memory accumulator between warps
+
+
+    // Preincrement pointers
+    pVector1               += blockIdx.x * stride + threadIdx.x;
+    pVector2               += blockIdx.x * stride + threadIdx.x;
+    pDPOut                 += blockIdx.x * outStride;
+    pAOut                  += blockIdx.x * outStride;
+    pBOut                  += blockIdx.x * outStride;    
+    uint32_t pos            = threadIdx.x;
+    NNFloat dp              = (NNFloat)0;
+    NNFloat al              = (NNFloat)0;
+    NNFloat bl              = (NNFloat)0;
+    
+    // Calculate running sum
+    while (pos < stride)
+    {
+        NNFloat a           = *pVector1;
+        NNFloat b           = *pVector2;
+        dp                 += a * b;
+        al                 += a * a;
+        bl                 += b * b;
+        pVector1           += blockDim.x;
+        pVector2           += blockDim.x;
+        pos                += blockDim.x;
+    }
+    
+    
+    // Reduce results within warps
+    uint32_t tgx            = threadIdx.x & cData._warpMask;
+    dp                     += SHFL(dp, tgx ^ 1);
+    al                     += SHFL(al, tgx ^ 1);
+    bl                     += SHFL(bl, tgx ^ 1);
+    dp                     += SHFL(dp, tgx ^ 2);
+    al                     += SHFL(al, tgx ^ 2);
+    bl                     += SHFL(bl, tgx ^ 2);
+    dp                     += SHFL(dp, tgx ^ 4);
+    al                     += SHFL(al, tgx ^ 4);
+    bl                     += SHFL(bl, tgx ^ 4);
+    dp                     += SHFL(dp, tgx ^ 8);
+    al                     += SHFL(al, tgx ^ 8);
+    bl                     += SHFL(bl, tgx ^ 8);    
+    dp                     += SHFL(dp, tgx ^ 16); 
+    al                     += SHFL(al, tgx ^ 16);
+    bl                     += SHFL(bl, tgx ^ 16);
+    if (tgx == 0)           
+    {
+        uint32_t index      = threadIdx.x >> cData._warpBits;
+        sDP[index]          = dp;
+        sA[index]           = al;
+        sB[index]           = bl;
+    }
+    __syncthreads();
+    
+    // Reduce results between warps
+    if (threadIdx.x < cData._warpSize)
+    {
+        uint32_t limit      = (blockDim.x + cData._warpSize -1) >> cData._warpBits;
+        al                  = (threadIdx.x < limit) ? sA[threadIdx.x]     : (NNFloat)0;      
+        bl                  = (threadIdx.x < limit) ? sB[threadIdx.x]     : (NNFloat)0; 
+        dp                  = (threadIdx.x < limit) ? sDP[threadIdx.x]    : (NNFloat)0;
+        dp                 += SHFL(dp, tgx ^ 1);
+        al                 += SHFL(al, tgx ^ 1);
+        bl                 += SHFL(bl, tgx ^ 1);
+        dp                 += SHFL(dp, tgx ^ 2);
+        al                 += SHFL(al, tgx ^ 2);
+        bl                 += SHFL(bl, tgx ^ 2);
+        dp                 += SHFL(dp, tgx ^ 4);
+        al                 += SHFL(al, tgx ^ 4);
+        bl                 += SHFL(bl, tgx ^ 4);
+        dp                 += SHFL(dp, tgx ^ 8);
+        al                 += SHFL(al, tgx ^ 8);
+        bl                 += SHFL(bl, tgx ^ 8);    
+        dp                 += SHFL(dp, tgx ^ 16); 
+        al                 += SHFL(al, tgx ^ 16);
+        bl                 += SHFL(bl, tgx ^ 16);        
+                         
+        
+        // Write final sum
+        if (threadIdx.x == 0)
+        {
+            al              = sqrt(al);
+            bl              = sqrt(bl);
+            dp             /= al * bl;
+            *pAOut          = al;
+            *pBOut          = bl;
+            *pDPOut         = dp;      
+        }
+    }
+} 
+
+// Calculates cosine and saves vector lengths for future gradient calculation
+void kCalculateCosine(NNFloat* pVector1In, NNFloat* pVector2In, uint32_t batch, uint32_t stride, NNFloat* pDPOut, NNFloat* pAOut, NNFloat* pBOut, uint32_t outStride)
+{
+    unsigned long threads = max(32, min(stride, getGpu()._threadsPerBlock));
+    kCalculateCosine_kernel<<<batch, threads>>>(pVector1In, pVector2In, stride, pDPOut, pAOut, pBOut, outStride);
+    LAUNCHERROR("kCalculateCosine_kernel");    
+}
+
+
+
+__global__ void 
+LAUNCH_BOUNDS()
+kCalculateDotProduct_kernel(NNFloat* pVector1In, NNFloat* pVector2In, uint32_t strideIn, NNFloat* pDPOut, uint32_t strideOut)
+{
+__shared__ NNFloat sDP[32];     // Shared memory accumulator between warps
+
+    // Preincrement pointers
+    pVector1In             += blockIdx.x * strideIn + threadIdx.x;
+    pVector2In             += blockIdx.x * strideIn + threadIdx.x;
+    pDPOut                 += blockIdx.x * strideOut;
+    uint32_t pos            = threadIdx.x;
+    NNFloat dp              = (NNFloat)0;
+
+    
+    // Calculate running sum
+    while (pos < strideIn)
+    {
+        NNFloat a           = *pVector1In;
+        NNFloat b           = *pVector2In;
+        dp                 += a * b;
+        pVector1In         += blockDim.x;
+        pVector2In         += blockDim.x;
+        pos                += blockDim.x;
+    }
+    
+    
+    // Reduce results within warps
+    REDUCE(dp)
+    uint32_t tgx            = threadIdx.x & cData._warpMask;    
+    if (tgx == 0)           
+    {
+        uint32_t index      = threadIdx.x >> cData._warpBits;
+        sDP[index]          = dp;
+    }
+    __syncthreads();
+    
+    // Reduce results between warps
+    if (threadIdx.x < cData._warpSize)
+    {
+        uint32_t limit      = (blockDim.x + cData._warpSize -1) >> cData._warpBits;
+        dp                  = (threadIdx.x < limit) ? sDP[threadIdx.x]    : (NNFloat)0;
+        REDUCE(dp)                 
+        
+        // Write final sum
+        if (threadIdx.x == 0)
+        {
+            *pDPOut         = dp;      
+        }
+    }
+} 
+
+// Calculates dot product
+void kCalculateDotProduct(NNFloat* pVector1In, NNFloat* pVector2In, uint32_t batch, uint32_t strideIn, NNFloat* pDPOut, uint32_t strideOut)
+{
+    unsigned long threads = max(32, min(strideIn, getGpu()._threadsPerBlock));
+    kCalculateDotProduct_kernel<<<batch, threads>>>(pVector1In, pVector2In, strideIn, pDPOut, strideOut);
+    LAUNCHERROR("kCalculateDotProduct_kernel");    
 }
 
 #include "cub/util_allocator.cuh"

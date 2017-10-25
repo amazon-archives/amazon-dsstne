@@ -115,10 +115,19 @@ Instructions are provided for installation on Ubuntu Linux machines.
 
 #### GCC Setup
 ```bash
-# Ubuntu/Linux 64-bit
+# Ubuntu/Linux 14.04 64-bit
 sudo apt-get -y update
 sudo apt-get install gcc
 sudo apt-get install g++
+
+# Ubuntu/Linux 16.04 64-bit
+sudo apt-get -y update
+sudo apt-get install gcc
+sudo apt-get install g++
+sudo apt-get install libjsoncpp-dev
+sudo apt-get install libnetcdf-dev
+sudo apt-get install libnetcdfc++4-dev
+sudo apt-get install libopenmpi-dev
 
 #Fedora 64-bit
 sudo dnf check-update
@@ -127,7 +136,7 @@ sudo dnf install gcc-c++
 ```
 #### Cublas Setup
 ```bash
-# Ubuntu/Linux 64-bit
+# Ubuntu/Linux 14.04 64-bit
 sudo apt-get install -y libatlas-base-dev
 
 #Fedora 64-bit
