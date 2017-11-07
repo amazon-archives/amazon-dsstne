@@ -126,6 +126,8 @@ private:
     size_t                      _maxCUDNNWorkspaceSize;     // Maximum requested size of cuDNN workspace
     unique_ptr<GpuBuffer<uint8_t>> _pbCUDNNWorkspace;       // CUDNN workspace buffer
 
+    int                         _debugLevel;                // determines how much to print during usage
+
 
 public:
 
@@ -169,6 +171,7 @@ public:
     tuple<NNFloat, NNFloat, NNFloat, NNFloat> GetSMCE() const;                          // Returns oneTarget, zeroTarget, oneScale, zeroScale
     tuple<bool> GetShuffleIndices() const;                                              // Returns ShuffleIndices boolean
     tuple<string, int32_t> GetCheckPoint() const;                                       // Returns Checkpoint name and interval
+    int GetDebugLevel() const {return _debugLevel;}
 
     // Non-const getters
     NNFloat* GetUnitBuffer(const string& layer) const;
@@ -192,6 +195,7 @@ public:
     bool SetDeltaBoost(NNFloat one = 1.0f, NNFloat zero = 1.0f);
     bool SetSMCE(NNFloat oneTarget = 0.9f, NNFloat zeroTarget = 0.1f, NNFloat oneScale = 1.0f, NNFloat zeroScale = 1.0f);
     bool SetCheckpoint(string name, int32_t interval);
+    void SetDebugLevel(int level) {_debugLevel = level;}
 
 private:
     void CalculatePropagationOrder();
