@@ -411,7 +411,7 @@ _receiveIndex(1),
 _CUDNNWorkspaceSize(0),
 _maxCUDNNWorkspaceSize(0),
 _pbCUDNNWorkspace(),
-_debugLevel(0)
+_verbose(false)
 {
 
     // Allocate layers
@@ -1561,7 +1561,7 @@ NNFloat NNNetwork::Train(uint32_t epochs, NNFloat alpha, NNFloat lambda, NNFloat
                 minibatch                                   = _examples - pos;
             total_error_training                           += error_training;
             total_error_regularization                     += error_regularization * minibatch;
-            if (_debugLevel > 1 && getGpu()._id == 0) {
+            if (_verbose  && getGpu()._id == 0) {
                 printf("NNNetwork::Train: Minibatch@%u, average error %f, (%f training, %f regularization), alpha %f\n", pos, error_training / minibatch + error_regularization, error_training / minibatch, error_regularization, alpha);
             }
 
