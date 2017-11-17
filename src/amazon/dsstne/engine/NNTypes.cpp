@@ -998,7 +998,7 @@ template<typename T> bool NNDataSet<T>::SetDenoising(bool flag)
 template<typename T> bool NNDataSet<T>::SetStreaming(bool flag)
 {
     // Check for streaming capability, warn on each GPU that doesn't support it
-    if (getGpu()._bUnifiedMemory)
+    if (!getGpu()._bUnifiedMemory)
     {
         printf("NNDataSet::SetStreaming: Streaming datasets not supported on GPU %d\n", getGpu()._id);
     }
