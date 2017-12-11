@@ -2,7 +2,7 @@
 # AUTHOR:         DSSTNE Docker <dsstne-docker@amazon.com>
 # DESCRIPTION:    Docker image for Amazon DSSTNE
 
-FROM nvidia/cuda:9.0-cudnn6-devel-ubuntu14.04
+FROM nvidia/cuda:9.0-cudnn7-devel-ubuntu16.04
 
 # Suppress interactive prompts while installing base packages
 ENV DEBIAN_FRONTEND=noninteractive
@@ -18,28 +18,28 @@ RUN apt-get update && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
 # Install OpenMPI
-RUN apt-get install libopenmpi-dev
+RUN apt-get install -y libopenmpi-dev
 
 # Install JSONCPP
-RUN apt-get install libjsoncpp-dev
+RUN apt-get install -y libjsoncpp-dev
 
 # Install hdf5
-RUN cd /tmp && \
-    wget ftp://ftp.unidata.ucar.edu/pub/netcdf/netcdf-4/hdf5-1.8.12.tar.gz && \
-    tar xvfz hdf5-1.8.12.tar.gz && \
-    cd hdf5-1.8.12 && \
-    ./configure --prefix=/usr/local && \
-    make -j 8 && \
-    make install && rm -rf /tmp/*
+#RUN cd /tmp && \
+#    wget ftp://ftp.unidata.ucar.edu/pub/netcdf/netcdf-4/hdf5-1.8.12.tar.gz && \
+#    tar xvfz hdf5-1.8.12.tar.gz && \
+#    cd hdf5-1.8.12 && \
+#    ./configure --prefix=/usr/local && \
+#    make -j 8 && \
+#    make install && rm -rf /tmp/*
 
 # Install zlib
-RUN apt-get install zlib
+RUN apt-get install -y zlib
 
 # Install netcdf
-RUN apt-get install libnetcdf-dev
+RUN apt-get install -y libnetcdf-dev
 
 # Install netcdf-c++
-RUN apt-get install libnetcdfc++4-dev
+RUN apt-get install -y libnetcdfc++4-dev
 
 # Installing CUBG
 RUN cd /tmp && \
