@@ -17,7 +17,7 @@ When you build this Docker image, all of the dependencies for building DSSTNE wi
 
 ### AMI with nvidia-docker
 
-You can launch a [GPU-based EC2 instance](http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/using_cluster_computing.html) from *ami-25c0eb32*, which has Docker and nvidia-docker installed. This AMI also includes NVIDIA drivers, and is currently available in the us-east-1 region (N.Virginia in AWS Console).
+You can launch a [GPU-based EC2 instance](http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/using_cluster_computing.html) from *ami-fe173884*, which has Docker and nvidia-docker installed. This AMI also includes NVIDIA drivers, and is currently available in the us-east-1 region (N.Virginia in AWS Console).
 
 You can create a new EC2 instance by following the instructions in the [EC2 Launch Instance Wizard](https://console.aws.amazon.com/ec2/v2/home?region=us-east-1#LaunchInstanceWizard:ami=ami-25c0eb32) (this link will take you directly to the wizard).
 
