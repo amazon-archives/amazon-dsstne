@@ -102,7 +102,8 @@ nvidia-docker run -it amazon-dsstne /bin/bash
 ```
 
 ## Setup on your own development machine
-Instructions are provided for installation on Ubuntu Linux machines. We would require at least 16.04 version of ubuntu. We encourage the use of docker if you have a version before that 
+Instructions are provided for installation on Ubuntu 16.04 Linux machines. For prior versions of Ubuntu, usage of Docker is recommended.
+
 
 ### Prerequisites
 * [Setup GCC](#gcc-setup) : GCC compiler with C++11 is required.
