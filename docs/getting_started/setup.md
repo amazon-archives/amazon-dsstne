@@ -168,7 +168,7 @@ sudo apt-get install libnetcdf-dev
 #### Netcdfc++ Setup
 ```bash
 # Ubuntu/Linux 64-bit
-sudo apt-get install libnetcdfc++4-dev
+sudo apt-get install libnetcdf-c++4-dev
 ```
 
 #### JsonCPP Setup
