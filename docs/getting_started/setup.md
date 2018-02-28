@@ -17,7 +17,7 @@ When you build this Docker image, all of the dependencies for building DSSTNE wi
 
 ### AMI with nvidia-docker
 
-You can launch a [GPU-based EC2 instance](http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/using_cluster_computing.html) from *ami-25c0eb32*, which has Docker and nvidia-docker installed. This AMI also includes NVIDIA drivers, and is currently available in the us-east-1 region (N.Virginia in AWS Console).
+You can launch a [GPU-based EC2 instance](http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/using_cluster_computing.html) from *ami-fe173884*, which has Docker and nvidia-docker installed. This AMI also includes NVIDIA drivers, and is currently available in the us-east-1 region (N.Virginia in AWS Console).
 
 You can create a new EC2 instance by following the instructions in the [EC2 Launch Instance Wizard](https://console.aws.amazon.com/ec2/v2/home?region=us-east-1#LaunchInstanceWizard:ami=ami-25c0eb32) (this link will take you directly to the wizard).
 
@@ -102,7 +102,8 @@ nvidia-docker run -it amazon-dsstne /bin/bash
 ```
 
 ## Setup on your own development machine
-Instructions are provided for installation on Ubuntu Linux machines.
+Instructions are provided for installation on Ubuntu 16.04 Linux machines. For prior versions of Ubuntu, usage of Docker is recommended.
+
 
 ### Prerequisites
 * [Setup GCC](#gcc-setup) : GCC compiler with C++11 is required.
@@ -115,19 +116,10 @@ Instructions are provided for installation on Ubuntu Linux machines.
 
 #### GCC Setup
 ```bash
-# Ubuntu/Linux 14.04 64-bit
+# Ubuntu/Linux 64-bit
 sudo apt-get -y update
 sudo apt-get install gcc
 sudo apt-get install g++
-
-# Ubuntu/Linux 16.04 64-bit
-sudo apt-get -y update
-sudo apt-get install gcc
-sudo apt-get install g++
-sudo apt-get install libjsoncpp-dev
-sudo apt-get install libnetcdf-dev
-sudo apt-get install libnetcdfc++4-dev
-sudo apt-get install libopenmpi-dev
 
 #Fedora 64-bit
 sudo dnf check-update
@@ -136,7 +128,7 @@ sudo dnf install gcc-c++
 ```
 #### Cublas Setup
 ```bash
-# Ubuntu/Linux 14.04 64-bit
+# Ubuntu/Linux 64-bit
 sudo apt-get install -y libatlas-base-dev
 
 #Fedora 64-bit
@@ -148,13 +140,7 @@ MPI is used across in DSTTNE to allow multi GPU modeling. OpenMPI package is use
 
 ```bash
 # Ubuntu/Linux 64-bit
-sudo apt-get -y install make
-wget http://www.open-mpi.org/software/ompi/v1.8/downloads/openmpi-1.8.2.tar.gz
-tar xvfz openmpi-1.8.2.tar.gz
-cd openmpi-1.8.2
-./configure --prefix=/usr/local/openmpi
-make
-sudo make install
+sudo apt-get install libopenmpi-dev
 ```
 
 #### NetCDF Setup
@@ -166,58 +152,29 @@ NetCDF is the format which is supported inherently from DSSTNE engine. It is req
 
 #### HDF5 Setup
 ```bash
-# Ubuntu/Linux 64-bit
-wget ftp://ftp.unidata.ucar.edu/pub/netcdf/netcdf-4/hdf5-1.8.12.tar.gz
-tar xvfz hdf5-1.8.12.tar.gz
-cd hdf5-1.8.12
-./configure --prefix=/usr/local
-make
-sudo make install
+sudo apt-get install libhdf5-dev
 ```
 
 #### Zlib Setup
 ```bash
 # Ubuntu/Linux 64-bit
-wget ftp://ftp.unidata.ucar.edu/pub/netcdf/netcdf-4/zlib-1.2.8.tar.gz
-tar xvf zlib-1.2.8.tar.gz
-cd zlib-1.2.8
-./configure
-make
-sudo make install
+sudo apt-get install zlib1g-dev
 ```
 #### Netcdf Setup
 ```bash
 # Ubuntu/Linux 64-bit
-wget ftp://ftp.unidata.ucar.edu/pub/netcdf/netcdf-4.1.3.tar.gz
-tar xvf netcdf-4.1.3.tar.gz
-cd netcdf-4.1.3
-./configure --prefix=/usr/local
-make
-sudo make install
+sudo apt-get install libnetcdf-dev
 ```
 #### Netcdfc++ Setup
 ```bash
 # Ubuntu/Linux 64-bit
-wget http://www.unidata.ucar.edu/downloads/netcdf/ftp/netcdf-cxx4-4.2.tar.gz
-tar xvf netcdf-cxx4-4.2.tar.gz
-cd netcdf-cxx4-4.2
-./configure --prefix=/usr/local
-make
-sudo make install
+sudo apt-get install libnetcdf-c++4-dev
 ```
 
 #### JsonCPP Setup
 ```bash
 # Ubuntu/Linux 64-bit
-sudo apt-get -y install cmake
-wget https://github.com/open-source-parsers/jsoncpp/archive/svn-import.tar.gz
-tar xvfz svn-import.tar.gz
-cd jsoncpp-svn-import
-mkdir -p build/release
-cd build/release
-cmake -DCMAKE_BUILD_TYPE=release -DJSONCPP_LIB_BUILD_SHARED=OFF -G "Unix Makefiles" ../..
-make
-sudo make install
+sudo apt-get install libjsoncpp-dev
 ```
 
 #### CUB Setup
