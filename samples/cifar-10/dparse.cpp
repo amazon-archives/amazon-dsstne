@@ -115,7 +115,7 @@ int main(int argc, char **argv)
         nc.putAtt("length0", ncUint, length);
         NcDim examplesDim0      = nc.addDim("examplesDim0", training_images);
         NcDim dataDim0          = nc.addDim("dataDim0", training_images * imageSize); 
-        NcVar dataVar0          = nc.addVar("data0", ncUint, dataDim0); 
+        NcVar dataVar0          = nc.addVar("data0", "ubyte", dataDim0.getName()); 
         dataVar0.putVar(vTrainingData.data());
     
         // Write output data set
@@ -127,9 +127,9 @@ int main(int argc, char **argv)
         nc.putAtt("width1", ncUint, classes);
         NcDim examplesDim1      = nc.addDim("examplesDim1", training_images);
         NcDim sparseDataDim1    = nc.addDim("sparseDataDim1", training_images); 
-        NcVar sparseStartVar1   = nc.addVar("sparseStart1", ncUint, examplesDim1);
-        NcVar sparseEndVar1     = nc.addVar("sparseEnd1", ncUint, examplesDim1);
-        NcVar sparseIndexVar1   = nc.addVar("sparseIndex1", ncUint, sparseDataDim1);
+        NcVar sparseStartVar1   = nc.addVar("sparseStart1", "uint", examplesDim1.getName());
+        NcVar sparseEndVar1     = nc.addVar("sparseEnd1", "uint", examplesDim1.getName());
+        NcVar sparseIndexVar1   = nc.addVar("sparseIndex1", "uint", sparseDataDim1.getName());
         sparseStartVar1.putVar(vTrainingSparseLabelStart.data());
         sparseEndVar1.putVar(vTrainingSparseLabelEnd.data());
         sparseIndexVar1.putVar(vTrainingSparseLabel.data());      
@@ -176,7 +176,7 @@ int main(int argc, char **argv)
         nc.putAtt("length0", ncUint, length);
         NcDim examplesDim0      = nc.addDim("examplesDim0", test_images);
         NcDim dataDim0          = nc.addDim("dataDim0", test_images * imageSize); 
-        NcVar dataVar0          = nc.addVar("data0", ncUbyte, dataDim0); 
+        NcVar dataVar0          = nc.addVar("data0", "ubyte", dataDim0.getName()); 
         dataVar0.putVar(vTestData.data());
  
         // Write output data set
@@ -188,14 +188,13 @@ int main(int argc, char **argv)
         nc.putAtt("width1", ncUint, classes);
         NcDim examplesDim1      = nc.addDim("examplesDim1", test_images);
         NcDim sparseDataDim1    = nc.addDim("sparseDataDim1", test_images); 
-        NcVar sparseStartVar1   = nc.addVar("sparseStart1", ncUint, examplesDim1);
-        NcVar sparseEndVar1     = nc.addVar("sparseEnd1", ncUint, examplesDim1);
-        NcVar sparseIndexVar1   = nc.addVar("sparseIndex1", ncUint, sparseDataDim1);
+        NcVar sparseStartVar1   = nc.addVar("sparseStart1", "uint", examplesDim1.getName());
+        NcVar sparseEndVar1     = nc.addVar("sparseEnd1", "uint", examplesDim1.getName());
+        NcVar sparseIndexVar1   = nc.addVar("sparseIndex1", "uint", sparseDataDim1.getName());
         sparseStartVar1.putVar(vTestSparseLabelStart.data());
         sparseEndVar1.putVar(vTestSparseLabelEnd.data());
         sparseIndexVar1.putVar(vTestSparseLabel.data());
     }
-
 
 
 
