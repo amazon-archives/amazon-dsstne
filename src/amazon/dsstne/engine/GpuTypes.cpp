@@ -281,7 +281,7 @@ void GpuContext::Startup(int argc, char** argv)
     _data._warpSize                                 = _warpSize;
     _data._warpBits                                 = _warpBits;
     _data._warpMask                                 = _warpMask;
-    _bUnifiedMemory                                 = (deviceProp.concurrentManagedAccess != 0);
+    _bUnifiedMemory                                 = (deviceProp.managedMemory != 0);
     
     // Determine language-specific type limits
     _data._maxUint32_t                              = numeric_limits<uint32_t>::max();
