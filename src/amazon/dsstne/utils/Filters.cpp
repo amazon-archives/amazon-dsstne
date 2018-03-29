@@ -117,12 +117,6 @@ void SamplesFilter::loadSingleFilter(unordered_map<string, unsigned int> &xMInpu
                         if (vals.size() > 1)
                         {
                             value = atof(vals[1].c_str());
-                            // This is hack for reading just the recs
-                            // Because the current one has date
-                            if (value > 10.0)
-                            {
-                                value = 0.0f;
-                            }
                         }
                         (*sampleFilter)[key] = value;
                     }
