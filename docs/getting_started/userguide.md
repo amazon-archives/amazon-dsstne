@@ -17,6 +17,39 @@ Example1	Feature1:Feature2:Feature3
 Example2	Feature5:Feature2:Feature4
 Example3	Feature6:Feature7:Feature8
 ```
+Saving the above to a file called indicators.csv, then issuing the command below, for example:
+
+```bash
+generateNetCDF -c -d indicators -i indicators.csv -o indicators.nc -f indicators_features_index -s indicators_samples_index
+```
+Using ncdump on indicators.nc demonstrates the netCDF format used by DSSTNE.
+```bash
+netcdf indicators {
+dimensions:
+    examplesDim0 = 3 ;
+    sparseDataDim0 = 9 ;
+variables:
+    uint sparseStart0(examplesDim0) ;
+    uint sparseEnd0(examplesDim0) ;
+    uint sparseIndex0(sparseDataDim0) ;
+
+// global attributes:
+        :datasets = 1U ;
+        :name0 = "indicators" ;
+        :attributes0 = 3U ;
+        :kind0 = 0U ;
+        :dataType0 = 0U ;
+        :dimensions0 = 1U ;
+        :width0 = 128U ;
+data:
+
+ sparseStart0 = 0, 3, 6 ;
+
+ sparseEnd0 = 3, 6, 9 ;
+
+ sparseIndex0 = 0, 1, 2, 3, 1, 4, 5, 6, 7 ;
+}
+```
 
 Note that sample and feature names should consist only of alpha-numeric characters, underscores and periods.
 
@@ -30,8 +63,41 @@ Example1    Feature1,123
 Example2    Feature2,234
 Example3    Feature3,345:Feature4,456
 ```
+Saving the above in a file called analog.csv, then issusing the command below (take note of the "-t analog" flag), for example:
+```bash
+generateNetCDF -t analog -c -d analog -i analog.csv -o analog.nc -f analog_features_index -s analog_samples_index
+```
+Using ncdump on analog.nc demonstrates the netCDF format used by DSSTNE when features have values.
+```bash
+netcdf analog {
+dimensions:
+    examplesDim0 = 3 ;
+    sparseDataDim0 = 4 ;
+variables:
+    uint sparseStart0(examplesDim0) ;
+    uint sparseEnd0(examplesDim0) ;
+    uint sparseIndex0(sparseDataDim0) ;
+    float sparseData0(sparseDataDim0) ;
 
-Support for analog values in `generateNetCDF` is currently incomplete, but is [coming soon](https://github.com/amznlabs/amazon-dsstne/issues/69).
+// global attributes:
+        :datasets = 1U ;
+        :name0 = "analog" ;
+        :attributes0 = 1U ;
+        :kind0 = 0U ;
+        :dataType0 = 4U ;
+        :dimensions0 = 1U ;
+        :width0 = 128U ;
+data:
+
+ sparseStart0 = 0, 1, 2 ;
+
+ sparseEnd0 = 1, 2, 4 ;
+
+ sparseIndex0 = 0, 1, 2, 3 ;
+
+ sparseData0 = 123, 234, 345, 456 ;
+}
+```
 
 # Neural Network Layer Definition Language
 The definitions for the Neural Network fed into DSSTNE is represented in a Json Format. All the supported feature can be found at [LDL.txt](LDL.txt). Sample one is given below
