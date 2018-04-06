@@ -112,6 +112,7 @@ Instructions are provided for installation on Ubuntu 16.04 Linux machines. For p
 * [Setup OpenMPI](#openmpi-setup) : CUDA aware OpenMPI is required.
 * [Setup NetCDF](#netcdf-setup) : NetCDF is the native format which DSSTNE engine supports
 * [Setup JsonCPP](#jsoncpp-setup) : Configurations are parsed through Json
+* [Setup CppUnit](#cppunit-setup) : Unit testing framework module for C++ 
 * [Setup CUB](#cub-setup) : Dependent CUDA libraries which is required by DSSTNE
 
 #### GCC Setup
@@ -175,6 +176,12 @@ sudo apt-get install libnetcdf-c++4-dev
 ```bash
 # Ubuntu/Linux 64-bit
 sudo apt-get install libjsoncpp-dev
+```
+
+#### CppUnit Setup
+```bash
+# Ubuntu
+sudo apt-get install libcppunit-dev
 ```
 
 #### CUB Setup
