@@ -7,6 +7,7 @@
 // Step 5. ./dparse
 // Step 6. Use the network in config.json with cifar-10-training.nc and cifar-10-test.nc, P@1~=81%
 
+#include <chrono>
 #include <cstdio>
 #include <algorithm>
 #include <cstring>
@@ -18,7 +19,6 @@
 #include <random>
 #include <stdlib.h>
 #include <netcdf>
-#include <sys/time.h>
 using namespace std;
 using namespace netCDF;
 using namespace netCDF::exceptions;
@@ -39,33 +39,10 @@ std::vector<std::string> split(const std::string &s, char delim) {
     return elems;
 }
 
-double elapsed_time(timeval& x, timeval& y)
-{
-    timeval result;
-  /* Perform the carry for the later subtraction by updating y. */
-  if (x.tv_usec < y.tv_usec) {
-    int nsec = (y.tv_usec - x.tv_usec) / 1000000 + 1;
-    y.tv_usec -= 1000000 * nsec;
-    y.tv_sec += nsec;
-  }
-  if (x.tv_usec - y.tv_usec > 1000000) {
-    int nsec = (x.tv_usec - y.tv_usec) / 1000000;
-    y.tv_usec += 1000000 * nsec;
-    y.tv_sec -= nsec;
-  }
-
-  /* Compute the time remaining to wait.
-     tv_usec is certainly positive. */
-  result.tv_sec = x.tv_sec - y.tv_sec;
-  result.tv_usec = x.tv_usec - y.tv_usec;
-  return (double)result.tv_sec + ((double)result.tv_usec / 1000000.0);
-}
-
 
 int main(int argc, char **argv)
 {
-    timeval ts;
-    gettimeofday(&ts, NULL);
+    auto const start = std::chrono::steady_clock::now();
     static const uint32_t classes = 10;
     static const uint32_t training_images = 49920; //50000; //49920;
     static const uint32_t test_images = 9984; //10000; //9984;    
@@ -196,14 +173,9 @@ int main(int argc, char **argv)
         sparseIndexVar1.putVar(vTestSparseLabel.data());
     }
 
-
-
-
-
-    timeval t1;
-    gettimeofday(&t1, NULL);
-
-    printf("Write %fs\n", elapsed_time(t1, ts));
+    auto const end = std::chrono::steady_clock::now();
+    auto const elapsed_seconds = std::chrono::duration_cast<std::chrono::duration<double>>(end - start);
+    printf("Write %fs\n", elapsed_seconds.count());
 
     return 0;
 }

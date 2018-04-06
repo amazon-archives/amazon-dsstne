@@ -13,7 +13,6 @@
 #include "GpuTypes.h"
 #include "NNTypes.h"
 #include <values.h>
-#include <sys/time.h>
 
 
 

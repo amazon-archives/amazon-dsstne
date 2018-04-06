@@ -17,7 +17,7 @@
 #include <string>
 #include <unordered_map>
 #include <stdexcept>
-#include <sys/time.h>
+#include <chrono>
 
 #include "Filters.h"
 #include "Utils.h"
@@ -72,8 +72,7 @@ void SamplesFilter::loadSingleFilter(unordered_map<string, unsigned int> &xMInpu
                                      const string &filePath)
 {
     ifstream samplesFile(filePath);
-    timeval ts;
-    gettimeofday(&ts, NULL);
+    auto start = std::chrono::steady_clock::now();
     unordered_map<int, float> *sampleFilter = nullptr;
     int samplesFilterCount = 0;
     vector<string> filters;
@@ -138,11 +137,10 @@ void SamplesFilter::loadSingleFilter(unordered_map<string, unsigned int> &xMInpu
                 ++samplesFilterCount;
                 if (samplesFilterCount % gSamplesLoggingInterval == 0)
                 {
-                    timeval t2;
-                    gettimeofday(&t2, NULL);
+                    auto const end = std::chrono::steady_clock::now();
                     cout << "Progress Parsing Filter " << samplesFilterCount;
-                    cout << "Time " << elapsed_time(t2, ts) << endl;
-                    gettimeofday(&ts, NULL);
+                    cout << "Time " << elapsed_seconds(start, end) << endl;
+                    start = std::chrono::steady_clock::now();
                 }
             }
         }

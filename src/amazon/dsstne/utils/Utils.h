@@ -11,9 +11,10 @@
  */
 #pragma once
 #include <iostream>
-#include <sys/time.h>
 #include <vector>
 #include <map>
+#include <chrono>
+#include <ratio>
 
 using std::string;
 using std::vector;
@@ -82,7 +83,19 @@ std::vector<std::string> split(const std::string &s, char delim);
 void forceClearVector(vector<unsigned int> &vectorToClear);
 void forceClearVector(vector<float> &vectorToClear);
 
-double elapsed_time(timeval x, timeval y);
+/**
+ * Return the number of seconds elapsed between two time points.
+ *
+ * The two time points must be issued from the same clock -- otherwise this
+ * does not make sense.
+ */
+template <typename Clock, typename Duration1, typename Duration2>
+double elapsed_seconds(std::chrono::time_point<Clock, Duration1> start,
+                       std::chrono::time_point<Clock, Duration2> end)
+{
+  using FloatingPointSeconds = std::chrono::duration<double, std::ratio<1>>;
+  return std::chrono::duration_cast<FloatingPointSeconds>(end - start).count();
+}
 
 /**
  * Returns true iff dirname is a directory

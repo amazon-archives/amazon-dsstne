@@ -13,13 +13,13 @@
 #include <cstdio>
 #include <algorithm>
 #include <cerrno>
+#include <chrono>
 #include <cstring>
 #include <iostream>
 #include <fstream>
 #include <sstream>
 #include <map>
 #include <netcdf>
-#include <sys/time.h>
 #include <unordered_map>
 #include <stdexcept>
 
@@ -94,9 +94,8 @@ bool parseSamples(istream &inputStream,
                   map<unsigned int, vector<unsigned int>> &mSignals,
                   map<unsigned int, vector<float>> &mSignalValues,
                   ostream &outputStream) {
-    timeval tBegin;
-    gettimeofday(&tBegin, NULL);
-    timeval tReported = tBegin;
+    auto const start = std::chrono::steady_clock::now();
+    auto reported = start;
     string line;
     int lineNumber = 0;
 
@@ -185,12 +184,11 @@ bool parseSamples(istream &inputStream,
         mSignals[sampleIndex] = signals;
         mSignalValues[sampleIndex] = signalValue;
         if (mSampleIndex.size() % gLoggingRate == 0) {
-            timeval tNow;
-            gettimeofday(&tNow, NULL);
+            auto const now = std::chrono::steady_clock::now();
             outputStream << "Progress Parsing (Sample " << mSampleIndex.size() << ", ";
-            outputStream << "Time " << elapsed_time(tNow, tReported) << ", ";
-            outputStream << "Total " << elapsed_time(tNow, tBegin) << ")" << endl;
-            tReported = tNow;
+            outputStream << "Time " << elapsed_seconds(reported, now) << ", ";
+            outputStream << "Total " << elapsed_seconds(start, now) << ")" << endl;
+            reported = now;
         }
     }
 
