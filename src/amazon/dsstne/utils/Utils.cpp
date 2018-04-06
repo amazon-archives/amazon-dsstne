@@ -39,36 +39,6 @@ void CWMetric::updateMetrics(string metric, string value)
 */
 }
 
-void CWMetric::updateMetrics(string metric, int value)
-{
-    stringstream sValue;
-    sValue << value;
-    return CWMetric::updateMetrics(metric, sValue.str());
-
-}
-
-void CWMetric::updateMetrics(string metric, unsigned int value)
-{
-    stringstream sValue;
-    sValue << value;
-    return CWMetric::updateMetrics(metric, sValue.str());
-
-}
-
-void CWMetric::updateMetrics(string metric, double value)
-{
-    stringstream sValue;
-    sValue << value;
-    return CWMetric::updateMetrics(metric, sValue.str());
-}
-
-void CWMetric::updateMetrics(string metric, size_t value)
-{
-    stringstream sValue;
-    sValue << value;
-    return CWMetric::updateMetrics(metric, sValue.str());
-}
-
 char* getCmdOption(char ** begin, char ** end, const std::string & option)
 {
     char ** itr = std::find(begin, end, option);
