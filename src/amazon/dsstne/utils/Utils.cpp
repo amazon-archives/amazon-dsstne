@@ -174,18 +174,6 @@ std::vector<std::string> split(const std::string &s, char delim)
     return elems;
 }
 
-void forceClearVector(vector<unsigned int> &vectorToClear)
-{
-    vectorToClear.clear();
-    vector<unsigned int>(vectorToClear).swap(vectorToClear);
-}
-
-void forceClearVector(vector<float> &vectorToClear)
-{
-    vectorToClear.clear();
-    vector<float>(vectorToClear).swap(vectorToClear);
-}
-
 bool isDirectory(const string &dirname) {
     struct stat buf;
     stat(dirname.c_str(), &buf);

@@ -77,13 +77,6 @@ std::vector<std::string> &split(const std::string &s, char delim, std::vector<st
 std::vector<std::string> split(const std::string &s, char delim);
 
 /**
- * Uses the swap technique to force clearing of memory allocated to the vector.
- * TODO: Templatize this function so that it can be used with ANY vector types.
- */
-void forceClearVector(vector<unsigned int> &vectorToClear);
-void forceClearVector(vector<float> &vectorToClear);
-
-/**
  * Return the number of seconds elapsed between two time points.
  *
  * The two time points must be issued from the same clock -- otherwise this

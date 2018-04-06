@@ -88,12 +88,6 @@ void convertTextToNetCDF(string inputTextFile,
         writeNetCDFFile(vSparseStart, vSparseEnd, vSparseIndex, 
             outputNCDFFile, dataSetName, mFeatureIndex.size());
     }
-
-    // Delete unwanted memory now that we have produced the netCDF file.
-    forceClearVector(vSparseStart);
-    forceClearVector(vSparseEnd);
-    forceClearVector(vSparseIndex);
-    forceClearVector(vSparseData);
 }
 
 void printUsagePredict() {
