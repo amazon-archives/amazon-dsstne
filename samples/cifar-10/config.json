@@ -23,7 +23,7 @@
         { "Name" : "C3a", "Kind" : "Hidden", "Type" : "Convolutional", "N" : 96, "Kernel" : [5, 5], "KernelStride" : [1, 1],  "Activation" : "Linear", "WeightInit" : { "Scheme" : "Gaussian", "Scale" : 0.02 , "Bias" : 0.0 } },           
         { "Name" : "P3", "Kind" : "Hidden", "Type" : "Pooling", "Function" : "Max", "Kernel" : [2, 2], "KernelStride" : [2, 2]}, 
         
-        { "Kind" : "Hidden", "Type" : "FullyConnected", "N" : 1024, "Activation" : "Relu", "pDropout" : 0.5 },        
+        { "Kind" : "Hidden", "Type" : "FullyConnected", "BatchNormalization" : true, "N" : 1024, "Activation" : "Relu", "pDropout" : 0.5 },        
         
         { "Name" : "Output", "Kind" : "Output", "Type" : "FullyConnected", "N" : "auto", "DataSet" : "output", "Activation" : "SoftMax", "WeightInit" : { "Scheme" : "Gaussian", "Scale" : 0.01 , "Bias" : 0.0 } }
     ],

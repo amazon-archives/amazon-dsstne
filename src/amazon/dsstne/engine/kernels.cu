@@ -3461,6 +3461,23 @@ template<typename KeyType, typename ValueType> bool kSort(uint32_t items, KeyTyp
     cub::DeviceRadixSort::SortPairs(pTemp, tempBytes, d_keys, d_values, items);
     return true;   
 }
+
+__global__ void
+LAUNCH_BOUNDS()
+kAddScaleBuffers_kernel(NNFloat* pDst, NNFloat* pSrc, NNFloat scale, uint64_t size)
+{
+    uint64_t pos                            = blockIdx.x * blockDim.x + threadIdx.x;
+    if (pos < size)
+        *(pDst + pos)                      += *(pSrc + pos) * scale;
+}
+
+void kAddScaleBuffers(NNFloat* pDst, NNFloat* pSrc, NNFloat scale, uint64_t size)
+{
+    uint32_t blocks                         = CalculateBlocks(size);
+    kAddScaleBuffers_kernel<<<blocks, getGpu()._threadsPerBlock>>>(pDst, pSrc, scale, size);
+    LAUNCHERROR("kAddBuffers_kernel");
+}
+
 __global__ void
 LAUNCH_BOUNDS()
 kAddBuffers_kernel(NNFloat* pDst, NNFloat* pSrc, uint64_t size)

@@ -3264,7 +3264,14 @@ NNNetwork* LoadNeuralNetworkJSON(const string& fname, const uint32_t batch, cons
                             if (ldl._kind == NNLayer::Kind::Hidden)
                             {
                                 // Layer-specific sparse penalty
-                                if (lname.compare("sparsenesspenalty") == 0)
+                                if (lname.compare("batchnormalization") == 0)
+                                {
+                                    if (lvalue.asBool())
+                                        ldl._attributes|= NNLayer::Attributes::BatchNormalization;
+                                    continue;
+                                }
+
+                                else if (lname.compare("sparsenesspenalty") == 0)
                                 {
                                     for (Json::ValueIterator pitr = lvalue.begin(); pitr != lvalue.end() ; pitr++)
                                     {

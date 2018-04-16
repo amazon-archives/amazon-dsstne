@@ -42,6 +42,7 @@ void kCalculateTopK(NNFloat* pOutputKey, NNFloat *pKey, uint32_t* pValue, uint32
 void kCalculateTopK(NNFloat* pOutputKey, NNFloat* pOutputValue, NNFloat *pKey, NNFloat* pValue, uint32_t batch, uint32_t width, uint32_t k);
 void kCalculateTopK(NNFloat* pOutputKey, uint32_t* pOutputValue, NNFloat *pKey, uint32_t * pValue, uint32_t batch, uint32_t width, uint32_t k);
 void kCalculateKSparse(NNFloat* pUnit, uint32_t batch, uint32_t stride, uint32_t kSparse);
+void kAddScaleBuffers(NNFloat* pDest, NNFloat* pSrc, NNFloat scale,uint64_t size);
 void kAddBuffers(NNFloat* pDest, NNFloat* pSrc, uint64_t size);
 void kAddBuffers2D(NNFloat* pDest, uint32_t dpitch, NNFloat* pSrc, uint32_t spitch, uint32_t width, uint32_t height);
 void kCopy2D(NNFloat* pDest, uint32_t dpitch, NNFloat* pSrc, uint32_t spitch, uint32_t width, uint32_t height);
