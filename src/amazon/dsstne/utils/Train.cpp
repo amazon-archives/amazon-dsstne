@@ -11,6 +11,7 @@
  */
 #include <cstdio>
 #include <algorithm>
+#include <chrono>
 #include <cstring>
 #include <iostream>
 #include <fstream>
@@ -18,7 +19,6 @@
 #include <vector>
 #include <map>
 #include <netcdf>
-#include <sys/time.h>
 #include <values.h>
 #include <stdexcept>
 #include <unordered_map>
@@ -142,18 +142,16 @@ int main(int argc, char** argv)
     TrainingMode mode=SGD;
     pNetwork->SetTrainingMode(mode);
 	
-    timeval trainingStart;
-    gettimeofday(&trainingStart, NULL);
+    auto const start = std::chrono::steady_clock::now();
     // Start Training
     for(unsigned int x = 0 ; x < epoch; ++x) {
         float error = pNetwork->Train(1, alpha, lambda, lambda1, mu, mu1);
         CWMetric::updateMetrics("Average_Error",error);
         CWMetric::updateMetrics("Epochs",x+1);
     }
-    timeval trainingEnd;
-    gettimeofday(&trainingEnd,NULL);
-    CWMetric::updateMetrics("Training_Time", elapsed_time(trainingEnd, trainingStart));
-    cout << "Total Training Time " << elapsed_time(trainingEnd, trainingStart);
+    auto const end = std::chrono::steady_clock::now();
+    CWMetric::updateMetrics("Training_Time", elapsed_seconds(start, end));
+    cout << "Total Training Time " << elapsed_seconds(start, end);
 
     int totalGPUMemory;
     int totalCPUMemory;

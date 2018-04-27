@@ -24,7 +24,6 @@
 #include <tuple>
 #include <jsoncpp/json/json.h>
 #endif
-#include <sys/time.h>
 #include <cmath>
 #include <memory>
 

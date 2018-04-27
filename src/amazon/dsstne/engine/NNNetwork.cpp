@@ -19,6 +19,7 @@
 #include <queue>
 #include <set>
 #include <cfloat>
+#include <chrono>
 
 using namespace netCDF;
 using namespace netCDF::exceptions;
@@ -1528,8 +1529,7 @@ NNFloat NNNetwork::Train(uint32_t epochs, NNFloat alpha, NNFloat lambda, NNFloat
 
     for (uint32_t epoch = 0; epoch < epochs; epoch++)
     {
-        timeval t0;
-        gettimeofday(&t0, NULL);
+        auto const start = std::chrono::steady_clock::now();
         total_error_training                                = (NNFloat)0.0;
         total_error_regularization                          = (NNFloat)0.0;
 
@@ -1614,15 +1614,14 @@ NNFloat NNNetwork::Train(uint32_t epochs, NNFloat alpha, NNFloat lambda, NNFloat
            //getGpu().Shutdown();
            //exit(-1);
         }
-        timeval t1;
-        gettimeofday(&t1, NULL);
+        auto const end = std::chrono::steady_clock::now();
         average_error_training                              = total_error_training / GetExamples();
         average_error_regularization                        = total_error_regularization / GetExamples();
         if (getGpu()._id == 0)
             printf("NNNetwork::Train: Epoch %d, average error %f, average training error %f, average regularization error %f, elapsed time %fs\n", ++_epochs,
                     average_error_training + average_error_regularization,
                     average_error_training, average_error_regularization,
-                    elapsed_time(t1, t0));
+                    elapsed_seconds(start, end));
 
         // Check for checkpoint
         if (_checkpoint_interval > 0)

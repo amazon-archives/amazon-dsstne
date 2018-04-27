@@ -16,6 +16,7 @@
 #include <vector>
 #include <string>
 #include <cstdio>
+#include <chrono>
 
 #include "NNRecsGenerator.h"
 #include "GpuTypes.h"
@@ -60,8 +61,6 @@ void NNRecsGenerator::generateRecs(const NNNetwork *xNetwork,
                                    const vector<string> &xCustomerIndex,
                                    const vector<string> &xFeatureIndex)
 {
-    timeval t0;
-    gettimeofday(&t0, NULL);
     int lBatch    = xNetwork->GetBatch();
     int lExamples = xNetwork->GetExamples();
     int lPosition = xNetwork->GetPosition();
@@ -135,8 +134,7 @@ void NNRecsGenerator::generateRecs(const NNNetwork *xNetwork,
 
     // We dont need the memory buffer if we have only one filter as copying the memory effects performance  
     // TODO need to add a better time wrapper to measure the time duration of a  function call
-    timeval timeStart;
-    gettimeofday(&timeStart, NULL);
+    auto const start = std::chrono::steady_clock::now();
     for (int j = 0; j < lBatch; j++)
     {
         int sampleIndex = lPosition + j;
@@ -146,7 +144,6 @@ void NNRecsGenerator::generateRecs(const NNNetwork *xNetwork,
         xFilterSet->applySamplesFilter(hOutputBuffer.get() + j * lLocalOutputStride, sampleIndex, offset, lLocalOutputStride);
     }
 
-    timeval timeEnd;
     pFilteredOutput->Upload(hOutputBuffer.get());
     // TODO: Add Node Filter support for multi GPU 
     // Each GPU sorting its top xK * TOPK_SCALAR
@@ -181,8 +178,8 @@ void NNRecsGenerator::generateRecs(const NNNetwork *xNetwork,
     if (getGpu()._id == 0)
     {
         const char *fileName = xFilterSet->getOutputFileName().c_str();
-        gettimeofday(&timeEnd, NULL);
-        cout << "Time Elapsed for Filtering and selecting Top " << xK << " recs: " << elapsed_time(timeEnd, timeStart) << endl;
+        auto const now = std::chrono::steady_clock::now();
+        cout << "Time Elapsed for Filtering and selecting Top " << xK << " recs: " << elapsed_seconds(start, now) << endl;
         cout << "Writing to " << fileName << endl;
         FILE *fp = fopen(fileName, "a");
         pbKey->Download();
@@ -229,8 +226,8 @@ void NNRecsGenerator::generateRecs(const NNNetwork *xNetwork,
             fprintf(fp, "\n");
         }
         fclose(fp);
-        gettimeofday(&timeEnd, NULL);
-        cout << "Time Elapsed for Writing to file: " << elapsed_time(timeEnd, timeStart) << endl;
+        auto const end = std::chrono::steady_clock::now();
+        cout << "Time Elapsed for Writing to file: " << elapsed_seconds(start, end) << endl;
     }
 
     // Delete multi-GPU data and P2P handles if multi-GPU

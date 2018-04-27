@@ -39,36 +39,6 @@ void CWMetric::updateMetrics(string metric, string value)
 */
 }
 
-void CWMetric::updateMetrics(string metric, int value)
-{
-    stringstream sValue;
-    sValue << value;
-    return CWMetric::updateMetrics(metric, sValue.str());
-
-}
-
-void CWMetric::updateMetrics(string metric, unsigned int value)
-{
-    stringstream sValue;
-    sValue << value;
-    return CWMetric::updateMetrics(metric, sValue.str());
-
-}
-
-void CWMetric::updateMetrics(string metric, double value)
-{
-    stringstream sValue;
-    sValue << value;
-    return CWMetric::updateMetrics(metric, sValue.str());
-}
-
-void CWMetric::updateMetrics(string metric, size_t value)
-{
-    stringstream sValue;
-    sValue << value;
-    return CWMetric::updateMetrics(metric, sValue.str());
-}
-
 char* getCmdOption(char ** begin, char ** end, const std::string & option)
 {
     char ** itr = std::find(begin, end, option);
@@ -172,42 +142,6 @@ std::vector<std::string> split(const std::string &s, char delim)
     std::vector<std::string> elems;
     split(s, delim, elems);
     return elems;
-}
-
-void forceClearVector(vector<unsigned int> &vectorToClear)
-{
-    vectorToClear.clear();
-    vector<unsigned int>(vectorToClear).swap(vectorToClear);
-}
-
-void forceClearVector(vector<float> &vectorToClear)
-{
-    vectorToClear.clear();
-    vector<float>(vectorToClear).swap(vectorToClear);
-}
-
-double elapsed_time(timeval x, timeval y)
-{
-    const int uSecondsInSeconds = 1000000;
-
-    timeval result;
-    /* Perform the carry for the later subtraction by updating y. */
-    if (x.tv_usec < y.tv_usec) {
-        int nsec = (y.tv_usec - x.tv_usec) / uSecondsInSeconds + 1;
-        y.tv_usec -= uSecondsInSeconds * nsec;
-        y.tv_sec += nsec;
-    }
-    if (x.tv_usec - y.tv_usec > uSecondsInSeconds) {
-        int nsec = (x.tv_usec - y.tv_usec) / uSecondsInSeconds;
-        y.tv_usec += uSecondsInSeconds * nsec;
-        y.tv_sec -= nsec;
-    }
-
-    /* Compute the time remaining to wait.
-       tv_usec is certainly positive. */
-    result.tv_sec = x.tv_sec - y.tv_sec;
-    result.tv_usec = x.tv_usec - y.tv_usec;
-    return (double) result.tv_sec + ((double) result.tv_usec / (double) uSecondsInSeconds);
 }
 
 bool isDirectory(const string &dirname) {
