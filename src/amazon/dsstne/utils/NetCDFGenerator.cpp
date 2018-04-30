@@ -13,7 +13,7 @@
 #include <cstdio>
 #include <iostream>
 #include <unordered_map>
-#include <sys/time.h>
+#include <chrono>
 
 #include "NetCDFhelper.h"
 #include "Utils.h"
@@ -85,9 +85,7 @@ int main(int argc, char **argv) {
     unordered_map<string, unsigned int> mSampleIndex;
 
     // Start timing
-    timeval timeStart;
-    gettimeofday(&timeStart, NULL);
-
+    auto const start = std::chrono::steady_clock::now();
 
     // If sampleIndexFile exists, load it, otherwise we'll create it when we finish
     if (!fileExists(sampleIndexFile)) {
@@ -147,7 +145,6 @@ int main(int argc, char **argv) {
         writeNetCDFFile(vSparseStart, vSparseEnd, vSparseIndex, outputFile, datasetName, mFeatureIndex.size());
     }
 
-    timeval timeEnd;
-    gettimeofday(&timeEnd, NULL);
-    cout << "Total time for generating NetCDF: " << elapsed_time(timeEnd, timeStart) << " secs. " << endl;
+    auto const end = std::chrono::steady_clock::now();
+    cout << "Total time for generating NetCDF: " << elapsed_seconds(start, end) << " secs. " << endl;
 }

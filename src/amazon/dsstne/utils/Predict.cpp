@@ -11,6 +11,7 @@
  */
 #include <cstdio>
 #include <algorithm>
+#include <chrono>
 #include <cstring>
 #include <iostream>
 #include <fstream>
@@ -18,7 +19,6 @@
 #include <vector>
 #include <map>
 #include <netcdf>
-#include <sys/time.h>
 #include <stdexcept>
 #include <unordered_map>
 
@@ -88,12 +88,6 @@ void convertTextToNetCDF(string inputTextFile,
         writeNetCDFFile(vSparseStart, vSparseEnd, vSparseIndex, 
             outputNCDFFile, dataSetName, mFeatureIndex.size());
     }
-
-    // Delete unwanted memory now that we have produced the netCDF file.
-    forceClearVector(vSparseStart);
-    forceClearVector(vSparseEnd);
-    forceClearVector(vSparseIndex);
-    forceClearVector(vSparseData);
 }
 
 void printUsagePredict() {
@@ -176,8 +170,7 @@ int main(int argc, char** argv)
     getGpu().SetRandomSeed(FIXED_SEED);
 
     // Start timing loading of data and network.
-    timeval timePreProcessingStart;
-    gettimeofday(&timePreProcessingStart, NULL);
+    auto const preProcessingStart = std::chrono::steady_clock::now();
 
     unordered_map<string, unsigned int> mInput;
     cout << "Loading input feature index from: " << inputIndexFileName << endl;
@@ -237,9 +230,8 @@ int main(int argc, char** argv)
     mOutput.clear();
     mSignals.clear();
 
-    timeval timePreProcessingEnd;
-    gettimeofday(&timePreProcessingEnd, NULL);
-    cout << "Total time for loading network and data is: " << elapsed_time(timePreProcessingEnd, timePreProcessingStart) << endl;
+    auto const preProcessingEnd = std::chrono::steady_clock::now();
+    cout << "Total time for loading network and data is: " << elapsed_seconds(preProcessingStart, preProcessingEnd) << endl;
 
     string recsGenLayerLabel = "Output";
     // Now ready to generate recs for the dataset
@@ -251,11 +243,9 @@ int main(int argc, char** argv)
 
     NNRecsGenerator *nnRecsGenerator = new NNRecsGenerator(lBatch, topK, outputBufferSize, recsGenLayerLabel, scoreFormat);
 
-    timeval timeRecsGenerationStart;
-    gettimeofday(&timeRecsGenerationStart, NULL);
+    auto const recsGenerationStart = std::chrono::steady_clock::now();
 
-    timeval timeProgressReporterStart;
-    gettimeofday(&timeProgressReporterStart, NULL);
+    auto progressReporterStart = std::chrono::steady_clock::now();
     for (unsigned long long int pos = 0; pos < pNetwork->GetExamples(); pos += pNetwork->GetBatch())
     {
         cout << "Predicting from position "<< pos << endl;
@@ -264,20 +254,20 @@ int main(int argc, char** argv)
         pNetwork->PredictBatch();
         nnRecsGenerator->generateRecs(pNetwork, topK, vFilterSet, vSignals, vOutput);
         if((pos % INTERVAL_REPORT_PROGRESS) < pNetwork->GetBatch()  && (pos/INTERVAL_REPORT_PROGRESS) > 0 && getGpu()._id == 0) {
-            timeval timeProgressReporterEnd;
-            gettimeofday(&timeProgressReporterEnd, NULL);
-	    cout << "Elapsed time after " << pos <<" is "<<elapsed_time(timeProgressReporterEnd, timeProgressReporterStart)<<endl;
-            CWMetric::updateMetrics("Prediction_Time_Progress", elapsed_time(timeProgressReporterEnd, timeProgressReporterStart));
+            auto const progressReporterEnd = std::chrono::steady_clock::now();
+            auto const progressReportDuration = elapsed_seconds(progressReporterStart, progressReporterEnd);
+	    cout << "Elapsed time after " << pos << " is " << progressReportDuration <<endl;
+            CWMetric::updateMetrics("Prediction_Time_Progress", progressReportDuration);
             CWMetric::updateMetrics("Prediction_Progress",(unsigned int)pos);
-            gettimeofday(&timeProgressReporterStart,NULL);
+            progressReporterStart = std::chrono::steady_clock::now();
         }
 
     }
-    timeval timeRecsGenerationEnd;
-    gettimeofday(&timeRecsGenerationEnd, NULL);
+    auto const recsGenerationEnd = std::chrono::steady_clock::now();
+    auto const recsGenerationDuration = elapsed_seconds(recsGenerationStart, recsGenerationEnd);
     if (getGpu()._id == 0) {
-        CWMetric::updateMetrics("Prediction_Time", elapsed_time(timeRecsGenerationEnd, timeRecsGenerationStart));
-        cout << "Total time for Generating recs for " << pNetwork->GetExamples() << " was " <<  elapsed_time(timeRecsGenerationEnd, timeRecsGenerationStart) << endl;}
+        CWMetric::updateMetrics("Prediction_Time", recsGenerationDuration);
+        cout << "Total time for Generating recs for " << pNetwork->GetExamples() << " was " << recsGenerationDuration << endl;}
 
     delete(nnRecsGenerator);
     delete pNetwork;

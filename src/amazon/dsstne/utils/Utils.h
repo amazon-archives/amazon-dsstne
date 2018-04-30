@@ -11,9 +11,12 @@
  */
 #pragma once
 #include <iostream>
-#include <sys/time.h>
 #include <vector>
 #include <map>
+#include <chrono>
+#include <ratio>
+#include <string>
+#include <utility>
 
 using std::string;
 using std::vector;
@@ -27,10 +30,12 @@ class CWMetric
 {
 public:
     static void updateMetrics(string metric, string value);
-    static void updateMetrics(string metric, int value);
-    static void updateMetrics(string metric, unsigned int value);
-    static void updateMetrics(string metric, double value);
-    static void updateMetrics(string metric, size_t value);
+
+    // This function accepts a value of any type that can be used with std::to_string.
+    template <typename Value, typename = decltype(std::to_string(std::declval<Value>()))>
+    static void updateMetrics(string metric, Value value) {
+      updateMetrics(std::move(metric), std::to_string(value));
+    }
 };
 
 char* getCmdOption(char ** , char **, const std::string & );
@@ -76,13 +81,18 @@ std::vector<std::string> &split(const std::string &s, char delim, std::vector<st
 std::vector<std::string> split(const std::string &s, char delim);
 
 /**
- * Uses the swap technique to force clearing of memory allocated to the vector.
- * TODO: Templatize this function so that it can be used with ANY vector types.
+ * Return the number of seconds elapsed between two time points.
+ *
+ * The two time points must be issued from the same clock -- otherwise this
+ * does not make sense.
  */
-void forceClearVector(vector<unsigned int> &vectorToClear);
-void forceClearVector(vector<float> &vectorToClear);
-
-double elapsed_time(timeval x, timeval y);
+template <typename Clock, typename Duration1, typename Duration2>
+double elapsed_seconds(std::chrono::time_point<Clock, Duration1> start,
+                       std::chrono::time_point<Clock, Duration2> end)
+{
+  using FloatingPointSeconds = std::chrono::duration<double, std::ratio<1>>;
+  return std::chrono::duration_cast<FloatingPointSeconds>(end - start).count();
+}
 
 /**
  * Returns true iff dirname is a directory

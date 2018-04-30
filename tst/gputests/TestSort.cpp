@@ -3,6 +3,7 @@
 #include "cppunit/ui/text/TestRunner.h"
 #include "cppunit/TestAssert.h"
 // STL
+#include <chrono>
 #include <string>
 
 #include "GpuTypes.h"
@@ -35,7 +36,6 @@ bool testTopK(const size_t batch = 128, const size_t topK = 128, const size_t nF
 
     const float eps = 1.e-6;
     const size_t stride = ((nFeatures + 127) >> 7) << 7;
-    timeval t0, t1;
 
     std::unique_ptr<GpuBuffer<NNFloat> > pbKey(new GpuBuffer<NNFloat>(batch * topK, true));
     std::unique_ptr<GpuBuffer<NNFloat> > pbFValue(new GpuBuffer<NNFloat>(batch * topK, true));
@@ -60,10 +60,12 @@ bool testTopK(const size_t batch = 128, const size_t topK = 128, const size_t nF
         pbUIValue->Upload();
     }
     // run test 1
-    gettimeofday(&t0, NULL);
+    {
+        auto const start = std::chrono::steady_clock::now();
     kCalculateTopK(pbOutput->_pDevData, pbKey->_pDevData, pbUIValue->_pDevData, batch, stride, topK);
-    gettimeofday(&t1, NULL);
-    cout << "GPU sort: " << elapsed_time(t1, t0) << endl;
+        auto const end = std::chrono::steady_clock::now();
+        cout << "GPU sort: " << elapsed_seconds(start, end) << endl;
+    }
 
     //validate data
     {
@@ -87,10 +89,10 @@ bool testTopK(const size_t batch = 128, const size_t topK = 128, const size_t nF
 
         for (size_t i = 0; i < batch; i++) {
 
-            gettimeofday(&t0, NULL);
+            auto const start = std::chrono::steady_clock::now();
             topKsort<NNFloat, unsigned int>(pOutput, NULL, nFeatures, &topKkeys[0], &topKvals[0], topK);
-            gettimeofday(&t1, NULL);
-            cpuSort += elapsed_time(t1, t0);
+            auto const end = std::chrono::steady_clock::now();
+            cpuSort += elapsed_seconds(start, end);
 
             for (size_t k = 0; k < topK; k++) {
                 unsigned int GPUvalue = pUIValue[k]; // index
