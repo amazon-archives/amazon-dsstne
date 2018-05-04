@@ -115,6 +115,9 @@ private:
     Parallelization             _parallelization;           // Should layer be Data or Model parallelized?
     bool                        _bTransposeParallelization; // Should we tranpose parallelization?
     bool                        _bDirty;                    // Indicates layer state needs to be update
+    cudnnTensorDescriptor_t     _scaleBiasMeanVarDescBN;
+    cudnnTensorDescriptor_t     _tensorDescriptorBN;        // Tensor descriptor for the BatchNormalization for this layer
+    cudnnTensorDescriptor_t     _oddBatchTensorDescriptorBN;// Tensor descriptor for end of epoch batches or weird inference calls because cuDNN for Bacth Norm
     cudnnTensorDescriptor_t     _tensorDescriptor;          // Tensor descriptor for this layer
     cudnnTensorDescriptor_t     _oddBatchTensorDescriptor;  // Tensor descriptor for end of epoch batches or weird inference calls because cuDNN
     uint32_t                    _oddBatch;                  // Batch size of odd batch tensor descriptor 
@@ -139,6 +142,18 @@ private:
     unique_ptr<GpuBuffer<NNFloat>> _pbDropout;              // Dropout random values if active
     unique_ptr<GpuBuffer<NNFloat>> _pbBuffer1;              // Scratch buffer 1 if active
     unique_ptr<GpuBuffer<NNFloat>> _pbBuffer2;              // Scratch buffer 2 if active   
+    unique_ptr<GpuBuffer<NNFloat>> _pbDxBN;
+    unique_ptr<GpuBuffer<NNFloat>> _pbScaleDiffBN;
+    unique_ptr<GpuBuffer<NNFloat>> _pbBiasDiffBN;
+    unique_ptr<GpuBuffer<NNFloat>> _pbUnitBN;
+    unique_ptr<GpuBuffer<NNFloat>> _pbScaleBN;
+    unique_ptr<GpuBuffer<NNFloat>> _pbBiasBN;
+    unique_ptr<GpuBuffer<NNFloat>> _pbRunningMeanBN;
+    unique_ptr<GpuBuffer<NNFloat>> _pbRunningVarianceBN;
+    unique_ptr<GpuBuffer<NNFloat>> _pbSaveMeanBN;
+    unique_ptr<GpuBuffer<NNFloat>> _pbSaveInvVarianceBN;
+    uint32_t                    _bnCalls;
+    NNFloat                     _bnLearningRate;
     int32_t                     _priority;                  // Mutable priority for calculating propagation ordering
     NNLayer(NNLayerDescriptor& l, uint32_t batch);
     ~NNLayer();
@@ -172,6 +187,7 @@ private:
     NNFloat* GetDeltaBuffer() { return _pbDelta ? _pbDelta->_pDevData : NULL; }
     uint64_t GetBufferSize() { return _batch * _stride; }
     cudnnTensorDescriptor_t getTensorDescriptor(uint32_t batch);
+    cudnnTensorDescriptor_t getTensorDescriptorBN(uint32_t batch);
 
 public:
     tuple<uint32_t, uint32_t, uint32_t, uint32_t> GetDimensions() const;
@@ -219,6 +235,10 @@ struct NNLayerDescriptor
     uint32_t                _kernelPaddingY;            // kernel Y padding
     uint32_t                _kernelPaddingZ;            // kernel Z padding     
     uint32_t                _kernelDimensions;          // Number of components to kernel and kernel stride
+    vector<NNFloat>         _vScaleBN;
+    vector<NNFloat>         _vBiasBN;
+    vector<NNFloat>         _vRunningMeanBN;
+    vector<NNFloat>         _vRunningVarianceBN;
     NNFloat                 _weightNorm;                // Maximum weight vector length
     NNFloat                 _deltaNorm;                 // Maximum delta vector length
     NNFloat                 _pDropout;                  // Dropout probability

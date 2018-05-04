@@ -17,8 +17,8 @@
 
 
 static const Mode mode = Mode::Training;
-//static const MODE mode = Prediction;
-//static const MODE mode = Validation;
+//static const Mode mode = Mode::Prediction;
+//static const Mode mode = Mode::Validation;
 
 int main(int argc, char** argv)
 {
@@ -96,16 +96,15 @@ int main(int argc, char** argv)
     }
     else
     {
-
         // Determine output layer dimensions for top K calculations
-        bool bFilterPast        = true; 
+        bool bFilterPast        = false;    //true; 
         const NNLayer* pLayer   = pNetwork->GetLayer("Output");
         uint32_t Nx, Ny, Nz, Nw;
         tie(Nx, Ny, Nz, Nw)     = pLayer->GetLocalDimensions();
         const uint32_t STRIDE   = Nx * Ny * Nz * Nw; 
         
         // Calculate Precision and recall
-        unsigned int K                      = 100;
+        unsigned int K                      = 10;
         
         // Find input dataset
         size_t inputIndex                   = 0;
@@ -116,7 +115,6 @@ int main(int argc, char** argv)
             printf("Unable to find input dataset, exiting.\n");
             exit(-1);
         }
-        
         // Find output dataset
         size_t outputIndex                  = 0;
         while ((outputIndex < vDataSet.size()) && (vDataSet[outputIndex]->_name != "output"))
@@ -146,7 +144,7 @@ int main(int argc, char** argv)
         NNFloat* pMultiFValue               = NULL;  
         cudaIpcMemHandle_t keyMemHandle;
         cudaIpcMemHandle_t valMemHandle;
-        
+
         // Get P2P handles to multi-gpu data on node 0
         if (bMultiGPU)
         {
