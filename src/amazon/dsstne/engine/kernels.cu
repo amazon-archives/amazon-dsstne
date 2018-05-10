@@ -3475,7 +3475,7 @@ void kAddScaleBuffers(NNFloat* pDst, NNFloat* pSrc, NNFloat scale, uint64_t size
 {
     uint32_t blocks                         = CalculateBlocks(size);
     kAddScaleBuffers_kernel<<<blocks, getGpu()._threadsPerBlock>>>(pDst, pSrc, scale, size);
-    LAUNCHERROR("kAddBuffers_kernel");
+    LAUNCHERROR("kAddScaleBuffers_kernel");
 }
 
 __global__ void

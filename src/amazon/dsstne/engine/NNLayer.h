@@ -79,6 +79,7 @@ private:
     uint32_t                    _stride;                    // Total unit size
     uint32_t                    _localStride;               // Stride for local activation/delta
     uint32_t                    _maxLocalStride;            // Largest of all strides across all processes
+    uint32_t                    _strideBN;                  // stride of Batch Norm Mean and Variance
     uint32_t                    _batch;                     // Mini-batch size
     uint32_t                    _localBatch;                // Data parallel batch size
     uint32_t                    _deltaUpdateCount;          // Counter to indicate how many delta updates have been performed during backpropagation
@@ -117,7 +118,6 @@ private:
     bool                        _bDirty;                    // Indicates layer state needs to be update
     cudnnTensorDescriptor_t     _scaleBiasMeanVarDescBN;
     cudnnTensorDescriptor_t     _tensorDescriptorBN;        // Tensor descriptor for the BatchNormalization for this layer
-    cudnnTensorDescriptor_t     _oddBatchTensorDescriptorBN;// Tensor descriptor for end of epoch batches or weird inference calls because cuDNN for Bacth Norm
     cudnnTensorDescriptor_t     _tensorDescriptor;          // Tensor descriptor for this layer
     cudnnTensorDescriptor_t     _oddBatchTensorDescriptor;  // Tensor descriptor for end of epoch batches or weird inference calls because cuDNN
     uint32_t                    _oddBatch;                  // Batch size of odd batch tensor descriptor 
