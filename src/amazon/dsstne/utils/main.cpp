@@ -29,7 +29,7 @@ int main(int argc, char** argv)
 
     // Create Neural network
     int batch               = 1024;
-    int total_epochs        = 60;
+    int total_epochs        = 20;   //60
     int training_epochs     = 20;
     int epochs              = 0;
     float alpha             = 0.025f;
