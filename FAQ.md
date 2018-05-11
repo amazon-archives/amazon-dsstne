@@ -25,7 +25,7 @@ DSSTNE is licensed with the business-friendly Apache 2.0 license
 ## Can DSSTNE be run on multiple instances working on the same data set?
 Yes, it can be run on cluster with multiple instances (like EMR). If a MPI cluster is set up, the framework detects the lack of Peer-to-Peer connectivity between the GPUs in play and automagically switches to MPI system memory collectives. That being said, please ensure that all your nodes are in the same placement group connected by Elastic File System, so that you can share the data across the instances
 
-##Is there a way to run this on multiple instances working on the same data set? like EMR?
+## Is there a way to run this on multiple instances working on the same data set? like EMR?
 Yes, if you set up an MPI cluster, it should work. The framework detects the lack of P2P connectivity between the GPUs in play and automagically switches to MPI system memory collectives (distributed enabled from day 1).
 However, at 10 Gb/s between g2.8xlarge instances plus ~2-3 GB/s upload/download because virtualization, you will need a rather large layer to get efficient scaling. That said, if you just want to run large models, it should just work. It has, of course, never been tried beyond a single instance to my knowledge.
 What will be interesting down the road is running this on RDMA-enabled servers that allow inter-system P2P copies. That will need a few more lines of code, but it also ought to work.
