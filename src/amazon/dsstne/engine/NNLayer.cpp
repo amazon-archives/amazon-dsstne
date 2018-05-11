@@ -124,18 +124,10 @@ _bBatchNormalization(d._attributes & NNLayer::Attributes::BatchNormalization)
         cudnnStatus                 = cudnnCreateTensorDescriptor(&_tensorDescriptorBN);
         CUDNNERROR(cudnnStatus, "NNLayer::NNLayer: unable to create _tensordescriptorBN");
 
-        cudnnStatus     = cudnnSetTensor4dDescriptor(_tensorDescriptorBN, CUDNN_TENSOR_NCHW, CUDNN_DATA_FLOAT, batch, _Nz, _Ny, _Nx);
-        CUDNNERROR(cudnnStatus, "NNLayer::NNLayer: unable to create _tensorDescriptorBN");        
         if (_type == NNLayer::Type::Convolutional)
-        {
             _strideBN   = _Nz;
-            cudnnStatus = cudnnSetTensor4dDescriptor(_scaleBiasMeanVarDescBN, CUDNN_TENSOR_NCHW, CUDNN_DATA_FLOAT, 1, _Nz, 1, 1);
-            CUDNNERROR(cudnnStatus, "NNLayer::NNLayer: unable to create _scaleBiasMeanVarDescBN");        
-        } else {
+        else
             _strideBN   = _localStride;
-            cudnnStatus = cudnnSetTensor4dDescriptor(_scaleBiasMeanVarDescBN, CUDNN_TENSOR_NCHW, CUDNN_DATA_FLOAT, 1, _Nz, _Ny, _Nx);
-            CUDNNERROR(cudnnStatus, "NNLayer::NNLayer: unable to create _scaleBiasMeanVarDescBN");        
-        }
 
         // Allocate all of the device memory for Batch Normalization
         // need to have this here rather than Allocate(), because that memory gets wiped on Refresh and other paths
@@ -320,12 +312,6 @@ void NNLayer::Deallocate()
     _pbDropout.reset();
     _pbBuffer1.reset();
     _pbBuffer2.reset();
-}
-
-cudnnTensorDescriptor_t NNLayer::getTensorDescriptorBN(uint32_t batch)
-{
-    cudnnStatus_t cudnnStatus;
-    cudnnStatus = cudnnSetTensor4dDescriptor(_tensorDescriptorBN, CUDNN_TENSOR_NCHW, CUDNN_DATA_FLOAT, batch, _Nz, _Ny, _Nx);
 }
 
 cudnnTensorDescriptor_t NNLayer::getTensorDescriptor(uint32_t batch)
@@ -913,8 +899,13 @@ void NNLayer::ForwardPropagateFullyConnected(uint32_t position, uint32_t batch, 
             {
                 float alpha = 1;
                 float beta = 0;
+                cudnnStatus_t cudnnStatus;
+                cudnnStatus = cudnnSetTensor4dDescriptor(_tensorDescriptorBN, CUDNN_TENSOR_NCHW, CUDNN_DATA_FLOAT, batch, _Nz, _Ny, _Nx);
+                CUDNNERROR(cudnnStatus, "NNLayer::ForwardPropagateFullyConnected: unable to create _tensorDescriptorBN");        
+                cudnnStatus = cudnnSetTensor4dDescriptor(_scaleBiasMeanVarDescBN, CUDNN_TENSOR_NCHW, CUDNN_DATA_FLOAT, 1, _Nz, _Ny, _Nx);
+                CUDNNERROR(cudnnStatus, "NNLayer::ForwardPropagateFullyConnected: unable to create _scaleBiasMeanVarDescBN");        
                 if (bTraining) {
-                    cudnnStatus_t cudnnStatus = cudnnBatchNormalizationForwardTraining(
+                    cudnnStatus = cudnnBatchNormalizationForwardTraining(
                             getGpu()._cuDNNHandle,
                             CUDNN_BATCHNORM_PER_ACTIVATION,
                             &alpha,
@@ -932,12 +923,11 @@ void NNLayer::ForwardPropagateFullyConnected(uint32_t position, uint32_t batch, 
                             CUDNN_BN_MIN_EPSILON,
                             _pbSaveMeanBN->_pDevData,
                             _pbSaveInvVarianceBN->_pDevData);
-
                     CUDNNERROR(cudnnStatus, "NNLayer::ForwardPropagateFullyConnected: cudnnBatchNormalizationForwardTraining Failed");
                     _pbUnit.swap(_pbUnitBN);
                     ++_bnCalls;
                 } else {
-                    cudnnStatus_t cudnnStatus = cudnnBatchNormalizationForwardInference(
+                    cudnnStatus = cudnnBatchNormalizationForwardInference(
                             getGpu()._cuDNNHandle,
                             CUDNN_BATCHNORM_PER_ACTIVATION,
                             &alpha,
@@ -952,8 +942,8 @@ void NNLayer::ForwardPropagateFullyConnected(uint32_t position, uint32_t batch, 
                             _pbRunningMeanBN->_pDevData,
                             _pbRunningVarianceBN->_pDevData,
                             CUDNN_BN_MIN_EPSILON);
-
                     CUDNNERROR(cudnnStatus, "NNLayer::ForwardPropagateFullyConnected: cudnnBatchNormalizationForwardInference Failed");
+                    _pbUnit.swap(_pbUnitBN);
                 }
             }
            
@@ -1259,9 +1249,14 @@ void NNLayer::ForwardPropagateConvolutional(uint32_t position, uint32_t batch, b
             {
                 float alpha = 1;
                 float beta = 0;
+                cudnnStatus_t cudnnStatus;
+                cudnnStatus = cudnnSetTensor4dDescriptor(_tensorDescriptorBN, CUDNN_TENSOR_NCHW, CUDNN_DATA_FLOAT, batch, _Nz, _Ny, _Nx);
+                CUDNNERROR(cudnnStatus, "NNLayer::ForwardPropagateConvolutional: unable to create _tensorDescriptorBN");        
+                cudnnStatus = cudnnSetTensor4dDescriptor(_scaleBiasMeanVarDescBN, CUDNN_TENSOR_NCHW, CUDNN_DATA_FLOAT, 1, _Nz, 1, 1);
+                CUDNNERROR(cudnnStatus, "NNLayer::ForwardPropagateConvolutional: unable to create _scaleBiasMeanVarDescBN");        
                 if (bTraining)
                 {
-                    cudnnStatus_t cudnnStatus = cudnnBatchNormalizationForwardTraining(
+                    cudnnStatus = cudnnBatchNormalizationForwardTraining(
                             getGpu()._cuDNNHandle,
                             CUDNN_BATCHNORM_SPATIAL,
                             &alpha,
@@ -1279,12 +1274,11 @@ void NNLayer::ForwardPropagateConvolutional(uint32_t position, uint32_t batch, b
                             CUDNN_BN_MIN_EPSILON,
                             _pbSaveMeanBN->_pDevData,
                             _pbSaveInvVarianceBN->_pDevData);
-
                     CUDNNERROR(cudnnStatus, "NNLayer::ForwardPropagateConvolutional: cudnnBatchNormalizationForwardTraining Failed");
                     _pbUnit.swap(_pbUnitBN);
                     ++_bnCalls;
                 } else {
-                    cudnnStatus_t cudnnStatus = cudnnBatchNormalizationForwardInference(
+                    cudnnStatus = cudnnBatchNormalizationForwardInference(
                             getGpu()._cuDNNHandle,
                             CUDNN_BATCHNORM_SPATIAL,
                             &alpha,
@@ -1299,8 +1293,8 @@ void NNLayer::ForwardPropagateConvolutional(uint32_t position, uint32_t batch, b
                             _pbRunningMeanBN->_pDevData,
                             _pbRunningVarianceBN->_pDevData,
                             CUDNN_BN_MIN_EPSILON);
-
                     CUDNNERROR(cudnnStatus, "NNLayer::ForwardPropagateConvolutional: cudnnBatchNormalizationForwardInference Failed");
+                    _pbUnit.swap(_pbUnitBN);
                 }
             }
            
@@ -1621,9 +1615,14 @@ void NNLayer::BackPropagateConvolutional(uint32_t position, uint32_t batch, NNFl
             // Calculate batch normalization gradients
             if (_bBatchNormalization)
             {
+                cudnnStatus_t cudnnStatus;
+                cudnnStatus = cudnnSetTensor4dDescriptor(_tensorDescriptorBN, CUDNN_TENSOR_NCHW, CUDNN_DATA_FLOAT, batch, _Nz, _Ny, _Nx);
+                CUDNNERROR(cudnnStatus, "NNLayer::BackPropagateConvolutional: unable to create _tensorDescriptorBN");        
+                cudnnStatus = cudnnSetTensor4dDescriptor(_scaleBiasMeanVarDescBN, CUDNN_TENSOR_NCHW, CUDNN_DATA_FLOAT, 1, _Nz, 1, 1);
+                CUDNNERROR(cudnnStatus, "NNLayer::BackPropagateConvolutional: unable to create _scaleBiasMeanVarDescBN");        
                 float alpha = 1;
                 float beta = 0;
-                cudnnStatus_t cudnnStatus = cudnnBatchNormalizationBackward(
+                cudnnStatus = cudnnBatchNormalizationBackward(
                         getGpu()._cuDNNHandle,
                         CUDNN_BATCHNORM_SPATIAL,
                         &alpha,
@@ -1643,7 +1642,6 @@ void NNLayer::BackPropagateConvolutional(uint32_t position, uint32_t batch, NNFl
                         CUDNN_BN_MIN_EPSILON,
                         _pbSaveMeanBN->_pDevData,
                         _pbSaveInvVarianceBN->_pDevData);
-
                 CUDNNERROR(cudnnStatus, "NNLayer:BackPropagateConvolutional cudnnBatchNormalizationBackward Failed");
 
                 // replace the delta X values with the pre-BN deltas just calculated
@@ -1897,9 +1895,14 @@ void NNLayer::BackPropagateFullyConnected(uint32_t position, uint32_t batch, NNF
             // Calculate batch normalization gradients
             if (_bBatchNormalization)
             {
+                cudnnStatus_t cudnnStatus;
+                cudnnStatus = cudnnSetTensor4dDescriptor(_tensorDescriptorBN, CUDNN_TENSOR_NCHW, CUDNN_DATA_FLOAT, batch, _Nz, _Ny, _Nx);
+                CUDNNERROR(cudnnStatus, "NNLayer::BackPropagateFullyConnected: unable to create _tensorDescriptorBN");        
+                cudnnStatus = cudnnSetTensor4dDescriptor(_scaleBiasMeanVarDescBN, CUDNN_TENSOR_NCHW, CUDNN_DATA_FLOAT, 1, _Nz, _Ny, _Nx);
+                CUDNNERROR(cudnnStatus, "NNLayer::BackPropagateFullyConnected: unable to create _scaleBiasMeanVarDescBN");        
                 float alpha = 1;
                 float beta = 0;
-                cudnnStatus_t cudnnStatus = cudnnBatchNormalizationBackward(
+                cudnnStatus = cudnnBatchNormalizationBackward(
                         getGpu()._cuDNNHandle,
                         CUDNN_BATCHNORM_PER_ACTIVATION,
                         &alpha,
@@ -1919,7 +1922,6 @@ void NNLayer::BackPropagateFullyConnected(uint32_t position, uint32_t batch, NNF
                         CUDNN_BN_MIN_EPSILON,
                         _pbSaveMeanBN->_pDevData,
                         _pbSaveInvVarianceBN->_pDevData);
-
                 CUDNNERROR(cudnnStatus, "NNLayer:BackPropagateFullyConnected cudnnBatchNormalizationBackward Failed");
 
                 // replace the delta X values with the pre-BN deltas just calculated
