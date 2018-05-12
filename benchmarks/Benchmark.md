@@ -15,6 +15,8 @@ train -i gl_input.nc -o gl_output.nc -d gl -c config.json -b 256 -e 20 -n gl_net
 ```
 
 ## TensorFlow
-[autoencoder.py](tf/autoencoder.py) -u 1024 -b 256 -i 1082 -v54 --vocab_size 27278 -l 3 -f /input/data/ml20m-all.remotcc
-
+[autoencoder.py](tf/autoencoder.py) 
+```bash
+autoencoder.py -u 1024 -b 256 -i 1082 -v54 --vocab_size 27278 -l 3 -f /input/data/ml20m-all.remotcc
+```
 
