@@ -58,6 +58,7 @@ _Nx(d._Nx),
 _Ny(d._Ny),
 _Nz(d._Nz),
 _Nw(d._Nw),
+_strideBN(0),
 _dimensions(d._dimensions),
 _weightInit(d._weightInit),
 _weightInitScale(d._weightInitScale),
@@ -115,14 +116,18 @@ _bBatchNormalization(d._attributes & NNLayer::Attributes::BatchNormalization)
     
     if (_bBatchNormalization)
     {
-        uint64_t size                   = (uint64_t)_maxLocalStride * (uint64_t)_localBatch; 
+        cudaError_t status;
+        uint64_t size   = (uint64_t)_maxLocalStride * (uint64_t)_localBatch; 
 
         cudnnStatus_t cudnnStatus   = cudnnCreateTensorDescriptor(&_scaleBiasMeanVarDescBN);
         CUDNNERROR(cudnnStatus, "NNLayer::NNLayer: unable to create _scaleBiasMeanVarDescBN");
         cudnnStatus                 = cudnnCreateTensorDescriptor(&_tensorDescriptorBN);
         CUDNNERROR(cudnnStatus, "NNLayer::NNLayer: unable to create _tensordescriptorBN");
-        cudnnStatus                 = cudnnCreateTensorDescriptor(&_oddBatchTensorDescriptorBN);
-        CUDNNERROR(cudnnStatus, "NNLayer::NNLayer: unable to create _oddBatchTensordescriptorBN");        
+
+        if (_type == NNLayer::Type::Convolutional)
+            _strideBN   = _Nz;
+        else
+            _strideBN   = _localStride;
 
         // Allocate all of the device memory for Batch Normalization
         // need to have this here rather than Allocate(), because that memory gets wiped on Refresh and other paths
@@ -130,64 +135,72 @@ _bBatchNormalization(d._attributes & NNLayer::Attributes::BatchNormalization)
         _pbUnitBN.reset(new GpuBuffer<NNFloat>(size));
         _pbDxBN.reset(new GpuBuffer<NNFloat>(size));
 
-        _pbScaleDiffBN.reset(new GpuBuffer<NNFloat>(_localStride));
-        _pbBiasDiffBN.reset(new GpuBuffer<NNFloat>(_localStride));
-        _pbScaleBN.reset(new GpuBuffer<NNFloat>(_localStride));
-        _pbBiasBN.reset(new GpuBuffer<NNFloat>(_localStride));
-        _pbRunningMeanBN.reset(new GpuBuffer<NNFloat>(_localStride));
-        _pbRunningVarianceBN.reset(new GpuBuffer<NNFloat>(_localStride));
+        _pbScaleDiffBN.reset(new GpuBuffer<NNFloat>(_strideBN));
+        _pbBiasDiffBN.reset(new GpuBuffer<NNFloat>(_strideBN));
+        _pbScaleBN.reset(new GpuBuffer<NNFloat>(_strideBN));
+        _pbBiasBN.reset(new GpuBuffer<NNFloat>(_strideBN));
+        _pbRunningMeanBN.reset(new GpuBuffer<NNFloat>(_strideBN));
+        _pbRunningVarianceBN.reset(new GpuBuffer<NNFloat>(_strideBN));
 
-        _pbSaveMeanBN.reset(new GpuBuffer<NNFloat>(_localStride));
-        _pbSaveInvVarianceBN.reset(new GpuBuffer<NNFloat>(_localStride));
+        _pbSaveMeanBN.reset(new GpuBuffer<NNFloat>(_strideBN));
+        _pbSaveInvVarianceBN.reset(new GpuBuffer<NNFloat>(_strideBN));
 
         if (getGpu()._id == 0)
         {
-            printf("NNLayer::NNLayer: Allocating %" PRIu64 " bytes (%u, %u) of unit data for BN input layer %s\n", size * sizeof(NNFloat), _localStride, _localBatch, _name.c_str());
-            printf("NNLayer::NNLayer: Allocating %" PRIu64 " bytes (%u, %u) of dx data for BN input layer %s\n", size * sizeof(NNFloat), _localStride, _localBatch, _name.c_str());
+            printf("NNLayer::NNLayer: Allocating %" PRIu64 " bytes (%u, %u) of unit data for BN input layer %s\n", size * sizeof(NNFloat), _maxLocalStride, _localBatch, _name.c_str());
+            printf("NNLayer::NNLayer: Allocating %" PRIu64 " bytes (%u, %u) of dx data for BN input layer %s\n", size * sizeof(NNFloat), _maxLocalStride, _localBatch, _name.c_str());
 
-            printf("NNLayer::NNLayer: Allocating %" PRIu64 " bytes of BN scale diff for layer %s\n", _localStride * sizeof(NNFloat), _name.c_str());        
-            printf("NNLayer::NNLayer: Allocating %" PRIu64 " bytes of BN bias diff for layer %s\n", _localStride * sizeof(NNFloat), _name.c_str());        
-            printf("NNLayer::NNLayer: Allocating %" PRIu64 " bytes of BN scale for layer %s\n", _localStride * sizeof(NNFloat), _name.c_str());        
-            printf("NNLayer::NNLayer: Allocating %" PRIu64 " bytes of BN bias for layer %s\n", _localStride * sizeof(NNFloat), _name.c_str());        
-            printf("NNLayer::NNLayer: Allocating %" PRIu64 " bytes of BN running mean for layer %s\n", _localStride * sizeof(NNFloat), _name.c_str());        
-            printf("NNLayer::NNLayer: Allocating %" PRIu64 " bytes of BN running variance for layer %s\n", _localStride * sizeof(NNFloat), _name.c_str());        
-            printf("NNLayer::NNLayer: Allocating %" PRIu64 " bytes of BN saving mean for layer %s\n", _localStride * sizeof(NNFloat), _name.c_str());        
-            printf("NNLayer::NNLayer: Allocating %" PRIu64 " bytes of BN saving InvVariance for layer %s\n", _localStride * sizeof(NNFloat), _name.c_str());        
+            printf("NNLayer::NNLayer: Allocating %" PRIu64 " bytes of BN scale diff for layer %s\n", _strideBN * sizeof(NNFloat), _name.c_str());        
+            printf("NNLayer::NNLayer: Allocating %" PRIu64 " bytes of BN bias diff for layer %s\n", _strideBN * sizeof(NNFloat), _name.c_str());        
+            printf("NNLayer::NNLayer: Allocating %" PRIu64 " bytes of BN scale for layer %s\n", _strideBN * sizeof(NNFloat), _name.c_str());        
+            printf("NNLayer::NNLayer: Allocating %" PRIu64 " bytes of BN bias for layer %s\n", _strideBN * sizeof(NNFloat), _name.c_str());        
+            printf("NNLayer::NNLayer: Allocating %" PRIu64 " bytes of BN running mean for layer %s\n", _strideBN * sizeof(NNFloat), _name.c_str());        
+            printf("NNLayer::NNLayer: Allocating %" PRIu64 " bytes of BN running variance for layer %s\n", _strideBN * sizeof(NNFloat), _name.c_str());        
+            printf("NNLayer::NNLayer: Allocating %" PRIu64 " bytes of BN saving mean for layer %s\n", _strideBN * sizeof(NNFloat), _name.c_str());        
+            printf("NNLayer::NNLayer: Allocating %" PRIu64 " bytes of BN saving InvVariance for layer %s\n", _strideBN * sizeof(NNFloat), _name.c_str());        
         }
 
         if (d._vScaleBN.size() != 0)
         {
-            cudaMemcpy(_pbScaleBN->_pDevData, d._vScaleBN.data(), _localStride * sizeof(NNFloat), cudaMemcpyHostToDevice);
+            status = cudaMemcpy(_pbScaleBN->_pDevData, d._vScaleBN.data(), _strideBN * sizeof(NNFloat), cudaMemcpyHostToDevice);
         } else {
-            vector<NNFloat> ones(_localStride);
-            for (int i=0; i<_localStride; ++i)
+            vector<NNFloat> ones(_strideBN);
+            for (int i=0; i<_strideBN; ++i)
                 ones[i] = 1;
-            cudaMemcpy(_pbScaleBN->_pDevData, ones.data(), _localStride * sizeof(NNFloat), cudaMemcpyHostToDevice);
+            status = cudaMemcpy(_pbScaleBN->_pDevData, ones.data(), _strideBN * sizeof(NNFloat), cudaMemcpyHostToDevice);
         }
+        RTERROR(status, "NNLayer::NNLayer: cudaMemcpy failed on  _pbScaleBN");        
         if (d._vBiasBN.size() != 0)
         {
-            cudaMemcpy(_pbBiasBN->_pDevData, d._vBiasBN.data(), _localStride * sizeof(NNFloat), cudaMemcpyHostToDevice);
+            status = cudaMemcpy(_pbBiasBN->_pDevData, d._vBiasBN.data(), _strideBN * sizeof(NNFloat), cudaMemcpyHostToDevice);
         } else {
-            cudaMemset(_pbBiasBN->_pDevData, 0, _localStride * sizeof(NNFloat));
+            status = cudaMemset(_pbBiasBN->_pDevData, 0, _strideBN * sizeof(NNFloat));
         }
+        RTERROR(status, "NNLayer::NNLayer: cudaMemcpy failed on  _pbBiasBN");        
         if (d._vRunningMeanBN.size() != 0)
         {
-            cudaMemcpy(_pbRunningMeanBN->_pDevData, d._vRunningMeanBN.data(), _localStride * sizeof(NNFloat), cudaMemcpyHostToDevice);
+            status = cudaMemcpy(_pbRunningMeanBN->_pDevData, d._vRunningMeanBN.data(), _strideBN * sizeof(NNFloat), cudaMemcpyHostToDevice);
         } else {
-            cudaMemset(_pbRunningMeanBN->_pDevData, 0, _localStride * sizeof(NNFloat));
+            status = cudaMemset(_pbRunningMeanBN->_pDevData, 0, _strideBN * sizeof(NNFloat));
         }
+        RTERROR(status, "NNLayer::NNLayer: cudaMemcpy failed on  _pbRunningMeanBN");        
         if (d._vRunningVarianceBN.size() != 0)
         {
-            cudaMemcpy(_pbRunningVarianceBN->_pDevData, d._vRunningVarianceBN.data(), _localStride * sizeof(NNFloat), cudaMemcpyHostToDevice);
+            status = cudaMemcpy(_pbRunningVarianceBN->_pDevData, d._vRunningVarianceBN.data(), _strideBN * sizeof(NNFloat), cudaMemcpyHostToDevice);
         } else {
-            cudaMemset(_pbRunningVarianceBN->_pDevData, 0, _localStride * sizeof(NNFloat));
+            status = cudaMemset(_pbRunningVarianceBN->_pDevData, 0, _strideBN * sizeof(NNFloat));
         }
+        RTERROR(status, "NNLayer::NNLayer: cudaMemcpy failed on  _pbRunningVarianceBN");        
 
         // clear the others that are used by cuDNN
-        cudaMemset(_pbScaleDiffBN->_pDevData, 0, _localStride * sizeof(NNFloat));
-        cudaMemset(_pbBiasDiffBN->_pDevData, 0, _localStride * sizeof(NNFloat));
-        cudaMemset(_pbSaveMeanBN->_pDevData, 0, _localStride * sizeof(NNFloat));
-        cudaMemset(_pbSaveInvVarianceBN->_pDevData, 0, _localStride * sizeof(NNFloat));
+        status = cudaMemset(_pbScaleDiffBN->_pDevData, 0, _strideBN * sizeof(NNFloat));
+        RTERROR(status, "NNLayer::NNLayer: cudaMemset failed on  _pbScaleDiffBN");        
+        status = cudaMemset(_pbBiasDiffBN->_pDevData, 0, _strideBN * sizeof(NNFloat));
+        RTERROR(status, "NNLayer::NNLayer: cudaMemset failed on  _pbBiasDiffBN");        
+        status = cudaMemset(_pbSaveMeanBN->_pDevData, 0, _strideBN * sizeof(NNFloat));
+        RTERROR(status, "NNLayer::NNLayer: cudaMemset failed on  _pbSaveMeanBN");        
+        status = cudaMemset(_pbSaveInvVarianceBN->_pDevData, 0, _strideBN * sizeof(NNFloat));
+        RTERROR(status, "NNLayer::NNLayer: cudaMemset failed on  _pbSaveInvVarianceBN");        
     }
 
     if (_type == NNLayer::Type::Pooling)
@@ -261,8 +274,6 @@ NNLayer::~NNLayer()
         CUDNNERROR(cudnnStatus, "NNLayer::~NNLayer: unable to delete _scaleBiasMeanVarDescBN");        
         cudnnStatus                     = cudnnDestroyTensorDescriptor(_tensorDescriptorBN);
         CUDNNERROR(cudnnStatus, "NNLayer::~NNLayer: unable to delete _tensorDescriptorBN");        
-        cudnnStatus                     = cudnnDestroyTensorDescriptor(_oddBatchTensorDescriptorBN);
-        CUDNNERROR(cudnnStatus, "NNLayer::~NNLayer: unable to delete _oddBatchTensorDescriptorBN");  
 
         _pbDxBN.reset();
         _pbScaleDiffBN.reset();
@@ -301,12 +312,6 @@ void NNLayer::Deallocate()
     _pbDropout.reset();
     _pbBuffer1.reset();
     _pbBuffer2.reset();
-}
-
-cudnnTensorDescriptor_t NNLayer::getTensorDescriptorBN(uint32_t batch)
-{
-    cudnnStatus_t cudnnStatus;
-    cudnnStatus = cudnnSetTensor4dDescriptor(_tensorDescriptorBN, CUDNN_TENSOR_NCHW, CUDNN_DATA_FLOAT, batch, _Nz, _Ny, _Nx);
 }
 
 cudnnTensorDescriptor_t NNLayer::getTensorDescriptor(uint32_t batch)
@@ -892,13 +897,14 @@ void NNLayer::ForwardPropagateFullyConnected(uint32_t position, uint32_t batch, 
             // Perform batch normalization if active
             if (_bBatchNormalization)
             {
-               if (bTraining) {
-                    cudnnStatus_t cudnnStatus;
-                    cudnnStatus = cudnnSetTensor4dDescriptor(_tensorDescriptorBN, CUDNN_TENSOR_NCHW, CUDNN_DATA_FLOAT, batch, _Nz, _Ny, _Nx);
-                    cudnnStatus = cudnnSetTensor4dDescriptor(_scaleBiasMeanVarDescBN, CUDNN_TENSOR_NCHW, CUDNN_DATA_FLOAT, 1, _Nz, _Ny, _Nx);
-
-                    float alpha = 1;
-                    float beta = 0;
+                float alpha = 1;
+                float beta = 0;
+                cudnnStatus_t cudnnStatus;
+                cudnnStatus = cudnnSetTensor4dDescriptor(_tensorDescriptorBN, CUDNN_TENSOR_NCHW, CUDNN_DATA_FLOAT, batch, _Nz, _Ny, _Nx);
+                CUDNNERROR(cudnnStatus, "NNLayer::ForwardPropagateFullyConnected: unable to create _tensorDescriptorBN");        
+                cudnnStatus = cudnnSetTensor4dDescriptor(_scaleBiasMeanVarDescBN, CUDNN_TENSOR_NCHW, CUDNN_DATA_FLOAT, 1, _Nz, _Ny, _Nx);
+                CUDNNERROR(cudnnStatus, "NNLayer::ForwardPropagateFullyConnected: unable to create _scaleBiasMeanVarDescBN");        
+                if (bTraining) {
                     cudnnStatus = cudnnBatchNormalizationForwardTraining(
                             getGpu()._cuDNNHandle,
                             CUDNN_BATCHNORM_PER_ACTIVATION,
@@ -917,17 +923,10 @@ void NNLayer::ForwardPropagateFullyConnected(uint32_t position, uint32_t batch, 
                             CUDNN_BN_MIN_EPSILON,
                             _pbSaveMeanBN->_pDevData,
                             _pbSaveInvVarianceBN->_pDevData);
-
                     CUDNNERROR(cudnnStatus, "NNLayer::ForwardPropagateFullyConnected: cudnnBatchNormalizationForwardTraining Failed");
                     _pbUnit.swap(_pbUnitBN);
                     ++_bnCalls;
                 } else {
-                    cudnnStatus_t cudnnStatus;
-                    cudnnStatus = cudnnSetTensor4dDescriptor(_tensorDescriptorBN, CUDNN_TENSOR_NCHW, CUDNN_DATA_FLOAT, batch, _Nz, _Ny, _Nx);
-                    cudnnStatus = cudnnSetTensor4dDescriptor(_scaleBiasMeanVarDescBN, CUDNN_TENSOR_NCHW, CUDNN_DATA_FLOAT, 1, _Nz, _Ny, _Nx);
-
-                    float alpha = 1;
-                    float beta = 0;
                     cudnnStatus = cudnnBatchNormalizationForwardInference(
                             getGpu()._cuDNNHandle,
                             CUDNN_BATCHNORM_PER_ACTIVATION,
@@ -943,7 +942,6 @@ void NNLayer::ForwardPropagateFullyConnected(uint32_t position, uint32_t batch, 
                             _pbRunningMeanBN->_pDevData,
                             _pbRunningVarianceBN->_pDevData,
                             CUDNN_BN_MIN_EPSILON);
-
                     CUDNNERROR(cudnnStatus, "NNLayer::ForwardPropagateFullyConnected: cudnnBatchNormalizationForwardInference Failed");
                     _pbUnit.swap(_pbUnitBN);
                 }
@@ -1249,7 +1247,55 @@ void NNLayer::ForwardPropagateConvolutional(uint32_t position, uint32_t batch, b
             // Perform batch normalization if active
             if (_bBatchNormalization)
             {
-                printf("**** doing batch norm 2\n");
+                float alpha = 1;
+                float beta = 0;
+                cudnnStatus_t cudnnStatus;
+                cudnnStatus = cudnnSetTensor4dDescriptor(_tensorDescriptorBN, CUDNN_TENSOR_NCHW, CUDNN_DATA_FLOAT, batch, _Nz, _Ny, _Nx);
+                CUDNNERROR(cudnnStatus, "NNLayer::ForwardPropagateConvolutional: unable to create _tensorDescriptorBN");        
+                cudnnStatus = cudnnSetTensor4dDescriptor(_scaleBiasMeanVarDescBN, CUDNN_TENSOR_NCHW, CUDNN_DATA_FLOAT, 1, _Nz, 1, 1);
+                CUDNNERROR(cudnnStatus, "NNLayer::ForwardPropagateConvolutional: unable to create _scaleBiasMeanVarDescBN");        
+                if (bTraining)
+                {
+                    cudnnStatus = cudnnBatchNormalizationForwardTraining(
+                            getGpu()._cuDNNHandle,
+                            CUDNN_BATCHNORM_SPATIAL,
+                            &alpha,
+                            &beta,
+                            _tensorDescriptorBN,
+                            _pbUnit->_pDevData,
+                            _tensorDescriptorBN,
+                            _pbUnitBN->_pDevData,   // output
+                            _scaleBiasMeanVarDescBN,
+                            _pbScaleBN->_pDevData,
+                            _pbBiasBN->_pDevData,
+                            1.0/(_bnCalls + 1), 
+                            _pbRunningMeanBN->_pDevData,
+                            _pbRunningVarianceBN->_pDevData,
+                            CUDNN_BN_MIN_EPSILON,
+                            _pbSaveMeanBN->_pDevData,
+                            _pbSaveInvVarianceBN->_pDevData);
+                    CUDNNERROR(cudnnStatus, "NNLayer::ForwardPropagateConvolutional: cudnnBatchNormalizationForwardTraining Failed");
+                    _pbUnit.swap(_pbUnitBN);
+                    ++_bnCalls;
+                } else {
+                    cudnnStatus = cudnnBatchNormalizationForwardInference(
+                            getGpu()._cuDNNHandle,
+                            CUDNN_BATCHNORM_SPATIAL,
+                            &alpha,
+                            &beta,
+                            _tensorDescriptorBN,
+                            _pbUnit->_pDevData,
+                            _tensorDescriptorBN,
+                            _pbUnitBN->_pDevData,   // output
+                            _scaleBiasMeanVarDescBN,
+                            _pbScaleBN->_pDevData,
+                            _pbBiasBN->_pDevData,
+                            _pbRunningMeanBN->_pDevData,
+                            _pbRunningVarianceBN->_pDevData,
+                            CUDNN_BN_MIN_EPSILON);
+                    CUDNNERROR(cudnnStatus, "NNLayer::ForwardPropagateConvolutional: cudnnBatchNormalizationForwardInference Failed");
+                    _pbUnit.swap(_pbUnitBN);
+                }
             }
            
             // Calculate activation
@@ -1569,7 +1615,40 @@ void NNLayer::BackPropagateConvolutional(uint32_t position, uint32_t batch, NNFl
             // Calculate batch normalization gradients
             if (_bBatchNormalization)
             {
-                printf("**** doing batch norm 3\n");
+                cudnnStatus_t cudnnStatus;
+                cudnnStatus = cudnnSetTensor4dDescriptor(_tensorDescriptorBN, CUDNN_TENSOR_NCHW, CUDNN_DATA_FLOAT, batch, _Nz, _Ny, _Nx);
+                CUDNNERROR(cudnnStatus, "NNLayer::BackPropagateConvolutional: unable to create _tensorDescriptorBN");        
+                cudnnStatus = cudnnSetTensor4dDescriptor(_scaleBiasMeanVarDescBN, CUDNN_TENSOR_NCHW, CUDNN_DATA_FLOAT, 1, _Nz, 1, 1);
+                CUDNNERROR(cudnnStatus, "NNLayer::BackPropagateConvolutional: unable to create _scaleBiasMeanVarDescBN");        
+                float alpha = 1;
+                float beta = 0;
+                cudnnStatus = cudnnBatchNormalizationBackward(
+                        getGpu()._cuDNNHandle,
+                        CUDNN_BATCHNORM_SPATIAL,
+                        &alpha,
+                        &beta,
+                        &alpha,
+                        &beta,
+                        _tensorDescriptorBN,    // x desc
+                        _pbUnitBN->_pDevData,   // x
+                        _tensorDescriptorBN,    // dy dec
+                        _pbDelta->_pDevData,    // dy
+                        _tensorDescriptorBN,    // dy dec
+                        _pbDxBN->_pDevData,     // dx - output
+                        _scaleBiasMeanVarDescBN,
+                        _pbScaleBN->_pDevData,
+                        _pbScaleDiffBN->_pDevData,
+                        _pbBiasDiffBN->_pDevData,
+                        CUDNN_BN_MIN_EPSILON,
+                        _pbSaveMeanBN->_pDevData,
+                        _pbSaveInvVarianceBN->_pDevData);
+                CUDNNERROR(cudnnStatus, "NNLayer:BackPropagateConvolutional cudnnBatchNormalizationBackward Failed");
+
+                // replace the delta X values with the pre-BN deltas just calculated
+                _pbDelta.swap(_pbDxBN);
+                _pbUnit.swap(_pbUnitBN);
+                kAddScaleBuffers(_pbScaleBN->_pDevData, _pbScaleDiffBN->_pDevData, _bnLearningRate, _strideBN);
+                kAddScaleBuffers(_pbBiasBN->_pDevData, _pbBiasDiffBN->_pDevData, _bnLearningRate, _strideBN);
             }
         }
 
@@ -1818,8 +1897,9 @@ void NNLayer::BackPropagateFullyConnected(uint32_t position, uint32_t batch, NNF
             {
                 cudnnStatus_t cudnnStatus;
                 cudnnStatus = cudnnSetTensor4dDescriptor(_tensorDescriptorBN, CUDNN_TENSOR_NCHW, CUDNN_DATA_FLOAT, batch, _Nz, _Ny, _Nx);
+                CUDNNERROR(cudnnStatus, "NNLayer::BackPropagateFullyConnected: unable to create _tensorDescriptorBN");        
                 cudnnStatus = cudnnSetTensor4dDescriptor(_scaleBiasMeanVarDescBN, CUDNN_TENSOR_NCHW, CUDNN_DATA_FLOAT, 1, _Nz, _Ny, _Nx);
-
+                CUDNNERROR(cudnnStatus, "NNLayer::BackPropagateFullyConnected: unable to create _scaleBiasMeanVarDescBN");        
                 float alpha = 1;
                 float beta = 0;
                 cudnnStatus = cudnnBatchNormalizationBackward(
@@ -1842,14 +1922,13 @@ void NNLayer::BackPropagateFullyConnected(uint32_t position, uint32_t batch, NNF
                         CUDNN_BN_MIN_EPSILON,
                         _pbSaveMeanBN->_pDevData,
                         _pbSaveInvVarianceBN->_pDevData);
-
                 CUDNNERROR(cudnnStatus, "NNLayer:BackPropagateFullyConnected cudnnBatchNormalizationBackward Failed");
 
                 // replace the delta X values with the pre-BN deltas just calculated
                 _pbDelta.swap(_pbDxBN);
                 _pbUnit.swap(_pbUnitBN);
-                kAddScaleBuffers(_pbScaleBN->_pDevData, _pbScaleDiffBN->_pDevData, _bnLearningRate, _localStride);
-                kAddScaleBuffers(_pbBiasBN->_pDevData, _pbBiasDiffBN->_pDevData, _bnLearningRate, _localStride);
+                kAddScaleBuffers(_pbScaleBN->_pDevData, _pbScaleDiffBN->_pDevData, _bnLearningRate, _strideBN);
+                kAddScaleBuffers(_pbBiasBN->_pDevData, _pbBiasDiffBN->_pDevData, _bnLearningRate, _strideBN);
             }
         }
 
@@ -2871,15 +2950,11 @@ bool LoadNNLayerDescriptorNetCDF(const string& fname, netCDF::NcFile& nc, uint32
             // did this layer have BatchNorm data?
             if (ld._attributes & NNLayer::Attributes::BatchNormalization)
             {
-                NcDim bnDim   = nc.getDim(lstring + "bnNDim");
-                if (bnDim.getSize() != ld._Nx)
-                {
-                    throw NcException("NcException", "NNLayer::NNLayer: BatchNorm size does match Nx in NetCDF input file " + fname, __FILE__, __LINE__);
-                }
-                NcVar scaleBNVar    = nc.getVar(lstring + "scaleBN");
-                NcVar biasBNVar     = nc.getVar(lstring + "biasBN");
-                NcVar runningMeanBNVar    = nc.getVar(lstring + "runningMeanBN");
-                NcVar runningVarianceBNVar    = nc.getVar(lstring + "runningVarianceBN");
+                NcDim bnDim                 = nc.getDim(lstring + "bnDim");
+                NcVar scaleBNVar            = nc.getVar(lstring + "scaleBN");
+                NcVar biasBNVar             = nc.getVar(lstring + "biasBN");
+                NcVar runningMeanBNVar      = nc.getVar(lstring + "runningMeanBN");
+                NcVar runningVarianceBNVar  = nc.getVar(lstring + "runningVarianceBN");
 
                 ld._vScaleBN.resize(bnDim.getSize());
                 ld._vBiasBN.resize(bnDim.getSize());
@@ -3117,9 +3192,9 @@ bool NNLayer::WriteNetCDF(NcFile& nc, uint32_t index)
         // append the BatchNorm data, if needed
         if (_bBatchNormalization)
         {
-            vector<NNFloat>  bndata(_localStride);
-            size_t bytes = _localStride * sizeof(NNFloat);
-            NcDim bnDim   = nc.addDim(lstring + "bnNDim", _localStride);
+            vector<NNFloat>  bndata(_strideBN);
+            size_t bytes = _strideBN * sizeof(NNFloat);
+            NcDim bnDim   = nc.addDim(lstring + "bnDim", _strideBN);
 
             cudaMemcpy(bndata.data(), _pbScaleBN->_pDevData, bytes, cudaMemcpyDeviceToHost);
             NcVar scaleVar  = nc.addVar(lstring + "scaleBN", "float", bnDim.getName());
