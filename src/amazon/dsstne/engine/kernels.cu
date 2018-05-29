@@ -1399,95 +1399,6 @@ NNFloat kCalculateRegularizationError(NNFloat lambda, NNFloat lambda1, NNFloat* 
     return (NNFloat)((double)(getGpu()._pbAccumulator->_pSysData[0]) * ONEOVERERRORSCALE);    
 }
 
-// Instantiates allowable templated functions so we can hide the implementations here
-// instead of in the header file because we're mixing CUDA and C++ and that's
-// a migraine headache in the making otherwise.
-void KernelsTempFunction()
-{
-
-    kInitSort<NNFloat, NNFloat>(1, NULL, NULL);
-    kInitSort<uint32_t, NNFloat>(1, NULL, NULL);
-    kInitSort<NNFloat, uint32_t>(1, NULL, NULL);
-    kInitSort<uint32_t, uint32_t>(1, NULL, NULL);
-    kSort<NNFloat, NNFloat>(1, NULL, NULL, NULL, NULL, NULL, 0);
-    kSort<NNFloat, uint32_t>(1, NULL, NULL, NULL, NULL, NULL, 0);
-    kSort<uint32_t, NNFloat>(1, NULL, NULL, NULL, NULL, NULL, 0);
-    kSort<uint32_t, uint32_t>(1, NULL, NULL, NULL, NULL, NULL, 0);
-    
-    kLoadSparseAnalogDenoisedInputUnit<NNFloat>(0, 0, 0, NULL, NULL, NULL, NULL, NULL, NULL);
-    kLoadSparseAnalogDenoisedInputUnit<double>(0, 0, 0, NULL, NULL, NULL, NULL, NULL, NULL);
-    kLoadSparseAnalogDenoisedInputUnit<unsigned char>(0, 0, 0, NULL, NULL, NULL, NULL, NULL, NULL);
-    kLoadSparseAnalogDenoisedInputUnit<char>(0, 0, 0, NULL, NULL, NULL, NULL, NULL, NULL);
-    kLoadSparseAnalogDenoisedInputUnit<uint32_t>(0, 0, 0, NULL, NULL, NULL, NULL, NULL, NULL);
-    kLoadSparseAnalogDenoisedInputUnit<uint64_t>(0, 0, 0, NULL, NULL, NULL, NULL, NULL, NULL);
-    kLoadSparseAnalogDenoisedInputUnit<int32_t>(0, 0, 0, NULL, NULL, NULL, NULL, NULL, NULL);
-    kLoadSparseAnalogDenoisedInputUnit<int64_t>(0, 0, 0, NULL, NULL, NULL, NULL, NULL, NULL);
-    
-    kLoadSparseAnalogInputUnit<NNFloat>(0, 0, 0, NULL, NULL, NULL, NULL, NULL);
-    kLoadSparseAnalogInputUnit<double>(0, 0, 0, NULL, NULL, NULL, NULL, NULL);
-    kLoadSparseAnalogInputUnit<unsigned char>(0, 0, 0, NULL, NULL, NULL, NULL, NULL);
-    kLoadSparseAnalogInputUnit<char>(0, 0, 0, NULL, NULL, NULL, NULL, NULL);
-    kLoadSparseAnalogInputUnit<uint32_t>(0, 0, 0, NULL, NULL, NULL, NULL, NULL);
-    kLoadSparseAnalogInputUnit<uint64_t>(0, 0, 0, NULL, NULL, NULL, NULL, NULL);
-    kLoadSparseAnalogInputUnit<int32_t>(0, 0, 0, NULL, NULL, NULL, NULL, NULL);
-    kLoadSparseAnalogInputUnit<int64_t>(0, 0, 0, NULL, NULL, NULL, NULL, NULL);    
-
-    kCalculateSparseAnalogZ<NNFloat>(0, 0, 0, NULL, NULL, NULL, NULL, NULL, NULL, (NNFloat)0.0);
-    kCalculateSparseAnalogZ<double>(0, 0, 0, NULL, NULL, NULL, NULL, NULL, NULL, (NNFloat)0.0);
-    kCalculateSparseAnalogZ<unsigned char>(0, 0, 0, NULL, NULL, NULL, NULL, NULL, NULL, (NNFloat)0.0);
-    kCalculateSparseAnalogZ<char>(0, 0, 0, NULL, NULL, NULL, NULL, NULL, NULL, (NNFloat)0.0);
-    kCalculateSparseAnalogZ<uint32_t>(0, 0, 0, NULL, NULL, NULL, NULL, NULL, NULL, (NNFloat)0.0);
-    kCalculateSparseAnalogZ<uint64_t>(0, 0, 0, NULL, NULL, NULL, NULL, NULL, NULL, (NNFloat)0.0);
-    kCalculateSparseAnalogZ<int32_t>(0, 0, 0, NULL, NULL, NULL, NULL, NULL, NULL, (NNFloat)0.0);
-    kCalculateSparseAnalogZ<int64_t>(0, 0, 0, NULL, NULL, NULL, NULL, NULL, NULL, (NNFloat)0.0); 
-    
-    kCalculateSparseAnalogDenoisedZ<NNFloat>(0, 0, 0, NULL, NULL, NULL, NULL, NULL, NULL, NULL, (NNFloat)0.0);
-    kCalculateSparseAnalogDenoisedZ<double>(0, 0, 0, NULL, NULL, NULL, NULL, NULL, NULL, NULL, (NNFloat)0.0);
-    kCalculateSparseAnalogDenoisedZ<unsigned char>(0, 0, 0, NULL, NULL, NULL, NULL, NULL, NULL, NULL, (NNFloat)0.0);
-    kCalculateSparseAnalogDenoisedZ<char>(0, 0, 0, NULL, NULL, NULL, NULL, NULL, NULL, NULL, (NNFloat)0.0);
-    kCalculateSparseAnalogDenoisedZ<uint32_t>(0, 0, 0, NULL, NULL, NULL, NULL, NULL, NULL, NULL, (NNFloat)0.0);
-    kCalculateSparseAnalogDenoisedZ<uint64_t>(0, 0, 0, NULL, NULL, NULL, NULL, NULL, NULL, NULL, (NNFloat)0.0);
-    kCalculateSparseAnalogDenoisedZ<int32_t>(0, 0, 0, NULL, NULL, NULL, NULL, NULL, NULL, NULL, (NNFloat)0.0);
-    kCalculateSparseAnalogDenoisedZ<int64_t>(0, 0, 0, NULL, NULL, NULL, NULL, NULL, NULL, NULL, (NNFloat)0.0);    
-   
-    kCalculateSparseTransposedAnalogMatrix<NNFloat>(0, 0, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
-    kCalculateSparseTransposedAnalogMatrix<double>(0, 0, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
-    kCalculateSparseTransposedAnalogMatrix<unsigned char>(0, 0, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
-    kCalculateSparseTransposedAnalogMatrix<char>(0, 0, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
-    kCalculateSparseTransposedAnalogMatrix<uint32_t>(0, 0, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
-    kCalculateSparseTransposedAnalogMatrix<uint64_t>(0, 0, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
-    kCalculateSparseTransposedAnalogMatrix<int32_t>(0, 0, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
-    kCalculateSparseTransposedAnalogMatrix<int64_t>(0, 0, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
-    
-    kCalculateSparseTransposedAnalogDenoisedMatrix<NNFloat>(0, 0, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
-    kCalculateSparseTransposedAnalogDenoisedMatrix<double>(0, 0, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
-    kCalculateSparseTransposedAnalogDenoisedMatrix<unsigned char>(0, 0, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
-    kCalculateSparseTransposedAnalogDenoisedMatrix<char>(0, 0, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
-    kCalculateSparseTransposedAnalogDenoisedMatrix<uint32_t>(0, 0, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
-    kCalculateSparseTransposedAnalogDenoisedMatrix<uint64_t>(0, 0, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
-    kCalculateSparseTransposedAnalogDenoisedMatrix<int32_t>(0, 0, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
-    kCalculateSparseTransposedAnalogDenoisedMatrix<int64_t>(0, 0, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL);    
-    
-    kCalculateSparseTransposedAnalogWeightGradient<NNFloat>(0, 0, 0, 0, NULL, NULL, NULL, NULL, NULL, NULL);
-    kCalculateSparseTransposedAnalogWeightGradient<double>(0, 0, 0, 0, NULL, NULL, NULL, NULL, NULL, NULL);
-    kCalculateSparseTransposedAnalogWeightGradient<unsigned char>(0, 0, 0, 0, NULL, NULL, NULL, NULL, NULL, NULL);
-    kCalculateSparseTransposedAnalogWeightGradient<char>(0, 0, 0, 0, NULL, NULL, NULL, NULL, NULL, NULL);
-    kCalculateSparseTransposedAnalogWeightGradient<uint32_t>(0, 0, 0, 0, NULL, NULL, NULL, NULL, NULL, NULL);
-    kCalculateSparseTransposedAnalogWeightGradient<uint64_t>(0, 0, 0, 0, NULL, NULL, NULL, NULL, NULL, NULL);
-    kCalculateSparseTransposedAnalogWeightGradient<int32_t>(0, 0, 0, 0, NULL, NULL, NULL, NULL, NULL, NULL);
-    kCalculateSparseTransposedAnalogWeightGradient<int64_t>(0, 0, 0, 0, NULL, NULL, NULL, NULL, NULL, NULL);    
-    
-    kLoadInputUnit<NNFloat>(0, 0, 0, NULL, NULL);
-    kLoadInputUnit<double>(0, 0, 0, NULL, NULL);
-    kLoadInputUnit<unsigned char>(0, 0, 0, NULL, NULL);
-    kLoadInputUnit<char>(0, 0, 0, NULL, NULL);
-    kLoadInputUnit<uint32_t>(0, 0, 0, NULL, NULL);
-    kLoadInputUnit<uint64_t>(0, 0, 0, NULL, NULL);
-    kLoadInputUnit<int32_t>(0, 0, 0, NULL, NULL);
-    kLoadInputUnit<int64_t>(0, 0, 0, NULL, NULL); 
-}
-
-
 __global__ void
 LAUNCH_BOUNDS()
 kSGDUpdateWeights_kernel(NNFloat alpha, NNFloat lambda, NNFloat lambda1, uint64_t size, NNFloat* pWeightGradient, NNFloat* pWeight)
@@ -3534,4 +3445,35 @@ void kCopy2D(NNFloat* pDst, uint32_t dpitch, NNFloat* pSrc, uint32_t spitch, uin
     LAUNCHERROR("kCopy2D_kernel");
 }
 
+// Instantiates allowable templated functions so we can hide the implementations here
+// instead of in the header file because we're mixing CUDA and C++ and that's
+// a migraine headache in the making otherwise.
+template size_t kInitSort<NNFloat, NNFloat>  (uint32_t, GpuBuffer<NNFloat>*, GpuBuffer<NNFloat>*);
+template size_t kInitSort<uint32_t, NNFloat> (uint32_t, GpuBuffer<uint32_t>*, GpuBuffer<NNFloat>*);
+template size_t kInitSort<NNFloat, uint32_t> (uint32_t, GpuBuffer<NNFloat>*, GpuBuffer<uint32_t>*);
+template size_t kInitSort<uint32_t, uint32_t>(uint32_t, GpuBuffer<uint32_t>*, GpuBuffer<uint32_t>*);
 
+template bool kSort<NNFloat, NNFloat>(uint32_t, NNFloat*, NNFloat*, NNFloat*, NNFloat*, char*, size_t);
+template bool kSort<NNFloat, uint32_t>(uint32_t, NNFloat*, NNFloat*, uint32_t*, uint32_t*, char*, size_t);
+template bool kSort<uint32_t, NNFloat>(uint32_t, uint32_t*, uint32_t*, NNFloat*, NNFloat*, char*, size_t);
+template bool kSort<uint32_t, uint32_t>(uint32_t, uint32_t*, uint32_t*, uint32_t*, uint32_t*, char*, size_t);
+
+#define EXPLICITLY_INSTANTIATE_KERNELS(T)                                                                                                                         \
+template void kLoadSparseAnalogDenoisedInputUnit<T>(uint32_t, uint32_t, uint32_t, NNFloat*, uint64_t*, uint64_t*, uint32_t*, T*, NNFloat*);                       \
+template void kLoadSparseAnalogInputUnit<T>(uint32_t, uint32_t, uint32_t, NNFloat*, uint64_t*, uint64_t*, uint32_t*, T*);                                         \
+template void kCalculateSparseAnalogZ<T>(uint32_t, uint32_t, uint32_t, NNFloat*, uint64_t*, uint64_t*, uint32_t*, T*, NNFloat*, NNFloat);                         \
+template void kCalculateSparseAnalogDenoisedZ<T>(uint32_t, uint32_t, uint32_t, NNFloat*, uint64_t*, uint64_t*, uint32_t*, T*, NNFloat*, NNFloat*, NNFloat);       \
+template void kCalculateSparseTransposedAnalogMatrix<T>(uint32_t, uint32_t, uint64_t*, uint64_t*, uint32_t*, T*, uint32_t*, uint32_t*, T*);                       \
+template void kCalculateSparseTransposedAnalogDenoisedMatrix<T>(uint32_t, uint32_t, uint64_t*, uint64_t*, uint32_t*, T*, NNFloat*, uint32_t*, uint32_t*, T*);     \
+template void kCalculateSparseTransposedAnalogWeightGradient<T>(NNFloat, NNFloat, uint32_t, uint32_t, uint32_t*, uint32_t*, uint32_t*, T*, NNFloat*, NNFloat*);   \
+template void kLoadInputUnit<T>(uint32_t, uint32_t, uint32_t, NNFloat*, T*);                                                                                      \
+/**/
+
+EXPLICITLY_INSTANTIATE_KERNELS(NNFloat)
+EXPLICITLY_INSTANTIATE_KERNELS(double)
+EXPLICITLY_INSTANTIATE_KERNELS(unsigned char)
+EXPLICITLY_INSTANTIATE_KERNELS(char)
+EXPLICITLY_INSTANTIATE_KERNELS(uint32_t)
+EXPLICITLY_INSTANTIATE_KERNELS(uint64_t)
+EXPLICITLY_INSTANTIATE_KERNELS(int32_t)
+EXPLICITLY_INSTANTIATE_KERNELS(int64_t)

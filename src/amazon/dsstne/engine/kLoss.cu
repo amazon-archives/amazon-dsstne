@@ -1621,120 +1621,29 @@ template<typename T> NNFloat kCalculateMultinomialScaledMarginalCrossEntropyErro
     return (NNFloat)((double)(getGpu()._pbAccumulator->_pSysData[0]) * ONEOVERERRORSCALE);
 }
 
-
 // Instantiates allowable templated functions so we can hide the implementations here
 // instead of in the header file because we're mixing CUDA and C++ and that's
 // a migraine headache in the making otherwise.
-void kLossTempFunction()
-{
-    kCalculateL1Error<NNFloat>(0, 0, 0, NULL, NULL);
-    kCalculateL1Error<double>(0, 0, 0, NULL, NULL);
-    kCalculateL1Error<unsigned char>(0, 0, 0, NULL, NULL);
-    kCalculateL1Error<char>(0, 0, 0, NULL, NULL);
-    kCalculateL1Error<uint32_t>(0, 0, 0, NULL, NULL);
-    kCalculateL1Error<uint64_t>(0, 0, 0, NULL, NULL);
-    kCalculateL1Error<int32_t>(0, 0, 0, NULL, NULL);
-    kCalculateL1Error<int64_t>(0, 0, 0, NULL, NULL);
+#define EXPLICITLY_INSTANTIATE_KERNELS(T)                                                                                                                           \
+template NNFloat kCalculateL1Error<T>(uint32_t, uint32_t, uint32_t, NNFloat*, T*);                                                                                  \
+template NNFloat kCalculateL2Error<T>(uint32_t, uint32_t, uint32_t, NNFloat*, T*);                                                                                  \
+template NNFloat kCalculateCrossEntropyError<T>(uint32_t, uint32_t, uint32_t, NNFloat*, T*);                                                                        \
+template NNFloat kCalculateScaledMarginalCrossEntropyError<T>(uint32_t, uint32_t, uint32_t, NNFloat*, T*);                                                          \
+template NNFloat kCalculateMultinomialCrossEntropyError<T>(uint32_t, uint32_t, uint32_t, NNFloat*, T*);                                                             \
+template NNFloat kCalculateMultinomialScaledMarginalCrossEntropyError<T>(uint32_t, uint32_t, uint32_t, NNFloat*, T*);                                               \
+template NNFloat kCalculateHingeError<T>(uint32_t, uint32_t, uint32_t, NNFloat*, T*);                                                                               \
+template NNFloat kCalculateSparseAnalogL1Error<T>(uint32_t, uint32_t, uint32_t, NNFloat*, uint64_t*, uint64_t*, uint32_t*, T*, bool);                               \
+template NNFloat kCalculateSparseAnalogL2Error<T>(uint32_t, uint32_t, uint32_t, NNFloat*, uint64_t*, uint64_t*, uint32_t*, T*, bool);                               \
+template NNFloat kCalculateSparseAnalogMultinomialCrossEntropyError<T>(uint32_t, uint32_t, uint32_t, NNFloat*, uint64_t*, uint64_t*, uint32_t*, T*);                \
+template NNFloat kCalculateSparseAnalogMultinomialScaledMarginalCrossEntropyError<T>(uint32_t, uint32_t, uint32_t, NNFloat*, uint64_t*, uint64_t*, uint32_t*, T*);  \
+template NNFloat kCalculateSparseDataScaledMarginalCrossEntropyError<T>(uint32_t, uint32_t, uint32_t, NNFloat*, uint64_t*, uint64_t*, uint32_t*, T*, bool);         \
+/**/
 
-    kCalculateL2Error<NNFloat>(0, 0, 0, NULL, NULL);
-    kCalculateL2Error<double>(0, 0, 0, NULL, NULL);
-    kCalculateL2Error<unsigned char>(0, 0, 0, NULL, NULL);
-    kCalculateL2Error<char>(0, 0, 0, NULL, NULL);
-    kCalculateL2Error<uint32_t>(0, 0, 0, NULL, NULL);
-    kCalculateL2Error<uint64_t>(0, 0, 0, NULL, NULL);
-    kCalculateL2Error<int32_t>(0, 0, 0, NULL, NULL);
-    kCalculateL2Error<int64_t>(0, 0, 0, NULL, NULL);
-    
-    kCalculateHingeError<NNFloat>(0, 0, 0, NULL, NULL);    
-    kCalculateHingeError<double>(0, 0, 0, NULL, NULL);    
-    kCalculateHingeError<unsigned char>(0, 0, 0, NULL, NULL);
-    kCalculateHingeError<char>(0, 0, 0, NULL, NULL);      
-    kCalculateHingeError<uint32_t>(0, 0, 0, NULL, NULL); 
-    kCalculateHingeError<uint64_t>(0, 0, 0, NULL, NULL); 
-    kCalculateHingeError<int32_t>(0, 0, 0, NULL, NULL); 
-    kCalculateHingeError<int64_t>(0, 0, 0, NULL, NULL); 
-    
-    kCalculateCrossEntropyError<NNFloat>(0, 0, 0, NULL, NULL);
-    kCalculateCrossEntropyError<double>(0, 0, 0, NULL, NULL);
-    kCalculateCrossEntropyError<unsigned char>(0, 0, 0, NULL, NULL);
-    kCalculateCrossEntropyError<char>(0, 0, 0, NULL, NULL);
-    kCalculateCrossEntropyError<uint32_t>(0, 0, 0, NULL, NULL);
-    kCalculateCrossEntropyError<uint64_t>(0, 0, 0, NULL, NULL);
-    kCalculateCrossEntropyError<int32_t>(0, 0, 0, NULL, NULL);
-    kCalculateCrossEntropyError<int64_t>(0, 0, 0, NULL, NULL);
-
-    kCalculateScaledMarginalCrossEntropyError<NNFloat>(0, 0, 0, NULL, NULL);
-    kCalculateScaledMarginalCrossEntropyError<double>(0, 0, 0, NULL, NULL);
-    kCalculateScaledMarginalCrossEntropyError<unsigned char>(0, 0, 0, NULL, NULL);
-    kCalculateScaledMarginalCrossEntropyError<char>(0, 0, 0, NULL, NULL);
-    kCalculateScaledMarginalCrossEntropyError<uint32_t>(0, 0, 0, NULL, NULL);
-    kCalculateScaledMarginalCrossEntropyError<uint64_t>(0, 0, 0, NULL, NULL);    
-    kCalculateScaledMarginalCrossEntropyError<int32_t>(0, 0, 0, NULL, NULL);
-    kCalculateScaledMarginalCrossEntropyError<int64_t>(0, 0, 0, NULL, NULL);  
-
-    kCalculateMultinomialCrossEntropyError<NNFloat>(0, 0, 0, NULL, NULL);
-    kCalculateMultinomialCrossEntropyError<double>(0, 0, 0, NULL, NULL);
-    kCalculateMultinomialCrossEntropyError<unsigned char>(0, 0, 0, NULL, NULL);
-    kCalculateMultinomialCrossEntropyError<char>(0, 0, 0, NULL, NULL);
-    kCalculateMultinomialCrossEntropyError<uint32_t>(0, 0, 0, NULL, NULL);
-    kCalculateMultinomialCrossEntropyError<uint64_t>(0, 0, 0, NULL, NULL);
-    kCalculateMultinomialCrossEntropyError<int32_t>(0, 0, 0, NULL, NULL);
-    kCalculateMultinomialCrossEntropyError<int64_t>(0, 0, 0, NULL, NULL);
-
-    kCalculateMultinomialScaledMarginalCrossEntropyError<NNFloat>(0, 0, 0, NULL, NULL);
-    kCalculateMultinomialScaledMarginalCrossEntropyError<double>(0, 0, 0, NULL, NULL);
-    kCalculateMultinomialScaledMarginalCrossEntropyError<unsigned char>(0, 0, 0, NULL, NULL);
-    kCalculateMultinomialScaledMarginalCrossEntropyError<char>(0, 0, 0, NULL, NULL);
-    kCalculateMultinomialScaledMarginalCrossEntropyError<uint32_t>(0, 0, 0, NULL, NULL);
-    kCalculateMultinomialScaledMarginalCrossEntropyError<uint64_t>(0, 0, 0, NULL, NULL);    
-    kCalculateMultinomialScaledMarginalCrossEntropyError<int32_t>(0, 0, 0, NULL, NULL);
-    kCalculateMultinomialScaledMarginalCrossEntropyError<int64_t>(0, 0, 0, NULL, NULL);  
-
-    kCalculateSparseAnalogL1Error<NNFloat>(0, 0, 0, NULL, NULL, NULL, NULL, NULL, false);
-    kCalculateSparseAnalogL1Error<double>(0, 0, 0, NULL, NULL, NULL, NULL, NULL, false);
-    kCalculateSparseAnalogL1Error<unsigned char>(0, 0, 0, NULL, NULL, NULL, NULL, NULL, false);
-    kCalculateSparseAnalogL1Error<char>(0, 0, 0, NULL, NULL, NULL, NULL, NULL, false);
-    kCalculateSparseAnalogL1Error<uint32_t>(0, 0, 0, NULL, NULL, NULL, NULL, NULL, false);
-    kCalculateSparseAnalogL1Error<uint64_t>(0, 0, 0, NULL, NULL, NULL, NULL, NULL, false);
-    kCalculateSparseAnalogL1Error<int32_t>(0, 0, 0, NULL, NULL, NULL, NULL, NULL, false);
-    kCalculateSparseAnalogL1Error<int64_t>(0, 0, 0, NULL, NULL, NULL, NULL, NULL, false);
-
-    kCalculateSparseAnalogL2Error<NNFloat>(0, 0, 0, NULL, NULL, NULL, NULL, NULL, false);
-    kCalculateSparseAnalogL2Error<double>(0, 0, 0, NULL, NULL, NULL, NULL, NULL, false);
-    kCalculateSparseAnalogL2Error<unsigned char>(0, 0, 0, NULL, NULL, NULL, NULL, NULL, false);
-    kCalculateSparseAnalogL2Error<char>(0, 0, 0, NULL, NULL, NULL, NULL, NULL, false);
-    kCalculateSparseAnalogL2Error<uint32_t>(0, 0, 0, NULL, NULL, NULL, NULL, NULL, false);
-    kCalculateSparseAnalogL2Error<uint64_t>(0, 0, 0, NULL, NULL, NULL, NULL, NULL, false);
-    kCalculateSparseAnalogL2Error<int32_t>(0, 0, 0, NULL, NULL, NULL, NULL, NULL, false);
-    kCalculateSparseAnalogL2Error<int64_t>(0, 0, 0, NULL, NULL, NULL, NULL, NULL, false);
-
-    kCalculateSparseAnalogMultinomialCrossEntropyError<NNFloat>(0, 0, 0, NULL, NULL, NULL, NULL, NULL);
-    kCalculateSparseAnalogMultinomialCrossEntropyError<double>(0, 0, 0, NULL, NULL, NULL, NULL, NULL);
-    kCalculateSparseAnalogMultinomialCrossEntropyError<unsigned char>(0, 0, 0, NULL, NULL, NULL, NULL, NULL);
-    kCalculateSparseAnalogMultinomialCrossEntropyError<char>(0, 0, 0, NULL, NULL, NULL, NULL, NULL);
-    kCalculateSparseAnalogMultinomialCrossEntropyError<uint32_t>(0, 0, 0, NULL, NULL, NULL, NULL, NULL);
-    kCalculateSparseAnalogMultinomialCrossEntropyError<uint64_t>(0, 0, 0, NULL, NULL, NULL, NULL, NULL);
-    kCalculateSparseAnalogMultinomialCrossEntropyError<int32_t>(0, 0, 0, NULL, NULL, NULL, NULL, NULL);
-    kCalculateSparseAnalogMultinomialCrossEntropyError<int64_t>(0, 0, 0, NULL, NULL, NULL, NULL, NULL);
-
-    kCalculateSparseAnalogMultinomialScaledMarginalCrossEntropyError<NNFloat>(0, 0, 0, NULL, NULL, NULL, NULL, NULL);
-    kCalculateSparseAnalogMultinomialScaledMarginalCrossEntropyError<double>(0, 0, 0, NULL, NULL, NULL, NULL, NULL);
-    kCalculateSparseAnalogMultinomialScaledMarginalCrossEntropyError<unsigned char>(0, 0, 0, NULL, NULL, NULL, NULL, NULL);
-    kCalculateSparseAnalogMultinomialScaledMarginalCrossEntropyError<char>(0, 0, 0, NULL, NULL, NULL, NULL, NULL);
-    kCalculateSparseAnalogMultinomialScaledMarginalCrossEntropyError<uint32_t>(0, 0, 0, NULL, NULL, NULL, NULL, NULL);
-    kCalculateSparseAnalogMultinomialScaledMarginalCrossEntropyError<uint64_t>(0, 0, 0, NULL, NULL, NULL, NULL, NULL);    
-    kCalculateSparseAnalogMultinomialScaledMarginalCrossEntropyError<int32_t>(0, 0, 0, NULL, NULL, NULL, NULL, NULL);
-    kCalculateSparseAnalogMultinomialScaledMarginalCrossEntropyError<int64_t>(0, 0, 0, NULL, NULL, NULL, NULL, NULL);  
-
-    kCalculateSparseDataScaledMarginalCrossEntropyError<NNFloat>(0, 0, 0, NULL, NULL, NULL, NULL, NULL, false);
-    kCalculateSparseDataScaledMarginalCrossEntropyError<double>(0, 0, 0, NULL, NULL, NULL, NULL, NULL, false);
-    kCalculateSparseDataScaledMarginalCrossEntropyError<unsigned char>(0, 0, 0, NULL, NULL, NULL, NULL, NULL, false);
-    kCalculateSparseDataScaledMarginalCrossEntropyError<char>(0, 0, 0, NULL, NULL, NULL, NULL, NULL, false);
-    kCalculateSparseDataScaledMarginalCrossEntropyError<uint32_t>(0, 0, 0, NULL, NULL, NULL, NULL, NULL, false);
-    kCalculateSparseDataScaledMarginalCrossEntropyError<uint64_t>(0, 0, 0, NULL, NULL, NULL, NULL, NULL, false);
-    kCalculateSparseDataScaledMarginalCrossEntropyError<int32_t>(0, 0, 0, NULL, NULL, NULL, NULL, NULL, false);
-    kCalculateSparseDataScaledMarginalCrossEntropyError<int64_t>(0, 0, 0, NULL, NULL, NULL, NULL, NULL, false);
-    kCalculateSparseDataScaledMarginalCrossEntropyError<long>(0, 0, 0, NULL, NULL, NULL, NULL, NULL, false);
-}
-
-
+EXPLICITLY_INSTANTIATE_KERNELS(NNFloat)
+EXPLICITLY_INSTANTIATE_KERNELS(double)
+EXPLICITLY_INSTANTIATE_KERNELS(unsigned char)
+EXPLICITLY_INSTANTIATE_KERNELS(char)
+EXPLICITLY_INSTANTIATE_KERNELS(uint32_t)
+EXPLICITLY_INSTANTIATE_KERNELS(uint64_t)
+EXPLICITLY_INSTANTIATE_KERNELS(int32_t)
+EXPLICITLY_INSTANTIATE_KERNELS(int64_t)

@@ -3246,83 +3246,21 @@ void kCalculateDotProductDelta(NNFloat* pDPDelta, NNFloat* p0Vector, NNFloat* pV
 // Instantiates allowable templated functions so we can hide the implementations here
 // instead of in the header file because we're mixing CUDA and C++ and that's
 // a migraine headache in the making otherwise.
-void KDeltaTempFunction()
-{   
-    kCalculateCrossEntropyOutputDelta<NNFloat>(Sigmoid, 0, 0, 0, NULL, NULL, NULL);
-    kCalculateCrossEntropyOutputDelta<double>(Sigmoid, 0, 0, 0, NULL, NULL, NULL);
-    kCalculateCrossEntropyOutputDelta<unsigned char>(Sigmoid, 0, 0, 0, NULL, NULL, NULL);
-    kCalculateCrossEntropyOutputDelta<char>(Sigmoid, 0, 0, 0, NULL, NULL, NULL);
-    kCalculateCrossEntropyOutputDelta<uint32_t>(Sigmoid, 0, 0, 0, NULL, NULL, NULL);
-    kCalculateCrossEntropyOutputDelta<uint64_t>(Sigmoid, 0, 0, 0, NULL, NULL, NULL);
-    kCalculateCrossEntropyOutputDelta<int32_t>(Sigmoid, 0, 0, 0, NULL, NULL, NULL);
-    kCalculateCrossEntropyOutputDelta<int64_t>(Sigmoid, 0, 0, 0, NULL, NULL, NULL);
+#define EXPLICITLY_INSTANTIATE_KERNELS(T)                                                                                                                                                 \
+template void kCalculateL1OutputDelta<T>(Activation, uint32_t, uint32_t, uint32_t, NNFloat*, NNFloat*, T*, NNFloat, NNFloat, NNFloat);                                                    \
+template void kCalculateCrossEntropyOutputDelta<T>(Activation, uint32_t, uint32_t, uint32_t, NNFloat*, NNFloat*, T*);                                                                     \
+template void kCalculateScaledMarginalCrossEntropyOutputDelta<T>(Activation, uint32_t, uint32_t, uint32_t, NNFloat*, NNFloat*, T*);                                                       \
+template void kCalculateOutputDelta<T>(Activation, uint32_t, uint32_t, uint32_t, NNFloat*, NNFloat*, T*, NNFloat, NNFloat, NNFloat);                                                      \
+template void kCalculateHingeOutputDelta<T>(Activation, uint32_t, uint32_t, uint32_t, NNFloat*, NNFloat*, T*);                                                                            \
+template void kCalculateSparseDataScaledMarginalCrossEntropyOutputDelta<T>(Activation, uint32_t, uint32_t, uint32_t, NNFloat*,  NNFloat*, uint64_t*, uint64_t*, uint32_t*, T*, bool);     \
+template void kCalculateSparseAnalogOutputDelta<T>(Activation, uint32_t, uint32_t, uint32_t, NNFloat*,  NNFloat*, uint64_t*, uint64_t*, uint32_t*, T*, bool, NNFloat, NNFloat, NNFloat);  \
+/**/
 
-    kCalculateScaledMarginalCrossEntropyOutputDelta<NNFloat>(Sigmoid, 0, 0, 0, NULL, NULL, NULL);
-    kCalculateScaledMarginalCrossEntropyOutputDelta<double>(Sigmoid, 0, 0, 0, NULL, NULL, NULL);
-    kCalculateScaledMarginalCrossEntropyOutputDelta<unsigned char>(Sigmoid, 0, 0, 0, NULL, NULL, NULL);
-    kCalculateScaledMarginalCrossEntropyOutputDelta<char>(Sigmoid, 0, 0, 0, NULL, NULL, NULL);
-    kCalculateScaledMarginalCrossEntropyOutputDelta<uint32_t>(Sigmoid, 0, 0, 0, NULL, NULL, NULL);
-    kCalculateScaledMarginalCrossEntropyOutputDelta<uint64_t>(Sigmoid, 0, 0, 0, NULL, NULL, NULL);
-    kCalculateScaledMarginalCrossEntropyOutputDelta<int32_t>(Sigmoid, 0, 0, 0, NULL, NULL, NULL);
-    kCalculateScaledMarginalCrossEntropyOutputDelta<int64_t>(Sigmoid, 0, 0, 0, NULL, NULL, NULL);
-
-    kCalculateL1OutputDelta<NNFloat>(Sigmoid, 0, 0, 0, NULL, NULL, NULL, 0, 0, 0);
-    kCalculateL1OutputDelta<double>(Sigmoid, 0, 0, 0, NULL, NULL, NULL, 0, 0, 0);
-    kCalculateL1OutputDelta<unsigned char>(Sigmoid, 0, 0, 0, NULL, NULL, NULL, 0, 0, 0);
-    kCalculateL1OutputDelta<char>(Sigmoid, 0, 0, 0, NULL, NULL, NULL, 0, 0, 0);
-    kCalculateL1OutputDelta<uint32_t>(Sigmoid, 0, 0, 0, NULL, NULL, NULL, 0, 0, 0);
-    kCalculateL1OutputDelta<uint64_t>(Sigmoid, 0, 0, 0, NULL, NULL, NULL, 0, 0, 0);
-    kCalculateL1OutputDelta<int32_t>(Sigmoid, 0, 0, 0, NULL, NULL, NULL, 0, 0, 0);
-    kCalculateL1OutputDelta<int64_t>(Sigmoid, 0, 0, 0, NULL, NULL, NULL, 0, 0, 0);
-
-    kCalculateOutputDelta<NNFloat>(Sigmoid, 0, 0, 0, NULL, NULL, NULL, 0, 0, 0);
-    kCalculateOutputDelta<double>(Sigmoid, 0, 0, 0, NULL, NULL, NULL, 0, 0, 0);
-    kCalculateOutputDelta<unsigned char>(Sigmoid, 0, 0, 0, NULL, NULL, NULL, 0, 0, 0);
-    kCalculateOutputDelta<char>(Sigmoid, 0, 0, 0, NULL, NULL, NULL, 0, 0, 0);
-    kCalculateOutputDelta<uint32_t>(Sigmoid, 0, 0, 0, NULL, NULL, NULL, 0, 0, 0);
-    kCalculateOutputDelta<uint64_t>(Sigmoid, 0, 0, 0, NULL, NULL, NULL, 0, 0, 0);
-    kCalculateOutputDelta<int32_t>(Sigmoid, 0, 0, 0, NULL, NULL, NULL, 0, 0, 0);
-    kCalculateOutputDelta<int64_t>(Sigmoid, 0, 0, 0, NULL, NULL, NULL, 0, 0, 0);
-    
-    kCalculateHingeOutputDelta<NNFloat>(Sigmoid, 0, 0, 0, NULL, NULL, NULL);    
-    kCalculateHingeOutputDelta<double>(Sigmoid, 0, 0, 0, NULL, NULL, NULL);    
-    kCalculateHingeOutputDelta<unsigned char>(Sigmoid, 0, 0, 0, NULL, NULL, NULL);    
-    kCalculateHingeOutputDelta<char>(Sigmoid, 0, 0, 0, NULL, NULL, NULL);    
-    kCalculateHingeOutputDelta<uint32_t>(Sigmoid, 0, 0, 0, NULL, NULL, NULL);    
-    kCalculateHingeOutputDelta<uint64_t>(Sigmoid, 0, 0, 0, NULL, NULL, NULL);    
-    kCalculateHingeOutputDelta<int32_t>(Sigmoid, 0, 0, 0, NULL, NULL, NULL);    
-    kCalculateHingeOutputDelta<int64_t>(Sigmoid, 0, 0, 0, NULL, NULL, NULL);    
-
-    kCalculateScaledMarginalCrossEntropyOutputDelta<NNFloat>(Sigmoid, 0, 0, 0, NULL, NULL, NULL);
-    kCalculateScaledMarginalCrossEntropyOutputDelta<double>(Sigmoid, 0, 0, 0, NULL, NULL, NULL);
-    kCalculateScaledMarginalCrossEntropyOutputDelta<unsigned char>(Sigmoid, 0, 0, 0, NULL, NULL, NULL);
-    kCalculateScaledMarginalCrossEntropyOutputDelta<char>(Sigmoid, 0, 0, 0, NULL, NULL, NULL);
-    kCalculateScaledMarginalCrossEntropyOutputDelta<uint32_t>(Sigmoid, 0, 0, 0, NULL, NULL, NULL);
-    kCalculateScaledMarginalCrossEntropyOutputDelta<uint64_t>(Sigmoid, 0, 0, 0, NULL, NULL, NULL);
-    kCalculateScaledMarginalCrossEntropyOutputDelta<int32_t>(Sigmoid, 0, 0, 0, NULL, NULL, NULL);
-    kCalculateScaledMarginalCrossEntropyOutputDelta<int64_t>(Sigmoid, 0, 0, 0, NULL, NULL, NULL);
-    kCalculateScaledMarginalCrossEntropyOutputDelta<long>(Sigmoid, 0, 0, 0, NULL, NULL, NULL);
-
-    kCalculateSparseAnalogOutputDelta<NNFloat>(Linear, 0, 0, 0, NULL,  NULL, NULL, NULL, NULL, NULL, false, 0, 0, 0);
-    kCalculateSparseAnalogOutputDelta<double>(Linear, 0, 0, 0, NULL,  NULL, NULL, NULL, NULL, NULL, false, 0, 0, 0);
-    kCalculateSparseAnalogOutputDelta<unsigned char>(Linear, 0, 0, 0, NULL,  NULL, NULL, NULL, NULL, NULL, false, 0, 0, 0);
-    kCalculateSparseAnalogOutputDelta<char>(Linear, 0, 0, 0, NULL,  NULL, NULL, NULL, NULL, NULL, false, 0, 0, 0);
-    kCalculateSparseAnalogOutputDelta<uint32_t>(Linear, 0, 0, 0, NULL,  NULL, NULL, NULL, NULL, NULL, false, 0, 0, 0);
-    kCalculateSparseAnalogOutputDelta<uint64_t>(Linear, 0, 0, 0, NULL,  NULL, NULL, NULL, NULL, NULL, false, 0, 0, 0);
-    kCalculateSparseAnalogOutputDelta<int32_t>(Linear, 0, 0, 0, NULL,  NULL, NULL, NULL, NULL, NULL, false, 0, 0, 0);
-    kCalculateSparseAnalogOutputDelta<int64_t>(Linear, 0, 0, 0, NULL,  NULL, NULL, NULL, NULL, NULL, false, 0, 0, 0);
-    kCalculateSparseAnalogOutputDelta<long>(Linear, 0, 0, 0, NULL,  NULL, NULL, NULL, NULL, NULL, false, 0, 0, 0);
-
-    kCalculateSparseDataScaledMarginalCrossEntropyOutputDelta<NNFloat>(Sigmoid, 0, 0, 0, NULL,  NULL, NULL, NULL, NULL, NULL, false);
-    kCalculateSparseDataScaledMarginalCrossEntropyOutputDelta<double>(Sigmoid, 0, 0, 0, NULL,  NULL, NULL, NULL, NULL, NULL, false);
-    kCalculateSparseDataScaledMarginalCrossEntropyOutputDelta<unsigned char>(Sigmoid, 0, 0, 0, NULL,  NULL, NULL, NULL, NULL, NULL, false);
-    kCalculateSparseDataScaledMarginalCrossEntropyOutputDelta<char>(Sigmoid, 0, 0, 0, NULL,  NULL, NULL, NULL, NULL, NULL, false);
-    kCalculateSparseDataScaledMarginalCrossEntropyOutputDelta<uint32_t>(Sigmoid, 0, 0, 0, NULL,  NULL, NULL, NULL, NULL, NULL, false);
-    kCalculateSparseDataScaledMarginalCrossEntropyOutputDelta<uint64_t>(Sigmoid, 0, 0, 0, NULL,  NULL, NULL, NULL, NULL, NULL, false);
-    kCalculateSparseDataScaledMarginalCrossEntropyOutputDelta<int32_t>(Sigmoid, 0, 0, 0, NULL,  NULL, NULL, NULL, NULL, NULL, false);
-    kCalculateSparseDataScaledMarginalCrossEntropyOutputDelta<int64_t>(Sigmoid, 0, 0, 0, NULL,  NULL, NULL, NULL, NULL, NULL, false);
-    kCalculateSparseDataScaledMarginalCrossEntropyOutputDelta<long>(Sigmoid, 0, 0, 0, NULL,  NULL, NULL, NULL, NULL, NULL, false);
-}
-
-
-
+EXPLICITLY_INSTANTIATE_KERNELS(NNFloat)
+EXPLICITLY_INSTANTIATE_KERNELS(double)
+EXPLICITLY_INSTANTIATE_KERNELS(unsigned char)
+EXPLICITLY_INSTANTIATE_KERNELS(char)
+EXPLICITLY_INSTANTIATE_KERNELS(uint32_t)
+EXPLICITLY_INSTANTIATE_KERNELS(uint64_t)
+EXPLICITLY_INSTANTIATE_KERNELS(int32_t)
+EXPLICITLY_INSTANTIATE_KERNELS(int64_t)
