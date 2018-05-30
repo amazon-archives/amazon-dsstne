@@ -7,4 +7,5 @@
 /src/amazon/dsstne/utils/predict
 /src/amazon/dsstne/utils/train
 /src/amazon/dsstne/utils/TestGPU
+/build/
 
