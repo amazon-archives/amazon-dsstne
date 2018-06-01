@@ -17,6 +17,8 @@ find_package(CppUnit REQUIRED)
 find_package(JsonCpp REQUIRED)
 find_package(MPI REQUIRED COMPONENTS CXX)
 find_package(NetCDF4 REQUIRED)
+find_package(TensorflowCC REQUIRED)
+find_package(Boost REQUIRED COMPONENTS filesystem)
 
 
 ################################################################################
@@ -43,6 +45,7 @@ file(GLOB DSSTNE_SOURCES "src/amazon/dsstne/engine/*.cpp"
                          "src/amazon/dsstne/utils/Filters.cpp"
                          "src/amazon/dsstne/utils/NetCDFhelper.cpp"
                          "src/amazon/dsstne/utils/NNRecsGenerator.cpp"
+                         "src/amazon/dsstne/utils/TensorboardMetricsLogger.cpp"
                          "src/amazon/dsstne/utils/Utils.cpp")
 add_library(dsstne ${DSSTNE_SOURCES})
 target_include_directories(dsstne PUBLIC "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>"
@@ -52,7 +55,7 @@ target_include_directories(dsstne PUBLIC "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOUR
 target_include_directories(dsstne PUBLIC /usr/lib/openmpi/include)
 target_compile_features(dsstne PUBLIC cxx_std_11)
 target_compile_options(dsstne PRIVATE -use_fast_math)
-target_link_libraries(dsstne PUBLIC JsonCpp::jsoncpp NetCDF4::netcdf MPI::MPI_CXX dsstne_cuda)
+target_link_libraries(dsstne PUBLIC JsonCpp::jsoncpp NetCDF4::netcdf MPI::MPI_CXX dsstne_cuda TensorflowCC::Shared Boost::filesystem)
 
 set(TARGET_ARCHITECTURES -gencode=arch=compute_70,code=sm_70
                          -gencode=arch=compute_61,code=sm_61
@@ -65,7 +68,7 @@ target_compile_options(dsstne PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:${TARGET_ARCHIT
 # Setup tools
 ################################################################################
 add_executable(train "src/amazon/dsstne/utils/Train.cpp")
-target_link_libraries(train PRIVATE dsstne)
+target_link_libraries(train PRIVATE dsstne Boost::filesystem)
 
 add_executable(predict "src/amazon/dsstne/utils/Predict.cpp")
 target_link_libraries(predict PRIVATE dsstne)

@@ -134,6 +134,13 @@ sudo dnf install gcc-c++
 sudo wget https://cmake.org/files/v3.11/cmake-3.11.0-Linux-x86_64.sh -O /tmp/cmake-installer.sh && \
     sh /tmp/cmake-installer.sh --prefix=/usr/local --exclude-subdir
 ```
+#### Bazel Setup (required to build Tensorflow from scratch)
+```bash
+# Ubuntu/Linux 64-bit
+echo "deb [arch=amd64] http://storage.googleapis.com/bazel-apt stable jdk1.8" | sudo tee /etc/apt/sources.list.d/bazel.list
+curl https://bazel.build/bazel-release.pub.gpg | sudo apt-key add -
+sudo apt-get install bazel
+```
 #### Cublas Setup
 ```bash
 # Ubuntu/Linux 64-bit
@@ -149,6 +156,15 @@ MPI is used across in DSTTNE to allow multi GPU modeling. OpenMPI package is use
 ```bash
 # Ubuntu/Linux 64-bit
 sudo apt-get install libopenmpi-dev
+```
+
+#### Build Tensorflow from scratch
+Tensorflow is needed because we use some of their APIs to generate Tensorboard-compatible log files.
+
+```bash
+git clone https://github.com/FloopCZ/tensorflow_cc.git
+mkdir -p tensorflow_cc/build
+(cd tensorflow_cc/build && cmake ../tensorflow_cc -DTENSORFLOW_STATIC=OFF -DTENSORFLOW_SHARED=ON && sudo make install)
 ```
 
 #### NetCDF Setup

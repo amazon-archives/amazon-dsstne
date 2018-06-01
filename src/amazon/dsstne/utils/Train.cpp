@@ -9,6 +9,8 @@
 
    or in the "license" file accompanying this file. This file is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific language governing permissions and limitations under the License.
  */
+#include <boost/filesystem.hpp>
+
 #include <cstdio>
 #include <algorithm>
 #include <chrono>
@@ -26,6 +28,7 @@
 #include "GpuTypes.h"
 #include "NetCDFhelper.h"
 #include "NNTypes.h"
+#include "TensorboardMetricsLogger.h"
 #include "Utils.h"
 
 using namespace std;
@@ -41,6 +44,7 @@ void printUsageTrain() {
     cout << "    -n network_file: (required) the output trained neural network in NetCDF file." << endl;
     cout << "    -b batch_size: (default = 1024) the number records/input rows to process in a batch." << endl;
     cout << "    -e num_epochs: (default = 40) the number passes on the full dataset." << endl;
+    cout << "    --logdir LOGDIR: (default = 'logs') a directory where Tensorboard-compatible logs will be emitted." << endl;
     cout << endl;
 }
 
@@ -105,6 +109,16 @@ int main(int argc, char** argv)
         cout << "Train will produce networkFileName: " << networkFileName << endl;
 	}
 
+    boost::filesystem::path logdir = getOptionalArgValue(argc, argv, "--logdir", "logs");
+    if (logdir.is_relative()) {
+        logdir = boost::filesystem::absolute(logdir);
+    }
+    if (!boost::filesystem::exists(logdir)) {
+        boost::filesystem::create_directory(logdir);
+    }
+    std::cout << "Train will log Tensorboard-compatible metrics to the following directory: " << logdir << std::endl;
+    TensorboardMetricsLogger metrics(logdir);
+
     // Check optional arguments and use default values if not overidden
     unsigned int batchSize =  stoi(getOptionalArgValue(argc, argv, "-b", "1024"));
     cout << "Train will use batchSize: " << batchSize << endl;
@@ -141,13 +155,15 @@ int main(int argc, char** argv)
     // Set to default training mode SGD.
     TrainingMode mode=SGD;
     pNetwork->SetTrainingMode(mode);
-	
+
     auto const start = std::chrono::steady_clock::now();
     // Start Training
     for(unsigned int x = 0 ; x < epoch; ++x) {
         float error = pNetwork->Train(1, alpha, lambda, lambda1, mu, mu1);
+        unsigned int epoch = x + 1;
         CWMetric::updateMetrics("Average_Error",error);
-        CWMetric::updateMetrics("Epochs",x+1);
+        CWMetric::updateMetrics("Epochs",epoch);
+        metrics.scalar(epoch, "Average_Error", error);
     }
     auto const end = std::chrono::steady_clock::now();
     CWMetric::updateMetrics("Training_Time", elapsed_seconds(start, end));
