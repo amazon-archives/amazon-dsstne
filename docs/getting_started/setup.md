@@ -107,6 +107,7 @@ Instructions are provided for installation on Ubuntu 16.04 Linux machines. For p
 
 ### Prerequisites
 * [Setup GCC](#gcc-setup) : GCC compiler with C++11 is required.
+* [Setup CMake](#cmake-setup) : CMake >= 3.10 is required.
 * [Setup CuBLAS](#cublas-setup) : Blas Libraries
 * Cuda Toolkit >= 7.0 is required
 * [Setup OpenMPI](#openmpi-setup) : CUDA aware OpenMPI is required.
@@ -127,6 +128,19 @@ sudo dnf check-update
 sudo dnf install gcc
 sudo dnf install gcc-c++
 ```
+#### CMake Setup
+```bash
+# Ubuntu/Linux 64-bit
+sudo wget https://cmake.org/files/v3.11/cmake-3.11.0-Linux-x86_64.sh -O /tmp/cmake-installer.sh && \
+    sh /tmp/cmake-installer.sh --prefix=/usr/local --exclude-subdir
+```
+#### Bazel Setup (required to build Tensorflow from scratch)
+```bash
+# Ubuntu/Linux 64-bit
+echo "deb [arch=amd64] http://storage.googleapis.com/bazel-apt stable jdk1.8" | sudo tee /etc/apt/sources.list.d/bazel.list
+curl https://bazel.build/bazel-release.pub.gpg | sudo apt-key add -
+sudo apt-get install bazel
+```
 #### Cublas Setup
 ```bash
 # Ubuntu/Linux 64-bit
@@ -142,6 +156,15 @@ MPI is used across in DSTTNE to allow multi GPU modeling. OpenMPI package is use
 ```bash
 # Ubuntu/Linux 64-bit
 sudo apt-get install libopenmpi-dev
+```
+
+#### Build Tensorflow from scratch
+Tensorflow is needed because we use some of their APIs to generate Tensorboard-compatible log files.
+
+```bash
+git clone https://github.com/FloopCZ/tensorflow_cc.git
+mkdir -p tensorflow_cc/build
+(cd tensorflow_cc/build && cmake ../tensorflow_cc -DTENSORFLOW_STATIC=OFF -DTENSORFLOW_SHARED=ON && sudo make install)
 ```
 
 #### NetCDF Setup
@@ -197,11 +220,25 @@ sudo cp -rf cub-1.5.2/cub/ /usr/local/include/
 ```bash
 # Ubuntu/Linux 64-bit
 git clone https://github.com/amznlabs/amazon-dsstne.git
-cd amazon-dsstne/src/amazon/dsstne
-#Add the mpiCC and nvcc compiler in the path
+cd amazon-dsstne
+
+# Add the mpiCC and nvcc compiler in the path (if they are not already there)
 export PATH=/usr/local/openmpi/bin:/usr/local/cuda/bin:$PATH
-make
-export PATH=`pwd`/bin:$PATH
+
+# Decide where you want to install Dsstne (defaults to /usr/local if unspecified)
+INSTALL_DIR="$(pwd)/install"
+
+# Generate the Makefiles with CMake (you can use another generator like Ninja with -GNinja)
+(mkdir build && cd build && cmake .. -DCMAKE_CXX_COMPILER=mpiCC -DCMAKE_INSTALL_PREFIX="${INSTALL_DIR}")
+
+# Build and install the library
+(cd build && make install)
+
+# Run the tests if you want
+(cd build && ctest --output-on-failure)
+
+# Everything will be installed to the given CMAKE_INSTALL_PREFIX; consider adding this to your path
+export PATH="${INSTALL_DIR}/bin:${PATH}"
 ```
 
 Try running some [examples](examples.md).
