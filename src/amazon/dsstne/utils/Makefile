@@ -7,7 +7,7 @@ VPATH=
 
 include ../Makefile.inc
 
-OBJS= Utils.o NetCDFhelper.o NNRecsGenerator.o Filters.o
+OBJS= Utils.o NetCDFhelper.o NNRecsGenerator.o Filters.o cdl.o
 LIB_DSSTNE=../lib/libdsstne.a
 
 COMMON_LIBS = $(LIB_DSSTNE) $(MATH_LIBS) $(MPI_LIBS) $(CU_LIBS) $(CU_LOADLIBS)

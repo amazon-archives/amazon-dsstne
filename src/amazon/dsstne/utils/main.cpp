@@ -13,38 +13,54 @@
 #include "GpuTypes.h"
 #include "NNTypes.h"
 #include <values.h>
+#include <time.h>       /* time */
+#include "cdl.h"
 
 
-
-static const Mode mode = Mode::Training;
-//static const Mode mode = Mode::Prediction;
-//static const Mode mode = Mode::Validation;
 
 int main(int argc, char** argv)
 {
 
     // Initialize GPU network
     getGpu().Startup(argc, argv); 
-    getGpu().SetRandomSeed(12345ull);
+
+    CDL     cdl;
+
+    if (argc == 2)
+    {
+        int err = cdl.Load_JSON(argv[1]);
+        if (err != 0)
+        {
+            printf("*** Error, %s could parse CDC file %s\n", argv[0], argv[1]);
+            return -1;
+        }
+    }
+    else
+    {
+        // if no cdl file specified, set the values that were default before cdl update-checkin
+        cdl._mode = Prediction;
+        cdl._optimizer = TrainingMode::Nesterov;
+        cdl._networkFileName = "network.nc";
+        cdl._alphaInterval = 20;
+        cdl._alphaMultiplier = 0.8f;
+        cdl._alpha = 0.025f;
+        cdl._lambda = 0.0001f;
+        cdl._mu = 0.5f;
+        cdl._randomSeed = 12345;
+        cdl._epochs = 60;
+        cdl._dataFileName = "../../data/data_test.nc";
+    }
+    
+    getGpu().SetRandomSeed(cdl._randomSeed);
 
     // Create Neural network
-    int batch               = 1024;
-    int total_epochs        = 60;
-    int training_epochs     = 20;
-    int epochs              = 0;
-    float alpha             = 0.025f;
-    float lambda            = 0.0001f;
     float lambda1           = 0.0f;
-    float mu                = 0.5f;
     float mu1               = 0.0f;
     NNNetwork* pNetwork;
 
     // Load training data
     vector <NNDataSetBase*> vDataSet;
-    if (mode == Mode::Training)
-        vDataSet = LoadNetCDF("../../data/data_training.nc");
-    else
-        vDataSet = LoadNetCDF("../../data/data_test.nc");
+    vDataSet = LoadNetCDF(cdl._dataFileName);
 
 #if 0        
     vector<tuple<uint64_t, uint64_t> > vMemory = vDataSet[0]->getMemoryUsage();
@@ -54,15 +70,10 @@ int main(int argc, char** argv)
     exit(-1);
 #endif    
     // Create neural network
-    if (argc < 2)
-    {
-        if (mode != Prediction)
-            pNetwork = LoadNeuralNetworkJSON("config.json", batch, vDataSet);
-        else
-            pNetwork = LoadNeuralNetworkNetCDF("network.nc", batch);
-    }
+    if (cdl._mode == Prediction)
+        pNetwork = LoadNeuralNetworkNetCDF(cdl._networkFileName, cdl._batch);
     else
-        pNetwork = LoadNeuralNetworkNetCDF(argv[1], batch);
+        pNetwork = LoadNeuralNetworkJSON(cdl._networkFileName, cdl._batch, vDataSet);
  
     // Dump memory usage
     int totalGPUMemory;
@@ -71,28 +82,30 @@ int main(int argc, char** argv)
     cout << "GPU Memory Usage: " << totalGPUMemory << " KB" << endl;
     cout << "CPU Memory Usage: " << totalCPUMemory << " KB" << endl;
     pNetwork->LoadDataSets(vDataSet);
-    pNetwork->SetCheckpoint("check", 1);
+    pNetwork->SetCheckpoint(cdl._checkpointFileName, cdl._checkpointInterval);
 
     // Train, validate or predict based on operating mode
-    if (mode == Mode::Validation)
+    if (cdl._mode == Mode::Validation)
     {
         pNetwork->SetTrainingMode(Nesterov);
         pNetwork->Validate();
     }
-    else if (mode == Mode::Training)
+    else if (cdl._mode == Training)
     {
-        pNetwork->SetTrainingMode(Nesterov);
-        while (epochs < total_epochs)
+        pNetwork->SetTrainingMode(cdl._optimizer);
+        float alpha = cdl._alpha;    // alpha gets modified in the loop, so use a copy of it
+        int epochs              = 0;
+        while (epochs < cdl._epochs)
         {
             //float margin        = (float)phase * 0.01f;
             //pNetwork->SetSMCE(1.0f - margin, margin, 30.0f, 1.0f); 
-            pNetwork->Train(training_epochs, alpha, lambda, lambda1, mu, mu1);
-            alpha              *= 0.8f;
-            epochs             += training_epochs;
+            pNetwork->Train(cdl._alphaInterval, alpha, cdl._lambda, lambda1, cdl._mu, mu1);
+            alpha              *= cdl._alphaMultiplier;
+            epochs             += cdl._alphaInterval;
         }
         
         // Save final Neural network
-        pNetwork->SaveNetCDF("network.nc");
+        pNetwork->SaveNetCDF(cdl._resultsFileName);
     }
     else
     {
@@ -124,6 +137,10 @@ int main(int argc, char** argv)
             printf("Unable to find output dataset, exiting.\n");
             exit(-1);
         }
+
+
+        int batch = cdl._batch;
+
        
         vector<NNFloat> vPrecision(K);
         vector<NNFloat> vRecall(K);
@@ -310,9 +327,6 @@ int main(int argc, char** argv)
         cout << "CPU Memory Usage: " << totalCPUMemory << " KB" << endl;
     }
     
-    // Save Neural network
-    if (mode == Mode::Training)
-        pNetwork->SaveNetCDF("network.nc");
     delete pNetwork;
 
     // Delete datasets

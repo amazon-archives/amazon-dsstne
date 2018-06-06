@@ -1,32 +1,33 @@
 Command Definition Language (Rev 0.1):
 
-{
-    "Network" : <String>                    # NetCDF, JSON Object, or service object containing network
-    "Command" : <String>                    # Command to execute "Train", "Predict"
+TrainingParameters - only used if Command is Train
+PredictionParameters - only used if Command is Predict
+
+
+    "Network" : <String>                    # NetCDF or JSON file path (default "config.json")
+    "Command" : <String>                    # (required) Command to execute "Train", "Predict", or "Validate"
     "RandomSeed" : <Integer>                # Initializes RNG for reproducible runs (default -1, sets from time of day)
-    "TrainingParameters" : {
-        "Epochs" : <Integer>                # Number of training epochs (Mandatory)
-        "MiniBatch" : <Integer>             # Mini-batch size (default 500, use 0 for entire dataset)
-        "Alpha" : <float>                   # Learning rate (default 0.1)
-        "Lambda" : <float>                  # Regularization/Weight Decay weight (default 0.001)
-        "mu" : <float>                      # Momentum update parameter (default 0.9)
-        "AlphaInterval" : <float>           # Interval between learning rate updates (default 0: constant)
-        "AlphaMultiplier" : <float>         # Amount by which to multiply learning rate per above interval (default: 0.5)
-        "Optimizer" : <String>              # Optimization method, either "SGD", "Momentum", "RMSPROP", or "Nesterov" (default "SGD")
-        "CheckPoint" : {
-            "Name" : <String>               # Location to write checkpoint information
-            "Interval" : <Integer>          # Number of minutes between writing checkpoint data (default 30)
-        },
-        "ShuffleIndices" : <Boolean>        # Shuffle training examples once per epoch? (default false)
-    },
-    "PredictionParameters" : {
-        "MiniBatch" : <Integer>             # Mini-batch size (default 500, use 0 for entire dataset)
-    },
-    "Data" : [                              # List of data sources
+    "Data" : [                              # (required) List of data source files
         <String>
         .
         .
         .
     ],
-    "Results" : <String>                    # Location to write results (File or S3 Object)
+    "TrainingParameters" : {
+        "Epochs" : <Integer>                # (required) Number of training epochs
+        "MiniBatch" : <Integer>             # Mini-batch size (default 500, use 0 for entire dataset)
+        "Alpha" : <float>                   # Learning rate (default 0.1)
+        "Lambda" : <float>                  # Regularization/Weight Decay weight (default 0.001)
+        "mu" : <float>                      # Momentum update parameter (default 0.9)
+        "AlphaInterval" : <float>           # Interval between learning rate updates (default 0: constant)
+        "AlphaMultiplier" : <float>         # Learning rate multiplier per Interval (default: 0.5, or if lr is constant: 1.0)
+        "Optimizer" : <String>              # Optimization method, either "SGD", "Momentum", "RMSPROP", or "Nesterov" (default "SGD")
+        "CheckpointName" : <String>         # Location to write checkpoint information, appended with epoch number and ".nc" (default "check")
+        "CheckpointInterval" : <Integer>    # Number of epochs between writing checkpoint data (default 1)
+        "ShuffleIndices" : <Boolean>        # Shuffle training examples once per epoch? (default false)
+        "Results" : <String>                # Location to write results (File or S3 Object) (default "network.nc")
+    },
+    "PredictionParameters" : {
+        "MiniBatch" : <Integer>             # Mini-batch size (default 500, use 0 for entire dataset)
+    },
 }
