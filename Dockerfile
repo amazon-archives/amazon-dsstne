@@ -11,12 +11,10 @@ ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && \
     apt-get install -y build-essential libcppunit-dev libatlas-base-dev pkg-config python \
         software-properties-common unzip wget && \
+    add-apt-repository ppa:george-edison55/cmake-3.x && \
     apt-get update && \
+    apt-get install -y cmake && \
     apt-get clean
-
-# Install a recent CMake
-RUN wget https://cmake.org/files/v3.11/cmake-3.11.0-Linux-x86_64.sh -O /tmp/cmake-installer.sh && \
-    sh /tmp/cmake-installer.sh --prefix=/usr/local --exclude-subdir
 
 # Install OpenMPI
 RUN apt-get install -y libopenmpi-dev
@@ -49,7 +47,11 @@ ENV PATH=/usr/local/openmpi/bin/:${PATH} \
 
 # Build latest version of DSSTNE from source
 COPY . /opt/amazon/dsstne
-RUN cd /opt/amazon/dsstne && mkdir build && cd build && cmake .. -DCMAKE_CXX_COMPILER=mpiCC && cmake --build . --target install
+RUN cd /opt/amazon/dsstne/src/amazon/dsstne && \
+    make install
 
 # Cleanup
 RUN rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+
+# Add DSSTNE binaries to PATH
+ENV PATH=/opt/amazon/dsstne/src/amazon/dsstne/bin/:${PATH}
