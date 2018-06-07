@@ -107,7 +107,6 @@ Instructions are provided for installation on Ubuntu 16.04 Linux machines. For p
 
 ### Prerequisites
 * [Setup GCC](#gcc-setup) : GCC compiler with C++11 is required.
-* [Setup CMake](#cmake-setup) : CMake >= 3.10 is required.
 * [Setup CuBLAS](#cublas-setup) : Blas Libraries
 * Cuda Toolkit >= 7.0 is required
 * [Setup OpenMPI](#openmpi-setup) : CUDA aware OpenMPI is required.
@@ -127,12 +126,6 @@ sudo apt-get install g++
 sudo dnf check-update
 sudo dnf install gcc
 sudo dnf install gcc-c++
-```
-#### CMake Setup
-```bash
-# Ubuntu/Linux 64-bit
-sudo wget https://cmake.org/files/v3.11/cmake-3.11.0-Linux-x86_64.sh -O /tmp/cmake-installer.sh && \
-    sh /tmp/cmake-installer.sh --prefix=/usr/local --exclude-subdir
 ```
 #### Cublas Setup
 ```bash
@@ -204,25 +197,11 @@ sudo cp -rf cub-1.5.2/cub/ /usr/local/include/
 ```bash
 # Ubuntu/Linux 64-bit
 git clone https://github.com/amznlabs/amazon-dsstne.git
-cd amazon-dsstne
-
-# Add the mpiCC and nvcc compiler in the path (if they are not already there)
+cd amazon-dsstne/src/amazon/dsstne
+#Add the mpiCC and nvcc compiler in the path
 export PATH=/usr/local/openmpi/bin:/usr/local/cuda/bin:$PATH
-
-# Decide where you want to install Dsstne (defaults to /usr/local if unspecified)
-INSTALL_DIR="$(pwd)/install"
-
-# Generate the Makefiles with CMake (you can use another generator like Ninja with -GNinja)
-(mkdir build && cd build && cmake .. -DCMAKE_CXX_COMPILER=mpiCC -DCMAKE_INSTALL_PREFIX="${INSTALL_DIR}")
-
-# Build and install the library
-(cd build && make install)
-
-# Run the tests if you want
-(cd build && ctest --output-on-failure)
-
-# Everything will be installed to the given CMAKE_INSTALL_PREFIX; consider adding this to your path
-export PATH="${INSTALL_DIR}/bin:${PATH}"
+make
+export PATH=`pwd`/bin:$PATH
 ```
 
 Try running some [examples](examples.md).
