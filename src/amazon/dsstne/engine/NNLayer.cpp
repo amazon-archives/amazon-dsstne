@@ -97,7 +97,10 @@ _SELULambda(d._SELULambda),
 _bBatchNormalization(d._attributes & NNLayer::Attributes::BatchNormalization)
 {
     _stride                         = _Nx * _Ny * _Nz * _Nw;
-    _parallelization                = Serial;
+    if (_type == FullyConnected)
+        _parallelization            = Model;
+    else
+        _parallelization            = Data;
 
     // Model parallel settings
     _minX                           = ((size_t)_Nx * (size_t)getGpu()._id) / (size_t)getGpu()._numprocs;
@@ -460,7 +463,7 @@ void NNLayer::Allocate(bool validate)
         CUDNNERROR(cudnnStatus, "NNLayer::Allocate: Unable to set tensor descriptor");
         DumpTensor(_tensorDescriptor);
     }
-    
+
     // Allocate hidden unit data for hidden and output layers and for non-sparse input layers
     if (!_bSparse || !_bFastSparse || (_kind != Input)
         || (_bSparse && (_kind == Input) && validate) // only for validation
@@ -480,7 +483,6 @@ void NNLayer::Allocate(bool validate)
         if (getGpu()._id == 0)       
             printf("NNLayer::Allocate: Allocating %" PRIu64 " bytes (%u, %u) of delta data for layer %s\n", size * sizeof(NNFloat), _maxLocalStride, _localBatch, _name.c_str());        
     }
-
     
     // Allocate dropout data if active
     if (_pDropout > (NNFloat)0.0)
@@ -617,18 +619,7 @@ void NNLayer::RefreshState(NNNetwork* pNetwork, bool validate)
         _bFastSparse                = false;
         if ((_kind == Input) && (_pDataSet != NULL) && (_bSparse))
         {
-            uint32_t maxSparse      = (_pDataSet->_attributes & NNDataSetEnums::Attributes::Boolean) ? getGpu()._maxSparse : getGpu()._maxSparseAnalog;
-            if (_batch > maxSparse)
-            {
-                if (getGpu()._id == 0)
-                    printf("NNLayer::RefreshState: Batch size (%u) is too high to use fast sparse kernels on input layer %s\n", _batch, _name.c_str());    
-            }
-            else if (_pDataSet->_maxSparseDatapoints > maxSparse)
-            {
-                if (getGpu()._id == 0)
-                    printf("NNLayer::RefreshState: Maximum sparse datapoints per example (%u) is too high to use fast sparse kernels on input layer %s\n", _pDataSet->_maxSparseDatapoints, _name.c_str());  
-            }
-            else if (_pDataSet->_sparseDensity > (NNFloat)0.1)
+            if (_pDataSet->_sparseDensity > (NNFloat)0.1)
             {
                  if (getGpu()._id == 0)
                     printf("NNLayer::RefreshState: Sparse density per (%.2f) is too high to use fast sparse kernels on input layer %s\n", _pDataSet->_sparseDensity, _name.c_str());                 
@@ -648,11 +639,11 @@ void NNLayer::RefreshState(NNNetwork* pNetwork, bool validate)
         // Shard data set if necessary
         if ((_kind != Hidden) && (_pDataSet != NULL))
         {
-            if (_type == FullyConnected)
+            if (_parallelization == NNLayer::Parallelization::Model)
             {
                 _pDataSet->Shard(NNDataSetEnums::Model);
             }
-            else if (_type == Convolutional)
+            else if (_parallelization == NNLayer::Parallelization::Data)
             {
                 _pDataSet->Shard(NNDataSetEnums::Data);
             }
@@ -2508,7 +2499,6 @@ void NNLayer::Gather(uint32_t batch, uint32_t stride, NNFloat* pBuffer, uint32_t
         }
     }
 }
-
 
 // Dumps unit or delta data to file
 void NNLayer::Dump(string fname, NNFloat* pBuffer)

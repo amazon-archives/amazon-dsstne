@@ -10,7 +10,8 @@ namespace NNDataSetEnums {
         Compressed = 4,             // Data uses type-specific compression
         Recurrent = 8,              // Data has a time dimension
         Mutable = 16,               // Data can be modified by running network backwards
-        SparseIgnoreZero = 32       // Only calculate errors and deltas on non-zero values
+        SparseIgnoreZero = 32,      // Only calculate errors and deltas on non-zero values
+        Indexed = 64                // Data set is indexed
     };
 
     enum Kind

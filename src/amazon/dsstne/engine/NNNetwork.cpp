@@ -471,8 +471,10 @@ _verbose(false)
                 l->_vIncomingLayer.push_back(pLayer);
                 pLayer->_vOutgoingLayer.push_back(l);
                 
-                // Validate dot product and maxout layers sources are all the same size
-                if ((l->_poolingFunction == PoolingFunction::Maxout) || (l->_poolingFunction == PoolingFunction::Maxout))
+                // Validate dot product, cosine and maxout layers sources are all the same size
+                if ((l->_poolingFunction == PoolingFunction::DotProduct) || 
+                    (l->_poolingFunction == PoolingFunction::Cosine) ||
+                    (l->_poolingFunction == PoolingFunction::Maxout))
                 {
                     if (pLayer->_stride != l->_vIncomingLayer[0]->_stride)
                     {
@@ -2132,7 +2134,7 @@ void CalculateDerivedLayerDimensions(NNNetworkDescriptor& d)
             NNLayerDescriptor* pL               = &(d._vLayerDescriptor[i]);
             bool bPooling                       = pL->_type == NNLayer::Type::Pooling;
             bool bLRN                           = bPooling && (pL->_poolingFunction == PoolingFunction::LRN);
-            bool bDotProduct                    = bPooling && (pL->_poolingFunction == PoolingFunction::DotProduct);
+            bool bDotProduct                    = bPooling && ((pL->_poolingFunction == PoolingFunction::DotProduct) || (pL->_poolingFunction == PoolingFunction::Cosine));
 
             if (!mbDimensionsCalculated[pL])
             {
@@ -3292,7 +3294,17 @@ NNNetwork* LoadNeuralNetworkJSON(const string& fname, const uint32_t batch, cons
                                     }
                                     continue;
                                 }
+                            }
 
+                            // Output layer-specific features
+                            if (ldl._kind == NNLayer::Kind::Output)
+                            {
+
+                            }
+
+                            // Hidden and output layer-specific features
+                            if ((ldl._kind == NNLayer::Kind::Hidden) || (ldl._kind == NNLayer::Kind::Output))
+                            {
                                 // Pooling layer-specific features
                                 if (ldl._type == NNLayer::Type::Pooling)
                                 {
@@ -3320,18 +3332,8 @@ NNNetwork* LoadNeuralNetworkJSON(const string& fname, const uint32_t batch, cons
                                         }
                                         continue;
                                     }
-                                }
-                            }
-
-                            // Output layer-specific features
-                            if (ldl._kind == NNLayer::Kind::Output)
-                            {
-
-                            }
-
-                            // Hidden and output layer-specific features
-                            if ((ldl._kind == NNLayer::Kind::Hidden) || (ldl._kind == NNLayer::Kind::Output))
-                            {
+                                }                                
+                                
                                 // Read skip(s) if present
                                 if (lname.compare("skip") == 0)
                                 {
@@ -3689,7 +3691,6 @@ exit:
 
     // Now create network;
     pNetwork                                    = new NNNetwork(nd, batch);
-    pNetwork->RefreshState();
     return pNetwork;
 }
 
