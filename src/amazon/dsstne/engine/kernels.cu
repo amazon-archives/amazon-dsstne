@@ -143,6 +143,7 @@ void kClearQuadSourceUnit(NNFloat* pUnit, NNFloat* pBias1, NNFloat* pBias2, NNFl
     kClearQuadSourceUnit_kernel<<<blocks, getGpu()._threadsPerBlock>>>(pUnit, pBias1, pBias2, pBias3, pBias4, stride, size);
     LAUNCHERROR("kClearQuadSource_kernel");
 }
+
 __global__ void
 LAUNCH_BOUNDS()
 kLoadSparseInputUnit_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t* pSparseIndex)
@@ -174,6 +175,39 @@ void kLoadSparseInputUnit(uint32_t position, uint32_t batch, uint32_t stride, NN
     RTERROR(status, "kLoadSparseInputUnit failed");
     kLoadSparseInputUnit_kernel<<<blocks, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pSparseStart, pSparseEnd, pSparseIndex);
     LAUNCHERROR("kLoadSparseInputUnit_kernel");
+}
+
+__global__ void
+LAUNCH_BOUNDS()
+kLoadIndexedSparseInputUnit_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t* pSparseIndex)
+{
+    uint32_t pos                        = (blockIdx.x * blockDim.x + threadIdx.x) / cData._warpSize;
+    if (pos < batch)
+    {
+        uint32_t pos1                   = pos + position;                            
+        pos1                            = pIndex[cData._bShuffleIndices ?  cData._pShuffleIndex[pos1] : pos1];
+        uint64_t start                  = pSparseStart[pos1] + (threadIdx.x & cData._warpMask);
+        uint64_t end                    = pSparseEnd[pos1];
+        uint64_t offset                 = pos * stride;
+        while (start < end)
+        {
+            uint64_t pos2               = offset + pSparseIndex[start];
+            pUnit[pos2]                 = 1.0f;
+            start                      += cData._warpSize;
+        }
+    }
+}
+
+void kLoadIndexedSparseInputUnit(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t* pSparseIndex)
+{
+    uint32_t last                       = position + batch;
+    uint32_t count                      = last - position;
+    uint32_t blocks                     = (count * getGpu()._warpSize + getGpu()._threadsPerBlock - 1) / getGpu()._threadsPerBlock;
+
+    cudaError_t status                  = cudaMemset(pUnit, 0, (uint64_t)batch * (uint64_t)stride * sizeof(NNFloat));
+    RTERROR(status, "kLoadIndexedSparseInputUnit failed");
+    kLoadIndexedSparseInputUnit_kernel<<<blocks, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pIndex, pSparseStart, pSparseEnd, pSparseIndex);
+    LAUNCHERROR("kLoadpIndexedSparseInputUnit_kernel");
 }
 
 template<typename T>
@@ -209,6 +243,42 @@ void kLoadSparseAnalogInputUnit(uint32_t position, uint32_t batch, uint32_t stri
     RTERROR(status, "kLoadSparseAnalogInputUnit failed");    
     kLoadSparseAnalogInputUnit_kernel<<<blocks, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pSparseStart, pSparseEnd, pSparseIndex, pSparseData);
     LAUNCHERROR("kLoadSparseAnalogInputUnit_kernel");
+}
+
+
+template<typename T>
+__global__ void
+LAUNCH_BOUNDS()
+kLoadIndexedSparseAnalogInputUnit_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t* pSparseIndex, T* pSparseData)
+{
+    uint32_t pos                        = (blockIdx.x * blockDim.x + threadIdx.x) / cData._warpSize;
+    if (pos < batch)
+    {
+        uint32_t pos1                   = pos + position;                            
+        pos1                            = pIndex[cData._bShuffleIndices ?  cData._pShuffleIndex[pos1] : pos1];
+        uint64_t start                  = pSparseStart[pos1] + (threadIdx.x & cData._warpMask);
+        uint64_t end                    = pSparseEnd[pos1];
+        uint64_t offset                 = pos * stride;
+        while (start < end)
+        {
+            uint64_t pos2               = offset + pSparseIndex[start];
+            T data                      = pSparseData[start];
+            pUnit[pos2]                 = data;
+            start                      += cData._warpSize;
+        }
+    }
+}
+
+template<typename T>
+void kLoadIndexedSparseAnalogInputUnit(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t* pSparseIndex, T* pSparseData)
+{
+    uint32_t last                       = position + batch;
+    uint32_t count                      = last - position;
+    uint32_t blocks                     = (count * getGpu()._warpSize + getGpu()._threadsPerBlock - 1) / getGpu()._threadsPerBlock;
+    cudaError_t status                  = cudaMemset(pUnit, 0, (uint64_t)batch * (uint64_t)stride * sizeof(NNFloat));
+    RTERROR(status, "kLoadIndexedSparseAnalogInputUnit failed");    
+    kLoadIndexedSparseAnalogInputUnit_kernel<<<blocks, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pIndex, pSparseStart, pSparseEnd, pSparseIndex, pSparseData);
+    LAUNCHERROR("kLoadIndexedSparseAnalogInputUnit_kernel");
 }
 
 __global__ void
@@ -249,6 +319,41 @@ void kLoadSparseDenoisedInputUnit(uint32_t position, uint32_t batch, uint32_t st
     LAUNCHERROR("kLoadSparseDenoisedInputUnit_kernel");
 }
 
+__global__ void
+LAUNCH_BOUNDS()
+kLoadIndexedSparseDenoisedInputUnit_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t* pSparseIndex, NNFloat* pRandom)
+{
+    uint32_t pos                        = (blockIdx.x * blockDim.x + threadIdx.x) / cData._warpSize;
+    if (pos < batch)
+    {                           
+        uint32_t pos1                   = pIndex[cData._bShuffleIndices ?  cData._pShuffleIndex[pos + position] : pos + position];
+        uint64_t start                  = pSparseStart[pos1] + (threadIdx.x & cData._warpMask);
+        uint64_t end                    = pSparseEnd[pos1];
+        uint64_t offset                 = pos * stride;
+        while (start < end)
+        {
+            NNFloat value               = pRandom[start];
+            uint64_t pos2               = offset + pSparseIndex[start];
+            if (value >= cData._denoising_p)
+                pUnit[pos2]             = cData._denoising_q;
+            start                      += cData._warpSize;
+        }
+    }
+}
+
+
+void kLoadIndexedSparseDenoisedInputUnit(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pRandom)
+{
+    uint32_t last                       = position + batch;
+    uint32_t count                      = last - position;
+    uint32_t blocks                     = (count * getGpu()._warpSize + getGpu()._threadsPerBlock - 1) / getGpu()._threadsPerBlock;
+
+    cudaError_t status                  = cudaMemset(pUnit, 0, (uint64_t)batch * (uint64_t)stride * sizeof(NNFloat));
+    RTERROR(status, "kLoadIndexedSparseDenoisedInputUnit failed");
+    kLoadIndexedSparseDenoisedInputUnit_kernel<<<blocks, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pIndex, pSparseStart, pSparseEnd, pSparseIndex, pRandom);
+    LAUNCHERROR("kLoadIndexedSparseDenoisedInputUnit_kernel");
+}
+
 template<typename T>
 __global__ void
 LAUNCH_BOUNDS()
@@ -284,6 +389,43 @@ void kLoadSparseAnalogDenoisedInputUnit(uint32_t position, uint32_t batch, uint3
     RTERROR(status, "kLoadSparseAnalogDenoisedInputUnit failed");
     kLoadSparseAnalogDenoisedInputUnit_kernel<<<blocks, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pSparseStart, pSparseEnd, pSparseIndex, pSparseData, pRandom);
     LAUNCHERROR("kLoadSparseAnalogDenoisedInputUnit_kernel");
+}
+
+template<typename T>
+__global__ void
+LAUNCH_BOUNDS()
+kLoadIndexedSparseAnalogDenoisedInputUnit_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t* pSparseIndex, T* pSparseData, NNFloat* pRandom)
+{
+    uint32_t pos                        = (blockIdx.x * blockDim.x + threadIdx.x) / cData._warpSize;
+    if (pos < batch)
+    {                           
+        uint32_t pos1                   = pIndex[cData._bShuffleIndices ?  cData._pShuffleIndex[pos + position] : pos + position];
+        uint64_t start                  = pSparseStart[pos1] + (threadIdx.x & cData._warpMask);
+        uint64_t end                    = pSparseEnd[pos1];
+        uint64_t offset                 = pos * stride;
+        while (start < end)
+        {
+            NNFloat value               = pRandom[start];
+            uint64_t pos2               = offset + pSparseIndex[start];
+            T data                      = pSparseData[start];
+            if (value >= cData._denoising_p)
+                pUnit[pos2]             = cData._denoising_q * data;
+            start                      += cData._warpSize;
+        }
+    }
+}
+
+template<typename T>
+void kLoadIndexedSparseAnalogDenoisedInputUnit(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, T *pSparseData, NNFloat* pRandom)
+{
+    uint32_t last                       = position + batch;
+    uint32_t count                      = last - position;
+    uint32_t blocks                     = (count * getGpu()._warpSize + getGpu()._threadsPerBlock - 1) / getGpu()._threadsPerBlock;
+
+    cudaError_t status                  = cudaMemset(pUnit, 0, (uint64_t)batch * (uint64_t)stride * sizeof(NNFloat));
+    RTERROR(status, "kLoadIndexedSparseAnalogDenoisedInputUnit failed");
+    kLoadIndexedSparseAnalogDenoisedInputUnit_kernel<<<blocks, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pIndex, pSparseStart, pSparseEnd, pSparseIndex, pSparseData, pRandom);
+    LAUNCHERROR("kLoadIndexedSparseAnalogDenoisedInputUnit_kernel");
 }
 
 template<typename T>
@@ -346,6 +488,69 @@ template<> void kLoadInputUnit(uint32_t position, uint32_t batch, uint32_t strid
     dim3 grid(batch, (stride + getGpu()._threadsPerBlock - 1) / getGpu()._threadsPerBlock);
     kLoadNormalizedInputUnit_kernel<<<grid, getGpu()._threadsPerBlock>>>(position, stride, pUnit, pData);
     LAUNCHERROR("kLoadNormalizedInputUnit_kernel");
+}
+
+
+template<typename T>
+__global__ void
+LAUNCH_BOUNDS()
+kLoadIndexedInputUnit_kernel(uint32_t position, uint32_t stride, NNFloat* pUnit, uint32_t* pIndex, T* pData)
+{
+    uint64_t pos                        = (blockIdx.y * blockDim.x) + threadIdx.x;
+    if (pos < stride)
+    {
+        uint32_t pos1                   = pIndex[cData._bShuffleIndices ?  cData._pShuffleIndex[blockIdx.x + position] : blockIdx.x + position];
+        uint64_t soffset                = pos1 * stride + pos;
+        uint64_t doffset                = blockIdx.x * stride + pos;
+        pUnit[doffset]                  = pData[soffset];
+    }
+}
+
+__global__ void
+kLoadIndexedNormalizedInputUnit_kernel(uint32_t position, uint32_t stride, NNFloat* pUnit, uint32_t* pIndex, unsigned char* pData)
+{
+    uint64_t pos                        = (blockIdx.y * blockDim.x) + threadIdx.x;
+    if (pos < stride)
+    {
+        uint32_t pos1                   = pIndex[cData._bShuffleIndices ?  cData._pShuffleIndex[blockIdx.x + position] : blockIdx.x + position];
+        uint64_t soffset                = pos1 * stride + pos;
+        uint64_t doffset                = blockIdx.x * stride + pos;
+        pUnit[doffset]                  = (NNFloat)pData[soffset] * (NNFloat)(1.0 / 256.0) - (NNFloat)0.5;
+    }
+}
+
+__global__ void
+kLoadIndexedNormalizedInputUnit_kernel(uint32_t position, uint32_t stride, NNFloat* pUnit, uint32_t* pIndex, char* pData)
+{
+    uint64_t pos          = (blockIdx.y * blockDim.x) + threadIdx.x;
+    if (pos < stride)
+    {
+        uint32_t pos1                   = pIndex[cData._bShuffleIndices ?  cData._pShuffleIndex[blockIdx.x + position] : blockIdx.x + position];
+        uint64_t soffset                = pos1 * stride + pos;
+        uint64_t doffset                = blockIdx.x * stride + pos;
+        pUnit[doffset]                  = (NNFloat)pData[soffset] * (NNFloat)(1.0 / 128.0);
+    }
+}
+
+template<typename T> void kLoadIndexedInputUnit(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, uint32_t* pIndex, T* pData)
+{
+    dim3 grid(batch, (stride + getGpu()._threadsPerBlock - 1) / getGpu()._threadsPerBlock);
+    kLoadIndexedInputUnit_kernel<<<grid, getGpu()._threadsPerBlock>>>(position, stride, pUnit, pIndex, pData);
+    LAUNCHERROR("kLoadIndexedInputUnit_kernel");
+}
+
+template<> void kLoadIndexedInputUnit(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, uint32_t* pIndex, unsigned char* pData)
+{
+    dim3 grid(batch, (stride + getGpu()._threadsPerBlock - 1) / getGpu()._threadsPerBlock);
+    kLoadIndexedNormalizedInputUnit_kernel<<<grid, getGpu()._threadsPerBlock>>>(position, stride, pUnit, pIndex, pData);
+    LAUNCHERROR("kLoadIndexedNormalizedInputUnit_kernel");
+}
+
+template<> void kLoadIndexedInputUnit(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, uint32_t* pIndex, char* pData)
+{
+    dim3 grid(batch, (stride + getGpu()._threadsPerBlock - 1) / getGpu()._threadsPerBlock);
+    kLoadIndexedNormalizedInputUnit_kernel<<<grid, getGpu()._threadsPerBlock>>>(position, stride, pUnit, pIndex, pData);
+    LAUNCHERROR("kLoadIndexedNormalizedInputUnit_kernel");
 }
 
 // Adds bias from single incoming unit
@@ -458,43 +663,57 @@ __shared__ uint32_t sOffset[MAXSPARSE];                         // Shared set of
     position                    = cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x;    
     uint64_t start              = pSparseStart[position];
     uint64_t end                = pSparseEnd[position];
-    uint32_t inputs             = end - start;
-    uint32_t pos                = threadIdx.x;
-    start                      += threadIdx.x;
+    pUnit                      += blockIdx.x * stride;
     while (start < end)
     {
-        sOffset[pos]            = pSparseIndex[start] * stride;
-        pos                    += blockDim.x;
-        start                  += blockDim.x;
-    }
+        uint32_t inputs         = ullmin(end - start, (uint64_t)MAXSPARSE);
+        uint64_t tend           = start + inputs;
+        uint64_t tstart         = start + threadIdx.x;
+        uint32_t pos            = threadIdx.x;
 
-    __threadfence();
-    __syncthreads();
+        while (tstart < tend)
+        {
+            sOffset[pos]        = pSparseIndex[tstart] * stride;
+            pos                += blockDim.x;
+            tstart             += blockDim.x;
+        }
 
-    // Cycle through all output positions
-    pUnit                      += blockIdx.x * stride;
-    uint32_t opos               = threadIdx.x;
-    uint32_t tgx                = threadIdx.x & cData._warpMask;    
-    while (opos < stride)
-    {        
-        // Read all non-zero inputs
-        NNFloat unit            = (beta == (NNFloat)0.0) ? (NNFloat)0.0 : pUnit[opos];
-        for (uint32_t i = 0; i < inputs; i++)
-        {
-            uint32_t offset     = sOffset[i];
-            unit               += pWeight[offset + opos];  
+        __threadfence();
+        __syncthreads();
+
+        // Cycle through all output positions
+        uint32_t opos           = threadIdx.x;
+        uint32_t tgx            = threadIdx.x & cData._warpMask;    
+        while (opos < stride)
+        {        
+            // Read all non-zero inputs
+            NNFloat unit        = (beta == (NNFloat)0.0) ? (NNFloat)0.0 : pUnit[opos];
+            for (uint32_t i = 0; i < inputs; i++)
+            {
+                uint32_t offset = sOffset[i];
+                unit           += pWeight[offset + opos];  
+            }
+
+            // Write output
+            pUnit[opos]         = unit;
+
+            // Advance to next set of outputs
+            if (tgx == 0)
+            {
+                opos            = atomicAdd(&sOpos, cData._warpSize);
+            }
+            opos                = SHFL(opos, 0);
+            opos               += tgx;
         }
-        
-        // Write output
-        pUnit[opos]             = unit;
-    
-        // Advance to next set of outputs
-        if (tgx == 0)
+
+        // Advance to next block of sparse inputs, syncing if necessary
+        start                   = tend;
+        if (start < end)
         {
-            opos                = atomicAdd(&sOpos, cData._warpSize);
+            __threadfence();
+            __syncthreads();
+            beta                = (NNFloat)1.0;             // Set beta to 1.0 for any remaining gradient accumulation
         }
-        opos                    = SHFL(opos, 0);
-        opos                   += tgx;
     }
 }
 
@@ -504,6 +723,81 @@ void kCalculateSparseZ(uint32_t position, uint32_t batch, uint32_t stride, NNFlo
     uint32_t threads            = min(256, ((stride + getGpu()._warpSize - 1) >> getGpu()._warpBits) << getGpu()._warpBits);
     kCalculateSparseZ_kernel<<<batch, threads>>>(position, stride, pWeight, pSparseStart, pSparseEnd, pSparseIndex, pUnit, beta);
     LAUNCHERROR("kCalculateSparseZ_kernel");
+}
+
+__global__ void
+LAUNCH_BOUNDS256()
+kCalculateIndexedSparseZ_kernel(uint32_t position, uint32_t stride, NNFloat* pWeight, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t* pSparseIndex, NNFloat* pUnit, NNFloat beta)
+{
+__shared__ uint32_t sOpos;                                      // Shared output position
+__shared__ uint32_t sOffset[MAXSPARSE];                         // Shared set of offsets to non-zero weights
+
+    // Read sparse indices into shared memory so they're only read once
+    sOpos                       = blockDim.x;
+    position                    = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x];    
+    uint64_t start              = pSparseStart[position];
+    uint64_t end                = pSparseEnd[position];
+    pUnit                      += blockIdx.x * stride;
+    while (start < end)
+    {
+        uint32_t inputs         = ullmin(end - start, (uint64_t)MAXSPARSE);
+        uint64_t tend           = start + inputs;
+        uint64_t tstart         = start + threadIdx.x;
+        uint32_t pos            = threadIdx.x;
+
+        while (tstart < tend)
+        {
+            sOffset[pos]        = pSparseIndex[tstart] * stride;
+            pos                += blockDim.x;
+            tstart             += blockDim.x;
+        }
+
+        __threadfence();
+        __syncthreads();
+
+        // Cycle through all output positions
+
+        uint32_t opos           = threadIdx.x;
+        uint32_t tgx            = threadIdx.x & cData._warpMask;    
+        while (opos < stride)
+        {        
+            // Read all non-zero inputs
+            NNFloat unit        = (beta == (NNFloat)0.0) ? (NNFloat)0.0 : pUnit[opos];
+            for (uint32_t i = 0; i < inputs; i++)
+            {
+                uint32_t offset = sOffset[i];
+                unit           += pWeight[offset + opos];  
+            }
+
+            // Write output
+            pUnit[opos]         = unit;
+
+            // Advance to next set of outputs
+            if (tgx == 0)
+            {
+                opos            = atomicAdd(&sOpos, cData._warpSize);
+            }
+            opos                = SHFL(opos, 0);
+            opos               += tgx;
+        }
+
+        // Advance to next block of sparse inputs, syncing if necessary
+        start                   = tend;
+        if (start < end)
+        {
+            __threadfence();
+            __syncthreads();
+            beta                = (NNFloat)1.0;             // Set beta to 1.0 for any remaining gradient accumulation
+        }
+    }
+}
+
+
+void kCalculateIndexedSparseZ(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pWeight, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t* pSparseIndex, NNFloat* pUnit, NNFloat beta)
+{
+    uint32_t threads            = min(256, ((stride + getGpu()._warpSize - 1) >> getGpu()._warpBits) << getGpu()._warpBits);
+    kCalculateIndexedSparseZ_kernel<<<batch, threads>>>(position, stride, pWeight, pIndex, pSparseStart, pSparseEnd, pSparseIndex, pUnit, beta);
+    LAUNCHERROR("kCalculateIndexedSparseZ_kernel");
 }
 
 template<typename T>
@@ -520,44 +814,58 @@ __shared__ T sValue[MAXSPARSEANALOG];
     position                    = cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x;    
     uint64_t start              = pSparseStart[position];
     uint64_t end                = pSparseEnd[position];
-    uint32_t inputs             = end - start;
-    uint32_t pos                = threadIdx.x;
-    start                      += threadIdx.x;
+    pUnit                      += blockIdx.x * stride;
     while (start < end)
     {
-        sOffset[pos]            = pSparseIndex[start] * stride;
-        sValue[pos]             = pSparseData[start];
-        pos                    += blockDim.x;
-        start                  += blockDim.x;
-    }
+        uint32_t inputs         = ullmin(end - start, (uint64_t)MAXSPARSEANALOG);
+        uint64_t tend           = start + inputs;
+        uint64_t tstart         = start + threadIdx.x;
+        uint32_t pos            = threadIdx.x;
 
-    __threadfence();
-    __syncthreads();
+        while (tstart < tend)
+        {
+            sOffset[pos]        = pSparseIndex[tstart] * stride;
+            sValue[pos]         = pSparseData[tstart];
+            pos                += blockDim.x;
+            tstart             += blockDim.x;
+        }
 
-    // Cycle through all output positions
-    pUnit                      += blockIdx.x * stride;
-    uint32_t opos               = threadIdx.x;
-    uint32_t tgx                = threadIdx.x & cData._warpMask;    
-    while (opos < stride)
-    {        
-        // Read all non-zero inputs
-        NNFloat unit            = (beta == (NNFloat)0.0) ? (NNFloat)0.0 : pUnit[opos];
-        for (uint32_t i = 0; i < inputs; i++)
-        {
-            uint32_t offset     = sOffset[i];
-            unit               += pWeight[offset + opos] * sValue[i];  
+        __threadfence();
+        __syncthreads();
+
+        // Cycle through all output positions
+        uint32_t opos           = threadIdx.x;
+        uint32_t tgx            = threadIdx.x & cData._warpMask;    
+        while (opos < stride)
+        {        
+            // Read all non-zero inputs
+            NNFloat unit        = (beta == (NNFloat)0.0) ? (NNFloat)0.0 : pUnit[opos];
+            for (uint32_t i = 0; i < inputs; i++)
+            {
+                uint32_t offset = sOffset[i];
+                unit           += pWeight[offset + opos] * sValue[i];  
+            }
+
+            // Write output
+            pUnit[opos]         = unit;
+
+            // Advance to next set of outputs
+            if (tgx == 0)
+            {
+                opos            = atomicAdd(&sOpos, cData._warpSize);
+            }
+            opos                = SHFL(opos, 0);
+            opos               += tgx;
         }
-        
-        // Write output
-        pUnit[opos]             = unit;
-    
-        // Advance to next set of outputs
-        if (tgx == 0)
+
+        // Advance to next block of sparse inputs, syncing if necessary
+        start                   = tend;
+        if (start < end)
         {
-            opos                = atomicAdd(&sOpos, cData._warpSize);
+            __threadfence();
+            __syncthreads();
+            beta                = (NNFloat)1.0;             // Set beta to 1.0 for any remaining gradient accumulation
         }
-        opos                    = SHFL(opos, 0);
-        opos                   += tgx;
     }
 }
 
@@ -575,44 +883,58 @@ __shared__ NNFloat sValue[MAXSPARSEANALOG];
     position                    = cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x;    
     uint64_t start              = pSparseStart[position];
     uint64_t end                = pSparseEnd[position];
-    uint32_t inputs             = end - start;
-    uint32_t pos                = threadIdx.x;
-    start                      += threadIdx.x;
+    pUnit                      += blockIdx.x * stride;
     while (start < end)
     {
-        sOffset[pos]            = pSparseIndex[start] * stride;
-        sValue[pos]             = (NNFloat)pSparseData[start] * (NNFloat)(1.0 / 256.0);
-        pos                    += blockDim.x;
-        start                  += blockDim.x;
-    }
+        uint32_t inputs         = ullmin(end - start, (uint64_t)MAXSPARSEANALOG);
+        uint64_t tend           = start + inputs;
+        uint64_t tstart         = start + threadIdx.x;
+        uint32_t pos            = threadIdx.x;
 
-    __threadfence();
-    __syncthreads();
+        while (tstart < tend)
+        {
+            sOffset[pos]        = pSparseIndex[tstart] * stride;
+            sValue[pos]         = (NNFloat)pSparseData[tstart] * (NNFloat)(1.0 / 256.0);
+            pos                += blockDim.x;
+            tstart             += blockDim.x;
+        }
 
-    // Cycle through all output positions
-    pUnit                      += blockIdx.x * stride;
-    uint32_t opos               = threadIdx.x;
-    uint32_t tgx                = threadIdx.x & cData._warpMask;    
-    while (opos < stride)
-    {        
-        // Read all non-zero inputs
-        NNFloat unit            = (beta == (NNFloat)0.0) ? (NNFloat)0.0 : pUnit[opos];
-        for (uint32_t i = 0; i < inputs; i++)
-        {
-            uint32_t offset     = sOffset[i];
-            unit               += pWeight[offset + opos] * sValue[i];  
+        __threadfence();
+        __syncthreads();
+
+        // Cycle through all output positions
+        uint32_t opos           = threadIdx.x;
+        uint32_t tgx            = threadIdx.x & cData._warpMask;    
+        while (opos < stride)
+        {        
+            // Read all non-zero inputs
+            NNFloat unit        = (beta == (NNFloat)0.0) ? (NNFloat)0.0 : pUnit[opos];
+            for (uint32_t i = 0; i < inputs; i++)
+            {
+                uint32_t offset = sOffset[i];
+                unit           += pWeight[offset + opos] * sValue[i];  
+            }
+
+            // Write output
+            pUnit[opos]         = unit;
+
+            // Advance to next set of outputs
+            if (tgx == 0)
+            {
+                opos            = atomicAdd(&sOpos, cData._warpSize);
+            }
+            opos                = SHFL(opos, 0);
+            opos               += tgx;
         }
-        
-        // Write output
-        pUnit[opos]             = unit;
-    
-        // Advance to next set of outputs
-        if (tgx == 0)
+
+        // Advance to next block of sparse inputs, syncing if necessary
+        start                   = tend;
+        if (start < end)
         {
-            opos                = atomicAdd(&sOpos, cData._warpSize);
+            __threadfence();
+            __syncthreads();
+            beta                = (NNFloat)1.0;             // Set beta to 1.0 for any remaining gradient accumulation
         }
-        opos                    = SHFL(opos, 0);
-        opos                   += tgx;
     }
 }
 
@@ -630,44 +952,58 @@ __shared__ NNFloat sValue[MAXSPARSEANALOG];
     position                    = cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x;    
     uint64_t start              = pSparseStart[position];
     uint64_t end                = pSparseEnd[position];
-    uint32_t inputs             = end - start;
-    uint32_t pos                = threadIdx.x;
-    start                      += threadIdx.x;
+    pUnit                      += blockIdx.x * stride;
     while (start < end)
     {
-        sOffset[pos]            = pSparseIndex[start] * stride;
-        sValue[pos]             = (NNFloat)pSparseData[start] * (NNFloat)(1.0 / 128.0);
-        pos                    += blockDim.x;
-        start                  += blockDim.x;
-    }
+        uint32_t inputs         = ullmin(end - start, (uint64_t)MAXSPARSEANALOG);
+        uint64_t tend           = start + inputs;
+        uint64_t tstart         = start + threadIdx.x;
+        uint32_t pos            = threadIdx.x;
 
-    __threadfence();
-    __syncthreads();
+        while (tstart < tend)
+        {
+            sOffset[pos]        = pSparseIndex[tstart] * stride;
+            sValue[pos]         = (NNFloat)pSparseData[tstart] * (NNFloat)(1.0 / 128.0);
+            pos                += blockDim.x;
+            tstart             += blockDim.x;
+        }
 
-    // Cycle through all output positions
-    pUnit                      += blockIdx.x * stride;
-    uint32_t opos               = threadIdx.x;
-    uint32_t tgx                = threadIdx.x & cData._warpMask;    
-    while (opos < stride)
-    {        
-        // Read all non-zero inputs
-        NNFloat unit            = (beta == (NNFloat)0.0) ? (NNFloat)0.0 : pUnit[opos];
-        for (uint32_t i = 0; i < inputs; i++)
-        {
-            uint32_t offset     = sOffset[i];
-            unit               += pWeight[offset + opos] * sValue[i];  
+        __threadfence();
+        __syncthreads();
+
+        // Cycle through all output positions
+        uint32_t opos           = threadIdx.x;
+        uint32_t tgx            = threadIdx.x & cData._warpMask;    
+        while (opos < stride)
+        {        
+            // Read all non-zero inputs
+            NNFloat unit        = (beta == (NNFloat)0.0) ? (NNFloat)0.0 : pUnit[opos];
+            for (uint32_t i = 0; i < inputs; i++)
+            {
+                uint32_t offset = sOffset[i];
+                unit           += pWeight[offset + opos] * sValue[i];  
+            }
+
+            // Write output
+            pUnit[opos]         = unit;
+
+            // Advance to next set of outputs
+            if (tgx == 0)
+            {
+                opos            = atomicAdd(&sOpos, cData._warpSize);
+            }
+            opos                = SHFL(opos, 0);
+            opos               += tgx;
         }
-        
-        // Write output
-        pUnit[opos]             = unit;
-    
-        // Advance to next set of outputs
-        if (tgx == 0)
+
+        // Advance to next block of sparse inputs, syncing if necessary
+        start                   = tend;
+        if (start < end)
         {
-            opos                = atomicAdd(&sOpos, cData._warpSize);
+            __threadfence();
+            __syncthreads();
+            beta                = (NNFloat)1.0;             // Set beta to 1.0 for any remaining gradient accumulation
         }
-        opos                    = SHFL(opos, 0);
-        opos                   += tgx;
     }
 }
 
@@ -692,6 +1028,237 @@ template<> void kCalculateSparseAnalogZ(uint32_t position, uint32_t batch, uint3
     LAUNCHERROR("kCalculateSparseAnalogZ_kernel");
 }
 
+template<typename T>
+__global__ void
+LAUNCH_BOUNDS256()
+kCalculateIndexedSparseAnalogZ_kernel(uint32_t position, uint32_t stride, NNFloat* pWeight, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t* pSparseIndex, T* pSparseData, NNFloat* pUnit, NNFloat beta)
+{
+__shared__ uint32_t sOpos;                                      // Shared output position
+__shared__ uint32_t sOffset[MAXSPARSEANALOG];                   // Shared set of offsets to non-zero weights
+__shared__ T sValue[MAXSPARSEANALOG];
+
+    // Read sparse indices into shared memory so they're only read once
+    sOpos                       = blockDim.x;
+    position                    = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x];    
+    uint64_t start              = pSparseStart[position];
+    uint64_t end                = pSparseEnd[position];
+    pUnit                      += blockIdx.x * stride;
+    while (start < end)
+    {
+        uint32_t inputs         = ullmin(end - start, (uint64_t)MAXSPARSEANALOG);
+        uint64_t tend           = start + inputs;
+        uint64_t tstart         = start + threadIdx.x;
+        uint32_t pos            = threadIdx.x;
+
+        while (tstart < tend)
+        {
+            sOffset[pos]        = pSparseIndex[tstart] * stride;
+            sValue[pos]         = pSparseData[tstart];
+            pos                += blockDim.x;
+            tstart             += blockDim.x;
+        }
+
+        __threadfence();
+        __syncthreads();
+
+        // Cycle through all output positions
+        uint32_t opos           = threadIdx.x;
+        uint32_t tgx            = threadIdx.x & cData._warpMask;    
+        while (opos < stride)
+        {        
+            // Read all non-zero inputs
+            NNFloat unit        = (beta == (NNFloat)0.0) ? (NNFloat)0.0 : pUnit[opos];
+            for (uint32_t i = 0; i < inputs; i++)
+            {
+                uint32_t offset = sOffset[i];
+                unit           += pWeight[offset + opos] * sValue[i];  
+            }
+
+            // Write output
+            pUnit[opos]         = unit;
+
+            // Advance to next set of outputs
+            if (tgx == 0)
+            {
+                opos            = atomicAdd(&sOpos, cData._warpSize);
+            }
+            opos                = SHFL(opos, 0);
+            opos               += tgx;
+        }
+
+        // Advance to next block of sparse inputs, syncing if necessary
+        start                   = tend;
+        if (start < end)
+        {
+            __threadfence();
+            __syncthreads();
+            beta                = (NNFloat)1.0;             // Set beta to 1.0 for any remaining gradient accumulation
+        }
+    }
+}
+
+template<>
+__global__ void
+LAUNCH_BOUNDS256()
+kCalculateIndexedSparseAnalogZ_kernel(uint32_t position, uint32_t stride, NNFloat* pWeight, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t* pSparseIndex, unsigned char* pSparseData, NNFloat* pUnit, NNFloat beta)
+{
+__shared__ uint32_t sOpos;                                      // Shared output position
+__shared__ uint32_t sOffset[MAXSPARSEANALOG];                   // Shared set of offsets to non-zero weights
+__shared__ NNFloat sValue[MAXSPARSEANALOG];
+
+    // Read sparse indices into shared memory so they're only read once
+    sOpos                       = blockDim.x;
+    position                    = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x];    
+    uint64_t start              = pSparseStart[position];
+    uint64_t end                = pSparseEnd[position];
+
+
+
+    pUnit                      += blockIdx.x * stride;
+    while (start < end)
+    {
+        uint32_t inputs         = ullmin(end - start, (uint64_t)MAXSPARSEANALOG);
+        uint64_t tend           = start + inputs;
+        uint64_t tstart         = start + threadIdx.x;
+        uint32_t pos            = threadIdx.x;
+
+        while (tstart < tend)
+        {
+            sOffset[pos]        = pSparseIndex[tstart] * stride;
+            sValue[pos]         = (NNFloat)pSparseData[tstart] * (NNFloat)(1.0 / 256.0);
+            pos                += blockDim.x;
+            tstart             += blockDim.x;
+        }
+
+        __threadfence();
+        __syncthreads();
+
+        // Cycle through all output positions
+        uint32_t opos           = threadIdx.x;
+        uint32_t tgx            = threadIdx.x & cData._warpMask;    
+        while (opos < stride)
+        {        
+            // Read all non-zero inputs
+            NNFloat unit        = (beta == (NNFloat)0.0) ? (NNFloat)0.0 : pUnit[opos];
+            for (uint32_t i = 0; i < inputs; i++)
+            {
+                uint32_t offset = sOffset[i];
+                unit           += pWeight[offset + opos] * sValue[i];  
+            }
+
+            // Write output
+            pUnit[opos]         = unit;
+
+            // Advance to next set of outputs
+            if (tgx == 0)
+            {
+                opos            = atomicAdd(&sOpos, cData._warpSize);
+            }
+            opos                = SHFL(opos, 0);
+            opos               += tgx;
+        }
+
+        // Advance to next block of sparse inputs, syncing if necessary
+        start                   = tend;
+        if (start < end)
+        {
+            __threadfence();
+            __syncthreads();
+            beta                = (NNFloat)1.0;             // Set beta to 1.0 for any remaining gradient accumulation
+        }
+    }
+}
+
+template<>
+__global__ void
+LAUNCH_BOUNDS256()
+kCalculateIndexedSparseAnalogZ_kernel(uint32_t position, uint32_t stride, NNFloat* pWeight, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t* pSparseIndex, char* pSparseData, NNFloat* pUnit, NNFloat beta)
+{
+__shared__ uint32_t sOpos;                                      // Shared output position
+__shared__ uint32_t sOffset[MAXSPARSEANALOG];                   // Shared set of offsets to non-zero weights
+__shared__ NNFloat sValue[MAXSPARSEANALOG];
+
+    // Read sparse indices into shared memory so they're only read once
+    sOpos                       = blockDim.x;
+    position                    = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x];    
+    uint64_t start              = pSparseStart[position];
+    uint64_t end                = pSparseEnd[position];
+    pUnit                      += blockIdx.x * stride;
+    while (start < end)
+    {
+        uint32_t inputs         = ullmin(end - start, (uint64_t)MAXSPARSEANALOG);
+        uint64_t tend           = start + inputs;
+        uint64_t tstart         = start + threadIdx.x;
+        uint32_t pos            = threadIdx.x;
+
+        while (tstart < tend)
+        {
+            sOffset[pos]        = pSparseIndex[tstart] * stride;
+            sValue[pos]         = (NNFloat)pSparseData[tstart] * (NNFloat)(1.0 / 128.0);
+            pos                += blockDim.x;
+            tstart             += blockDim.x;
+        }
+
+        __threadfence();
+        __syncthreads();
+
+        // Cycle through all output positions
+        uint32_t opos           = threadIdx.x;
+        uint32_t tgx            = threadIdx.x & cData._warpMask;    
+        while (opos < stride)
+        {        
+            // Read all non-zero inputs
+            NNFloat unit        = (beta == (NNFloat)0.0) ? (NNFloat)0.0 : pUnit[opos];
+            for (uint32_t i = 0; i < inputs; i++)
+            {
+                uint32_t offset = sOffset[i];
+                unit           += pWeight[offset + opos] * sValue[i];  
+            }
+
+            // Write output
+            pUnit[opos]         = unit;
+
+            // Advance to next set of outputs
+            if (tgx == 0)
+            {
+                opos            = atomicAdd(&sOpos, cData._warpSize);
+            }
+            opos                = SHFL(opos, 0);
+            opos               += tgx;
+        }
+
+        // Advance to next block of sparse inputs, syncing if necessary
+        start                   = tend;
+        if (start < end)
+        {
+            __threadfence();
+            __syncthreads();
+            beta                = (NNFloat)1.0;             // Set beta to 1.0 for any remaining gradient accumulation
+        }
+    }
+}
+
+template<typename T> void kCalculateIndexedSparseAnalogZ(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pWeight, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t* pSparseIndex, T* pSparseData, NNFloat* pUnit, NNFloat beta)
+{
+    uint32_t threads            = min(256, ((stride + getGpu()._warpSize - 1) >> getGpu()._warpBits) << getGpu()._warpBits);
+    kCalculateIndexedSparseAnalogZ_kernel<<<batch, threads>>>(position, stride, pWeight, pIndex, pSparseStart, pSparseEnd, pSparseIndex, pSparseData, pUnit, beta);
+    LAUNCHERROR("kCalculateIndexedSparseAnalogZ_kernel");
+}
+
+template<> void kCalculateIndexedSparseAnalogZ(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pWeight, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t* pSparseIndex, char* pSparseData, NNFloat* pUnit, NNFloat beta)
+{
+    uint32_t threads            = min(256, ((stride + getGpu()._warpSize - 1) >> getGpu()._warpBits) << getGpu()._warpBits);
+    kCalculateIndexedSparseAnalogZ_kernel<<<batch, threads>>>(position, stride, pWeight, pIndex, pSparseStart, pSparseEnd, pSparseIndex, pSparseData, pUnit, beta);
+    LAUNCHERROR("kCalculateIndexedSparseAnalogZ_kernel");
+}
+
+template<> void kCalculateIndexedSparseAnalogZ(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pWeight, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t* pSparseIndex, unsigned char* pSparseData, NNFloat* pUnit, NNFloat beta)
+{
+    uint32_t threads            = min(256, ((stride + getGpu()._warpSize - 1) >> getGpu()._warpBits) << getGpu()._warpBits);
+    kCalculateIndexedSparseAnalogZ_kernel<<<batch, threads>>>(position, stride, pWeight, pIndex, pSparseStart, pSparseEnd, pSparseIndex, pSparseData, pUnit, beta);
+    LAUNCHERROR("kCalculateIndexedSparseAnalogZ_kernel");
+}
+
 __global__ void
 LAUNCH_BOUNDS256()
 kCalculateSparseDenoisedZ_kernel(uint32_t position, uint32_t stride, NNFloat* pWeight, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t* pSparseIndex, NNFloat* pRandom, NNFloat* pUnit, NNFloat beta)
@@ -704,45 +1271,60 @@ __shared__ uint32_t sOffset[MAXSPARSE];                         // Shared set of
     position                    = cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x;    
     uint64_t start              = pSparseStart[position];
     uint64_t end                = pSparseEnd[position];
-    uint32_t inputs             = end - start;
-    uint32_t pos                = threadIdx.x;
-    start                      += threadIdx.x;
+    pUnit                      += blockIdx.x * stride;
     while (start < end)
     {
-        NNFloat value           = pRandom[start];
-        sOffset[pos]            = (value < cData._denoising_p) ? cData._maxUint32_t : (int32_t)pSparseIndex[start] * stride;
-        pos                    += blockDim.x;
-        start                  += blockDim.x;
-    }
+        uint32_t inputs         = ullmin(end - start, (uint64_t)MAXSPARSE);
+        uint64_t tend           = start + inputs;
+        uint64_t tstart         = start + threadIdx.x;
+        uint32_t pos            = threadIdx.x;
 
-    __threadfence();
-    __syncthreads();
+        while (tstart < tend)
+        {
+            NNFloat value       = pRandom[tstart];
+            sOffset[pos]        = (value < cData._denoising_p) ? cData._maxUint32_t : (int32_t)pSparseIndex[tstart] * stride;
+            pos                += blockDim.x;
+            tstart             += blockDim.x;
+        }
 
-    // Cycle through all output positions
-    pUnit                      += blockIdx.x * stride;
-    uint32_t opos               = threadIdx.x;
-    uint32_t tgx                = threadIdx.x & cData._warpMask;    
-    while (opos < stride)
-    {        
-        // Read all non-zero inputs
-        NNFloat unit            = (beta == (NNFloat)0.0) ? (NNFloat)0.0 : pUnit[opos];
-        for (uint32_t i = 0; i < inputs; i++)
-        {
-            int32_t offset      = sOffset[i];
-            if (offset != cData._maxUint32_t)
-                unit           += pWeight[offset + opos] * cData._denoising_q;  
+        __threadfence();
+        __syncthreads();
+
+        // Cycle through all output positions
+
+        uint32_t opos           = threadIdx.x;
+        uint32_t tgx            = threadIdx.x & cData._warpMask;    
+        while (opos < stride)
+        {        
+            // Read all non-zero inputs
+            NNFloat unit        = (beta == (NNFloat)0.0) ? (NNFloat)0.0 : pUnit[opos];
+            for (uint32_t i = 0; i < inputs; i++)
+            {
+                uint32_t offset = sOffset[i];
+                if (offset != cData._maxUint32_t)
+                    unit       += pWeight[offset + opos] * cData._denoising_q;  
+            }
+
+            // Write output
+            pUnit[opos]         = unit;
+
+            // Advance to next set of outputs
+            if (tgx == 0)
+            {
+                opos            = atomicAdd(&sOpos, cData._warpSize);
+            }
+            opos                = SHFL(opos, 0);
+            opos               += tgx;
         }
-        
-        // Write output
-        pUnit[opos]             = unit;
-    
-        // Advance to next set of outputs
-        if (tgx == 0)
+
+        // Advance to next block of sparse inputs, syncing if necessary
+        start                   = tend;
+        if (start < end)
         {
-            opos                = atomicAdd(&sOpos, cData._warpSize);
+            __threadfence();
+            __syncthreads();
+            beta                = (NNFloat)1.0;             // Set beta to 1.0 for any remaining gradient accumulation
         }
-        opos                    = SHFL(opos, 0);
-        opos                   += tgx;
     }
 }
 
@@ -751,6 +1333,82 @@ void kCalculateSparseDenoisedZ(uint32_t position, uint32_t batch, uint32_t strid
     uint32_t threads            = min(256, ((stride + getGpu()._warpSize - 1) >> getGpu()._warpBits) << getGpu()._warpBits);
     kCalculateSparseDenoisedZ_kernel<<<batch, threads>>>(position, stride, pWeight, pSparseStart, pSparseEnd, pSparseIndex, pRandom, pUnit, beta);
     LAUNCHERROR("kCalculateSparseDenoisedZ_kernel");
+}
+
+__global__ void
+LAUNCH_BOUNDS256()
+kCalculateIndexedSparseDenoisedZ_kernel(uint32_t position, uint32_t stride, NNFloat* pWeight, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t* pSparseIndex, NNFloat* pRandom, NNFloat* pUnit, NNFloat beta)
+{
+__shared__ uint32_t sOpos;                                      // Shared output position
+__shared__ uint32_t sOffset[MAXSPARSE];                         // Shared set of offsets to non-zero weights
+
+    // Read sparse indices into shared memory so they're only read once
+    sOpos                       = blockDim.x;
+    position                    = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x];    
+    uint64_t start              = pSparseStart[position];
+    uint64_t end                = pSparseEnd[position];
+    pUnit                      += blockIdx.x * stride;
+    while (start < end)
+    {
+        uint32_t inputs         = ullmin(end - start, (uint64_t)MAXSPARSE);
+        uint64_t tend           = start + inputs;
+        uint64_t tstart         = start + threadIdx.x;
+        uint32_t pos            = threadIdx.x;
+
+        while (tstart < tend)
+        {
+            NNFloat value       = pRandom[tstart];
+            sOffset[pos]        = (value < cData._denoising_p) ? cData._maxUint32_t : (int32_t)pSparseIndex[tstart] * stride;
+            pos                += blockDim.x;
+            tstart             += blockDim.x;
+        }
+
+        __threadfence();
+        __syncthreads();
+
+        // Cycle through all output positions
+
+        uint32_t opos           = threadIdx.x;
+        uint32_t tgx            = threadIdx.x & cData._warpMask;    
+        while (opos < stride)
+        {        
+            // Read all non-zero inputs
+            NNFloat unit        = (beta == (NNFloat)0.0) ? (NNFloat)0.0 : pUnit[opos];
+            for (uint32_t i = 0; i < inputs; i++)
+            {
+                uint32_t offset = sOffset[i];
+                if (offset != cData._maxUint32_t)
+                    unit       += pWeight[offset + opos] * cData._denoising_q;  
+            }
+
+            // Write output
+            pUnit[opos]         = unit;
+
+            // Advance to next set of outputs
+            if (tgx == 0)
+            {
+                opos            = atomicAdd(&sOpos, cData._warpSize);
+            }
+            opos                = SHFL(opos, 0);
+            opos               += tgx;
+        }
+
+        // Advance to next block of sparse inputs, syncing if necessary
+        start                   = tend;
+        if (start < end)
+        {
+            __threadfence();
+            __syncthreads();
+            beta                = (NNFloat)1.0;             // Set beta to 1.0 for any remaining gradient accumulation
+        }
+    }
+}
+
+void kCalculateIndexedSparseDenoisedZ(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pWeight, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t* pSparseIndex, NNFloat* pRandom, NNFloat* pUnit, NNFloat beta)
+{
+    uint32_t threads            = min(256, ((stride + getGpu()._warpSize - 1) >> getGpu()._warpBits) << getGpu()._warpBits);
+    kCalculateIndexedSparseDenoisedZ_kernel<<<batch, threads>>>(position, stride, pWeight, pIndex, pSparseStart, pSparseEnd, pSparseIndex, pRandom, pUnit, beta);
+    LAUNCHERROR("kCalculateIndexedSparseDenoisedZ_kernel");
 }
 
 template<typename T>
@@ -767,46 +1425,61 @@ __shared__ T sValue[MAXSPARSEANALOG];
     position                    = cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x;    
     uint64_t start              = pSparseStart[position];
     uint64_t end                = pSparseEnd[position];
-    uint32_t inputs             = end - start;
-    uint32_t pos                = threadIdx.x;
-    start                      += threadIdx.x;
+    pUnit                      += blockIdx.x * stride;
     while (start < end)
     {
-        NNFloat value           = pRandom[start];
-        sOffset[pos]            = (value < cData._denoising_p) ? cData._maxUint32_t : pSparseIndex[start] * stride;
-        sValue[pos]             = pSparseData[start] * cData._denoising_q;
-        pos                    += blockDim.x;
-        start                  += blockDim.x;
-    }
+        uint32_t inputs         = ullmin(end - start, (uint64_t)MAXSPARSEANALOG);
+        uint64_t tend           = start + inputs;
+        uint64_t tstart         = start + threadIdx.x;
+        uint32_t pos            = threadIdx.x;
 
-    __threadfence();
-    __syncthreads();
+        while (tstart < tend)
+        {
+            NNFloat value       = pRandom[tstart];
+            sOffset[pos]        = (value < cData._denoising_p) ? cData._maxUint32_t : (int32_t)pSparseIndex[tstart] * stride;
+            sValue[pos]         = pSparseData[tstart] * cData._denoising_q;
+            pos                += blockDim.x;
+            tstart             += blockDim.x;
+        }
 
-    // Cycle through all output positions
-    pUnit                      += blockIdx.x * stride;
-    uint32_t opos               = threadIdx.x;
-    uint32_t tgx                = threadIdx.x & cData._warpMask;    
-    while (opos < stride)
-    {        
-        // Read all non-zero inputs
-        NNFloat unit            = (beta == (NNFloat)0.0) ? (NNFloat)0.0 : pUnit[opos];
-        for (uint32_t i = 0; i < inputs; i++)
-        {
-            int32_t offset      = sOffset[i];
-            if (offset != cData._maxUint32_t)
-                unit           += pWeight[offset + opos] * sValue[i];  
+        __threadfence();
+        __syncthreads();
+
+        // Cycle through all output positions
+
+        uint32_t opos           = threadIdx.x;
+        uint32_t tgx            = threadIdx.x & cData._warpMask;    
+        while (opos < stride)
+        {        
+            // Read all non-zero inputs
+            NNFloat unit        = (beta == (NNFloat)0.0) ? (NNFloat)0.0 : pUnit[opos];
+            for (uint32_t i = 0; i < inputs; i++)
+            {
+                uint32_t offset = sOffset[i];
+                if (offset != cData._maxUint32_t)
+                    unit       += pWeight[offset + opos] * sValue[i];  
+            }
+
+            // Write output
+            pUnit[opos]         = unit;
+
+            // Advance to next set of outputs
+            if (tgx == 0)
+            {
+                opos            = atomicAdd(&sOpos, cData._warpSize);
+            }
+            opos                = SHFL(opos, 0);
+            opos               += tgx;
         }
-        
-        // Write output
-        pUnit[opos]             = unit;
-    
-        // Advance to next set of outputs
-        if (tgx == 0)
+
+        // Advance to next block of sparse inputs, syncing if necessary
+        start                   = tend;
+        if (start < end)
         {
-            opos                = atomicAdd(&sOpos, cData._warpSize);
+            __threadfence();
+            __syncthreads();
+            beta                = (NNFloat)1.0;             // Set beta to 1.0 for any remaining gradient accumulation
         }
-        opos                    = SHFL(opos, 0);
-        opos                   += tgx;
     }
 }
 
@@ -824,46 +1497,61 @@ __shared__ NNFloat sValue[MAXSPARSEANALOG];
     position                    = cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x;    
     uint64_t start              = pSparseStart[position];
     uint64_t end                = pSparseEnd[position];
-    uint32_t inputs             = end - start;
-    uint32_t pos                = threadIdx.x;
-    start                      += threadIdx.x;
+    pUnit                      += blockIdx.x * stride;
     while (start < end)
     {
-        NNFloat value           = pRandom[start];
-        sOffset[pos]            = (value < cData._denoising_p) ? cData._maxUint32_t : pSparseIndex[start] * stride;
-        sValue[pos]             = (NNFloat)pSparseData[start] * (NNFloat)(1.0 / 256.0) * cData._denoising_q;
-        pos                    += blockDim.x;
-        start                  += blockDim.x;
-    }
+        uint32_t inputs         = ullmin(end - start, (uint64_t)MAXSPARSEANALOG);
+        uint64_t tend           = start + inputs;
+        uint64_t tstart         = start + threadIdx.x;
+        uint32_t pos            = threadIdx.x;
 
-    __threadfence();
-    __syncthreads();
+        while (tstart < tend)
+        {
+            NNFloat value       = pRandom[tstart];
+            sOffset[pos]        = (value < cData._denoising_p) ? cData._maxUint32_t : (int32_t)pSparseIndex[tstart] * stride;
+            sValue[pos]         = (NNFloat)pSparseData[tstart] * (NNFloat)(1.0 / 256.0) * cData._denoising_q;
+            pos                += blockDim.x;
+            tstart             += blockDim.x;
+        }
 
-    // Cycle through all output positions
-    pUnit                      += blockIdx.x * stride;
-    uint32_t opos               = threadIdx.x;
-    uint32_t tgx                = threadIdx.x & cData._warpMask;    
-    while (opos < stride)
-    {        
-        // Read all non-zero inputs
-        NNFloat unit            = (beta == (NNFloat)0.0) ? (NNFloat)0.0 : pUnit[opos];
-        for (uint32_t i = 0; i < inputs; i++)
-        {
-            int32_t offset      = sOffset[i];
-            if (offset != cData._maxUint32_t)
-                unit           += pWeight[offset + opos] * sValue[i];  
+        __threadfence();
+        __syncthreads();
+
+        // Cycle through all output positions
+
+        uint32_t opos           = threadIdx.x;
+        uint32_t tgx            = threadIdx.x & cData._warpMask;    
+        while (opos < stride)
+        {        
+            // Read all non-zero inputs
+            NNFloat unit        = (beta == (NNFloat)0.0) ? (NNFloat)0.0 : pUnit[opos];
+            for (uint32_t i = 0; i < inputs; i++)
+            {
+                uint32_t offset = sOffset[i];
+                if (offset != cData._maxUint32_t)
+                    unit       += pWeight[offset + opos] * sValue[i];  
+            }
+
+            // Write output
+            pUnit[opos]         = unit;
+
+            // Advance to next set of outputs
+            if (tgx == 0)
+            {
+                opos            = atomicAdd(&sOpos, cData._warpSize);
+            }
+            opos                = SHFL(opos, 0);
+            opos               += tgx;
         }
-        
-        // Write output
-        pUnit[opos]             = unit;
-    
-        // Advance to next set of outputs
-        if (tgx == 0)
+
+        // Advance to next block of sparse inputs, syncing if necessary
+        start                   = tend;
+        if (start < end)
         {
-            opos                = atomicAdd(&sOpos, cData._warpSize);
+            __threadfence();
+            __syncthreads();
+            beta                = (NNFloat)1.0;             // Set beta to 1.0 for any remaining gradient accumulation
         }
-        opos                    = SHFL(opos, 0);
-        opos                   += tgx;
     }
 }
 
@@ -881,46 +1569,61 @@ __shared__ NNFloat sValue[MAXSPARSEANALOG];
     position                    = cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x;    
     uint64_t start              = pSparseStart[position];
     uint64_t end                = pSparseEnd[position];
-    uint32_t inputs             = end - start;
-    uint32_t pos                = threadIdx.x;
-    start                      += threadIdx.x;
+    pUnit                      += blockIdx.x * stride;
     while (start < end)
     {
-        NNFloat value           = pRandom[start];
-        sOffset[pos]            = (value < cData._denoising_p) ? cData._maxUint32_t : pSparseIndex[start] * stride;
-        sValue[pos]             = (NNFloat)pSparseData[start] * (NNFloat)(1.0 / 128.0) * cData._denoising_q;
-        pos                    += blockDim.x;
-        start                  += blockDim.x;
-    }
+        uint32_t inputs         = ullmin(end - start, (uint64_t)MAXSPARSEANALOG);
+        uint64_t tend           = start + inputs;
+        uint64_t tstart         = start + threadIdx.x;
+        uint32_t pos            = threadIdx.x;
 
-    __threadfence();
-    __syncthreads();
+        while (tstart < tend)
+        {
+            NNFloat value       = pRandom[tstart];
+            sOffset[pos]        = (value < cData._denoising_p) ? cData._maxUint32_t : (int32_t)pSparseIndex[tstart] * stride;
+            sValue[pos]         = (NNFloat)pSparseData[tstart] * (NNFloat)(1.0 / 128.0) * cData._denoising_q;
+            pos                += blockDim.x;
+            tstart             += blockDim.x;
+        }
 
-    // Cycle through all output positions
-    pUnit                      += blockIdx.x * stride;
-    uint32_t opos               = threadIdx.x;
-    uint32_t tgx                = threadIdx.x & cData._warpMask;    
-    while (opos < stride)
-    {        
-        // Read all non-zero inputs
-        NNFloat unit            = (beta == (NNFloat)0.0) ? (NNFloat)0.0 : pUnit[opos];
-        for (uint32_t i = 0; i < inputs; i++)
-        {
-            uint32_t offset      = sOffset[i];
-            if (offset != cData._maxUint32_t)
-                unit           += pWeight[offset + opos] * sValue[i];  
+        __threadfence();
+        __syncthreads();
+
+        // Cycle through all output positions
+
+        uint32_t opos           = threadIdx.x;
+        uint32_t tgx            = threadIdx.x & cData._warpMask;    
+        while (opos < stride)
+        {        
+            // Read all non-zero inputs
+            NNFloat unit        = (beta == (NNFloat)0.0) ? (NNFloat)0.0 : pUnit[opos];
+            for (uint32_t i = 0; i < inputs; i++)
+            {
+                uint32_t offset = sOffset[i];
+                if (offset != cData._maxUint32_t)
+                    unit       += pWeight[offset + opos] * sValue[i];  
+            }
+
+            // Write output
+            pUnit[opos]         = unit;
+
+            // Advance to next set of outputs
+            if (tgx == 0)
+            {
+                opos            = atomicAdd(&sOpos, cData._warpSize);
+            }
+            opos                = SHFL(opos, 0);
+            opos               += tgx;
         }
-        
-        // Write output
-        pUnit[opos]             = unit;
-    
-        // Advance to next set of outputs
-        if (tgx == 0)
+
+        // Advance to next block of sparse inputs, syncing if necessary
+        start                   = tend;
+        if (start < end)
         {
-            opos                = atomicAdd(&sOpos, cData._warpSize);
+            __threadfence();
+            __syncthreads();
+            beta                = (NNFloat)1.0;             // Set beta to 1.0 for any remaining gradient accumulation
         }
-        opos                    = SHFL(opos, 0);
-        opos                   += tgx;
     }
 }
 
@@ -943,6 +1646,243 @@ template<> void kCalculateSparseAnalogDenoisedZ(uint32_t position, uint32_t batc
     uint32_t threads            = min(256, ((stride + getGpu()._warpSize - 1) >> getGpu()._warpBits) << getGpu()._warpBits);
     kCalculateSparseAnalogDenoisedZ_kernel<<<batch, threads>>>(position, stride, pWeight, pSparseStart, pSparseEnd, pSparseIndex, pSparseData, pRandom, pUnit, beta);
     LAUNCHERROR("kCalculateSparseAnalogDenoisedZ_kernel");
+}
+
+template<typename T>
+__global__ void
+LAUNCH_BOUNDS256()
+kCalculateIndexedSparseAnalogDenoisedZ_kernel(uint32_t position, uint32_t stride, NNFloat* pWeight, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t* pSparseIndex, T* pSparseData, NNFloat* pRandom, NNFloat* pUnit, NNFloat beta)
+{
+__shared__ uint32_t sOpos;                                      // Shared output position
+__shared__ uint32_t sOffset[MAXSPARSEANALOG];                   // Shared set of offsets to non-zero weights
+__shared__ T sValue[MAXSPARSEANALOG];
+
+    // Read sparse indices into shared memory so they're only read once
+    sOpos                       = blockDim.x;
+    position                    = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x];    
+    uint64_t start              = pSparseStart[position];
+    uint64_t end                = pSparseEnd[position];
+    pUnit                      += blockIdx.x * stride;
+    while (start < end)
+    {
+        uint32_t inputs         = ullmin(end - start, (uint64_t)MAXSPARSEANALOG);
+        uint64_t tend           = start + inputs;
+        uint64_t tstart         = start + threadIdx.x;
+        uint32_t pos            = threadIdx.x;
+
+        while (tstart < tend)
+        {
+            NNFloat value       = pRandom[tstart];
+            sOffset[pos]        = (value < cData._denoising_p) ? cData._maxUint32_t : (int32_t)pSparseIndex[tstart] * stride;
+            sValue[pos]         = pSparseData[tstart] * cData._denoising_q;
+            pos                += blockDim.x;
+            tstart             += blockDim.x;
+        }
+
+        __threadfence();
+        __syncthreads();
+
+        // Cycle through all output positions
+
+        uint32_t opos           = threadIdx.x;
+        uint32_t tgx            = threadIdx.x & cData._warpMask;    
+        while (opos < stride)
+        {        
+            // Read all non-zero inputs
+            NNFloat unit        = (beta == (NNFloat)0.0) ? (NNFloat)0.0 : pUnit[opos];
+            for (uint32_t i = 0; i < inputs; i++)
+            {
+                uint32_t offset = sOffset[i];
+                if (offset != cData._maxUint32_t)
+                    unit       += pWeight[offset + opos] * sValue[i];  
+            }
+
+            // Write output
+            pUnit[opos]         = unit;
+
+            // Advance to next set of outputs
+            if (tgx == 0)
+            {
+                opos            = atomicAdd(&sOpos, cData._warpSize);
+            }
+            opos                = SHFL(opos, 0);
+            opos               += tgx;
+        }
+
+        // Advance to next block of sparse inputs, syncing if necessary
+        start                   = tend;
+        if (start < end)
+        {
+            __threadfence();
+            __syncthreads();
+            beta                = (NNFloat)1.0;             // Set beta to 1.0 for any remaining gradient accumulation
+        }
+    }
+}
+
+template<>
+__global__ void
+LAUNCH_BOUNDS256()
+kCalculateIndexedSparseAnalogDenoisedZ_kernel(uint32_t position, uint32_t stride, NNFloat* pWeight, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t* pSparseIndex, unsigned char* pSparseData, NNFloat* pRandom, NNFloat* pUnit, NNFloat beta)
+{
+__shared__ uint32_t sOpos;                                      // Shared output position
+__shared__ int32_t sOffset[MAXSPARSEANALOG];                    // Shared set of offsets to non-zero weights
+__shared__ NNFloat sValue[MAXSPARSEANALOG];
+
+    // Read sparse indices into shared memory so they're only read once
+    sOpos                       = blockDim.x;
+    position                    = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x];    
+    uint64_t start              = pSparseStart[position];
+    uint64_t end                = pSparseEnd[position];
+    pUnit                      += blockIdx.x * stride;
+    while (start < end)
+    {
+        uint32_t inputs         = ullmin(end - start, (uint64_t)MAXSPARSEANALOG);
+        uint64_t tend           = start + inputs;
+        uint64_t tstart         = start + threadIdx.x;
+        uint32_t pos            = threadIdx.x;
+
+        while (tstart < tend)
+        {
+            NNFloat value       = pRandom[tstart];
+            sOffset[pos]        = (value < cData._denoising_p) ? cData._maxUint32_t : (int32_t)pSparseIndex[tstart] * stride;
+            sValue[pos]         = (NNFloat)pSparseData[tstart] * (NNFloat)(1.0 / 256.0) * cData._denoising_q;
+            pos                += blockDim.x;
+            tstart             += blockDim.x;
+        }
+
+        __threadfence();
+        __syncthreads();
+
+        // Cycle through all output positions
+
+        uint32_t opos           = threadIdx.x;
+        uint32_t tgx            = threadIdx.x & cData._warpMask;    
+        while (opos < stride)
+        {        
+            // Read all non-zero inputs
+            NNFloat unit        = (beta == (NNFloat)0.0) ? (NNFloat)0.0 : pUnit[opos];
+            for (uint32_t i = 0; i < inputs; i++)
+            {
+                uint32_t offset = sOffset[i];
+                if (offset != cData._maxUint32_t)
+                    unit       += pWeight[offset + opos] * sValue[i];  
+            }
+
+            // Write output
+            pUnit[opos]         = unit;
+
+            // Advance to next set of outputs
+            if (tgx == 0)
+            {
+                opos            = atomicAdd(&sOpos, cData._warpSize);
+            }
+            opos                = SHFL(opos, 0);
+            opos               += tgx;
+        }
+
+        // Advance to next block of sparse inputs, syncing if necessary
+        start                   = tend;
+        if (start < end)
+        {
+            __threadfence();
+            __syncthreads();
+            beta                = (NNFloat)1.0;             // Set beta to 1.0 for any remaining gradient accumulation
+        }
+    }
+}
+
+template<>
+__global__ void
+LAUNCH_BOUNDS256()
+kCalculateIndexedSparseAnalogDenoisedZ_kernel(uint32_t position, uint32_t stride, NNFloat* pWeight, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t* pSparseIndex, char* pSparseData, NNFloat* pRandom, NNFloat* pUnit, NNFloat beta)
+{
+__shared__ uint32_t sOpos;                                      // Shared output position
+__shared__ uint32_t sOffset[MAXSPARSEANALOG];                   // Shared set of offsets to non-zero weights
+__shared__ NNFloat sValue[MAXSPARSEANALOG];
+
+    // Read sparse indices into shared memory so they're only read once
+    sOpos                       = blockDim.x;
+    position                    = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x];    
+    uint64_t start              = pSparseStart[position];
+    uint64_t end                = pSparseEnd[position];
+    pUnit                      += blockIdx.x * stride;
+    while (start < end)
+    {
+        uint32_t inputs         = ullmin(end - start, (uint64_t)MAXSPARSEANALOG);
+        uint64_t tend           = start + inputs;
+        uint64_t tstart         = start + threadIdx.x;
+        uint32_t pos            = threadIdx.x;
+
+        while (tstart < tend)
+        {
+            NNFloat value       = pRandom[tstart];
+            sOffset[pos]        = (value < cData._denoising_p) ? cData._maxUint32_t : (int32_t)pSparseIndex[tstart] * stride;
+            sValue[pos]         = (NNFloat)pSparseData[tstart] * (NNFloat)(1.0 / 256.0) * cData._denoising_q;
+            pos                += blockDim.x;
+            tstart             += blockDim.x;
+        }
+
+        __threadfence();
+        __syncthreads();
+
+        // Cycle through all output positions
+
+        uint32_t opos           = threadIdx.x;
+        uint32_t tgx            = threadIdx.x & cData._warpMask;    
+        while (opos < stride)
+        {        
+            // Read all non-zero inputs
+            NNFloat unit        = (beta == (NNFloat)0.0) ? (NNFloat)0.0 : pUnit[opos];
+            for (uint32_t i = 0; i < inputs; i++)
+            {
+                uint32_t offset = sOffset[i];
+                if (offset != cData._maxUint32_t)
+                    unit       += pWeight[offset + opos] * sValue[i];  
+            }
+
+            // Write output
+            pUnit[opos]         = unit;
+
+            // Advance to next set of outputs
+            if (tgx == 0)
+            {
+                opos            = atomicAdd(&sOpos, cData._warpSize);
+            }
+            opos                = SHFL(opos, 0);
+            opos               += tgx;
+        }
+
+        // Advance to next block of sparse inputs, syncing if necessary
+        start                   = tend;
+        if (start < end)
+        {
+            __threadfence();
+            __syncthreads();
+            beta                = (NNFloat)1.0;             // Set beta to 1.0 for any remaining gradient accumulation
+        }
+    }
+}
+
+template<typename T> void kCalculateIndexedSparseAnalogDenoisedZ(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pWeight, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t* pSparseIndex, T* pSparseData, NNFloat* pRandom, NNFloat* pUnit, NNFloat beta)
+{
+    uint32_t threads            = min(256, ((stride + getGpu()._warpSize - 1) >> getGpu()._warpBits) << getGpu()._warpBits);
+    kCalculateIndexedSparseAnalogDenoisedZ_kernel<<<batch, threads>>>(position, stride, pWeight, pIndex, pSparseStart, pSparseEnd, pSparseIndex, pSparseData, pRandom, pUnit, beta);
+    LAUNCHERROR("kCalculateIndexedSparseAnalogDenoisedZ_kernel");
+}
+
+template<> void kCalculateIndexedSparseAnalogDenoisedZ(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pWeight, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t* pSparseIndex, char* pSparseData, NNFloat* pRandom, NNFloat* pUnit, NNFloat beta)
+{
+    uint32_t threads            = min(256, ((stride + getGpu()._warpSize - 1) >> getGpu()._warpBits) << getGpu()._warpBits);
+    kCalculateIndexedSparseAnalogDenoisedZ_kernel<<<batch, threads>>>(position, stride, pWeight, pIndex, pSparseStart, pSparseEnd, pSparseIndex, pSparseData, pRandom, pUnit, beta);
+    LAUNCHERROR("kCalculateIndexedSparseAnalogDenoisedZ_kernel");
+}
+
+template<> void kCalculateIndexedSparseAnalogDenoisedZ(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pWeight, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t* pSparseIndex, unsigned char* pSparseData, NNFloat* pRandom, NNFloat* pUnit, NNFloat beta)
+{
+    uint32_t threads            = min(256, ((stride + getGpu()._warpSize - 1) >> getGpu()._warpBits) << getGpu()._warpBits);
+    kCalculateIndexedSparseAnalogDenoisedZ_kernel<<<batch, threads>>>(position, stride, pWeight, pIndex, pSparseStart, pSparseEnd, pSparseIndex, pSparseData, pRandom, pUnit, beta);
+    LAUNCHERROR("kCalculateIndexedSparseAnalogDenoisedZ_kernel");
 }
 
 __global__ void
@@ -974,6 +1914,38 @@ void kCalculateSparseTransposedMatrix(uint32_t position, uint32_t batch, uint64_
     uint32_t blocks             = CalculateBlocks(batch * getGpu()._warpSize);
     kCalculateSparseTransposedMatrix_kernel<<<blocks, getGpu()._threadsPerBlock>>>(position, batch, pSparseStart, pSparseEnd, pSparseIndex, pSparseTransposedEnd, pSparseTransposedIndex);
     LAUNCHERROR("kCalculateSparseTransposedMatrix_kernel");
+}
+
+__global__ void
+LAUNCH_BOUNDS()
+kCalculateIndexedSparseTransposedMatrix_kernel(uint32_t position, uint32_t batch, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t* pSparseIndex, uint32_t* pSparseTransposedEnd, uint32_t* pSparseTransposedIndex)
+{
+    // Determine batch position
+    uint32_t bpos                           = (blockIdx.x * blockDim.x + threadIdx.x) >> cData._warpBits;
+    uint32_t tgx                            = threadIdx.x & cData._warpMask;
+    
+    // Add indices to sparse transposed activation matrix
+    if (bpos < batch)
+    {
+        position                            = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + bpos] : position + bpos];    
+        uint64_t start                      = pSparseStart[position] + tgx;
+        uint64_t end                        = pSparseEnd[position];
+
+        while (start < end)
+        {
+            uint32_t index                  = pSparseIndex[start];
+            uint32_t opos                   = atomicAdd(&pSparseTransposedEnd[index], 1);
+            pSparseTransposedIndex[opos]    = bpos;
+            start                          += cData._warpSize;                   
+        }
+    }
+}
+
+void kCalculateIndexedSparseTransposedMatrix(uint32_t position, uint32_t batch, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t* pSparseIndex, uint32_t* pSparseTransposedEnd, uint32_t* pSparseTransposedIndex)
+{
+    uint32_t blocks             = CalculateBlocks(batch);
+    kCalculateIndexedSparseTransposedMatrix_kernel<<<batch, getGpu()._warpSize>>>(position, batch, pIndex, pSparseStart, pSparseEnd, pSparseIndex, pSparseTransposedEnd, pSparseTransposedIndex);
+    LAUNCHERROR("kCalculateIndexedSparseTransposedMatrix_kernel");
 }
 
 __global__ void
@@ -1011,6 +1983,42 @@ void kCalculateSparseTransposedDenoisedMatrix(uint32_t position, uint32_t batch,
     LAUNCHERROR("kCalculateSparseTransposedDenoisedMatrix_kernel");
 }
 
+
+__global__ void
+LAUNCH_BOUNDS()
+kCalculateIndexedSparseTransposedDenoisedMatrix_kernel(uint32_t position, uint32_t batch, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t* pSparseIndex, NNFloat *pRandom, uint32_t* pSparseTransposedEnd, uint32_t* pSparseTransposedIndex)
+{
+    // Determine batch position
+    uint32_t bpos                           = (blockIdx.x * blockDim.x + threadIdx.x) >> cData._warpBits;
+    uint32_t tgx                            = threadIdx.x & cData._warpMask;
+    
+    // Add indices to sparse transposed activation matrix
+    if (bpos < batch)
+    {
+        position                            = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + bpos] : position + bpos];    
+        uint64_t start                      = pSparseStart[position] + tgx;
+        uint64_t end                        = pSparseEnd[position];
+        while (start < end)
+        {
+            NNFloat rnd                     = pRandom[start];
+            uint32_t index                  = pSparseIndex[start];
+            if (rnd >= cData._denoising_p)
+            {
+                uint32_t opos               = atomicAdd(&pSparseTransposedEnd[index], 1);
+                pSparseTransposedIndex[opos]= bpos;
+            }
+            start                          += cData._warpSize;                   
+        }
+    }
+}
+
+void kCalculateIndexedSparseTransposedDenoisedMatrix(uint32_t position, uint32_t batch, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t* pSparseIndex, NNFloat* pRandom, uint32_t* pSparseTransposedEnd, uint32_t* pSparseTransposedIndex)
+{
+    uint32_t blocks             = CalculateBlocks(batch * getGpu()._warpSize);
+    kCalculateIndexedSparseTransposedDenoisedMatrix_kernel<<<blocks, getGpu()._threadsPerBlock>>>(position, batch, pIndex, pSparseStart, pSparseEnd, pSparseIndex, pRandom, pSparseTransposedEnd, pSparseTransposedIndex);
+    LAUNCHERROR("kCalculateIndexedSparseTransposedDenoisedMatrix_kernel");
+}
+
 template<typename T>
 __global__ void
 LAUNCH_BOUNDS()
@@ -1044,6 +2052,41 @@ void kCalculateSparseTransposedAnalogMatrix(uint32_t position, uint32_t batch, u
     uint32_t blocks             = CalculateBlocks(batch * getGpu()._warpSize);
     kCalculateSparseTransposedAnalogMatrix_kernel<<<blocks, getGpu()._threadsPerBlock>>>(position, batch, pSparseStart, pSparseEnd, pSparseIndex, pSparseData, pSparseTransposedEnd, pSparseTransposedIndex, pSparseTransposedData);
     LAUNCHERROR("kCalculateSparseTransposedAnalogMatrix_kernel");
+}
+
+template<typename T>
+__global__ void
+LAUNCH_BOUNDS()
+kCalculateIndexedSparseTransposedAnalogMatrix_kernel(uint32_t position, uint32_t batch, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t* pSparseIndex, T* pSparseData, uint32_t* pSparseTransposedEnd, uint32_t* pSparseTransposedIndex, T* pSparseTransposedData)
+{
+    // Determine batch position
+    uint32_t bpos                           = (blockIdx.x * blockDim.x + threadIdx.x) >> cData._warpBits;
+    uint32_t tgx                            = threadIdx.x & cData._warpMask;
+    
+    // Add indices to sparse transposed activation matrix
+    if (bpos < batch)
+    {
+        position                            = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + bpos] : position + bpos];    
+        uint64_t start                      = pSparseStart[position] + tgx;
+        uint64_t end                        = pSparseEnd[position];
+        while (start < end)
+        {
+            uint32_t index                  = pSparseIndex[start];
+            T value                         = pSparseData[start];
+            uint32_t opos                   = atomicAdd(&pSparseTransposedEnd[index], 1);
+            pSparseTransposedIndex[opos]    = bpos;
+            pSparseTransposedData[opos]     = value;
+            start                          += cData._warpSize;                   
+        }
+    }
+}
+
+template<typename T>
+void kCalculateIndexedSparseTransposedAnalogMatrix(uint32_t position, uint32_t batch, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t* pSparseIndex, T* pSparseData, uint32_t* pSparseTransposedEnd, uint32_t* pSparseTransposedIndex, T* pSparseTransposedData)
+{
+    uint32_t blocks             = CalculateBlocks(batch * getGpu()._warpSize);
+    kCalculateIndexedSparseTransposedAnalogMatrix_kernel<<<blocks, getGpu()._threadsPerBlock>>>(position, batch, pIndex, pSparseStart, pSparseEnd, pSparseIndex, pSparseData, pSparseTransposedEnd, pSparseTransposedIndex, pSparseTransposedData);
+    LAUNCHERROR("kCalculateIndexedSparseTransposedAnalogMatrix_kernel");
 }
 
 template<typename T>
@@ -1085,6 +2128,45 @@ void kCalculateSparseTransposedAnalogDenoisedMatrix(uint32_t position, uint32_t 
     LAUNCHERROR("kCalculateSparseTransposedAnalogDenoisedMatrix_kernel");
 }
 
+template<typename T>
+__global__ void
+LAUNCH_BOUNDS()
+kCalculateIndexedSparseTransposedAnalogDenoisedMatrix_kernel(uint32_t position, uint32_t batch, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t* pSparseIndex, T* pSparseData, NNFloat *pRandom, uint32_t* pSparseTransposedEnd, uint32_t* pSparseTransposedIndex, T* pSparseTransposedData)
+{
+    // Determine batch position
+    uint32_t bpos                           = (blockIdx.x * blockDim.x + threadIdx.x) >> cData._warpBits;
+    uint32_t tgx                            = threadIdx.x & cData._warpMask;
+    
+    // Add indices to sparse transposed activation matrix
+    if (bpos < batch)
+    {
+        position                            = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + bpos] : position + bpos];
+        uint64_t start                      = pSparseStart[position] + tgx;
+        uint64_t end                        = pSparseEnd[position];
+        while (start < end)
+        {
+            NNFloat rnd                     = pRandom[start];
+            uint32_t index                  = pSparseIndex[start];
+            if (rnd >= cData._denoising_p)
+            {
+                T value                     = pSparseData[start];
+                uint32_t opos               = atomicAdd(&pSparseTransposedEnd[index], 1);
+                pSparseTransposedIndex[opos]= bpos;
+                pSparseTransposedData[opos] = value;
+            }
+            start                          += cData._warpSize;                   
+        }
+    }
+}
+
+template<typename T>
+void kCalculateIndexedSparseTransposedAnalogDenoisedMatrix(uint32_t position, uint32_t batch, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t* pSparseIndex, T* pSparseData, NNFloat* pRandom, uint32_t* pSparseTransposedEnd, uint32_t* pSparseTransposedIndex, T* pSparseTransposedData)
+{
+    uint32_t blocks             = CalculateBlocks(batch * getGpu()._warpSize);
+    kCalculateIndexedSparseTransposedAnalogDenoisedMatrix_kernel<<<blocks, getGpu()._threadsPerBlock>>>(position, batch, pIndex, pSparseStart, pSparseEnd, pSparseIndex, pSparseData, pRandom, pSparseTransposedEnd, pSparseTransposedIndex, pSparseTransposedData);
+    LAUNCHERROR("kCalculateIndexedSparseTransposedAnalogDenoisedMatrix_kernel");
+}
+
 
 __global__ void
 LAUNCH_BOUNDS256()
@@ -1097,46 +2179,60 @@ __shared__ uint32_t sOffset[MAXSPARSE];                         // Shared set of
     sOpos                       = blockDim.x; 
     uint64_t start              = pSparseTransposedStart[blockIdx.x];
     uint64_t end                = pSparseTransposedEnd[blockIdx.x];
-    uint32_t inputs             = end - start;
-    uint32_t pos                = threadIdx.x;
-    start                      += threadIdx.x;
-    while (start < end)
-    {
-        sOffset[pos]            = pSparseTransposedIndex[start] * n;
-        pos                    += blockDim.x;
-        start                  += blockDim.x;
-    }
-
-    __threadfence();
-    __syncthreads();
-
-    // Cycle through all output positions
     alpha                      *= cData._denoising_q;
     pWeightGradient            += blockIdx.x * n;
-    uint32_t opos               = threadIdx.x;
-    uint32_t tgx                = threadIdx.x & cData._warpMask;    
-    while (opos < n)
-    {                
-        // Read all non-zero inputs, accumulate in 64-bit FP to maintain deterministic results
-        NNFloat oldgradient     = (beta == (NNFloat)0.0) ? (NNFloat)0.0 : beta * pWeightGradient[opos];
-        int64_t sum             = 0;
-        for (uint32_t i = 0; i < inputs; i++)
+    while (start < end)
+    {
+        uint32_t inputs         = ullmin(end - start, (uint64_t)MAXSPARSE);
+        uint64_t tend           = start + inputs;
+        uint64_t tstart         = start + threadIdx.x;
+        uint32_t pos            = threadIdx.x;
+
+        while (tstart < tend)
         {
-            uint32_t offset     = sOffset[i];
-            sum                += llrintf(ERRORSCALEF * pDelta[offset + opos]);  
+            sOffset[pos]        = pSparseTransposedIndex[tstart] * n;
+            pos                += blockDim.x;
+            tstart             += blockDim.x;
         }
-        
-        // Write output
-        NNFloat fsum            = alpha * (NNFloat)((double)sum * ONEOVERERRORSCALE);
-        pWeightGradient[opos]   = oldgradient + fsum;            
-            
-        // Advance to next set of outputs
-        if (tgx == 0)
+
+        __threadfence();
+        __syncthreads();
+
+        // Cycle through all output positions
+        uint32_t opos           = threadIdx.x;
+        uint32_t tgx            = threadIdx.x & cData._warpMask;    
+        while (opos < n)
+        {        
+            // Read all non-zero inputs, accumulate in 64-bit FP to maintain deterministic results
+            NNFloat oldgradient = (beta == (NNFloat)0.0) ? (NNFloat)0.0 : beta * pWeightGradient[opos];
+            int64_t sum         = 0;
+            for (uint32_t i = 0; i < inputs; i++)
+            {
+                uint32_t offset = sOffset[i];
+                sum            += llrintf(ERRORSCALEF * pDelta[offset + opos]);  
+            }
+
+            // Write output
+            NNFloat fsum        = alpha * (NNFloat)((double)sum * ONEOVERERRORSCALE);
+            pWeightGradient[opos] = oldgradient + fsum;            
+
+            // Advance to next set of outputs
+            if (tgx == 0)
+            {
+                opos            = atomicAdd(&sOpos, cData._warpSize);
+            }
+            opos                = SHFL(opos, 0);
+            opos               += tgx;
+        }
+
+        // Advance to next block of sparse inputs, syncing if necessary
+        start                   = tend;
+        if (start < end)
         {
-            opos                = atomicAdd(&sOpos, cData._warpSize);
+            __threadfence();
+            __syncthreads();
+            beta                = (NNFloat)1.0;             // Set beta to 1.0 for any remaining gradient accumulation
         }
-        opos                    = SHFL(opos, 0);
-        opos                   += tgx;
     }
 }
 
@@ -1161,49 +2257,63 @@ __shared__ T sValue[MAXSPARSEANALOG];
     sOpos                       = blockDim.x; 
     uint64_t start              = pSparseTransposedStart[blockIdx.x];
     uint64_t end                = pSparseTransposedEnd[blockIdx.x];
-    uint32_t inputs             = end - start;
-    uint32_t pos                = threadIdx.x;
     alpha                      *= cData._denoising_q;
-    start                      += threadIdx.x;
+    pWeightGradient            += blockIdx.x * n;
     while (start < end)
     {
-        sOffset[pos]            = pSparseTransposedIndex[start] * n;
-        sValue[pos]             = pSparseTransposedData[start];
-        pos                    += blockDim.x;
-        start                  += blockDim.x;
-    }
+        uint32_t inputs         = ullmin(end - start, (uint64_t)MAXSPARSEANALOG);
+        uint64_t tend           = start + inputs;
+        uint64_t tstart         = start + threadIdx.x;
+        uint32_t pos            = threadIdx.x;
 
-    __threadfence();
-    __syncthreads();
+        while (tstart < tend)
+        {
+            sOffset[pos]        = pSparseTransposedIndex[tstart] * n;
+            sValue[pos]         = pSparseTransposedData[start];
+            pos                += blockDim.x;
+            tstart             += blockDim.x;
+        }
 
-    // Cycle through all output positions
-    pWeightGradient            += blockIdx.x * n;
-    uint32_t opos               = threadIdx.x;
-    uint32_t tgx                = threadIdx.x & cData._warpMask;    
-    while (opos < n)
-    {        
-        // Read all non-zero inputs, accumulate in 64-bit FP to maintain deterministic results
-        NNFloat oldgradient     = (beta == (NNFloat)0.0) ? (NNFloat)0.0 : beta * pWeightGradient[opos];
-        int64_t sum             = 0;
-        for (uint32_t i = 0; i < inputs; i++)
-        {
-            uint32_t offset     = sOffset[i];
-            T value             = sValue[i];
-            sum                += llrintf(ERRORSCALEF * value * pDelta[offset + opos]);  
+        __threadfence();
+        __syncthreads();
+
+        // Cycle through all output positions
+
+        uint32_t opos           = threadIdx.x;
+        uint32_t tgx            = threadIdx.x & cData._warpMask;    
+        while (opos < n)
+        {        
+            // Read all non-zero inputs, accumulate in 64-bit FP to maintain deterministic results
+            NNFloat oldgradient = (beta == (NNFloat)0.0) ? (NNFloat)0.0 : beta * pWeightGradient[opos];
+            int64_t sum         = 0;
+            for (uint32_t i = 0; i < inputs; i++)
+            {
+                uint32_t offset = sOffset[i];
+                T value         = sValue[i]; 
+                sum            += llrintf(ERRORSCALEF * value * pDelta[offset + opos]);  
+            }
+
+            // Write output
+            NNFloat fsum        = alpha * (NNFloat)((double)sum * ONEOVERERRORSCALE);
+            pWeightGradient[opos] = oldgradient + fsum;            
+
+            // Advance to next set of outputs
+            if (tgx == 0)
+            {
+                opos            = atomicAdd(&sOpos, cData._warpSize);
+            }
+            opos                = SHFL(opos, 0);
+            opos               += tgx;
         }
-        
-        // Write output
-        NNFloat fsum            = alpha * (NNFloat)((double)sum * ONEOVERERRORSCALE);
-        pWeightGradient[opos]   = oldgradient + fsum;        
-        
-    
-        // Advance to next set of outputs
-        if (tgx == 0)
+
+        // Advance to next block of sparse inputs, syncing if necessary
+        start                   = tend;
+        if (start < end)
         {
-            opos                = atomicAdd(&sOpos, cData._warpSize);
+            __threadfence();
+            __syncthreads();
+            beta                = (NNFloat)1.0;             // Set beta to 1.0 for any remaining gradient accumulation
         }
-        opos                    = SHFL(opos, 0);
-        opos                   += tgx;
     }
 }
 
@@ -1220,48 +2330,63 @@ __shared__ NNFloat sValue[MAXSPARSEANALOG];
     sOpos                       = blockDim.x; 
     uint64_t start              = pSparseTransposedStart[blockIdx.x];
     uint64_t end                = pSparseTransposedEnd[blockIdx.x];
-    uint32_t inputs             = end - start;
-    uint32_t pos                = threadIdx.x;
     alpha                      *= cData._denoising_q;
-    start                      += threadIdx.x;
+    pWeightGradient            += blockIdx.x * n;
     while (start < end)
     {
-        sOffset[pos]            = pSparseTransposedIndex[start] * n;
-        sValue[pos]             = (NNFloat)pSparseTransposedData[start] * (NNFloat)(1.0 / 128.0);
-        pos                    += blockDim.x;
-        start                  += blockDim.x;
-    }
+        uint32_t inputs         = ullmin(end - start, (uint64_t)MAXSPARSEANALOG);
+        uint64_t tend           = start + inputs;
+        uint64_t tstart         = start + threadIdx.x;
+        uint32_t pos            = threadIdx.x;
 
-    __threadfence();
-    __syncthreads();
+        while (tstart < tend)
+        {
+            sOffset[pos]        = pSparseTransposedIndex[tstart] * n;
+            sValue[pos]         = (NNFloat)pSparseTransposedData[start] * (NNFloat)(1.0 / 128.0);
+            pos                += blockDim.x;
+            tstart             += blockDim.x;
+        }
 
-    // Cycle through all output positions
-    pWeightGradient            += blockIdx.x * n;
-    uint32_t opos               = threadIdx.x;
-    uint32_t tgx                = threadIdx.x & cData._warpMask;    
-    while (opos < n)
-    {        
-        // Read all non-zero inputs, accumulate in 64-bit FP to maintain deterministic results 
-        NNFloat oldgradient     = (beta == (NNFloat)0.0) ? (NNFloat)0.0 : beta * pWeightGradient[opos];
-        int64_t sum             = 0;
-        for (uint32_t i = 0; i < inputs; i++)
-        {
-            uint32_t offset     = sOffset[i];
-            NNFloat value       = sValue[i];
-            sum                += llrintf(ERRORSCALEF * value * pDelta[offset + opos]);  
+        __threadfence();
+        __syncthreads();
+
+        // Cycle through all output positions
+
+        uint32_t opos           = threadIdx.x;
+        uint32_t tgx            = threadIdx.x & cData._warpMask;    
+        while (opos < n)
+        {        
+            // Read all non-zero inputs, accumulate in 64-bit FP to maintain deterministic results
+            NNFloat oldgradient = (beta == (NNFloat)0.0) ? (NNFloat)0.0 : beta * pWeightGradient[opos];
+            int64_t sum         = 0;
+            for (uint32_t i = 0; i < inputs; i++)
+            {
+                uint32_t offset = sOffset[i];
+                NNFloat value   = sValue[i]; 
+                sum            += llrintf(ERRORSCALEF * value * pDelta[offset + opos]);  
+            }
+
+            // Write output
+            NNFloat fsum        = alpha * (NNFloat)((double)sum * ONEOVERERRORSCALE);
+            pWeightGradient[opos] = oldgradient + fsum;            
+
+            // Advance to next set of outputs
+            if (tgx == 0)
+            {
+                opos            = atomicAdd(&sOpos, cData._warpSize);
+            }
+            opos                = SHFL(opos, 0);
+            opos               += tgx;
         }
-        
-        // Write output
-        NNFloat fsum            = alpha * (NNFloat)((double)sum * ONEOVERERRORSCALE);
-        pWeightGradient[opos]   = oldgradient + fsum;
-    
-        // Advance to next set of outputs
-        if (tgx == 0)
+
+        // Advance to next block of sparse inputs, syncing if necessary
+        start                   = tend;
+        if (start < end)
         {
-            opos                = atomicAdd(&sOpos, cData._warpSize);
+            __threadfence();
+            __syncthreads();
+            beta                = (NNFloat)1.0;             // Set beta to 1.0 for any remaining gradient accumulation
         }
-        opos                    = SHFL(opos, 0);
-        opos                   += tgx;
     }
 }
 
@@ -1278,48 +2403,64 @@ __shared__ NNFloat sValue[MAXSPARSEANALOG];
     sOpos                       = blockDim.x; 
     uint64_t start              = pSparseTransposedStart[blockIdx.x];
     uint64_t end                = pSparseTransposedEnd[blockIdx.x];
-    uint32_t inputs             = end - start;
-    uint32_t pos                = threadIdx.x;
+
     alpha                      *= cData._denoising_q;
-    start                      += threadIdx.x;
+    pWeightGradient            += blockIdx.x * n;
     while (start < end)
     {
-        sOffset[pos]            = pSparseTransposedIndex[start] * n;
-        sValue[pos]             = (NNFloat)pSparseTransposedData[start] * (NNFloat)(1.0 / 256.0);
-        pos                    += blockDim.x;
-        start                  += blockDim.x;
-    }
+        uint32_t inputs         = ullmin(end - start, (uint64_t)MAXSPARSEANALOG);
+        uint64_t tend           = start + inputs;
+        uint64_t tstart         = start + threadIdx.x;
+        uint32_t pos            = threadIdx.x;
 
-    __threadfence();
-    __syncthreads();
+        while (tstart < tend)
+        {
+            sOffset[pos]        = pSparseTransposedIndex[tstart] * n;
+            sValue[pos]         = (NNFloat)pSparseTransposedData[start] * (NNFloat)(1.0 / 256.0);
+            pos                += blockDim.x;
+            tstart             += blockDim.x;
+        }
 
-    // Cycle through all output positions
-    pWeightGradient            += blockIdx.x * n;
-    uint32_t opos               = threadIdx.x;
-    uint32_t tgx                = threadIdx.x & cData._warpMask;    
-    while (opos < n)
-    {        
-        // Read all non-zero inputs, accumulate in 64-bit FP to maintain deterministic results
-        NNFloat oldgradient     = (beta == (NNFloat)0.0) ? (NNFloat)0.0 : beta * pWeightGradient[opos];
-        int64_t sum             = 0;
-        for (uint32_t i = 0; i < inputs; i++)
-        {
-            uint32_t offset     = sOffset[i];
-            NNFloat value       = sValue[i];
-            sum                += llrintf(ERRORSCALEF * value * pDelta[offset + opos]);  
+        __threadfence();
+        __syncthreads();
+
+        // Cycle through all output positions
+
+        uint32_t opos           = threadIdx.x;
+        uint32_t tgx            = threadIdx.x & cData._warpMask;    
+        while (opos < n)
+        {        
+            // Read all non-zero inputs, accumulate in 64-bit FP to maintain deterministic results
+            NNFloat oldgradient = (beta == (NNFloat)0.0) ? (NNFloat)0.0 : beta * pWeightGradient[opos];
+            int64_t sum         = 0;
+            for (uint32_t i = 0; i < inputs; i++)
+            {
+                uint32_t offset = sOffset[i];
+                NNFloat value   = sValue[i]; 
+                sum            += llrintf(ERRORSCALEF * value * pDelta[offset + opos]);  
+            }
+
+            // Write output
+            NNFloat fsum        = alpha * (NNFloat)((double)sum * ONEOVERERRORSCALE);
+            pWeightGradient[opos] = oldgradient + fsum;            
+
+            // Advance to next set of outputs
+            if (tgx == 0)
+            {
+                opos            = atomicAdd(&sOpos, cData._warpSize);
+            }
+            opos                = SHFL(opos, 0);
+            opos               += tgx;
         }
-        
-        // Write output
-        NNFloat fsum            = alpha * (NNFloat)((double)sum * ONEOVERERRORSCALE);
-        pWeightGradient[opos]   = oldgradient + fsum;
-    
-        // Advance to next set of outputs
-        if (tgx == 0)
+
+        // Advance to next block of sparse inputs, syncing if necessary
+        start                   = tend;
+        if (start < end)
         {
-            opos                = atomicAdd(&sOpos, cData._warpSize);
+            __threadfence();
+            __syncthreads();
+            beta                = (NNFloat)1.0;             // Set beta to 1.0 for any remaining gradient accumulation
         }
-        opos                    = SHFL(opos, 0);
-        opos                   += tgx;
     }
 }
 
@@ -3398,10 +4539,14 @@ kAddBuffers_kernel(NNFloat* pDst, NNFloat* pSrc, uint64_t size)
         *(pDst + pos)                      += *(pSrc + pos);
 }
 
-void kAddBuffers(NNFloat* pDst, NNFloat* pSrc, uint64_t size)
+void kAddBuffers(NNFloat* pDst, NNFloat* pSrc, uint64_t size, cudaStream_t stream)
 {
+    // Skip zero-sized copies
+    if (size == 0)
+        return;
+
     uint32_t blocks                         = CalculateBlocks(size);
-    kAddBuffers_kernel<<<blocks, getGpu()._threadsPerBlock>>>(pDst, pSrc, size);
+    kAddBuffers_kernel<<<blocks, getGpu()._threadsPerBlock, 0, stream>>>(pDst, pSrc, size);
     LAUNCHERROR("kAddBuffers_kernel");
 }
 
@@ -3418,10 +4563,14 @@ kAddBuffers2D_kernel(NNFloat* pDst, uint32_t dpitch, NNFloat* pSrc, uint32_t spi
     }
 }
 
-void kAddBuffers2D(NNFloat* pDst, uint32_t dpitch, NNFloat* pSrc, uint32_t spitch, uint32_t width, uint32_t height)
+void kAddBuffers2D(NNFloat* pDst, uint32_t dpitch, NNFloat* pSrc, uint32_t spitch, uint32_t width, uint32_t height, cudaStream_t stream)
 {
+    // Bail if nothing to add
+    if ((height == 0) || (width == 0))
+        return;
+
     dim3 grid(height, (width + getGpu()._threadsPerBlock - 1) / getGpu()._threadsPerBlock);       
-    kAddBuffers2D_kernel<<<grid, getGpu()._threadsPerBlock>>>(pDst, dpitch, pSrc, spitch, width);
+    kAddBuffers2D_kernel<<<grid, getGpu()._threadsPerBlock, 0, stream>>>(pDst, dpitch, pSrc, spitch, width);
     LAUNCHERROR("kAddBuffers2D_kernel");
 }
 
@@ -3438,10 +4587,13 @@ kCopy2D_kernel(NNFloat* pDst, uint32_t dpitch, NNFloat* pSrc, uint32_t spitch, u
     }
 }
 
-void kCopy2D(NNFloat* pDst, uint32_t dpitch, NNFloat* pSrc, uint32_t spitch, uint32_t width, uint32_t height)
+void kCopy2D(NNFloat* pDst, uint32_t dpitch, NNFloat* pSrc, uint32_t spitch, uint32_t width, uint32_t height, cudaStream_t stream)
 {
-    dim3 grid(height, (width + getGpu()._threadsPerBlock - 1) / getGpu()._threadsPerBlock);       
-    kCopy2D_kernel<<<grid, getGpu()._threadsPerBlock>>>(pDst, dpitch, pSrc, spitch, width);
+    // Bail if nothing to copy
+    if ((height == 0) || (width == 0))
+        return;
+    dim3 grid(height, (width + getGpu()._threadsPerBlock - 1) / getGpu()._threadsPerBlock);      
+    kCopy2D_kernel<<<grid, getGpu()._threadsPerBlock, 0, stream>>>(pDst, dpitch, pSrc, spitch, width);
     LAUNCHERROR("kCopy2D_kernel");
 }
 
@@ -3458,15 +4610,27 @@ template bool kSort<NNFloat, uint32_t>(uint32_t, NNFloat*, NNFloat*, uint32_t*, 
 template bool kSort<uint32_t, NNFloat>(uint32_t, uint32_t*, uint32_t*, NNFloat*, NNFloat*, char*, size_t);
 template bool kSort<uint32_t, uint32_t>(uint32_t, uint32_t*, uint32_t*, uint32_t*, uint32_t*, char*, size_t);
 
-#define EXPLICITLY_INSTANTIATE_KERNELS(T)                                                                                                                         \
-template void kLoadSparseAnalogDenoisedInputUnit<T>(uint32_t, uint32_t, uint32_t, NNFloat*, uint64_t*, uint64_t*, uint32_t*, T*, NNFloat*);                       \
-template void kLoadSparseAnalogInputUnit<T>(uint32_t, uint32_t, uint32_t, NNFloat*, uint64_t*, uint64_t*, uint32_t*, T*);                                         \
-template void kCalculateSparseAnalogZ<T>(uint32_t, uint32_t, uint32_t, NNFloat*, uint64_t*, uint64_t*, uint32_t*, T*, NNFloat*, NNFloat);                         \
-template void kCalculateSparseAnalogDenoisedZ<T>(uint32_t, uint32_t, uint32_t, NNFloat*, uint64_t*, uint64_t*, uint32_t*, T*, NNFloat*, NNFloat*, NNFloat);       \
-template void kCalculateSparseTransposedAnalogMatrix<T>(uint32_t, uint32_t, uint64_t*, uint64_t*, uint32_t*, T*, uint32_t*, uint32_t*, T*);                       \
-template void kCalculateSparseTransposedAnalogDenoisedMatrix<T>(uint32_t, uint32_t, uint64_t*, uint64_t*, uint32_t*, T*, NNFloat*, uint32_t*, uint32_t*, T*);     \
-template void kCalculateSparseTransposedAnalogWeightGradient<T>(NNFloat, NNFloat, uint32_t, uint32_t, uint32_t*, uint32_t*, uint32_t*, T*, NNFloat*, NNFloat*);   \
-template void kLoadInputUnit<T>(uint32_t, uint32_t, uint32_t, NNFloat*, T*);                                                                                      \
+#define EXPLICITLY_INSTANTIATE_KERNELS(T)                                                                                                                                       \
+template void kLoadSparseAnalogDenoisedInputUnit<T>(uint32_t, uint32_t, uint32_t, NNFloat*, uint64_t*, uint64_t*, uint32_t*, T*, NNFloat*);                                     \
+template void kLoadIndexedSparseAnalogDenoisedInputUnit<T>(uint32_t, uint32_t, uint32_t, NNFloat*, uint32_t*, uint64_t*, uint64_t*, uint32_t*, T*, NNFloat*);                   \
+template void kLoadSparseAnalogInputUnit<T>(uint32_t, uint32_t, uint32_t, NNFloat*, uint64_t*, uint64_t*, uint32_t*, T*);                                                       \
+template void kLoadIndexedSparseAnalogInputUnit<T>(uint32_t, uint32_t, uint32_t, NNFloat*, uint32_t*, uint64_t*, uint64_t*, uint32_t*, T*);                                     \
+template void kCalculateSparseAnalogZ<T>(uint32_t, uint32_t, uint32_t, NNFloat*, uint64_t*, uint64_t*, uint32_t*, T*, NNFloat*, NNFloat);                                       \
+template void kCalculateIndexedSparseAnalogZ<T>(uint32_t, uint32_t, uint32_t, NNFloat*, uint32_t*, uint64_t*, uint64_t*, uint32_t*, T*, NNFloat*, NNFloat);                     \
+template void kCalculateSparseAnalogDenoisedZ<T>(uint32_t, uint32_t, uint32_t, NNFloat*, uint64_t*, uint64_t*, uint32_t*, T*, NNFloat*, NNFloat*, NNFloat);                     \
+template void kCalculateIndexedSparseAnalogDenoisedZ<T>(uint32_t, uint32_t, uint32_t, NNFloat*, uint32_t*, uint64_t*, uint64_t*, uint32_t*, T*, NNFloat*, NNFloat*, NNFloat);   \
+template void kCalculateSparseTransposedAnalogMatrix<T>(uint32_t, uint32_t, uint64_t*, uint64_t*, uint32_t*, T*, uint32_t*, uint32_t*, T*);                                     \
+template void kCalculateIndexedSparseTransposedAnalogMatrix<T>(uint32_t, uint32_t, uint32_t*, uint64_t*, uint64_t*, uint32_t*, T*, uint32_t*, uint32_t*, T*);                   \
+template void kCalculateSparseTransposedAnalogDenoisedMatrix<T>(uint32_t, uint32_t, uint64_t*, uint64_t*, uint32_t*, T*, NNFloat*, uint32_t*, uint32_t*, T*);                   \
+template void kCalculateIndexedSparseTransposedAnalogDenoisedMatrix<T>(uint32_t, uint32_t, uint32_t*, uint64_t*, uint64_t*, uint32_t*, T*, NNFloat*, uint32_t*, uint32_t*, T*); \
+template void kCalculateSparseTransposedAnalogWeightGradient<T>(NNFloat, NNFloat, uint32_t, uint32_t, uint32_t*, uint32_t*, uint32_t*, T*, NNFloat*, NNFloat*);                 \
+template void kLoadInputUnit<T>(uint32_t, uint32_t, uint32_t, NNFloat*, T*);                                                                                                    \
+template void kLoadIndexedInputUnit<T>(uint32_t, uint32_t, uint32_t, NNFloat*, uint32_t*, T*);
+
+
+
+
+                                                                                 \
 /**/
 
 EXPLICITLY_INSTANTIATE_KERNELS(NNFloat)
