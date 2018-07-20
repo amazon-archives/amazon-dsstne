@@ -20,7 +20,7 @@ endif
 NVCC = nvcc
 CU_INCLUDES ?= -I/usr/local/cuda/include -IB40C -IB40C/KernelCommon -I/usr/local/include -I/usr/lib/openmpi/include -I/usr/include/jsoncpp -I../utils -I../engine -I/usr/include/cppunit
 CU_LIBS ?= -L/usr/lib/atlas-base -L/usr/local/cuda/lib64 -L. -L/usr/local/lib/
-CU_LOADLIBS = -lcudnn -lcurand -lcublas -lcudart -lmpi -lmpi_cxx -ljsoncpp -lnetcdf_c++4 -lnetcdf -lblas -ldl -lstdc++  
+CU_LOADLIBS = -lcudnn -lcurand -lcublas -lcudart -ljsoncpp -lnetcdf_c++4 -lnetcdf -lblas -ldl -lstdc++  
 
 LOAD = mpiCC
 
