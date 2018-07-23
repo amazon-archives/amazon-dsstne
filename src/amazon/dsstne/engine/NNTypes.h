@@ -22,7 +22,7 @@
 #include <netcdf>
 #ifndef __NVCC__
 #include <tuple>
-#include <jsoncpp/json/json.h>
+#include <json/json.h>
 #endif
 #include <cmath>
 #include <memory>
