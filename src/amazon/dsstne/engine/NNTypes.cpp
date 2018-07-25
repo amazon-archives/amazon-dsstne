@@ -270,6 +270,7 @@ _pbIndex(),
 _pbSparseTransposedStart(),
 _pbSparseTransposedEnd(),
 _pbSparseTransposedIndex(),
+_pbSparseTransposedData(),
 _batch(0),
 _pbDenoisingRandom(),
 _bStreaming(false),
@@ -633,8 +634,7 @@ template<typename T> bool NNDataSet<T>::SetSparseDataPoint(uint32_t n, uint32_t 
 
 template<typename T> NNDataSet<T>::NNDataSet(const string& fname, uint32_t n) :
 _pbData(),
-_pbSparseData(),
-_pbSparseTransposedData()
+_pbSparseData()
 {
     // Read File entirely with process 0
     bool bResult                                = true;
@@ -1086,10 +1086,10 @@ template<typename T> bool NNDataSet<T>::GenerateSparseTransposedMatrix(uint32_t 
         _sparseTransposedIndices            = offset;
         printf("NNDataSet::GenerateSparseTransposedMatrix: Allocating %lu bytes for sparse transposed weight gradient index matrix %s.\n", _sparseTransposedIndices * sizeof(uint32_t), _name.c_str());        
         _pbSparseTransposedIndex.reset(new GpuBuffer<uint32_t>(_sparseTransposedIndices));
-        if (!(_attributes & NNDataSetEnums::Boolean))
+        if (!(_attributes & NNDataSetEnums::Boolean) || (_attributes & NNDataSetEnums::Weighted))
         {
-            printf("NNDataSet::GenerateSparseTransposedMatrix: Allocating %lu bytes for sparse transposed weight gradient value matrix %s.\n", _sparseTransposedIndices * sizeof(T), _name.c_str());        
-            _pbSparseTransposedData.reset(new GpuBuffer<T>(_sparseTransposedIndices));
+            printf("NNDataSet::GenerateSparseTransposedMatrix: Allocating %lu bytes for sparse transposed weight gradient value matrix %s.\n", _sparseTransposedIndices * sizeof(NNFloat), _name.c_str());        
+            _pbSparseTransposedData.reset(new GpuBuffer<NNFloat>(_sparseTransposedIndices));
         }
     }
     return true;

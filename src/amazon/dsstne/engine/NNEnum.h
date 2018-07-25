@@ -11,7 +11,8 @@ namespace NNDataSetEnums {
         Recurrent = 8,              // Data has a time dimension
         Mutable = 16,               // Data can be modified by running network backwards
         SparseIgnoreZero = 32,      // Only calculate errors and deltas on non-zero values
-        Indexed = 64                // Data set is indexed
+        Indexed = 64,               // Data set is indexed
+        Weighted = 128              // Data points have weight associated with them
     };
 
     enum Kind
