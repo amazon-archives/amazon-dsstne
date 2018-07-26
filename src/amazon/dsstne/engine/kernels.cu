@@ -2542,13 +2542,13 @@ __shared__ uint32_t sOpos;                                      // Shared output
 __shared__ uint32_t sOffset[MAXSPARSE];                         // Shared set of offsets to non-zero weights
 
     // Read transposed sparse indices into shared memory so they're only read once
-    sOpos                       = blockDim.x; 
     uint64_t start              = pSparseTransposedStart[blockIdx.x];
     uint64_t end                = pSparseTransposedEnd[blockIdx.x];
     alpha                      *= cData._denoising_q;
     pWeightGradient            += blockIdx.x * n;
-    while (start < end)
+    do
     {
+        sOpos                   = blockDim.x;         
         uint32_t inputs         = ullmin(end - start, (uint64_t)MAXSPARSE);
         uint64_t tend           = start + inputs;
         uint64_t tstart         = start + threadIdx.x;
@@ -2600,6 +2600,7 @@ __shared__ uint32_t sOffset[MAXSPARSE];                         // Shared set of
             beta                = (NNFloat)1.0;             // Set beta to 1.0 for any remaining gradient accumulation
         }
     }
+    while (start < end);
 }
 
 
@@ -2618,14 +2619,14 @@ __shared__ uint32_t sOpos;                                      // Shared output
 __shared__ uint32_t sOffset[MAXSPARSEANALOG];                   // Shared set of offsets to non-zero weights
 __shared__ NNFloat sValue[MAXSPARSEANALOG];
 
-    // Read transposed sparse indices and data into shared memory so they're only read once
-    sOpos                       = blockDim.x; 
+    // Read transposed sparse indices and data into shared memory so they're only read once 
     uint64_t start              = pSparseTransposedStart[blockIdx.x];
     uint64_t end                = pSparseTransposedEnd[blockIdx.x];
     alpha                      *= cData._denoising_q;
     pWeightGradient            += blockIdx.x * n;
-    while (start < end)
+    do
     {
+        sOpos                   = blockDim.x;        
         uint32_t inputs         = ullmin(end - start, (uint64_t)MAXSPARSEANALOG);
         uint64_t tend           = start + inputs;
         uint64_t tstart         = start + threadIdx.x;
@@ -2680,6 +2681,7 @@ __shared__ NNFloat sValue[MAXSPARSEANALOG];
             beta                = (NNFloat)1.0;             // Set beta to 1.0 for any remaining gradient accumulation
         }
     }
+    while (start < end);
 }
 
 void kCalculateSparseTransposedAnalogWeightGradient(NNFloat alpha, NNFloat beta, uint32_t m, uint32_t n, uint32_t* pSparseTransposedStart, uint32_t* pSparseTransposedEnd, uint32_t* pSparseTransposedIndex, NNFloat* pSparseTransposedData, NNFloat* pDelta, NNFloat* pWeightGradient)
