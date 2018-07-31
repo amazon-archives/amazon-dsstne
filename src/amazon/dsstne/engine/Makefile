@@ -1,24 +1,26 @@
 
-
 SHELL=/bin/sh
 VPATH=
 
-
 include ../Makefile.inc
 
-OBJS=   NNTypes.o NNWeight.o NNLayer.o NNNetwork.o GpuTypes.o kernels.o kLoss.o kActivation.o kDelta.o  
+HEADERS := $(wildcard *.h *.hpp)
+HEADERS_PREFIX := include/amazon/dsstne/engine
+OBJS = NNTypes.o NNWeight.o NNLayer.o NNNetwork.o GpuTypes.o kernels.o kLoss.o kActivation.o kDelta.o
 
 COMMON_LIBS = $(MATH_LIBS) $(MPI_LIBS) $(CU_LIBS) $(CU_LOADLIBS)
-all: ../lib/libdsstne.a
+all: lib/libdsstne.a
 
-install: all 
+install: all
 
-../lib/libdsstne.a: $(OBJS)
-	mkdir -p ../lib
-	ar -cvr $@ $^
+lib/libdsstne.a: $(OBJS)
+	mkdir -p $(PREFIX)/lib
+	ar -cvr $(PREFIX)/$@ $^
+	mkdir -p $(PREFIX)/$(HEADERS_PREFIX)
+	cp $(HEADERS) $(PREFIX)/$(HEADERS_PREFIX)
 
 clean:
-	rm -f *cudafe* *.fatbin.* *.fatbin *.ii *.cubin *cu.cpp *.ptx *.cpp?.* *.hash *.o *.d work.pc* ../lib/libdsstne.a
+	rm -f *cudafe* *.fatbin.* *.fatbin *.ii *.cubin *cu.cpp *.ptx *.cpp?.* *.hash *.o *.d work.pc* $(PREFIX)/lib/libdsstne.a
 
 distclean:
 	rm -f *cudafe* *.fatbin.* *.fatbin *.ii *.cubin *cu.cpp *.ptx *.cpp?.* *.hash *.o *.d work.pc*
