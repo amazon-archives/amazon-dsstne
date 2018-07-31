@@ -1016,7 +1016,6 @@ void NNNetwork::ClearDataSets()
          l->_pDataSet                           = NULL;
 }
 
-
 void NNNetwork::LoadDataSets(vector<NNDataSetBase*>& vData)
 {
     // Search for a data set to match each input layer

@@ -191,7 +191,20 @@ private:
     cudnnTensorDescriptor_t getTensorDescriptorBN(uint32_t batch);
 
 public:
+    /**
+     * Returns the name of this layer.
+     */
     const string& GetName() const;
+
+    /**
+     * Returns the dataset name of this layer.
+     * The dataset name of the layer is defined during
+     * the creation of the network (with NNLayerDescriptor::_dataSet)
+     * and is persisted into the network NetCDF file. It is used
+     * to attribute a NNDataSet to NNLayer in NNNetwork::LoadDataSets
+     */
+    const string& GetDataSetName() const;
+
     NNLayer::Kind GetKind() const;
 
     /**

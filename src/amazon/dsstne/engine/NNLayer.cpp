@@ -527,6 +527,9 @@ const string& NNLayer::GetName() const {
   return _name;
 }
 
+const string& NNLayer::GetDataSetName() const {
+    return _dataSet;
+}
 NNLayer::Kind NNLayer::GetKind() const {
   return _kind;
 }
