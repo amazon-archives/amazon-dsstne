@@ -11,6 +11,7 @@ all:
 	cd src/amazon/dsstne/engine && make
 	cd src/amazon/dsstne/utils && make
 	cd tst && make
+	cd java && make
 
 install: all
 	mkdir -p $(PREFIX)
