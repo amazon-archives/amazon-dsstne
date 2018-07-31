@@ -8,7 +8,7 @@ VPATH=
 include ../Makefile.inc
 
 OBJS= Utils.o NetCDFhelper.o NNRecsGenerator.o Filters.o cdl.o
-LIB_DSSTNE=../lib/libdsstne.a
+LIB_DSSTNE=$(PREFIX)/lib/libdsstne.a
 
 COMMON_LIBS = $(LIB_DSSTNE) $(MATH_LIBS) $(MPI_LIBS) $(CU_LIBS) $(CU_LOADLIBS)
 COMMON_LIBS_UNIT_TEST = $(COMMON_LIBS) -l:libcppunit.a
@@ -22,31 +22,31 @@ install: all
 
 
 generateNetCDF: NetCDFGenerator.o NetCDFhelper.o Utils.o $(LIB_DSSTNE)
-	mkdir -p ../bin
+	mkdir -p $(PREFIX)/bin
 	$(LOAD) $(LOADFLAGS) -o $@  NetCDFGenerator.o NetCDFhelper.o Utils.o $(COMMON_LIBS)
-	cp $@ ../bin/
+	cp $@ $(PREFIX)/bin/
 
 train : $(OBJS) Train.o $(LIB_DSSTNE)
-	mkdir -p ../bin
+	mkdir -p $(PREFIX)/bin
 	$(LOAD) $(LOADFLAGS) -o $@ $(OBJS) Train.o $(COMMON_LIBS)
-	cp $@ ../bin/
+	cp $@ $(PREFIX)/bin/
 
 encoder : $(OBJS) main.o $(LIB_DSSTNE)
-	mkdir -p ../bin
+	mkdir -p $(PREFIX)/bin
 	$(LOAD) $(LOADFLAGS) -o $@ $(OBJS) main.o $(COMMON_LIBS)
-	cp $@ ../bin/
+	cp $@ $(PREFIX)/bin/
 
 predict : $(OBJS) Predict.o $(LIB_DSSTNE)
-	mkdir -p ../bin
+	mkdir -p $(PREFIX)/bin
 	$(LOAD) $(LOADFLAGS) -o $@ $(OBJS) Predict.o  $(COMMON_LIBS)
-	cp $@ ../bin/
+	cp $@ $(PREFIX)/bin/
 
 TestGPU : $(OBJS) ../../../../tst/gputests/TestDune.o
 	$(LOAD) $(LOADFLAGS) -o $@ $(OBJS) TestDune.o  $(COMMON_LIBS_UNIT_TEST)
 
 
 clean:
-	rm -f *cudafe* *.fatbin.* *.fatbin *.ii *.cubin *cu.cpp *.ptx *.cpp?.* *.hash *.o *.d work.pc* generateNetCDF train predict encoder TestGPU ../bin/generateNetCDF ../bin/train ../bin/predict ../bin/encoder
+	rm -f *cudafe* *.fatbin.* *.fatbin *.ii *.cubin *cu.cpp *.ptx *.cpp?.* *.hash *.o *.d work.pc* generateNetCDF train predict encoder TestGPU $(PREFIX)/bin/generateNetCDF $(PREFIX)/bin/train $(PREFIX)/bin/predict $(PREFIX)/bin/encoder
 
 distclean:
 	rm -f *cudafe* *.fatbin.* *.fatbin *.ii *.cubin *cu.cpp *.ptx *.cpp?.* *.hash *.o *.d work.pc*

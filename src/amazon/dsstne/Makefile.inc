@@ -24,3 +24,5 @@ CU_LOADLIBS = -lcudnn -lcurand -lcublas -lcudart -ljsoncpp -lnetcdf_c++4 -lnetcd
 
 LOAD = mpiCC
 
+# Prefix of the directory to install dsstne. Override-able by exporting PREFIX before calling make
+PREFIX ?= $(dir $(shell pwd))
