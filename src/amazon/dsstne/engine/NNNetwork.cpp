@@ -1672,7 +1672,7 @@ tuple<NNFloat, NNFloat> NNNetwork::CalculateError(NNFloat lambda, NNFloat lambda
     }
 
     // Calculate regularization error
-    if (lambda > (NNFloat)0.0)
+    if ((lambda != (NNFloat)0.0) || (lambda1 != (NNFloat)0.0))
     {
         for (auto w: _vWeight)
         {
