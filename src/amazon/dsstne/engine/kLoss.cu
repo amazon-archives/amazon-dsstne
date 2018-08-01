@@ -41,8 +41,8 @@ kCalculateSparseRawL1Error_kernel(uint32_t position, NNFloat* pSparseWeight, NNF
         NNFloat w               = (NNFloat)1.0;
         if (pSparseWeight != NULL)
         {
-            uint64_t dpos       = pos / stride;
-            dpos                = cData._bShuffleIndices ? cData._pShuffleIndex[position + pos] : position + pos;
+            uint64_t dpos       = (pos / stride) + position;
+            dpos                = cData._bShuffleIndices ? cData._pShuffleIndex[dpos] : dpos;
             w                  *= pSparseWeight[dpos];
         }
 
@@ -603,8 +603,8 @@ kCalculateSparseRawL2Error_kernel(uint32_t position, NNFloat* pSparseWeight, NNF
         NNFloat w               = (NNFloat)0.5;
         if (pSparseWeight != NULL)
         {
-            uint64_t dpos       = pos / stride;
-            dpos                = cData._bShuffleIndices ? cData._pShuffleIndex[position + pos] : position + pos;
+            uint64_t dpos       = (pos / stride) + position;
+            dpos                = cData._bShuffleIndices ? cData._pShuffleIndex[dpos] : dpos;
             w                  *= pSparseWeight[dpos];
         }
         NNFloat a               = pUnit[pos];
@@ -1163,8 +1163,8 @@ kCalculateSparseRawCrossEntropyError_kernel(uint32_t position, NNFloat* pSparseW
         NNFloat w               = (NNFloat)1.0;
         if (pSparseWeight != NULL)
         {
-            uint64_t dpos       = pos / stride;
-            dpos                = cData._bShuffleIndices ? cData._pShuffleIndex[position + pos] : position + pos;
+            uint64_t dpos       = (pos / stride) + position;
+            dpos                = cData._bShuffleIndices ? cData._pShuffleIndex[dpos] : dpos;
             w                  *= pSparseWeight[dpos];
         }
         NNFloat a               = pUnit[pos];

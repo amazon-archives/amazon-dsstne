@@ -13,7 +13,6 @@
 #include "GpuTypes.h"
 #include "NNTypes.h"
 #include <limits>
-
 static __constant__ GpuData cData;
 
 void SetKDeltaGpuData()
@@ -1038,8 +1037,8 @@ kCalculateSparseRawSigmoidOutputDelta_kernel(uint32_t position, NNFloat* pSparse
         NNFloat w               = cData._deltaBoost_zero;
         if (pSparseWeight != NULL)
         {
-            uint64_t dpos       = pos / stride;
-            dpos                = cData._bShuffleIndices ? cData._pShuffleIndex[position + pos] : position + pos;
+            uint64_t dpos       = (pos / stride) + position;
+            dpos                = cData._bShuffleIndices ? cData._pShuffleIndex[dpos] : dpos;
             w                  *= pSparseWeight[dpos];
         }
         NNFloat a               = pUnit[pos];
@@ -1079,8 +1078,8 @@ kCalculateSparseRawTanhOutputDelta_kernel(uint32_t position, NNFloat* pSparseWei
         NNFloat w               = (NNFloat)1.0;
         if (pSparseWeight != NULL)
         {
-            uint64_t dpos       = pos / stride;
-            dpos                = cData._bShuffleIndices ? cData._pShuffleIndex[position + pos] : position + pos;
+            uint64_t dpos       = (pos / stride) + position;
+            dpos                = cData._bShuffleIndices ? cData._pShuffleIndex[dpos] : dpos;
             w                  *= pSparseWeight[dpos];
         }
         NNFloat a               = pUnit[pos];    
@@ -1120,8 +1119,8 @@ kCalculateSparseRawLinearOutputDelta_kernel(uint32_t position, NNFloat* pSparseW
         NNFloat w               = (NNFloat)1.0;
         if (pSparseWeight != NULL)
         {
-            uint64_t dpos       = pos / stride;
-            dpos                = cData._bShuffleIndices ? cData._pShuffleIndex[position + pos] : position + pos;
+            uint64_t dpos       = (pos / stride) + position;
+            dpos                = cData._bShuffleIndices ? cData._pShuffleIndex[dpos] : dpos;
             w                  *= pSparseWeight[dpos];
         }
         NNFloat a               = pUnit[pos];    
@@ -1161,8 +1160,8 @@ kCalculateSparseRawRELUOutputDelta_kernel(uint32_t position, NNFloat* pSparseWei
         NNFloat w               = (NNFloat)1.0;
         if (pSparseWeight != NULL)
         {
-            uint64_t dpos       = pos / stride;
-            dpos                = cData._bShuffleIndices ? cData._pShuffleIndex[position + pos] : position + pos;
+            uint64_t dpos       = (pos / stride) + position;
+            dpos                = cData._bShuffleIndices ? cData._pShuffleIndex[dpos] : dpos;
             w                  *= pSparseWeight[dpos];
         }
         NNFloat a               = pUnit[pos];         
@@ -1180,8 +1179,8 @@ kCalculateSparseRawLRELUOutputDelta_kernel(uint32_t position, NNFloat* pSparseWe
         NNFloat w               = (NNFloat)1.0;
         if (pSparseWeight != NULL)
         {
-            uint64_t dpos       = pos / stride;
-            dpos                = cData._bShuffleIndices ? cData._pShuffleIndex[position + pos] : position + pos;
+            uint64_t dpos       = (pos / stride) + position;
+            dpos                = cData._bShuffleIndices ? cData._pShuffleIndex[dpos] : dpos;
             w                  *= pSparseWeight[dpos];
         }
         NNFloat a               = pUnit[pos];
@@ -1200,8 +1199,8 @@ kCalculateSparseRawELUOutputDelta_kernel(uint32_t position, NNFloat* pSparseWeig
         NNFloat w               = (NNFloat)1.0;
         if (pSparseWeight != NULL)
         {
-            uint64_t dpos       = pos / stride;
-            dpos                = cData._bShuffleIndices ? cData._pShuffleIndex[position + pos] : position + pos;
+            uint64_t dpos       = (pos / stride) + position;
+            dpos                = cData._bShuffleIndices ? cData._pShuffleIndex[dpos] : dpos;
             w                  *= pSparseWeight[dpos];
         }
         NNFloat a               = pUnit[pos];
@@ -1220,8 +1219,8 @@ kCalculateSparseRawSELUOutputDelta_kernel(uint32_t position, NNFloat* pSparseWei
         NNFloat w               = (NNFloat)1.0;
         if (pSparseWeight != NULL)
         {
-            uint64_t dpos       = pos / stride;
-            dpos                = cData._bShuffleIndices ? cData._pShuffleIndex[position + pos] : position + pos;
+            uint64_t dpos       = (pos / stride) + position;
+            dpos                = cData._bShuffleIndices ? cData._pShuffleIndex[dpos] : dpos;
             w                  *= pSparseWeight[dpos];
         }
         NNFloat a               = pUnit[pos];
@@ -1327,8 +1326,8 @@ kCalculateSparseRawSoftMaxOutputDelta_kernel(uint32_t position, NNFloat* pSparse
         NNFloat w               = (NNFloat)1.0;
         if (pSparseWeight != NULL)
         {
-            uint64_t dpos       = pos / stride;
-            dpos                = cData._bShuffleIndices ? cData._pShuffleIndex[position + pos] : position + pos;
+            uint64_t dpos       = (pos / stride) + position;
+            dpos                = cData._bShuffleIndices ? cData._pShuffleIndex[dpos] : dpos;
             w                  *= pSparseWeight[dpos];
         }
         NNFloat a               = pUnit[pos];    
@@ -3207,8 +3206,8 @@ kCalculateSparseRawSigmoidCrossEntropyOutputDelta_kernel(uint32_t position, NNFl
         NNFloat w               = cData._deltaBoost_zero;
         if (pSparseWeight != NULL)
         {
-            uint64_t dpos       = pos / stride;
-            dpos                = cData._bShuffleIndices ? cData._pShuffleIndex[position + pos] : position + pos;
+            uint64_t dpos       = (pos / stride) + position;
+            dpos                = cData._bShuffleIndices ? cData._pShuffleIndex[dpos] : dpos;
             w                  *= pSparseWeight[dpos];
         }
         NNFloat a               = pUnit[pos];
@@ -3832,8 +3831,8 @@ kCalculateSparseRawSigmoidScaledMarginalCrossEntropyOutputDelta_kernel(uint32_t 
         NNFloat w               = cData._SMCE_zeroScale;
         if (pSparseWeight != NULL)
         {
-            uint64_t dpos       = pos / stride;
-            dpos                = cData._bShuffleIndices ? cData._pShuffleIndex[position + pos] : position + pos;
+            uint64_t dpos       = (pos / stride) + position;
+            dpos                = cData._bShuffleIndices ? cData._pShuffleIndex[dpos] : dpos;
             w                  *= pSparseWeight[dpos];
         }
         NNFloat a               = pUnit[pos];
@@ -4932,8 +4931,8 @@ kCalculateSparseRawSigmoidL1OutputDelta_kernel(uint32_t position, NNFloat* pSpar
         NNFloat w               = cData._deltaBoost_zero;
         if (pSparseWeight != NULL)
         {
-            uint64_t dpos       = pos / stride;
-            dpos                = cData._bShuffleIndices ? cData._pShuffleIndex[position + pos] : position + pos;
+            uint64_t dpos       = (pos / stride) + position;
+            dpos                = cData._bShuffleIndices ? cData._pShuffleIndex[dpos] : dpos;
             w                  *= pSparseWeight[dpos];
         }
         NNFloat a               = pUnit[pos];
@@ -4973,8 +4972,8 @@ kCalculateSparseRawTanhL1OutputDelta_kernel(uint32_t position, NNFloat* pSparseW
         NNFloat w               = cData._deltaBoost_zero;
         if (pSparseWeight != NULL)
         {
-            uint64_t dpos       = pos / stride;
-            dpos                = cData._bShuffleIndices ? cData._pShuffleIndex[position + pos] : position + pos;
+            uint64_t dpos       = (pos / stride) + position;
+            dpos                = cData._bShuffleIndices ? cData._pShuffleIndex[dpos] : dpos;
             w                  *= pSparseWeight[dpos];
         }
         NNFloat a               = pUnit[pos];    
@@ -5014,8 +5013,8 @@ kCalculateSparseRawLinearL1OutputDelta_kernel(uint32_t position, NNFloat* pSpars
         NNFloat w               = cData._deltaBoost_zero;
         if (pSparseWeight != NULL)
         {
-            uint64_t dpos       = pos / stride;
-            dpos                = cData._bShuffleIndices ? cData._pShuffleIndex[position + pos] : position + pos;
+            uint64_t dpos       = (pos / stride) + position;
+            dpos                = cData._bShuffleIndices ? cData._pShuffleIndex[dpos] : dpos;
             w                  *= pSparseWeight[dpos];
         }
         NNFloat a               = pUnit[pos];  
@@ -5055,8 +5054,8 @@ kCalculateSparseRawRELUL1OutputDelta_kernel(uint32_t position, NNFloat* pSparseW
         NNFloat w               = cData._deltaBoost_zero;
         if (pSparseWeight != NULL)
         {
-            uint64_t dpos       = pos / stride;
-            dpos                = cData._bShuffleIndices ? cData._pShuffleIndex[position + pos] : position + pos;
+            uint64_t dpos       = (pos / stride) + position;
+            dpos                = cData._bShuffleIndices ? cData._pShuffleIndex[dpos] : dpos;
             w                  *= pSparseWeight[dpos];
         }
         NNFloat a               = pUnit[pos];
@@ -5096,8 +5095,8 @@ kCalculateSparseRawELUL1OutputDelta_kernel(uint32_t position, NNFloat* pSparseWe
         NNFloat w               = cData._deltaBoost_zero;
         if (pSparseWeight != NULL)
         {
-            uint64_t dpos       = pos / stride;
-            dpos                = cData._bShuffleIndices ? cData._pShuffleIndex[position + pos] : position + pos;
+            uint64_t dpos       = (pos / stride) + position;
+            dpos                = cData._bShuffleIndices ? cData._pShuffleIndex[dpos] : dpos;
             w                  *= pSparseWeight[dpos];
         }
         NNFloat a               = pUnit[pos];
@@ -5137,8 +5136,8 @@ kCalculateSparseRawSELUL1OutputDelta_kernel(uint32_t position, NNFloat* pSparseW
         NNFloat w               = cData._deltaBoost_zero;
         if (pSparseWeight != NULL)
         {
-            uint64_t dpos       = pos / stride;
-            dpos                = cData._bShuffleIndices ? cData._pShuffleIndex[position + pos] : position + pos;
+            uint64_t dpos       = (pos / stride) + position;
+            dpos                = cData._bShuffleIndices ? cData._pShuffleIndex[dpos] : dpos;
             w                  *= pSparseWeight[dpos];
         }
         NNFloat a               = pUnit[pos];
@@ -5178,8 +5177,8 @@ kCalculateSparseRawLRELUL1OutputDelta_kernel(uint32_t position, NNFloat* pSparse
         NNFloat w               = cData._deltaBoost_zero;
         if (pSparseWeight != NULL)
         {
-            uint64_t dpos       = pos / stride;
-            dpos                = cData._bShuffleIndices ? cData._pShuffleIndex[position + pos] : position + pos;
+            uint64_t dpos       = (pos / stride) + position;
+            dpos                = cData._bShuffleIndices ? cData._pShuffleIndex[dpos] : dpos;
             w                  *= pSparseWeight[dpos];
         }
         NNFloat a               = pUnit[pos];
