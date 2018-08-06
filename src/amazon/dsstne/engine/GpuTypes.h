@@ -338,7 +338,8 @@ struct GpuContext {
     bool                                _bUnifiedMemory;            // Unified memory flag
     
     // SM/SMX parameters
-    SM_VERSION                          _sm_version;                // SM revision
+    SM_VERSION                          _sm_version;                // SM revision for thread blocks
+    unsigned int                        _sm_major;                  // Major SM revision by HW
     unsigned int                        _threadsPerBlock;           // Default threads per block to launch
     unsigned int                        _warpSize;                  // Warp size (probably 32 but may change some day)
     unsigned int                        _warpBits;                  // Warp bit count
@@ -376,6 +377,7 @@ struct GpuContext {
     void GetMemoryUsage(int* gpuMemory, int* cpuMemory);
     void SetRandomSeed(unsigned long seed);
     void SetNeuralNetwork(NNNetwork* pNetwork);
+    void SetFastMath(bool flag);
     void Startup(int argc, char** argv);
     void Shutdown();
     void CopyConstants();
