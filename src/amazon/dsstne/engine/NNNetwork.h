@@ -161,6 +161,7 @@ public:
     const NNWeight* GetWeight(const string& inputLayer, const string& outputLayer) const;
     uint64_t GetBufferSize(const string& layer) const;
     const NNLayer* GetLayer(const string &layer) const;
+    vector<const NNLayer*> GetLayers(NNLayer::Kind layerKind) const;
     vector<string> GetLayers() const;
     string GetName() const;
     tuple<NNFloat, uint32_t, NNFloat, NNFloat> GetLRN() const;                          // Returns k, n, alpha, beta
