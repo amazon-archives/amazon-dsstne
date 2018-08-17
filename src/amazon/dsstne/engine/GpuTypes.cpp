@@ -416,10 +416,16 @@ void GpuContext::SetFastMath(bool flag)
     cublasMath_t mathMode = flag ? CUBLAS_TENSOR_OP_MATH : CUBLAS_DEFAULT_MATH;
     cublasStatus_t cstatus = CUBLAS_STATUS_SUCCESS;
     if (_sm_major >= 7)
-        cstatus = cublasSetMathMode(_cuBLASHandle, mathMode);
-    if (cstatus != CUBLAS_STATUS_SUCCESS)
     {
-        printf("GpuContext::SetFastMath: failed to set math mode\n");
+        cstatus = cublasSetMathMode(_cuBLASHandle, mathMode);
+        if (cstatus != CUBLAS_STATUS_SUCCESS)
+        {
+            printf("GpuContext::SetFastMath: failed to set math mode\n");
+        }
+    }
+    else
+    {
+        printf("GpuContext::SetFastMath: failed to set math mode because GPU SM revision is <7.0\n");
     }
 }
 
