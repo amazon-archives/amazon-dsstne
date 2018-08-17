@@ -161,6 +161,12 @@ public:
     const NNWeight* GetWeight(const string& inputLayer, const string& outputLayer) const;
     uint64_t GetBufferSize(const string& layer) const;
     const NNLayer* GetLayer(const string &layer) const;
+
+    /**
+     * Adds the layers of the specified layerKind to the provided layers vector.
+     * Returns true if at least one layer was found and added, false otherwise.
+     */
+    bool GetLayers(NNLayer::Kind layerKind, vector<const NNLayer*> &layers) const;
     vector<string> GetLayers() const;
     string GetName() const;
     tuple<NNFloat, uint32_t, NNFloat, NNFloat> GetLRN() const;                          // Returns k, n, alpha, beta
