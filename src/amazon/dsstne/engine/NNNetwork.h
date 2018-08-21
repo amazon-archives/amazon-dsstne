@@ -163,10 +163,20 @@ public:
     const NNLayer* GetLayer(const string &layer) const;
 
     /**
-     * Adds the layers of the specified layerKind to the provided layers vector.
-     * Returns true if at least one layer was found and added, false otherwise.
+     * Adds the layers of the specified layerKind to the end of the provided layers vector.
+     * Returns the iterator of the first layer that was added, or vector::end() if no layers were added.
+     * Usage:
+     *    vector<const NNLayer*> inputLayers;
+     *    auto it = network.GetLayers(NNLayer::Kind::Input, inputLayers)
+     *    if(it == inputLayers.end()){
+     *      // no layers of kind Input found in network! handle case
+     *    } else {
+     *      for( ; it != inputLayers.end(); ++it) {
+     *        // do something with the input layer (*it)
+     *      }
+     *    }
      */
-    bool GetLayers(NNLayer::Kind layerKind, vector<const NNLayer*> &layers) const;
+    vector<const NNLayer*>::iterator GetLayers(NNLayer::Kind layerKind, vector<const NNLayer*> &layers) const;
     vector<string> GetLayers() const;
     string GetName() const;
     tuple<NNFloat, uint32_t, NNFloat, NNFloat> GetLRN() const;                          // Returns k, n, alpha, beta

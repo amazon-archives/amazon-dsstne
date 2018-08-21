@@ -158,19 +158,19 @@ const NNLayer* NNNetwork::GetLayer(const string& layer) const
     return itr->second;
 }
 
-bool NNNetwork::GetLayers(NNLayer::Kind layerKind, vector<const NNLayer*> &layers) const
+vector<const NNLayer*>::iterator NNNetwork::GetLayers(NNLayer::Kind layerKind, vector<const NNLayer*> &layers) const
 {
-  bool found = false;
+  int count = 0;
   for (auto layerName : NNNetwork::GetLayers())
   {
     const NNLayer* layer = NNNetwork::GetLayer(layerName);
     if (layerKind == layer->_kind)
     {
-      layers.push_back(layer);
-      found = true;
+      layers.insert(layers.end(), layer);
+      ++count;
     }
   }
-  return found;
+  return layers.end() - count;
 }
 
 NNFloat* NNNetwork::GetScratchBuffer(size_t size)
