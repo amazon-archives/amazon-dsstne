@@ -158,6 +158,21 @@ const NNLayer* NNNetwork::GetLayer(const string& layer) const
     return itr->second;
 }
 
+vector<const NNLayer*>::iterator NNNetwork::GetLayers(NNLayer::Kind layerKind, vector<const NNLayer*> &layers) const
+{
+  int count = 0;
+  for (auto layerName : NNNetwork::GetLayers())
+  {
+    const NNLayer* layer = NNNetwork::GetLayer(layerName);
+    if (layerKind == layer->_kind)
+    {
+      layers.insert(layers.end(), layer);
+      ++count;
+    }
+  }
+  return layers.end() - count;
+}
+
 NNFloat* NNNetwork::GetScratchBuffer(size_t size)
 {
     // Increase size if requested
