@@ -369,6 +369,14 @@ cudnnTensorDescriptor_t NNLayer::getTensorDescriptor(uint32_t batch)
     return _oddBatchTensorDescriptor;
 }
 
+const string& NNLayer::GetName() const {
+  return _name;
+}
+
+const NNDataSetBase* NNLayer::GetDataSet() const {
+  return _pDataSet;
+}
+
 tuple<uint32_t, uint32_t, uint32_t, uint32_t> NNLayer::GetDimensions() const
 {
     return make_tuple(_Nx, _Ny, _Nz, _Nw);

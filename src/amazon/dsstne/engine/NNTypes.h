@@ -198,9 +198,6 @@ struct NNDataSetBase {
     bool                            _bStreaming;
     bool                            _bIndexed;
     uint32_t                        _batch;
-    
-      
-
 
     NNDataSetBase();
     NNDataSetDimensions GetDimensions();
@@ -248,8 +245,6 @@ ostream& operator<< (ostream& out, NNDataSetEnums::Attributes& a);
 ostream& operator<< (ostream& out, NNDataSetEnums::Kind& k);
 ostream& operator<< (ostream& out, NNDataSetEnums::DataType& t);
 ostream& operator<< (ostream& out, NNDataSetEnums::Sharding& s);
-
-
 
 template<typename T> class NNDataSet : public NNDataSetBase {
 public:

@@ -190,6 +190,8 @@ private:
     cudnnTensorDescriptor_t getTensorDescriptorBN(uint32_t batch);
 
 public:
+    const string& GetName() const;
+    const NNDataSetBase* GetDataSet() const;
     tuple<uint32_t, uint32_t, uint32_t, uint32_t> GetDimensions() const;
     tuple<uint32_t, uint32_t, uint32_t, uint32_t> GetLocalDimensions() const;
     tuple<uint32_t, uint32_t, uint32_t> GetKernelDimensions() const;
