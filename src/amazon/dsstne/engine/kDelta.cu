@@ -13,6 +13,7 @@
 #include "GpuTypes.h"
 #include "NNTypes.h"
 #include <limits>
+
 static __constant__ GpuData cData;
 
 void SetKDeltaGpuData()

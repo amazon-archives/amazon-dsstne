@@ -38,6 +38,7 @@ _totalGPUMemory(0),
 _numprocs(1),
 _id(0),
 _sm_version(SM_3X),
+_sm_major(0),
 _warpSize(32),
 _maxSparse(SM_3X_MAXSPARSE),
 _maxSparseAnalog(SM_3X_MAXSPARSEANALOG),
@@ -275,6 +276,7 @@ void GpuContext::Startup(int argc, char** argv)
         _maxSparseAnalog                            = SM_6X_MAXSPARSEANALOG;       
         
     }
+    _sm_major                                       = deviceProp.major;
     _warpSize                                       = deviceProp.warpSize;
     _warpBits                                       = fls(_warpSize) - 1;
     _warpMask                                       = _warpSize - 1;
@@ -407,6 +409,24 @@ void GpuContext::CopyConstants()
     SetKLossGpuData();
     SetKActivationGpuData();
     SetKDeltaGpuData();
+}
+
+void GpuContext::SetFastMath(bool flag)
+{
+    cublasMath_t mathMode = flag ? CUBLAS_TENSOR_OP_MATH : CUBLAS_DEFAULT_MATH;
+    cublasStatus_t cstatus = CUBLAS_STATUS_SUCCESS;
+    if (_sm_major >= 7)
+    {
+        cstatus = cublasSetMathMode(_cuBLASHandle, mathMode);
+        if (cstatus != CUBLAS_STATUS_SUCCESS)
+        {
+            printf("GpuContext::SetFastMath: failed to set math mode\n");
+        }
+    }
+    else
+    {
+        printf("GpuContext::SetFastMath: failed to set math mode because GPU SM revision is <7.0\n");
+    }
 }
 
 void GpuContext::Shutdown()
