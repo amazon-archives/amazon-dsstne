@@ -1475,6 +1475,9 @@ NNFloat NNLayer::CalculateError(uint32_t position, uint32_t batch, ErrorFunction
 
         case L2:
             return _pDataSet->CalculateL2Error(position, batch, _localStride, _pbUnit->_pDevData);
+            
+        case L2Hinge:
+            return _pDataSet->CalculateL2HingeError(position, batch, _localStride, _pbUnit->_pDevData);            
 
         case Hinge:
             return _pDataSet->CalculateHingeError(position, batch, _localStride, _pbUnit->_pDevData);              
@@ -1534,6 +1537,10 @@ void NNLayer::CalculateOutputDelta(uint32_t position, uint32_t batch, ErrorFunct
         case L2:
             _pDataSet->CalculateOutputDelta(_activation, position, batch, _localStride, _pbUnit->_pDevData, _pbDelta->_pDevData, _RELUSlope, _ELUAlpha, _SELULambda);
             break;
+            
+        case L2Hinge:
+            _pDataSet->CalculateL2HingeOutputDelta(_activation, position, batch, _localStride, _pbUnit->_pDevData, _pbDelta->_pDevData, _RELUSlope, _ELUAlpha, _SELULambda);
+            break;            
 
         case Hinge:
             _pDataSet->CalculateHingeOutputDelta(_activation, position, batch, _localStride, _pbUnit->_pDevData, _pbDelta->_pDevData);

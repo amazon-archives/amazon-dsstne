@@ -1628,8 +1628,6 @@ NNFloat NNNetwork::Train(uint32_t epochs, NNFloat alpha, NNFloat lambda, NNFloat
             }
             MPI_Barrier(MPI_COMM_WORLD);
 #endif
-           //getGpu().Shutdown();
-           //exit(-1);
         }
         auto const end = std::chrono::steady_clock::now();
         average_error_training                              = total_error_training / GetExamples();
@@ -2995,6 +2993,8 @@ NNNetwork* LoadNeuralNetworkJSON(const string& fname, const uint32_t batch, cons
                         nd._errorFunction           = ErrorFunction::L1;
                     else if (vstring.compare("l2") == 0)
                         nd._errorFunction           = ErrorFunction::L2;
+                    else if (vstring.compare("l2hinge") == 0)
+                        nd._errorFunction           = ErrorFunction::L2Hinge;                        
                     else if (vstring.compare("hinge") == 0)
                         nd._errorFunction           = ErrorFunction::Hinge;
                     else if ((vstring.compare("crossentropy") == 0) || (vstring.compare("cross entropy") == 0))

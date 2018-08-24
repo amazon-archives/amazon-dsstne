@@ -360,8 +360,6 @@ void GpuContext::Startup(int argc, char** argv)
         if (_id == 0)
             printf("GpuContext::Startup: P2P support only works within a single node, falling back to MPI.\n");
     }
-    
-     
 
     // Determine kernel call configuration and grab desired additional GPU properties
     cudaGetDeviceProperties(&deviceProp, device);
@@ -451,7 +449,6 @@ void GpuContext::Shutdown()
         printf("GpuContext::Shutdown: Failed to shut down cuDNN on GPU for process %d.\n", _device);
     }
     printf("GpuContext::Shutdown: CuDNN shut down on GPU for process %d\n", _device);
-
 
     // Shut down cuRand if active
     printf("GpuContext::Shutdown: Shutting down cuRand on GPU for process %d\n", _device);
