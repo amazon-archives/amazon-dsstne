@@ -41,7 +41,8 @@ static std::map<ErrorFunction, string> sErrorFunctionMap = {
     {ErrorFunction::L2,                             "L2"},
     {ErrorFunction::CrossEntropy,                   "CrossEntropy"},
     {ErrorFunction::ScaledMarginalCrossEntropy,     "ScaledMarginalCrossEntropy"},
-    {ErrorFunction::Hinge,                          "Hinge"}
+    {ErrorFunction::Hinge,                          "Hinge"},
+    {ErrorFunction::L2Hinge,                        "L2Hinge"},
 };
 
 ostream& operator<< (ostream& out, const ErrorFunction& e)
