@@ -9,12 +9,12 @@ CC = mpiCC
 DEBUG ?= 0
 ifeq ($(DEBUG), 1)
   $(info ************  DEBUG mode ************)
-  CFLAGS = -DOMPI_SKIP_MPICXX -std=c++0x -g -O0
-  CU_FLAGS = -g -use_fast_math --ptxas-options="-v" -gencode arch=compute_70,code=sm_70 -gencode arch=compute_61,code=sm_61 -gencode arch=compute_52,code=sm_52 -gencode arch=compute_30,code=sm_30 -DOMPI_SKIP_MPICXX -std=c++11
+  CFLAGS = -DOMPI_SKIP_MPICXX -std=c++0x -fPIC -g -O0
+  CU_FLAGS = -g --compiler-options=-fPIC -use_fast_math --ptxas-options="-v" -gencode arch=compute_70,code=sm_70 -gencode arch=compute_61,code=sm_61 -gencode arch=compute_52,code=sm_52 -gencode arch=compute_30,code=sm_30 -DOMPI_SKIP_MPICXX -std=c++11
 else
   $(info ************  RELEASE mode ************)
-  CFLAGS = -DOMPI_SKIP_MPICXX -std=c++0x -O3
-  CU_FLAGS = -use_fast_math --ptxas-options="-v" -gencode arch=compute_70,code=sm_70 -gencode arch=compute_61,code=sm_61 -gencode arch=compute_52,code=sm_52 -gencode arch=compute_30,code=sm_30 -DOMPI_SKIP_MPICXX -std=c++11
+  CFLAGS = -DOMPI_SKIP_MPICXX -std=c++0x -fPIC -O3
+  CU_FLAGS = --compiler-options=-fPIC -use_fast_math --ptxas-options="-v" -gencode arch=compute_70,code=sm_70 -gencode arch=compute_61,code=sm_61 -gencode arch=compute_52,code=sm_52 -gencode arch=compute_30,code=sm_30 -DOMPI_SKIP_MPICXX -std=c++11
 endif
 
 NVCC = nvcc
