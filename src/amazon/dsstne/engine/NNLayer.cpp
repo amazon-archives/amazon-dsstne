@@ -377,6 +377,10 @@ const NNDataSetBase* NNLayer::GetDataSet() const {
   return _pDataSet;
 }
 
+uint32_t NNLayer::GetNumDimensions() const {
+  return _dimensions;
+}
+
 tuple<uint32_t, uint32_t, uint32_t, uint32_t> NNLayer::GetDimensions() const
 {
     return make_tuple(_Nx, _Ny, _Nz, _Nw);
