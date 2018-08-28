@@ -191,8 +191,28 @@ private:
 
 public:
     const string& GetName() const;
+
+    /**
+     * Returns a pointer to the data of this layer. NNNetwork::LoadDataSets(vector<NNDataSetBase*>& vData)
+     * associates datasets to the layer.
+     */
     const NNDataSetBase* GetDataSet() const;
+
+    /**
+     * Returns the number of dimensions (e.g. 1-d, 2-d, 3-d) of the layer.
+     */
+    uint32_t GetNumDimensions() const;
+
+    /**
+     * Returns the dimensions of the layer (e.g 128 x 1 x 1 for a 1-d, 128 wide layer).
+     */
     tuple<uint32_t, uint32_t, uint32_t, uint32_t> GetDimensions() const;
+
+    /**
+     * When running model parallel, returns the process-local dimensions of the layer.
+     * The layer is sharded across processes, hence each process gets 1/n^th of the layer.
+     * Currently only shards on dimX (see NNLayer::NNLayer()).
+     */
     tuple<uint32_t, uint32_t, uint32_t, uint32_t> GetLocalDimensions() const;
     tuple<uint32_t, uint32_t, uint32_t> GetKernelDimensions() const;
     tuple<uint32_t, uint32_t, uint32_t> GetKernelStride() const;
