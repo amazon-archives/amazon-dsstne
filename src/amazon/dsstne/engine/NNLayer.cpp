@@ -36,6 +36,7 @@ NNLayer::NNLayer(NNLayerDescriptor& d, uint32_t batch) :
 _name(d._name),
 _kind(d._kind),
 _type(d._type),
+_attributes(d._attributes),
 _poolingFunction(d._poolingFunction),
 _dataSet(d._dataSet),
 _pDataSet(NULL),
@@ -371,6 +372,14 @@ cudnnTensorDescriptor_t NNLayer::getTensorDescriptor(uint32_t batch)
 
 const string& NNLayer::GetName() const {
   return _name;
+}
+
+NNLayer::Kind NNLayer::GetKind() const {
+  return _kind;
+}
+
+uint32_t NNLayer::GetAttributes() const {
+  return _attributes;
 }
 
 const NNDataSetBase* NNLayer::GetDataSet() const {
