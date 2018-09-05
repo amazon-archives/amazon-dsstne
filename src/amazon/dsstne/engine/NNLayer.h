@@ -21,7 +21,7 @@ public:
     friend class NNNetwork;
     friend class NNWeight;
     friend NNNetwork* LoadNeuralNetworkNetCDF(const string& fname, int batch);
-    enum Kind 
+    enum Kind
     {
         Input,
         Hidden,
@@ -31,8 +31,8 @@ public:
 
     static std::pair<NNLayer::Kind, string> _sKindPair[];
     static std::map<NNLayer::Kind, string> _sKindMap;
-    
-    enum Type 
+
+    enum Type
     {
         FullyConnected,
         Convolutional,
@@ -42,7 +42,7 @@ public:
     static std::pair<NNLayer::Type, string> _sTypePair[];
     static std::map<NNLayer::Type, string> _sTypeMap;
 
-    enum Attributes 
+    enum Attributes
     {
         None                = 0x0,
         Sparse              = 0x1,
@@ -72,7 +72,7 @@ private:
     string                      _dataSet;                   // Name of data set for input and output layers
     NNDataSetBase*              _pDataSet;                  // Data set pointer for input and output layers
     vector<string>              _vSource;                   // Source layers/data sets
-    vector<string>              _vSkip;                     // Skip layer sources    
+    vector<string>              _vSkip;                     // Skip layer sources
     uint32_t                    _Nx;                        // Unit X size (or image or voxel width)
     uint32_t                    _Ny;                        // Image or voxel height (or 1)
     uint32_t                    _Nz;                        // Number of image neurons or voxel depth (or 1)
@@ -87,23 +87,23 @@ private:
     uint32_t                    _unitUpdateCount;           // Counter to indicate how many unit updates have been performed during forward propagation
     uint32_t                    _dimensions;                // Input data dimensions
     uint32_t                    _minX;                      // Beginning of X units for model parallel execution
-    uint32_t                    _maxX;                      // End of X units for model parallel execution    
+    uint32_t                    _maxX;                      // End of X units for model parallel execution
     WeightInitialization        _weightInit;                // Weight initialization scheme
     NNFloat                     _weightInitScale;           // Weight Initialization scaling factor
     NNFloat                     _biasInit;                  // Bias initialization value
     NNFloat                     _RELUSlope;                 // Leaky RELU slope parameter
     NNFloat                     _ELUAlpha;                  // Alpha parameter for ELU and SELU activations
-    NNFloat                     _SELULambda;                // Lambda parameter for SELU activations    
+    NNFloat                     _SELULambda;                // Lambda parameter for SELU activations
     bool                        _bBatchNormalization;       // Perform batch normalization
     const uint32_t              _kernelX;                   // kernel X size
     const uint32_t              _kernelY;                   // kernel Y size
     const uint32_t              _kernelZ;                   // kernel Z size
     const uint32_t              _kernelStrideX;             // kernel X stride
     const uint32_t              _kernelStrideY;             // kernel Y stride
-    const uint32_t              _kernelStrideZ;             // kernel Z stride    
+    const uint32_t              _kernelStrideZ;             // kernel Z stride
     const uint32_t              _kernelPaddingX;            // kernel X padding
     const uint32_t              _kernelPaddingY;            // kernel Y padding
-    const uint32_t              _kernelPaddingZ;            // kernel Z padding        
+    const uint32_t              _kernelPaddingZ;            // kernel Z padding
     const uint32_t              _kernelDimensions;          // Number of components to kernel and kernel stride
     const Activation            _activation;                // Activation function
     const NNFloat               _pDropout;                  // Dropout probability
@@ -111,9 +111,9 @@ private:
     bool                        _bFastSparse;               // Is layer capable of using fast sparse kernels
     NNFloat                     _sparsenessPenalty_p;       // Layer-specific sparseness target
     NNFloat                     _sparsenessPenalty_beta;    // Layer-specific sparseness penalty weight
-    const bool                  _bDenoising;                // Is layer utilizing Denoising?       
+    const bool                  _bDenoising;                // Is layer utilizing Denoising?
     NNFloat                     _weightNorm;                // Maximum weight vector length
-    NNFloat                     _deltaNorm;                 // Maximum delta vector length                         
+    NNFloat                     _deltaNorm;                 // Maximum delta vector length
     Parallelization             _parallelization;           // Should layer be Data or Model parallelized?
     bool                        _bTransposeParallelization; // Should we tranpose parallelization?
     bool                        _bDirty;                    // Indicates layer state needs to be update
@@ -121,9 +121,9 @@ private:
     cudnnTensorDescriptor_t     _tensorDescriptorBN;        // Tensor descriptor for the BatchNormalization for this layer
     cudnnTensorDescriptor_t     _tensorDescriptor;          // Tensor descriptor for this layer
     cudnnTensorDescriptor_t     _oddBatchTensorDescriptor;  // Tensor descriptor for end of epoch batches or weird inference calls because cuDNN
-    uint32_t                    _oddBatch;                  // Batch size of odd batch tensor descriptor 
+    uint32_t                    _oddBatch;                  // Batch size of odd batch tensor descriptor
     cudnnPoolingDescriptor_t    _poolingDescriptor;         // Pooling descriptor for most pooling layers
-    cudnnLRNDescriptor_t        _LRNDescriptor;             // Local response normalization descriptor for LRN layers 
+    cudnnLRNDescriptor_t        _LRNDescriptor;             // Local response normalization descriptor for LRN layers
     vector<NNLayer*>            _vIncomingLayer;            // source layer(s)
     vector<NNWeight*>           _vIncomingWeight;           // Incoming weights
     vector<NNLayer*>            _vOutgoingLayer;            // Destination layers
@@ -142,7 +142,7 @@ private:
     unique_ptr<GpuBuffer<NNFloat>> _pbDelta;                // GPU memory for unit deltas
     unique_ptr<GpuBuffer<NNFloat>> _pbDropout;              // Dropout random values if active
     unique_ptr<GpuBuffer<NNFloat>> _pbBuffer1;              // Scratch buffer 1 if active
-    unique_ptr<GpuBuffer<NNFloat>> _pbBuffer2;              // Scratch buffer 2 if active   
+    unique_ptr<GpuBuffer<NNFloat>> _pbBuffer2;              // Scratch buffer 2 if active
     unique_ptr<GpuBuffer<NNFloat>> _pbDxBN;
     unique_ptr<GpuBuffer<NNFloat>> _pbScaleDiffBN;
     unique_ptr<GpuBuffer<NNFloat>> _pbBiasDiffBN;
@@ -167,16 +167,16 @@ private:
     void LoadTrainingBatch(uint32_t position, uint32_t batch);
     void LoadValidationBatch(uint32_t position, uint32_t batch);
     void ForwardPropagate(uint32_t position, uint32_t batch, bool bTraining = false);
-    void ForwardPropagateFullyConnected(uint32_t position, uint32_t batch, bool bTraining);    
+    void ForwardPropagateFullyConnected(uint32_t position, uint32_t batch, bool bTraining);
     void ForwardPropagateConvolutional(uint32_t position, uint32_t batch, bool bTraining);
     void ForwardPropagatePooling(uint32_t position, uint32_t batch, bool bTraining);
     void CalculateActivation(uint32_t batch);
     void CalculateDropout(uint32_t batch);
     NNFloat CalculateError(uint32_t position, uint32_t batch, ErrorFunction ef);
     void BackPropagate(uint32_t position, uint32_t batch, NNFloat alpha);
-    void BackPropagateFullyConnected(uint32_t position, uint32_t batch, NNFloat alpha);    
+    void BackPropagateFullyConnected(uint32_t position, uint32_t batch, NNFloat alpha);
     void BackPropagateConvolutional(uint32_t position, uint32_t batch, NNFloat alpha);
-    void BackPropagatePooling(uint32_t position, uint32_t batch, NNFloat alpha);        
+    void BackPropagatePooling(uint32_t position, uint32_t batch, NNFloat alpha);
     void CalculateOutputDelta(uint32_t position, uint32_t batch, ErrorFunction ef);
     void GenerateDenoisingData();
     void Reduce(uint32_t batch, uint32_t stride, NNFloat* pBuffer, uint32_t localStride, uint32_t updateCount);
@@ -263,7 +263,7 @@ struct NNLayerDescriptor
     uint32_t                _kernelStrideZ;             // kernel Z stride
     uint32_t                _kernelPaddingX;            // kernel X padding
     uint32_t                _kernelPaddingY;            // kernel Y padding
-    uint32_t                _kernelPaddingZ;            // kernel Z padding     
+    uint32_t                _kernelPaddingZ;            // kernel Z padding
     uint32_t                _kernelDimensions;          // Number of components to kernel and kernel stride
     vector<NNFloat>         _vScaleBN;
     vector<NNFloat>         _vBiasBN;
@@ -274,7 +274,7 @@ struct NNLayerDescriptor
     NNFloat                 _pDropout;                  // Dropout probability
     Activation              _activation;                // Activation function
     NNFloat                 _sparsenessPenalty_p;       // Layer-specific sparseness target
-    NNFloat                 _sparsenessPenalty_beta;    // Layer-specific sparseness penalty weight    
+    NNFloat                 _sparsenessPenalty_beta;    // Layer-specific sparseness penalty weight
     uint32_t                _attributes;                // Specific layer properties
     NNFloat                 _RELUSlope;                 // Leaky RELU slope parameter
     NNFloat                 _ELUAlpha;                  // Alpha parameter for ELU and SELU activations
