@@ -13,6 +13,7 @@ VPATH=
 
 # Prefix of the directory to install dsstne. Override-able by setting PREFIX before calling make
 PREFIX ?= $(dir $(shell pwd))../../amazon-dsstne
+BUILD_DIR ?= $(dir $(shell pwd))../../../build
 
 all: $(BUILD_DIR)/lib/libdsstne.a $(BUILD_DIR)/bin/train $(BUILD_DIR)/bin/predict $(BUILD_DIR)/bin/generateNetCDF
 	cd engine && make
