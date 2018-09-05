@@ -304,7 +304,7 @@ private:
     bool CalculateHingeOutputDelta(Activation activation, uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta);    
 
 public:
-    NNDataSet(const string &name, NNDataSetEnums::Attributes attributes, uint32_t examples, const NNLayer &layer);
+    NNDataSet(const string &name, NNDataSetEnums::Attributes attributes, const NNLayer &layer);
     ~NNDataSet();
     void Shuffle();
     T GetDataPoint(uint32_t n, uint32_t x, uint32_t y = 0, uint32_t z = 0);
