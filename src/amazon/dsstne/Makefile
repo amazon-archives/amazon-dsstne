@@ -1,10 +1,5 @@
-
-
 SHELL=/bin/sh
 VPATH=
-
-
-
 
 all: lib/libdsstne.a  bin/train bin/predict bin/generateNetCDF
 
