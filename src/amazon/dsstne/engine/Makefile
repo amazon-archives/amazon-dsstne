@@ -20,6 +20,11 @@ CU_SOURCES=$(wildcard *.cu)
 OBJECTS := $(SOURCES:%.cpp=$(OBJS_PREFIX)/%.o)
 CU_OBJECTS := $(CU_SOURCES:%.cu=$(CU_OBJS_PREFIX)/%.o)
 
+DEP := $(OBJECTS:.o=.d)
+CU_DEP := $(CU_OBJECTS:.o=.d)
+
+CU_INCLUDES += -I../utils
+
 LIB_PREFIX := $(PREFIX)/lib
 
 all: $(LIB_PREFIX)/libdsstne.a
@@ -30,12 +35,12 @@ $(LIB_PREFIX)/libdsstne.a: $(OBJECTS) $(CU_OBJECTS)
 	$(info ========== Creating libdsstne.a ==========)
 	mkdir -p $(LIB_PREFIX)
 	ar -cvr $@ $^
-
 	$(info ========== Copying amazon/dsstne/engine headers ==========)
 	mkdir -p $(HEADERS_PREFIX)
 	cp $(HEADERS) $(HEADERS_PREFIX)
+
 clean:
-	rm -f *cudafe* *.fatbin.* *.fatbin *.ii *.cubin *cu.cpp *.ptx *.cpp?.* *.hash *.o *.d work.pc* 
+	rm -f *cudafe* *.fatbin.* *.fatbin *.ii *.cubin *cu.cpp *.ptx *.cpp?.* *.hash *.o *.d work.pc*
 	rm -rf $(OBJS_PREFIX) $(CU_OBJS_PREFIX) $(HEADERS_PREFIX) $(LIB_PREFIX)/libdsstne.a
 
 distclean:
@@ -50,6 +55,12 @@ $(OBJS_PREFIX)/%.o: $(SOURCES_DIR)/%.cpp
 	$(CC) $(CFLAGS) $(CU_INCLUDES) -c $< -o $@
 
 # Pattern rule for compiling CUDA
-$(CU_OBJS_PREFIX)/%.o: $(SOURCES_DIR)/%.cu GpuTypes.h
-	$(NVCC) $(CU_FLAGS) $(CU_INCLUDES) $($*.cu.CU_FLAGS) -c $< -o $@
+$(CU_OBJS_PREFIX)/%.o: $(SOURCES_DIR)/%.cu GpuTypes.h  $(CU_OBJS_PREFIX)/%.d
+	$(NVCC) $(CU_FLAGS) --keep-dir $(CU_OBJS_PREFIX) $(CU_INCLUDES) $($*.cu.CU_FLAGS) -c $< -o $@
 
+# Pattern rule for auto dependency generation of *.cu files
+$(CU_OBJS_PREFIX)/%.d: $(SOURCES_DIR)/%.cu
+	$(NVCC) -E -std=c++11 -Xcompiler "-isystem $(CUDA_SYSTEM_INCLUDE_DIR) -MP,-MM" $(CU_INCLUDES)  $< -o $@
+
+-include $(DEP)
+-include $(CU_DEP)

@@ -31,8 +31,11 @@ LIB_DSSTNE :=$(PREFIX)/lib/libdsstne.a
 BIN_PREFIX := $(PREFIX)/bin
 $(shell mkdir -p $(BIN_PREFIX))
 
-INCLUDES = $(CU_INCLUDES)
-LIBS = $(MATH_LIBS) $(MPI_LIBS) $(CU_LIBS) 
+INCLUDES = \
+    $(CU_INCLUDES) \
+    -I../engine
+
+LIBS = $(MATH_LIBS) $(MPI_LIBS) $(CU_LIBS)
 LOAD_LIBS = $(CU_LOADLIBS)
 
 LDFLAGS ?= -fPIC -Wl,--whole-archive $(LIB_DSSTNE) -Wl,--no-whole-archive
@@ -41,15 +44,15 @@ EXECUTABLES := \
 	$(BIN_PREFIX)/generateNetCDF \
 	$(BIN_PREFIX)/train \
 	$(BIN_PREFIX)/predict \
-	$(BIN_PREFIX)/encoder 
+	$(BIN_PREFIX)/encoder
 
 all: $(EXECUTABLES) $(LIB_PREFIX)/libdsstne_utils.so
 
-install: all 
+install: all
 
 $(LIB_DSSTNE):
 	cd ../engine && make
-	
+
 $(LIB_PREFIX)/libdsstne_utils.so: $(OBJS)
 	$(info ========== Creating libdsstne_utils.so ==========)
 	mkdir -p $(PREFIX)/lib
@@ -82,17 +85,13 @@ distclean:
 $(OBJS_PREFIX)/%.o: $(SOURCES_DIR)/%.cpp
 	$(CC) $(CFLAGS) $(INCLUDES) -c $< -o $@
 
-# Pattern rule for compiling CUDA
-$(CU_OBJS_PREFIX)/%.o: $(SOURCES_DIR)/%.cu GpuTypes.h
-	$(NVCC) $(CU_FLAGS) $(INCLUDES) $($*.cu.CU_FLAGS) -c $< -o $@
-
 # FIXME TestGPU belongs with tst, move this into the Makefile of tst
 TST_OBJS_PREFIX := $(PREFIX)/tmp/utils/tst
 
 $(BIN_PREFIX)/TestGPU: $(OBJS) $(LIB_DSSTNE) $(TST_OBJS_PREFIX)/TestDune.o
 	$(LOAD) $(LOADFLAGS) $(LIBS) $^ -o $(BIN_PREFIX)/$@ $(LOAD_LIBS) -l:libcppunit.a
 
-$(TST_OBJS_PREFIX)/TestDune.o: ../../../../tst/gputests/TestDune.cpp 
+$(TST_OBJS_PREFIX)/TestDune.o: ../../../../tst/gputests/TestDune.cpp
 		mkdir -p $(TST_OBJS_PREFIX)
 		$(CC) $(CFLAGS) $(INCLUDES) -c $< -o $@
 # FIXME END
