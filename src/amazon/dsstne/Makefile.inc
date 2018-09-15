@@ -1,6 +1,3 @@
-# Prefix of the directory to install dsstne. Override-able by exporting PREFIX before calling make
-PREFIX ?= $(dir $(shell pwd))build
-
 #
 # For debugging add '-DMEMTRACKING -gdwarf-3' to CPPFLAGS and CFLAGS
 #
@@ -10,10 +7,15 @@ CC = mpiCC
 NVCC = nvcc
 LOAD = mpiCC
 
+# Build directory
+BUILD_DIR ?= $(dir $(shell pwd))../../../build
+
+#
 # Used to exclude cuda headers from auto dependency generation
 # For some odd reason nvcc includes the directory relative to the bin directory
 # rather than the usual /usr/local/cuda/include
-CUDA_SYSTEM_INCLUDE_DIR = $(dir $(shell which $(NVCC)))../target/x86_64/include
+#
+CUDA_SYSTEM_INCLUDE_DIR := $(dir $(shell which $(NVCC)))../target/x86_64/include
 
 # switch to 1 for debugging
 DEBUG ?= 0
@@ -80,7 +82,6 @@ CU_INCLUDES ?= \
     -IB40C/KernelCommon
 
 CU_LIBS ?= \
-    -L. \
     -L/usr/lib/atlas-base \
     -L/usr/local/cuda/lib64 \
     -L/usr/local/lib/

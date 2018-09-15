@@ -8,7 +8,8 @@
 /src/amazon/dsstne/utils/predict
 /src/amazon/dsstne/utils/train
 /src/amazon/dsstne/utils/TestGPU
-/src/amazon/dsstne/build/
+/amazon-dsstne/
+/build/
 
 
 
