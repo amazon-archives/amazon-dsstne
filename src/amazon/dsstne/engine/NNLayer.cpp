@@ -535,7 +535,7 @@ uint32_t NNLayer::GetAttributes() const {
   return _attributes;
 }
 
-const NNDataSetBase* NNLayer::GetDataSet() const {
+NNDataSetBase* NNLayer::GetDataSet() const {
   return _pDataSet;
 }
 
