@@ -204,7 +204,7 @@ public:
      * Returns a pointer to the data of this layer. NNNetwork::LoadDataSets(vector<NNDataSetBase*>& vData)
      * associates datasets to the layer.
      */
-    const NNDataSetBase* GetDataSet() const;
+    NNDataSetBase* GetDataSet() const;
 
     /**
      * Returns the number of dimensions (e.g. 1-d, 2-d, 3-d) of the layer.
