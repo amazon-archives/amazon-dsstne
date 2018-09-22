@@ -160,6 +160,11 @@ public:
     uint32_t GetPosition() const;
     const NNWeight* GetWeight(const string& inputLayer, const string& outputLayer) const;
     uint64_t GetBufferSize(const string& layer) const;
+
+    /**
+     * Returns a pointer to the layer with the provided name.
+     * NULL if no such layer exists.
+     */
     const NNLayer* GetLayer(const string &layer) const;
 
     /**
@@ -177,6 +182,13 @@ public:
      *    }
      */
     vector<const NNLayer*>::iterator GetLayers(NNLayer::Kind layerKind, vector<const NNLayer*> &layers) const;
+
+    /**
+     * Returns the layer (of the specified kind) for which its dataset is
+     * equal (in name) to the one provided. nullptr if no such layer exists.
+     */
+    const NNLayer* GetLayerForDataSet(const string &datasetName, NNLayer::Kind kind) const;
+
     vector<string> GetLayers() const;
     string GetName() const;
     tuple<NNFloat, uint32_t, NNFloat, NNFloat> GetLRN() const;                          // Returns k, n, alpha, beta

@@ -173,6 +173,25 @@ vector<const NNLayer*>::iterator NNNetwork::GetLayers(NNLayer::Kind layerKind, v
   return layers.end() - count;
 }
 
+const NNLayer* NNNetwork::GetLayerForDataSet(const string &datasetName, NNLayer::Kind kind) const
+{
+    vector<const NNLayer*> layers;
+    vector<const NNLayer*>::iterator it = GetLayers(kind, layers);
+    for(; it != layers.end(); ++it)
+    {
+        if((*it)->_dataSet == datasetName)
+        {
+            return (*it);
+        }
+    }
+
+    if (getGpu()._id == 0)
+    {
+        printf("NNNetwork::GetLayerForDataSet: No layer with dataset %s exists.\n", datasetName.c_str());
+    }
+    return NULL;
+}
+
 NNFloat* NNNetwork::GetScratchBuffer(size_t size)
 {
     // Increase size if requested
