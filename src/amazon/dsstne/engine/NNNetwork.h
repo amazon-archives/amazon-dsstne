@@ -29,7 +29,7 @@ public:
 
     static std::pair<NNNetwork::Kind, string> _sKindPair[];
     static std::map<NNNetwork::Kind, string> _sKindMap;
-    
+
 private:
     friend NNNetwork* LoadNeuralNetworkJSON(const string& fname, const uint32_t batch, const vector<NNDataSetBase*>& vDataSet);
     friend NNNetwork* LoadNeuralNetworkNetCDF(const string& fname, const uint32_t batch);
@@ -56,11 +56,11 @@ private:
     uint32_t                    _LRN_n;                     // LRN spread
     NNFloat                     _LRN_alpha;                 // LRN scaling
     NNFloat                     _LRN_beta;                  // LRN exponent
-    
+
     // Default ELU parameters
     NNFloat                     _RELUSlope;                 // Default leaky RELU slope parameter
     NNFloat                     _ELUAlpha;                  // Default alpha parameter for ELU and SELU activations
-    NNFloat                     _SELULambda;                // Default lambda parameter for SELU activations     
+    NNFloat                     _SELULambda;                // Default lambda parameter for SELU activations
 
     // Maxout parameters
     uint32_t                    _maxout_k;                  // Maxout neighborhood
@@ -72,7 +72,7 @@ private:
 
     // Denoising parameters
     bool                        _bDenoising;                // Specifies whether to use denoising on autoencoders or not
-    NNFloat                     _denoising_p;               // Probability of denoising autoencoder inputs (for sparse layers, only denoise on non-zero values) 
+    NNFloat                     _denoising_p;               // Probability of denoising autoencoder inputs (for sparse layers, only denoise on non-zero values)
 
     // Delta Boost parameters
     NNFloat                     _deltaBoost_one;            // Adjusts scaling of nonzero-valued outputs
@@ -121,7 +121,7 @@ private:
     unique_ptr<GpuBuffer<NNFloat>> _pbP2PBuffer[2];         // Peer buffer for sending/calculating peer data
     NNFloat*                    _pPeerBuffer[2];            // Peer for receiving/reducing peer data
     unique_ptr<NNFloat[]>       _pCPUBuffer;                // System memory work buffer for MPI copies
-    
+
     // CUDNN parameters
     size_t                      _CUDNNWorkspaceSize;        // Current size of cuDNN workspace
     size_t                      _maxCUDNNWorkspaceSize;     // Maximum requested size of cuDNN workspace
@@ -146,7 +146,7 @@ public:
     void DumpLayer(FILE* fp, const string& layer);
     void SaveWeights(const string& fname, const string& inputLayer, const string& outputLayer);
     bool LockWeights(const string& inputLayer, const string& outputLayer);
-    bool UnlockWeights(const string& inputLayer, const string& outputLayer);    
+    bool UnlockWeights(const string& inputLayer, const string& outputLayer);
     void SetBatch(uint32_t batch);
     void SetPosition(uint32_t position);
     bool SetDecay(NNFloat decay);
@@ -195,11 +195,11 @@ public:
     // Non-const getters
     NNFloat* GetUnitBuffer(const string& layer);
     NNFloat* GetDeltaBuffer(const string& layer);
-    NNFloat* GetWeightBuffer(const string& inputLayer, const string& outputLayer);    
+    NNFloat* GetWeightBuffer(const string& inputLayer, const string& outputLayer);
     NNFloat* GetScratchBuffer(size_t size = 0);                                         // Gets current scratch buffer, resizing if too small
     NNFloat* GetP2PSendBuffer();                                                        // Returns current local send buffer
     NNFloat* GetP2PReceiveBuffer();                                                     // Returns current local receive buffer
-    NNFloat* GetP2PCPUBuffer();                                                         // Returns system memory work buffer    
+    NNFloat* GetP2PCPUBuffer();                                                         // Returns system memory work buffer
     NNFloat* GetPeerBuffer();                                                           // Returns current adjacent peer receive buffer
     NNFloat* GetPeerBackBuffer();                                                       // Returns current adjacent peer send buffer
     bool P2P_Bcast(void* pBuffer, size_t size);                                         // Broadcasts data from process 0 to all other
@@ -256,12 +256,12 @@ struct NNNetworkDescriptor
     NNFloat                     _LRN_beta;                  // Local Response Normalization exponent (default 0.75)
     NNFloat                     _RELUSlope;                 // Global default leaky RELU slope parameter
     NNFloat                     _ELUAlpha;                  // Global default alpha parameter for ELU and SELU activations
-    NNFloat                     _SELULambda;                // Global default lambda parameter for SELU activations     
+    NNFloat                     _SELULambda;                // Global default lambda parameter for SELU activations
     bool                        _bSparsenessPenalty;        // Specifies whether to use sparseness penalty on hidden layers or not
     NNFloat                     _sparsenessPenalty_p;       // Target sparseness probability for hidden layers
-    NNFloat                     _sparsenessPenalty_beta;    // Sparseness penalty weight 
+    NNFloat                     _sparsenessPenalty_beta;    // Sparseness penalty weight
     bool                        _bDenoising;                // Specifies whether to use denoising on input layers
-    NNFloat                     _denoising_p;               // Probability of denoising inputs (for sparse layers, only denoise on non-zero values) 
+    NNFloat                     _denoising_p;               // Probability of denoising inputs (for sparse layers, only denoise on non-zero values)
     NNFloat                     _deltaBoost_one;            // Adjusts scaling of nonzero-valued outputs
     NNFloat                     _deltaBoost_zero;           // Adjusts scaling of zero-valued outputs
     NNFloat                     _SMCE_oneTarget;            // Relaxed target for non-zero target values (Default 0.9)
