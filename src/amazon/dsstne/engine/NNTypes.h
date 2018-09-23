@@ -242,6 +242,10 @@ struct NNDataSetBase {
     virtual bool CalculateL2HingeOutputDelta(Activation activation, uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, NNFloat slope, NNFloat alpha, NNFloat lambda) = 0;
     virtual bool CalculateDataScaledMarginalCrossEntropyOutputDelta(Activation activation, uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta) = 0;
     virtual bool CalculateHingeOutputDelta(Activation activation, uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta) = 0;
+
+ protected:
+    NNDataSetBase(const string &name, NNDataSetEnums::DataType dataType, uint32_t examples, uint32_t uniqueExamples,
+                  const NNDataSetDimensions &datasetDim);
 };
 
 ostream& operator<< (ostream& out, NNDataSetEnums::Attributes& a);
@@ -304,12 +308,71 @@ private:
     bool CalculateHingeOutputDelta(Activation activation, uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta);    
 
 public:
+    /**
+     * Creates dense dataset with the specified dimensions and name
+     * with space allocated for the specified number of examples
+     */
+    NNDataSet(uint32_t examples, const NNDataSetDimensions &dim, const string &name = "");
+
+    /**
+     * Creates dense indexed dataset with the specified dimensions and name
+     * with space allocated for the specified number of examples
+     * and index data space allocated for the specified number of uniqueExamples.
+     */
+    NNDataSet(uint32_t examples, uint32_t uniqueExamples, const NNDataSetDimensions &dim, const string &name = "");
+
+    /**
+     * Creates sparse dataset for the layer with space allocated
+     * for the specified number of examples. The isWeighted parameter
+     * can be set to true to create a sparse weighted dataset.
+     */
+    NNDataSet(uint32_t examples, NNFloat sparseDensity, const NNDataSetDimensions &dim, bool isWeighted = false, const string &name = "");
+
+    /**
+     * Creates a sparse indexed dataset with the specified dimensions
+     * and name with space allocated for the specified number of
+     * examples and index (sparse) data space allocated for the specified
+     * number of uniqueExamples and sparseDataSize (length of sparseData).
+     * The isWeighted parameter can be set to true to create a
+     * sparse indexed weighted dataset.
+     */
+    NNDataSet(uint32_t examples, uint32_t uniqueExamples, size_t sparseDataSize, const NNDataSetDimensions &dim,
+              bool isWeighted = false, const string &name = "");
+
+    /**
+     * Copies length number of elements from the srcData to (this + offset).
+     * Only valid for dense and dense indexed datasets. If the dataset is indexed this
+     * sets the unique data and NNDataSet::SetIndexedData sets the actual examples.
+     * An exception is thrown if this dataset is not dense.
+     */
+    void SetData(const T *srcData, size_t offset, size_t length);
+
+    /**
+     * Copies uniqueExamples number of sparse data points from the specified src to this NNDataSet.
+     * Any existing data is overwritten.
+     */
+    void SetSparseData(const uint64_t *srcSparseStart, const uint64_t *srcSparseEnd, const T *srcSparseData,
+                       const uint32_t *srcSparseIndex);
+
+    /**
+     * If this dataset is indexed, then sets the actual examples starting from (this + offset)
+     * and copying length number of elements from srcIndexedData.
+     * An exception is thrown if this dataset is not indexed.
+     */
+    void SetIndexedData(const uint32_t *srcIndexedData, size_t offset, size_t length);
+
+    /**
+     * If this dataset is weighted, then sets the weights of each example starting from
+     * (this + offset) and copying length number of elements from srcWeightData.
+     * An exception is thrown if this dataset is not weighted.
+     */
+    void SetDataWeight(const NNFloat *srcWeightData, size_t offset, size_t length);
 
     ~NNDataSet();
     void Shuffle();
     T GetDataPoint(uint32_t n, uint32_t x, uint32_t y = 0, uint32_t z = 0);
     bool SetDataPoint(T v, uint32_t n, uint32_t x, uint32_t y = 0, uint32_t z = 0);
-    uint32_t GetSparseDataPoints(uint32_t n);
+    uint64_t GetSparseDataPoints(uint32_t n);
     uint32_t GetSparseIndex(uint32_t n, uint32_t i);
     bool SetSparseIndex(uint32_t n, uint32_t i, uint32_t v);
     T GetSparseDataPoint(uint32_t n, uint32_t i);

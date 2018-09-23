@@ -156,8 +156,7 @@ private:
     uint32_t                    _bnCalls;
     NNFloat                     _bnLearningRate;
     int32_t                     _priority;                  // Mutable priority for calculating propagation ordering
-    NNLayer(NNLayerDescriptor& l, uint32_t batch);
-    ~NNLayer();
+
     void Allocate(bool validate);
     void Deallocate();
     void SetBatch(uint32_t batch);
@@ -191,7 +190,12 @@ private:
     cudnnTensorDescriptor_t getTensorDescriptorBN(uint32_t batch);
 
 public:
+    NNLayer(NNLayerDescriptor& l, uint32_t batch);
+
+    ~NNLayer();
+
     const string& GetName() const;
+
     NNLayer::Kind GetKind() const;
 
     /**

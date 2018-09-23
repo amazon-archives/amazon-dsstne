@@ -14,10 +14,25 @@
 #include "NNTypes.h"
 #include "kernels.h"
 
+/**
+ * Explicit template class instantiation.
+ * Allows the template function definitions
+ * to be in this cpp file rather than the header.
+ * Instantiating the same ones as in:
+ * kernels.cu#EXPLICITLY_INSTANTIATE_KERNELS
+ */
+template class NNDataSet<NNFloat>;
+template class NNDataSet<double>;
+template class NNDataSet<unsigned char>;
+template class NNDataSet<char>;
+template class NNDataSet<uint32_t>;
+template class NNDataSet<uint64_t>;
+template class NNDataSet<int32_t>;
+template class NNDataSet<int64_t>;
+
 using namespace std;
 using namespace netCDF;
 using namespace netCDF::exceptions;
-
 
 static std::map<TrainingMode, string> sTrainingModeMap = {
     {TrainingMode::SGD,      "SGD"},
@@ -249,7 +264,7 @@ int MPI_Bcast_string(string& s)
 
 NNDataSetBase::NNDataSetBase() :
 _name(""),
-_attributes(0),
+_attributes(NNDataSetEnums::None),
 _examples(0),
 _uniqueExamples(0),
 _dimensions(0),
@@ -257,7 +272,7 @@ _width(0),
 _height(0),
 _length(0),
 _stride(0),
-_sharding(NNDataSetEnums::None),
+_sharding(NNDataSetEnums::Sharding::None),
 _minX(0),
 _maxX(0),
 _sparseDataSize(0),
@@ -278,8 +293,42 @@ _bStreaming(false),
 _bIndexed(false),
 _bDirty(true)
 {
+}
 
-
+NNDataSetBase::NNDataSetBase(const string &name, NNDataSetEnums::DataType dataType, uint32_t examples,
+                             uint32_t uniqueExamples, const NNDataSetDimensions &datasetDim) :
+    _name(name),
+    _dataType(dataType),
+    _attributes(NNDataSetEnums::None),
+    _examples(examples),
+    _uniqueExamples(uniqueExamples),
+    _localExamples(examples),
+    _dimensions(datasetDim._dimensions),
+    _width(datasetDim._width),
+    _height(datasetDim._height),
+    _length(datasetDim._length),
+    _stride(0),
+    _sharding(NNDataSetEnums::Sharding::None),
+    _minX(0),
+    _maxX(0),
+    _sparseDataSize(0),
+    _sparseTransposedIndices(0),
+    _sparseDensity(0),
+    _bDenoising(false),
+    _pbSparseStart(),
+    _pbSparseEnd(),
+    _pbSparseIndex(),
+    _pbIndex(),
+    _pbSparseTransposedStart(),
+    _pbSparseTransposedEnd(),
+    _pbSparseTransposedIndex(),
+    _pbSparseTransposedData(),
+    _batch(0),
+    _pbDenoisingRandom(),
+    _bStreaming(false),
+    _bIndexed(false),
+    _bDirty(true)
+{
 }
 
 NNDataSetBase::~NNDataSetBase() {}
@@ -332,6 +381,163 @@ template<typename T> vector<tuple<uint64_t, uint64_t> > NNDataSet<T>::getMemoryU
     return vResult;  
 }
 
+/* dense data */
+template<typename T> NNDataSet<T>::NNDataSet(uint32_t examples, const NNDataSetDimensions &dim, const string &name) :
+    NNDataSetBase(name, NNDataSetEnums::getDataType<T>(), examples, examples, dim)
+{
+     _stride = _width * _height * _length;
+    _vData.resize(_stride * _examples);
+}
+
+/* dense indexed data */
+template<typename T> NNDataSet<T>::NNDataSet(uint32_t examples, uint32_t uniqueExamples, const NNDataSetDimensions &dim,
+                                             const string &name) :
+    NNDataSetBase(name, NNDataSetEnums::getDataType<T>(), examples, uniqueExamples, dim)
+{
+    _stride = _width * _height * _length;
+    _attributes = NNDataSetEnums::Attributes::Indexed;
+    _bIndexed = true;
+
+    /*
+     * _vData holds the index data (unique data points)
+     * _vIndex holds the index numbers to the data in _vData of each example
+     */
+    _vData.resize(_stride * _uniqueExamples);
+    _vIndex.resize(_examples);
+}
+
+/* sparse and sparse weighted data */
+template<typename T> NNDataSet<T>::NNDataSet(uint32_t examples, NNFloat sparseDensity, const NNDataSetDimensions &dim,
+                                             bool isWeighted, const string &name) :
+    NNDataSetBase(name, NNDataSetEnums::getDataType<T>(), examples, examples, dim)
+{
+    _attributes = NNDataSetEnums::Attributes::Sparse;
+
+    /**
+     * 1. stride for sparse data needs to be calculated per example,
+     * stride = (sparseEnd - sparseStart), hence no need to set _stride
+     *
+     * 2. because we do not have the actual data points (examples) up front,
+     * we need to allocate enough space for each sparse example, take sparseDensity
+     * as the maximum number of non-zero coordinates for any example in this dataset.
+     */
+    _sparseDataSize = (uint64_t)((double_t) (_width * _height * _length * examples) * sparseDensity);
+
+    _vSparseStart.resize(examples);
+    _vSparseEnd.resize(examples);
+    _vSparseData.resize(_sparseDataSize);
+    _vSparseIndex.resize(_sparseDataSize);
+
+    if (isWeighted)
+    {
+        _attributes |= NNDataSetEnums::Attributes::Weighted;
+        _vSparseWeight.resize(_uniqueExamples);
+    }
+}
+
+/* sparse indexed and sparse indexed weighted data */
+template<typename T> NNDataSet<T>::NNDataSet(uint32_t examples, uint32_t uniqueExamples, size_t sparseDataSize, const NNDataSetDimensions &dim,
+                                             bool isWeighted, const string &name):
+    NNDataSetBase(name, NNDataSetEnums::getDataType<T>(), examples, uniqueExamples, dim)
+{
+    _attributes = NNDataSetEnums::Attributes::Sparse | NNDataSetEnums::Attributes::Indexed;
+    _bIndexed = true;
+    _sparseDataSize = sparseDataSize;
+
+    /**
+     * _vSparseStart, _vSparseEnd, _vSparseData, _vSparseIndex holds the
+     * unique data points. _vIndex holds the index numbers to the data for
+     * each example. For indexed sparse data, we are expected to know the
+     * unique data points up front, so we do not require the caller to pass
+     * a sparseDensity since we can calculate it as:
+     * sparseDensity = sparseDataSize / (uniqueExamples * x * y * z)
+     * this is done in NNDataSet::CalculateSparseDatapointCounts()
+     */
+    _vSparseStart.resize(_uniqueExamples);
+    _vSparseEnd.resize(_uniqueExamples);
+    _vSparseData.resize(_sparseDataSize);
+    _vSparseIndex.resize(_sparseDataSize);
+    _vIndex.resize(_examples);
+
+    if (isWeighted)
+    {
+        _attributes |= NNDataSetEnums::Attributes::Weighted;
+        _vSparseWeight.resize(_uniqueExamples);
+    }
+}
+
+template<typename T> void NNDataSet<T>::SetData(const T *srcData, size_t offset, size_t length)
+{
+    if (_attributes & NNDataSetEnums::Attributes::Sparse)
+    {
+        throw std::runtime_error("Cannot set dense data on a sparse NNDataSet");
+    } else
+    {
+        // size check
+        if(offset + length > _vData.size()) {
+            throw std::length_error("Not enough space store dense data");
+        }
+
+        copy(srcData, srcData + length, _vData.data() + offset);
+    }
+}
+
+template<typename T> void NNDataSet<T>::SetSparseData(const uint64_t *srcSparseStart, const uint64_t *srcSparseEnd,
+                                                      const T *srcSparseData, const uint32_t *srcSparseIndex)
+{
+    if (_attributes & NNDataSetEnums::Attributes::Sparse)
+    {
+        if(srcSparseStart[0] != 0) {
+            throw std::runtime_error("Sparse data should be zero indexed; srcSparseStart[0] != 0");
+        }
+
+        uint64_t dataLength = srcSparseEnd[_uniqueExamples -1];
+        if(dataLength > _vSparseData.size()) {
+            throw std::length_error("Not enough space to store sparse data");
+        }
+        if(dataLength > _vSparseIndex.size()) {
+            throw std::length_error("Not enough space to store sparse index");
+        }
+
+        copy(srcSparseStart, srcSparseStart + _uniqueExamples, _vSparseStart.data());
+        copy(srcSparseEnd, srcSparseEnd + _uniqueExamples, _vSparseEnd.data());
+        copy(srcSparseData, srcSparseData + dataLength, _vSparseData.data());
+        copy(srcSparseIndex, srcSparseIndex + dataLength, _vSparseIndex.data());
+    } else
+    {
+        throw std::runtime_error("Cannot set sparse data on a non sparse NNDataSet");
+    }
+}
+
+template<typename T> void NNDataSet<T>::SetIndexedData(const uint32_t *srcIndexedData, size_t offset, size_t length)
+{
+    if (_attributes & NNDataSetEnums::Attributes::Indexed)
+    {
+        if(offset + length > _vIndex.size()) {
+            throw std::length_error("Not enough space to store indexed data");
+        }
+        copy(srcIndexedData, srcIndexedData + length, _vIndex.data() + offset);
+    } else
+    {
+        throw std::runtime_error("Cannot set indexed data on a non indexed NNDataSet");
+    }
+}
+
+template<typename T> void NNDataSet<T>::SetDataWeight(const NNFloat *srcWeightData, size_t offset, size_t length)
+{
+    if (_attributes & NNDataSetEnums::Attributes::Weighted)
+    {
+        if (offset + length > _vSparseWeight.size())
+        {
+            throw std::length_error("Not enough space to store weight data");
+        }
+        copy(srcWeightData, srcWeightData + length, _vSparseWeight.data() + offset);
+    } else
+    {
+        throw std::runtime_error("Cannot set weight data on a non weighted NNDataSet");
+    }
+}
+
 template<typename T> T NNDataSet<T>::GetDataPoint(uint32_t n, uint32_t x, uint32_t y, uint32_t z)
 {
     // Illegal to call on sparse data set
@@ -355,7 +561,7 @@ template<typename T> T NNDataSet<T>::GetDataPoint(uint32_t n, uint32_t x, uint32
         getGpu().Shutdown();
         exit(-1);
     }
-    
+
     // Remap n if indexed
     if (_bIndexed)
     {
@@ -373,7 +579,7 @@ template<typename T> T NNDataSet<T>::GetDataPoint(uint32_t n, uint32_t x, uint32
         exit(-1);
     }
 
-    return _vData[(n * _stride) + x + _width * (y + z * _height)]; 
+    return _vData[(n * _stride) + x + _width * (y + z * _height)];
 }
 
 template<typename T> bool NNDataSet<T>::SetDataPoint(T v, uint32_t n, uint32_t x, uint32_t y, uint32_t z)
@@ -399,7 +605,7 @@ template<typename T> bool NNDataSet<T>::SetDataPoint(T v, uint32_t n, uint32_t x
         getGpu().Shutdown();
         exit(-1);
     }
-    
+
     // Remap n if indexed
     if (_bIndexed)
     {
@@ -417,10 +623,10 @@ template<typename T> bool NNDataSet<T>::SetDataPoint(T v, uint32_t n, uint32_t x
         exit(-1);
     }
 
-    _vData[(n * _stride) + x + _width * (y + z * _height)]  = v; 
+    _vData[(n * _stride) + x + _width * (y + z * _height)]  = v;
 }
 
-template<typename T> uint32_t NNDataSet<T>::GetSparseDataPoints(uint32_t n)
+template<typename T> uint64_t NNDataSet<T>::GetSparseDataPoints(uint32_t n)
 {
     // Illegal to call on non-sparse data set
     if (!(_attributes & NNDataSetEnums::Sparse))
@@ -443,7 +649,7 @@ template<typename T> uint32_t NNDataSet<T>::GetSparseDataPoints(uint32_t n)
         getGpu().Shutdown();
         exit(-1);
     }
-    
+
     // Remap n if indexed
     if (_bIndexed)
     {
@@ -476,19 +682,19 @@ template<typename T> uint32_t NNDataSet<T>::GetSparseIndex(uint32_t n, uint32_t 
         getGpu().Shutdown();
         exit(-1);
     }
-    
+
     // Remap n if indexed
     if (_bIndexed)
     {
         n = _vIndex[n];
-    }    
+    }
 
     // Make sure index is within bounds
     if (i >= _vSparseEnd[n] - _vSparseStart[n])
     {
         if (getGpu()._id == 0)
         {
-            printf("NNDataSet::GetSparseIndex: Sparse index %u out of range (0, %u).\n", i, _vSparseEnd[n] - _vSparseStart[n]);
+            printf("NNDataSet::GetSparseIndex: Sparse index %u out of range (0, %lu).\n", i, _vSparseEnd[n] - _vSparseStart[n]);
         }
         getGpu().Shutdown();
         exit(-1);
@@ -525,19 +731,19 @@ template<typename T> bool NNDataSet<T>::SetSparseIndex(uint32_t n, uint32_t i, u
     if (_bIndexed)
     {
         n = _vIndex[n];
-    }   
- 
+    }
+
     // Make sure index is within bounds
     if (i >= _vSparseEnd[n] - _vSparseStart[n])
     {
         if (getGpu()._id == 0)
         {
-            printf("NNDataSet::SetSparseIndex: Sparse index %u out of range (0, %u).\n", i, _vSparseEnd[n] - _vSparseStart[n]);
+            printf("NNDataSet::SetSparseIndex: Sparse index %u out of range (0, %lu).\n", i, _vSparseEnd[n] - _vSparseStart[n]);
         }
         getGpu().Shutdown();
         exit(-1);
-    }    
-    
+    }
+
     _vSparseIndex[_vSparseStart[n] + i]         = v;
     _bDirty                                     = true;
     return true;
@@ -571,14 +777,14 @@ template<typename T> T NNDataSet<T>::GetSparseDataPoint(uint32_t n, uint32_t i)
     if (_bIndexed)
     {
         n = _vIndex[n];
-    }    
+    }
 
     // Make sure index is within bounds
     if (i >= _vSparseEnd[n] - _vSparseStart[n])
     {
         if (getGpu()._id == 0)
         {
-            printf("NNDataSet::GetSparseDataPoint: Sparse index %u out of range (0, %u).\n", i, _vSparseEnd[n] - _vSparseStart[n]);
+            printf("NNDataSet::GetSparseDataPoint: Sparse index %u out of range (0, %lu).\n", i, _vSparseEnd[n] - _vSparseStart[n]);
         }
         getGpu().Shutdown();
         exit(-1);
@@ -615,19 +821,19 @@ template<typename T> bool NNDataSet<T>::SetSparseDataPoint(uint32_t n, uint32_t 
     if (_bIndexed)
     {
         n = _vIndex[n];
-    }    
+    }
 
     // Make sure index is within bounds
     if (i >= _vSparseEnd[n] - _vSparseStart[n])
     {
         if (getGpu()._id == 0)
         {
-            printf("NNDataSet::SetSparseDataPoint: Sparse index %u out of range (0, %u).\n", i, _vSparseEnd[n] - _vSparseStart[n]);
+            printf("NNDataSet::SetSparseDataPoint: Sparse index %u out of range (0, %lu).\n", i, _vSparseEnd[n] - _vSparseStart[n]);
         }
         getGpu().Shutdown();
         exit(-1);
     }
-    
+
     _vSparseData[_vSparseStart[n] + i]         = v;
     _bDirty                                    = true;
     return true;
@@ -1359,7 +1565,7 @@ template<typename T> bool NNDataSet<T>::UnShard()
     {
     
     }
-    _sharding = NNDataSetEnums::None;
+    _sharding = NNDataSetEnums::Sharding::None;
 
     // Allocate/Reallocate Indices
     if (_attributes & NNDataSetEnums::Indexed)
