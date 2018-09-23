@@ -193,15 +193,87 @@ unzip 1.5.2.zip
 sudo cp -rf cub-1.5.2/cub/ /usr/local/include/
 ```
 
-### Download the code and build.
+#### cuDNN
+Follow the instructions to intall cuDNN for your version of CUDA Toolkit [here](https://docs.nvidia.com/deeplearning/sdk/cudnn-install/index.html#download).
+ 
+### Build and Install
+#### Build from Source
 ```bash
 # Ubuntu/Linux 64-bit
 git clone https://github.com/amznlabs/amazon-dsstne.git
-cd amazon-dsstne/src/amazon/dsstne
+
 #Add the mpiCC and nvcc compiler in the path
 export PATH=/usr/local/openmpi/bin:/usr/local/cuda/bin:$PATH
+
+cd amazon-dsstne
 make
-export PATH=`pwd`/bin:$PATH
 ```
+
+Once built, you'll notice a `build` directory at the git repository root with a few subdirectories:
+
+| Directory | Description |
+| --- | --- |
+| `build/include` | Directory where the headers are copied to |
+| `build/lib` | Directory where static and shared libraries are built into |
+| `build/bin` | Directory that contains executables and command-line tools |
+| `build/tmp` | Directory used internally by the build process to output temporary files (*.o, *.ptx, etc) |
+| `build/tst` | Directory used to output test artifacts |
+
+#### Install
+```
+make install
+```
+By default the install directory is `<git-repository-root>/amazon-dsstne`. You can install dsstne into a custom location
+by setting the `PREFIX` variable, for example
+
+```
+PREFIX=/usr/local/amazon-dsstne make install
+```
+
+builds dsstne into `/usr/local/amazon-dsstne`. The contents of the install directory is similar to that of build with the
+exception of the `tmp` and `tst` directories, which are used by the build process and not relevant to the end user. 
+
+#### Using the Executables
+DSSTNE ships with a few executables out of the box to enable you to train a neural network model and generate predictions.
+These tools are found in the `bin` sub-directory in your install directory. To use them:
+
+1. (Optional) Set `PATH=$PREFIX/bin`. 
+2. Depending on your setup you may have to set `LD_LIBRARY_PATH=$CUDA_INSTALL_DIR/lib:$OPEN_MPI_INSTALL_DIR/lib`
+
+#### Using the API
+To take a programmatic dependency on DSSTNE:
+
+1. Headers are located in `$PREFIX/include`.
+2. Libraries are located in `$PREFIX/lib`.
+    1. Engine static library: `libdsstne.a`
+    2. Utils static library: `libdsstne_utils.so` 
+
+For example, to compile your `main.cpp` file that depends on DSSTNE:
+```
+CC = g++
+CFLAGS = -std=c++11 -Wall -O3 ...(other flags)...
+INCLUDES = -I$PREFIX/include ...(other includes)...
+$(CC) $(CFLAGS) $(INCLUDES) main.cpp $PREFIX/lib/libdsstne.a -o my_app
+```
+
+Another example, to compile your `main.cpp` file that depends on DSSTNE utils:
+```
+CC = g++
+CFLAGS = -std=c++11 -Wall -O3 ...(other flags)...
+INCLUDES = -I$PREFIX/include ...(other includes)...
+LIBS = -L$PREFIX/lib ...(other libs)...
+$(CC) $(CFLAGS) $(INCLUDES) $(LIBS) main.cpp -o my_app -ldsstne_utils
+```
+#### Build Options
+The following variables are used to customize the build
+
+| Variable      | Description        | Default Value| 
+| ------------- | ------------------ | ------------ |
+| PATH | Path to search for CC, NVCC, and MPICC | $PATH |
+| BUILD_DIR | Build directory | <git-root>/build |
+| PREFIX | Install directory | <git-root>/amazon-dsstne |
+| CUDA_SYSTEM_INCLUDE_DIR  | CUDA include dir relative to nvcc path. Used to exclude CUDA system headers from gcc auto-generated dependencies (only used to enable incremental builds when source or header changes) | <nvcc-path>/../target/x86_64/include |
+| CU_INCLUDES | Include path to CC or NVCC (e.g. -I/usr/local/cuda)| (see src/amazon/dsstne/Makefile.inc) |
+| CU_LIBS | Library path option to LD (e.g. -lcuda) | (see src/amazon/dsstne/Makefile.inc) |
 
 Try running some [examples](examples.md).
