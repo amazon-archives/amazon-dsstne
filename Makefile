@@ -10,6 +10,7 @@ export BUILD_DIR ?= $(shell pwd)/build
 all:
 	cd src/amazon/dsstne/engine && make
 	cd src/amazon/dsstne/utils && make
+	cd tst && make
 
 install: all
 	mkdir -p $(PREFIX)
@@ -17,7 +18,11 @@ install: all
 	cp -rfp $(BUILD_DIR)/bin $(PREFIX)/bin
 	cp -rfp $(BUILD_DIR)/include $(PREFIX)/include
 
+run-tests:
+	cd tst && make run-tests
+
 clean:
 	cd src/amazon/dsstne/engine && make clean
 	cd src/amazon/dsstne/utils && make clean
+	cd tst && make clean
 
