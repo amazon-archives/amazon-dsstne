@@ -242,6 +242,9 @@ struct NNDataSetBase {
     virtual bool CalculateL2HingeOutputDelta(Activation activation, uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, NNFloat slope, NNFloat alpha, NNFloat lambda) = 0;
     virtual bool CalculateDataScaledMarginalCrossEntropyOutputDelta(Activation activation, uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta) = 0;
     virtual bool CalculateHingeOutputDelta(Activation activation, uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta) = 0;
+
+ protected:
+    NNDataSetBase(NNDataSetEnums::DataType dataType, uint32_t examples, uint32_t uniqueExamples, const NNLayer &layer);
 };
 
 ostream& operator<< (ostream& out, NNDataSetEnums::Attributes& a);
@@ -304,6 +307,35 @@ private:
     bool CalculateHingeOutputDelta(Activation activation, uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta);    
 
 public:
+    /**
+     * Creates dense dataset for the provided layer
+     * with space allocated for the specified number of examples
+     */
+    NNDataSet(uint32_t examples, const NNLayer &layer);
+
+    /**
+     * Creates dense indexed dataset for the provided layer
+     * with space allocated for the specified number of examples
+     * and index data space allocated for the specified number of uniqueExamples.
+     */
+    NNDataSet(uint32_t examples, uint32_t uniqueExamples, const NNLayer &layer);
+
+    /**
+     * Creates sparse dataset for the layer with space allocated
+     * for the specified number of examples. The isWeighted parameter
+     * can be set to true to create a sparse weighted dataset.
+     */
+    NNDataSet(uint32_t examples, NNFloat sparseDensity, const NNLayer &layer, bool isWeighted);
+
+    /**
+     * Creates a sparse indexed dataset for the layer with space
+     * allocated for the specified number of examples and index
+     * (sparse) data space allocated for the specified number of
+     * uniqueExamples and sparseDataSize (length of sparseData).
+     * The isWeighted parameter can be set to true to create a
+     * sparse indexed weighted dataset.
+     */
+    NNDataSet(uint32_t examples, uint32_t uniqueExamples, size_t sparseDataSize, const NNLayer &layer, bool isWeighted);
 
     ~NNDataSet();
     void Shuffle();
