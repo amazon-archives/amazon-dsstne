@@ -10,9 +10,6 @@ OBJECTS := $(SOURCES:$(TEST_SOURCES_DIR)/%.cpp=$(OBJS_BUILD_DIR)/%.o)
 
 DEP := $(OBJECTS:.o=.d)
 
-$(info ========== SOURCES = $(SOURCES) =============)
-$(info ========== OBJECTS = $(OBJECTS) =============)
-
 DSSTNE_SRC_DIR = ../src/amazon/dsstne
 LIB_DSSTNE = $(BUILD_DIR)/lib/libdsstne.a
 LIB_DSSTNE_UTILS = $(BUILD_DIR)/lib/libdsstne_utils.so
