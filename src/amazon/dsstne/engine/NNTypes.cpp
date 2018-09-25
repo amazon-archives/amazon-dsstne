@@ -848,14 +848,14 @@ _pbSparseData()
                 // Check for sparse weighting
                 if (_attributes & NNDataSetEnums::Weighted)
                 {
-                    vname                       = "sparseWeight" + nstring;
-                    NcVar sparseWeightVar         = nfc.getVar(vname);                    
-                    if (sparseWeightVar.isNull())
+                    vname                       = "DataWeight" + nstring;
+                    NcVar DataWeightVar         = nfc.getVar(vname);                    
+                    if (DataWeightVar.isNull())
                     {
-                        throw NcException("NcException", "NNDataSet::NNDataSet: No sparse weights located in NetCDF input file " + fname, __FILE__, __LINE__);
+                        throw NcException("NcException", "NNDataSet::NNDataSet: No data weights located in NetCDF input file " + fname, __FILE__, __LINE__);
                     }  
-                    _vSparseWeight.resize(_uniqueExamples);
-                    sparseWeightVar.getVar(_vSparseWeight.data());                     
+                    _vDataWeight.resize(_uniqueExamples);
+                    DataWeightVar.getVar(_vDataWeight.data());                     
                 }
             }
             else
@@ -961,8 +961,8 @@ _pbSparseData()
     // Broadcast sparse weights if presented
     if (_attributes & NNDataSetEnums::Weighted)
     {
-        _vSparseWeight.resize(_uniqueExamples);
-        MPI_Bcast(_vSparseWeight.data(), _uniqueExamples, MPI_FLOAT, 0, MPI_COMM_WORLD);
+        _vDataWeight.resize(_uniqueExamples);
+        MPI_Bcast(_vDataWeight.data(), _uniqueExamples, MPI_FLOAT, 0, MPI_COMM_WORLD);
     }    
     
     // Generate sparse data lookup tables if data is sparse
@@ -1371,8 +1371,8 @@ template<typename T> bool NNDataSet<T>::UnShard()
     // Allocate/Reallocate Sparse Weights
     if (_attributes & NNDataSetEnums::Weighted)
     {
-        _pbSparseWeight.reset(new GpuBuffer<NNFloat>((uint64_t)_vSparseWeight.size(), false, _bStreaming));
-        _pbSparseWeight->Upload(_vSparseWeight.data());       
+        _pbDataWeight.reset(new GpuBuffer<NNFloat>((uint64_t)_vDataWeight.size(), false, _bStreaming));
+        _pbDataWeight->Upload(_vDataWeight.data());       
     }
 
     return true;
@@ -1896,13 +1896,13 @@ template<typename T> bool NNDataSet<T>::WriteNetCDF(NcFile& nfc, const string& f
                 // Writes weights if present
                 if (_attributes & NNDataSetEnums::Weighted)
                 {
-                    vname                       = "sparseWeight" + nstring;
-                    NcVar sparseWeightVar         = nfc.addVar(vname, "float", uniqueExamplesDim.getName());                    
-                    if (sparseWeightVar.isNull())
+                    vname                       = "DataWeight" + nstring;
+                    NcVar DataWeightVar         = nfc.addVar(vname, "float", uniqueExamplesDim.getName());                    
+                    if (DataWeightVar.isNull())
                     {
-                        throw NcException("NcException", "NNDataSet::NNDataSet: Failed to write sparse weights NetCDF file " + fname, __FILE__, __LINE__);
+                        throw NcException("NcException", "NNDataSet::NNDataSet: Failed to write data weights to NetCDF file " + fname, __FILE__, __LINE__);
                     }  
-                    sparseWeightVar.putVar(_vSparseWeight.data());                     
+                    DataWeightVar.putVar(_vDataWeight.data());                     
                 }
             }
             else

@@ -87,7 +87,11 @@ private:
     NNFloat* GetWeightGradientBuffer() { return _pbWeightGradient ? _pbWeightGradient->_pDevData : NULL; }
     uint64_t GetBufferSize() { return _localSize; }
 public:
-    bool CopyWeights(NNWeight* pWeight);
+    bool CopyWeights(const NNWeight* pWeight);
+    bool SetWeights(const vector<NNFloat>& vWeight);
+    bool SetBiases(const vector<NNFloat>& vBias);
+    bool GetWeights(vector<NNFloat>& vWeight);
+    bool GetBiases(vector<NNFloat>& vBias);      
     bool SetNorm(NNFloat norm);
 };
 

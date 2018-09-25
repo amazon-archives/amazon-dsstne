@@ -318,6 +318,159 @@ void NNLayer::Deallocate()
     _pbBuffer2.reset();
 }
 
+bool NNLayer::GetUnits(vector<NNFloat>& vUnit)
+{
+    bool bValid = true;
+    
+    if (_pbUnit)
+    {
+        // Resize output vector if necessary
+        if (vUnit.size() < _stride)
+        {
+            vUnit.resize(_stride);
+        }
+    
+        // Get unit data
+        _pbUnit->Download(vUnit.data());
+    }
+    else
+    {
+        printf("NNLayer::GetUnits: Unit data not yet allocated.\n");
+        bValid = false;
+    }
+    
+    return bValid;    
+}
+
+bool NNLayer::GetUnits(NNFloat* pUnit)
+{
+    bool bValid = true;
+    
+    if (_pbUnit)
+    {
+        // Check that pUnit is a valid pointer
+        if (pUnit == NULL)
+        {
+            printf("NNLayer::GetUnits: Download pointer invalid.\n");
+            bValid = false;
+        }
+        else
+        {
+            // Get unit data
+            _pbUnit->Download(pUnit);
+        }
+    }
+    else
+    {
+        printf("NNLayer::GetUnits: Unit data not yet allocated.\n");
+        bValid = false;
+    }
+    
+    return bValid;    
+}
+
+bool NNLayer::GetDeltas(vector<NNFloat>& vDelta)
+{
+    bool bValid = true;
+    
+    if (_pbDelta)
+    {
+        // Resize output vector if necessary
+        if (vDelta.size() < _stride)
+        {
+            vDelta.resize(_stride);
+        }
+    
+        // Get delta data
+        _pbDelta->Download(vDelta.data());
+    }
+    else
+    {
+        printf("NNLayer::GetDeltas: Deltas not yet allocated.\n");
+        bValid = false;
+    }
+    
+    return bValid;    
+}
+
+bool NNLayer::GetDeltas(NNFloat* pDelta)
+{
+    bool bValid = true;
+    
+    if (_pbDelta)
+    {
+        // Check that pDelta is a valid pointer
+        if (pDelta == NULL)
+        {
+            printf("NNLayer::GetDeltas: Download pointer invalid.\n");
+            bValid = false;
+        }
+        else
+        {
+            // Get unit data
+            _pbDelta->Download(pDelta);
+        }
+    }
+    else
+    {
+        printf("NNLayer::GetDeltas: Deltas not yet allocated.\n");
+        bValid = false;
+    }
+    
+    return bValid;    
+}
+
+bool NNLayer::SetUnits(const vector<NNFloat>& vUnit)
+{
+    bool bValid = true;
+    
+    if (_pbUnit)
+    {
+        // Resize output vector if necessary
+        if (vUnit.size() < _stride)
+        {
+            printf("NNLayer::SetUnits: Input unit data too small to set all units.\n");
+            bValid = false;
+        }
+    
+        // Set unit data
+        _pbUnit->Upload(vUnit.data());
+    }
+    else
+    {
+        printf("NNLayer::SetUnits: Unit data not yet allocated.\n");
+        bValid = false;
+    }
+    
+    return bValid;    
+}
+
+
+bool NNLayer::SetDeltas(const vector<NNFloat>& vDelta)
+{
+    bool bValid = true;
+    
+    if (_pbDelta)
+    {
+        // Resize output vector if necessary
+        if (vDelta.size() < _stride)
+        {
+            printf("NNLayer::SetDeltas: Input delta data too small to set all deltas.\n");
+            bValid = false;
+        }
+    
+        // Set delta data
+        _pbDelta->Upload(vDelta.data());
+    }
+    else
+    {
+        printf("NNLayer::SetDeltas: Deltas not yet allocated.\n");
+        bValid = false;
+    }
+    
+    return bValid;    
+}
+
 cudnnTensorDescriptor_t NNLayer::getTensorDescriptor(uint32_t batch)
 {
     // Return usual tensor descriptor if regular batch
@@ -1585,28 +1738,28 @@ void NNLayer::CalculateOutputDelta(uint32_t position, uint32_t batch, ErrorFunct
 }
 
 
-void NNLayer::BackPropagate(uint32_t position, uint32_t batch, NNFloat alpha)
+void NNLayer::BackPropagate(uint32_t position, uint32_t batch)
 {
     
     // Will switch to class-based decision shortly once working
     switch (_type)
     {
         case FullyConnected:
-            BackPropagateFullyConnected(position, batch, alpha);
+            BackPropagateFullyConnected(position, batch);
             break;
             
         case Convolutional:
-            BackPropagateConvolutional(position, batch, alpha);
+            BackPropagateConvolutional(position, batch);
             break;
             
         case Pooling:
-            BackPropagatePooling(position, batch, alpha);
+            BackPropagatePooling(position, batch);
             break;                        
         
     }
 }
 
-void NNLayer::BackPropagateConvolutional(uint32_t position, uint32_t batch, NNFloat alpha)
+void NNLayer::BackPropagateConvolutional(uint32_t position, uint32_t batch)
 {
     // Special case single GPU
     if (getGpu()._numprocs == 1)
@@ -1759,7 +1912,7 @@ void NNLayer::BackPropagateConvolutional(uint32_t position, uint32_t batch, NNFl
     }
 }
 
-void NNLayer::BackPropagatePooling(uint32_t position, uint32_t batch, NNFloat alpha)
+void NNLayer::BackPropagatePooling(uint32_t position, uint32_t batch)
 {
     // Special case single GPU
     {
@@ -1886,7 +2039,7 @@ void NNLayer::BackPropagatePooling(uint32_t position, uint32_t batch, NNFloat al
 
 // Calculates all contributions to Delta(t-1) or (Delta(t) * W(t-1->t)^T) which is the product of a [batch][stride] and [stride][outgoing stride] matrix
 // And for efficiency purposes, the local contribution to dW(t-1->t), which is x(t-1)^T * Delta(t)
-void NNLayer::BackPropagateFullyConnected(uint32_t position, uint32_t batch, NNFloat alpha)
+void NNLayer::BackPropagateFullyConnected(uint32_t position, uint32_t batch)
 {    
     // Special case single GPU
     if (getGpu()._numprocs == 1)
