@@ -188,6 +188,7 @@ public:
      *    }
      */
     vector<const NNLayer*>::iterator GetLayers(NNLayer::Kind layerKind, vector<const NNLayer*> &layers) const;
+
     vector<string> GetLayers() const;
     const string& GetName() const;
     tuple<NNFloat, uint32_t, NNFloat, NNFloat> GetLRN() const;                          // Returns k, n, alpha, beta

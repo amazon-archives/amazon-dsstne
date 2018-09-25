@@ -46,9 +46,11 @@ public class NNNetworkTest {
         NNDataSet[] inputDatasets = new NNDataSet[network.getInputLayers().length];
         for(int i=0; i<network.getInputLayers().length; ++i) {
             NNLayer inputLayer = network.getInputLayers()[i];
+            String layerName = inputLayer.getName();
             String datasetName = inputLayer.getDatasetName();
             inputDatasets[i] = new DenseNNDataSet(new Dim(inputLayer.getDim(), batchSize), DataType.Int);
             inputDatasets[i].setName(datasetName);
+            inputDatasets[i].setLayerName(layerName);
         }
 
         network.load(inputDatasets);

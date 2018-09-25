@@ -46,6 +46,7 @@ jmethodID java_ArrayList_add;
 jmethodID NNLayer_;
 
 jmethodID NNDataSet_getName;
+jmethodID NNDataSet_getLayerName;
 jmethodID NNDataSet_getAttribute;
 jmethodID NNDataSet_getDataTypeOrdinal;
 
@@ -94,6 +95,7 @@ jint JNI_OnLoad(JavaVM *vm, void *reserved)
         NNLayer_ = findConstructorId(env, REFS, _NNLayer, "(Ljava/lang/String;Ljava/lang/String;IIIIII)V");
 
         NNDataSet_getName = findMethodId(env, REFS, _NNDataSet, "getName", "()Ljava/lang/String;");
+        NNDataSet_getLayerName = findMethodId(env, REFS, _NNDataSet, "getLayerName", "()Ljava/lang/String;");
         NNDataSet_getAttribute = findMethodId(env, REFS, _NNDataSet, "getAttribute", "()I");
         NNDataSet_getDataTypeOrdinal = findMethodId(env, REFS, _NNDataSet, "getDataTypeOrdinal", "()I");
         NNDataSet_getDimensions = findMethodId(env, REFS, _NNDataSet, "getDimensions", "()I");
@@ -168,7 +170,7 @@ JNIEXPORT void JNICALL Java_com_amazon_dsstne_Dsstne_loadDatasets(JNIEnv *env, j
         NNDataSetDimensions dim = getDataDimensions(env, jDataset);
 
         // for dense data x*y*z == stride, for sparse data x*y*z*sparseDensity == stride
-        float sparseDensity = ((double)(dim._width * dim._length * dim._height)) / (double) stride;
+        float sparseDensity = ((double) (dim._width * dim._length * dim._height)) / (double) stride;
 
         NNDataSetDescriptor descriptor;
         descriptor._name = name;
@@ -224,8 +226,8 @@ JNIEXPORT jobject JNICALL Java_com_amazon_dsstne_Dsstne_get_1layers(JNIEnv *env,
         uint32_t lx, ly, lz, lw;
         std::tie(lx, ly, lz, lw) = layer->GetDimensions();
 
-        jobject jInputLayer = newObject(env, REFS, _NNLayer, NNLayer_, jName, jDatasetName, kind, attributes, numDim, lx,
-                                        ly, lz);
+        jobject jInputLayer = newObject(env, REFS, _NNLayer, NNLayer_, jName, jDatasetName, kind, attributes, numDim,
+                                        lx, ly, lz);
 
         env->CallBooleanMethod(jLayers, java_ArrayList_add, jInputLayer);
     }
@@ -235,13 +237,9 @@ JNIEXPORT jobject JNICALL Java_com_amazon_dsstne_Dsstne_get_1layers(JNIEnv *env,
 bool checkDataset(NNDataSetBase *dstDataset, uint32_t attribute, DataType dataType, const NNDataSetDimensions &dim,
                   uint32_t examples)
 {
-    return dstDataset->_attributes == attribute
-        && dstDataset->_dataType == dataType
-        && dstDataset->_dimensions == dim._dimensions
-        && dstDataset->_width == dim._width
-        && dstDataset->_width == dim._length
-        && dstDataset->_width == dim._height
-        && dstDataset->_examples == examples;
+    return dstDataset->_attributes == attribute && dstDataset->_dataType == dataType
+        && dstDataset->_dimensions == dim._dimensions && dstDataset->_width == dim._width
+        && dstDataset->_width == dim._length && dstDataset->_width == dim._height && dstDataset->_examples == examples;
 }
 
 JNIEXPORT void JNICALL Java_com_amazon_dsstne_Dsstne_predict(JNIEnv *env, jclass clazz, jlong ptr, jint k,
@@ -263,13 +261,15 @@ JNIEXPORT void JNICALL Java_com_amazon_dsstne_Dsstne_predict(JNIEnv *env, jclass
     {
         jobject jInputDataset = env->GetObjectArrayElement(jInputDatasets, i);
         jstring jDatasetName = (jstring) env->CallObjectMethod(jInputDataset, NNDataSet_getName);
+        jstring jLayerName = (jstring) env->CallObjectMethod(jInputDataset, NNDataSet_getLayerName);
         const char *datasetName = env->GetStringUTFChars(jDatasetName, NULL);
+        const char *layerName = env->GetStringUTFChars(jLayerName, NULL);
         uint32_t examples = env->CallIntMethod(jInputDataset, NNDataSet_getExamples);
         NNDataSetDimensions dim = getDataDimensions(env, jInputDataset);
         uint32_t attribute = env->CallIntMethod(jInputDataset, NNDataSet_getAttribute);
         DataType dataType = static_cast<DataType>(env->CallIntMethod(jInputDataset, NNDataSet_getDataTypeOrdinal));
 
-        const NNLayer *layer = network->GetLayerForDataSet(datasetName, NNLayer::Kind::Input);
+        const NNLayer *layer = network->GetLayer(layerName);
         if (!layer)
         {
             throwJavaException(env, IllegalArgumentException, "No matching layer found in network %s for dataset: %s",
@@ -277,7 +277,8 @@ JNIEXPORT void JNICALL Java_com_amazon_dsstne_Dsstne_predict(JNIEnv *env, jclass
         }
 
         NNDataSetBase *dstDataset = layer->GetDataSet();
-        if(!checkDataset(dstDataset, attribute, dataType, dim, examples)) {
+        if (!checkDataset(dstDataset, attribute, dataType, dim, examples))
+        {
             throwJavaException(env, IllegalArgumentException, "Input dataset %s does not match the layer %s dataset",
                                datasetName, layer->GetName());
         }
@@ -297,7 +298,8 @@ JNIEXPORT void JNICALL Java_com_amazon_dsstne_Dsstne_predict(JNIEnv *env, jclass
             jlong *sparseEnd = env->GetLongArrayElements(jSparseEnd, NULL);
             jlong *sparseIndex = env->GetLongArrayElements(jSparseIndex, NULL);
 
-            dstDataset->SetSparseData((uint64_t*) sparseStart, (uint64_t*)sparseEnd, srcDataNative, (uint32_t*)sparseIndex);
+            dstDataset->SetSparseData((uint64_t*) sparseStart, (uint64_t*) sparseEnd, srcDataNative,
+                                      (uint32_t*) sparseIndex);
             env->ReleaseLongArrayElements(jSparseStart, sparseStart, JNI_ABORT);
             env->ReleaseLongArrayElements(jSparseEnd, sparseEnd, JNI_ABORT);
             env->ReleaseLongArrayElements(jSparseIndex, sparseIndex, JNI_ABORT);
@@ -308,6 +310,7 @@ JNIEXPORT void JNICALL Java_com_amazon_dsstne_Dsstne_predict(JNIEnv *env, jclass
         }
 
         env->ReleaseStringUTFChars(jDatasetName, datasetName);
+        env->ReleaseStringUTFChars(jLayerName, layerName);
     }
 
     // there is only one batch in the dataset; always start from position 0
@@ -332,11 +335,12 @@ JNIEXPORT void JNICALL Java_com_amazon_dsstne_Dsstne_predict(JNIEnv *env, jclass
         NNFloat *outputUnitBuffer = network->GetUnitBuffer(datasetName);
         uint32_t stride = network->GetBufferSize(datasetName) / batchSize;
 
-        if(k > 0) {
+        if (k > 0)
+        {
             kCalculateTopK(outputUnitBuffer, scores, indexes, batchSize, stride, k);
-        } else {
+        } else
+        {
             // return the entire output layer
-
 
         }
 
