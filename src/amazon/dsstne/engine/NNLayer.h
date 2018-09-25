@@ -107,7 +107,7 @@ private:
     const uint32_t              _kernelDimensions;          // Number of components to kernel and kernel stride
     const Activation            _activation;                // Activation function
     const NNFloat               _pDropout;                  // Dropout probability
-    const bool                  _bSparse;                   // Is layer sparse
+    bool                        _bSparse;                   // Is layer sparse
     bool                        _bFastSparse;               // Is layer capable of using fast sparse kernels
     NNFloat                     _sparsenessPenalty_p;       // Layer-specific sparseness target
     NNFloat                     _sparsenessPenalty_beta;    // Layer-specific sparseness penalty weight

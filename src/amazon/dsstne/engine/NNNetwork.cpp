@@ -1046,8 +1046,12 @@ void NNNetwork::LoadDataSets(vector<NNDataSetBase*>& vData)
                     break;
                 }
 
-                // Signal successful location of matching data set
+                /*
+                 *  Signal successful location of matching data set
+                 *  For input dataset, the layer should take on the sparseness of the dataset
+                 */
                 l->_pDataSet                    = d;
+                l->_bSparse                     = d->_attributes & NNDataSetEnums::Attributes::Sparse;
                 l->_bDirty                      = true;
                 if (getGpu()._id == 0)
                     printf("NNNetwork::LoadDataSets: Found data set %s for input layer %s\n", d->_name.c_str(), l->_name.c_str());
