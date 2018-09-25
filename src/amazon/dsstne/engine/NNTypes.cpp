@@ -10,6 +10,9 @@
    or in the "license" file accompanying this file. This file is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific language governing permissions and limitations under the License.
  */
 
+#include <stdexcept>
+#include <sstream>
+
 #include "GpuTypes.h"
 #include "NNTypes.h"
 #include "kernels.h"
@@ -263,6 +266,90 @@ int MPI_Bcast_string(string& s)
     return result;
 }
 
+NNDataSetDimensions::NNDataSetDimensions() :
+    NNDataSetDimensions(1, 1, 1)
+{}
+
+NNDataSetDimensions::NNDataSetDimensions(uint32_t width, uint32_t height, uint32_t length) :
+    _width(width),
+    _height(height),
+    _length(length),
+    _dimensions(0)
+{
+    if (width > 1)
+    {
+        ++_dimensions;
+    }
+    if (height > 1)
+    {
+        ++_dimensions;
+    }
+    if (length > 1)
+    {
+        ++_dimensions;
+    }
+}
+
+template<typename T> NNDataSetBase* createNNDataSet(const NNDataSetDescriptor &descriptor)
+{
+    using NNDataSetEnums::Attributes;
+
+    uint32_t attributes = descriptor._attributes;
+    if (!NNDataSetDescriptor::isSupported(attributes))
+    {
+        stringstream msg;
+        msg << "Unsupported attributes " << attributes << " for dataset " << descriptor._name;
+       std::runtime_error(msg.str());
+    }
+
+    NNDataSetBase *dataset;
+    if (attributes & Attributes::Sparse)
+    {
+        /* sparse data */
+        dataset = new NNDataSet<T>(descriptor._examples, descriptor._sparseDensity, descriptor._dim, false,
+                                   descriptor._name);
+    } else
+    {
+        /* dense data */
+        dataset = new NNDataSet<T>(descriptor._examples, descriptor._dim, descriptor._name);
+    }
+    return dataset;
+}
+
+NNDataSetBase* createNNDataSet(const NNDataSetDescriptor &descriptor)
+{
+    NNDataSetBase *dataset;
+    using NNDataSetEnums::DataType;
+
+    switch (descriptor._dataType) {
+        case DataType::UInt:
+            dataset = createNNDataSet<uint32_t>(descriptor);
+            break;
+        case DataType::Int:
+            dataset = createNNDataSet<int>(descriptor);
+            break;
+        case DataType::Float:
+            dataset = createNNDataSet<float>(descriptor);
+            break;
+        case DataType::Double:
+            dataset = createNNDataSet<double>(descriptor);
+            break;
+        case DataType::Char:
+            dataset = createNNDataSet<char>(descriptor);
+            break;
+        case DataType::UChar:
+        case DataType::RGB8:
+            dataset = createNNDataSet<uint8_t>(descriptor);
+            break;
+        default:
+            stringstream msg;
+            msg << "Unsupported data type: " << descriptor._dataType
+                << ". DataType must be one of: UInt, Int, Float, Double, Char, UChar, RGB8";
+            std::runtime_error(msg.str());
+    }
+    return dataset;
+}
+
 NNDataSetBase::NNDataSetBase() :
 _name(""),
 _attributes(NNDataSetEnums::None),
@@ -336,12 +423,7 @@ NNDataSetBase::~NNDataSetBase() {}
 
 NNDataSetDimensions NNDataSetBase::GetDimensions()
 {
-    NNDataSetDimensions dim;
-    dim._dimensions                             = _dimensions;
-    dim._width                                  = _width;
-    dim._height                                 = _height;
-    dim._length                                 = _length;
-    return dim;
+    return NNDataSetDimensions(_width, _height, _length);
 }
 
 template<typename T> vector<tuple<uint64_t, uint64_t> > NNDataSet<T>::getMemoryUsage()
