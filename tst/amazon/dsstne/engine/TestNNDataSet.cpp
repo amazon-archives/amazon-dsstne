@@ -37,7 +37,7 @@ CPPUNIT_TEST_SUITE(TestNNDataSet);
     CPPUNIT_TEST_SUITE_END();
 
  private:
-    NNDataSetDimensions datasetDim;
+    NNDataSetDimensions datasetDim = NNDataSetDimensions(128, 1, 1);
     uint32_t examples = 32;
     uint32_t uniqueExamples = 16;
     double sparseDensity = 0.1;
@@ -46,10 +46,6 @@ CPPUNIT_TEST_SUITE(TestNNDataSet);
 
     void setUp()
     {
-        datasetDim._dimensions = 1;
-        datasetDim._width = 128;
-        datasetDim._height = 1;
-        datasetDim._length = 1;
     }
 
     void testCreateDenseDataset()

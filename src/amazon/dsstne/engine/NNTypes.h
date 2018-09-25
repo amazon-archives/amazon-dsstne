@@ -150,7 +150,49 @@ struct NNDataSetDimensions
     uint32_t _width;
     uint32_t _height;
     uint32_t _length;
+
+    NNDataSetDimensions();
+
+    NNDataSetDimensions(uint32_t width, uint32_t height = 1, uint32_t length = 1);
 };
+
+struct NNDataSetDescriptor
+{
+    string _name;                       // dataset name
+    NNDataSetEnums::DataType _dataType; // dataset type
+    uint32_t _attributes;               // dataset attributes
+    NNDataSetDimensions _dim;           // dataset dimensions
+    uint32_t _examples;                 // number of examples in this dataset
+    float _sparseDensity;               // sparseness density of this dataset
+
+    /**
+     * Only support vanilla sparse and dense datasets for now
+     */
+    static bool isSupported(uint32_t attributes)
+    {
+        using NNDataSetEnums::Attributes;
+
+        static const vector<Attributes> SUPPORTED_ATTRIBUTES(Attributes::Sparse);
+        for (auto mask : SUPPORTED_ATTRIBUTES)
+        {
+            if (attributes & mask)
+            {
+                attributes -= mask;
+            }
+        }
+        return attributes == 0;
+    }
+};
+
+/**
+ * Creates a new NNDatSetBase object given the descriptor.
+ * Only attributes specified by the NNDataSetDescriptor::isSupported
+ * is valid. If any other attributes are specified, a std::runtime_error
+ * is thrown. It is the caller's responsibility to delete the returned object
+ * (not wrapping the return value with a unique_ptr to be consistent with
+ * the rest of the code base).
+ */
+NNDataSetBase* createNNDataSet(const NNDataSetDescriptor &descriptor);
 
 struct NNDataSetBase {
 
