@@ -61,6 +61,14 @@ public class Dim {
     }
 
     /**
+     * Creates a new Dim object with the (x,y,z) dimensions equal to the
+     * one provided and a new number of examples.
+     */
+    public Dim(final Dim dim, final int examples) {
+        this(dim.dimensions, dim.x, dim.y, dim.z, examples);
+    }
+
+    /**
      * Creates a 1-d dimension.
      */
     public static Dim _1d(final int x, final int examples) {

@@ -23,10 +23,12 @@ import java.util.List;
 import com.amazon.dsstne.data.OutputNNDataSet;
 
 import lombok.Getter;
+import lombok.ToString;
 
 /**
  * The neural network.
  */
+@ToString
 public class NNNetwork implements Closeable {
     @Getter
     private final NetworkConfig config;
@@ -53,7 +55,7 @@ public class NNNetwork implements Closeable {
     }
 
     public void load(NNDataSet[] datasets) {
-
+        Dsstne.loadDatasets(ptr, datasets);
     }
 
     public void predict(final NNDataSet input, final OutputNNDataSet output) {
@@ -70,12 +72,27 @@ public class NNNetwork implements Closeable {
         for (int i = 0; i < outputLayers.length; i++) {
             NNLayer outputLayer = outputLayers[i];
             outputs[i] = new OutputNNDataSet(
-                new Dim(outputLayer.getDimensions(), outputLayer.getDimX(), outputLayer.getDimY(),
-                    outputLayer.getDimZ(),
-                    config.getBatchSize()));
+                new Dim(outputLayer.getDim(), config.getBatchSize()));
+            outputs[i].setName(outputLayer.getDatasetName());
         }
         predict(inputs, outputs);
         return outputs;
+    }
+
+    OutputNNDataSet createOutputDataSet(final NNLayer outputLayer) {
+        int k = config.getK();
+        int batchSize = config.getBatchSize();
+        Dim outputLayerDim = outputLayer.getDim();
+
+        OutputNNDataSet outputDataset;
+        if (config.getK() == NetworkConfig.ALL) {
+            outputDataset = new OutputNNDataSet(new Dim(outputLayerDim, batchSize));
+        } else {
+            // TODO what does it mean to do topK for output layer dim > 1
+            outputDataset = new OutputNNDataSet(
+                new Dim(outputLayerDim.dimensions, k, outputLayerDim.y, outputLayerDim.z, batchSize));
+        }
+        return outputDataset;
     }
 
     public void predict(final NNDataSet[] inputs, final OutputNNDataSet[] outputs) {
@@ -93,19 +110,21 @@ public class NNNetwork implements Closeable {
         }
 
         for (int i = 0; i < inputs.length; i++) {
+            String datasetName = inputs[i].getName();
             Dim dataDim = inputs[i].getDim();
             NNLayer inputLayer = inputLayers[i];
 
             if (dataDim.dimensions != inputLayer.getDimensions()) {
                 throw new IllegalArgumentException(
-                    "Num dimension mismatch between layer " + inputLayer.getName() + " and data " + i);
+                    "Num dimension mismatch between layer " + inputLayer.getName() + " and data " + datasetName);
             }
 
             if (dataDim.x != inputLayer.getDimX()
                 || dataDim.y != inputLayer.getDimY()
                 || dataDim.z != inputLayer.getDimZ()) {
                 throw new IllegalArgumentException(
-                    "Dimension mismatch between input layer " + inputLayer.getName() + " and input data " + i);
+                    "Dimension mismatch between input layer " + inputLayer.getName() + " and input data "
+                        + datasetName);
             }
 
             if (dataDim.examples != config.getBatchSize()) {
@@ -121,14 +140,25 @@ public class NNNetwork implements Closeable {
 
         for (int i = 0; i < outputs.length; i++) {
             NNLayer outputLayer = outputLayers[i];
+            String datasetName = outputs[i].getName();
             Dim dataDim = outputs[i].getDim();
 
-            // FIXME what does it mean to do top-K on dimensions 2 and 3?
-            if (dataDim.x != config.getK()
-                || dataDim.y != outputLayer.getDimY()
-                || dataDim.z != outputLayer.getDimZ()) {
-                throw new IllegalArgumentException(
-                    "Dimension mismatch between output layer " + outputLayer.getName() + " and output data " + i);
+            if (config.getK() == NetworkConfig.ALL) {
+                if (dataDim.x != outputLayer.getDimX()
+                    || dataDim.y != outputLayer.getDimY()
+                    || dataDim.z != outputLayer.getDimZ()
+                ) {
+                    throw new IllegalArgumentException(
+                        "Dimension mismatch between output layer " + outputLayer.getName() + " and output data "
+                            + datasetName);
+                }
+            } else {
+                if (dataDim.x != config.getK()
+                    || dataDim.y != 1
+                    || dataDim.z != 1) {
+                    throw new IllegalArgumentException(
+                        "Data dimX != k or dimY != dimZ != 1 for dataset " + datasetName);
+                }
             }
 
             if (dataDim.examples != config.getBatchSize()) {
