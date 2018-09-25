@@ -63,7 +63,7 @@ DsstneContext::DsstneContext(const string &networkFilename, uint32_t batchSize, 
 
 DsstneContext::~DsstneContext()
 {
-    const string networkName = getGpu()._pNetwork->GetName();
+    const string networkName = getNetwork()->GetName();
     for(const auto &kv: dOutputScores)
     {
         delete(kv.second);
@@ -76,14 +76,7 @@ DsstneContext::~DsstneContext()
     dOutputScores.clear();
     dOutputIndexes.clear();
 
-    NNNetwork *network = getNetwork();
-    for(const auto &layerName :network->GetLayers()){
-        const NNLayer *layer = network->GetLayer(layerName);
-        delete layer->GetDataSet();
-    }
-
-    delete network;
-
+    delete getNetwork();
     getGpu().Shutdown();
     printf("DsstneContext::~DsstneContext: Destroyed context for network %s\n", networkName.c_str());
 }
