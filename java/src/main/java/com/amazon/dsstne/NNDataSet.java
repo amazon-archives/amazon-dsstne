@@ -41,8 +41,19 @@ public abstract class NNDataSet {
     protected static final long[] EMPTY_LONG_ARRAY = new long[0];
     protected static final float[] EMPTY_FLOAT_ARRAY = new float[0];
 
+    /**
+     * Name of this dataset.
+     */
     @Setter
     private String name = "";
+
+    /**
+     * Name of the layer for which this dataset feeds data into.
+     * This field is optional if the dataset object is used outside
+     * the context of a {@link NNNetwork}.
+     */
+    @Setter
+    private String layerName = "";
 
     private final Dim dim;
 
