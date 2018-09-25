@@ -17,14 +17,13 @@
 #include <dlfcn.h>
 #include <sstream>
 
-#include "amazon/dsstne/engine/GpuTypes.h"
-#include "amazon/dsstne/engine/NNTypes.h"
-#include "amazon/dsstne/engine/NNLayer.h"
+#include "amazon/dsstne/engine/DsstneContext.h"
 
 #include "jni_util.h"
 #include "com_amazon_dsstne_Dsstne.h"
 
 using namespace std;
+using namespace dsstne;
 using namespace dsstne::jni;
 
 using NNDataSetEnums::Attributes;
@@ -32,13 +31,8 @@ using NNDataSetEnums::DataType;
 
 namespace
 {
-const unsigned long SEED = 12134ull;
-
 void *LIB_MPI = NULL;
 const char* LIB_MPI_SO = "libmpi.so";
-
-const int ARGC = 1;
-char *ARGV = "jni-faux-process";
 
 References REFS;
 
@@ -60,6 +54,7 @@ jmethodID NNDataSet_getDimX;
 jmethodID NNDataSet_getDimY;
 jmethodID NNDataSet_getDimZ;
 jmethodID NNDataSet_getExamples;
+jmethodID NNDataSet_getStride;
 
 jmethodID NNDataSet_getSparseStart;
 jmethodID NNDataSet_getSparseEnd;
@@ -70,16 +65,6 @@ jmethodID OutputNNDataSet_getName;
 jmethodID OutputNNDataSet_getIndexes;
 jmethodID OutputNNDataSet_getScores;
 
-GpuContext* checkPtr(JNIEnv *env, jlong ptr)
-{
-    GpuContext *gpuContext = (GpuContext*) ptr;
-    if (gpuContext == NULL)
-    {
-        throwJavaException(env, RuntimeException,
-                           "GpuContext pointer is null, call init() prior to any other functions");
-    }
-    return gpuContext;
-}
 }  //namespace
 
 jint JNI_OnLoad(JavaVM *vm, void *reserved)
@@ -116,6 +101,7 @@ jint JNI_OnLoad(JavaVM *vm, void *reserved)
         NNDataSet_getDimY = findMethodId(env, REFS, _NNDataSet, "getDimY", "()I");
         NNDataSet_getDimZ = findMethodId(env, REFS, _NNDataSet, "getDimZ", "()I");
         NNDataSet_getExamples = findMethodId(env, REFS, _NNDataSet, "getExamples", "()I");
+        NNDataSet_getStride = findMethodId(env, REFS, _NNDataSet, "getStride", "()I");
         NNDataSet_getSparseStart = findMethodId(env, REFS, _NNDataSet, "getSparseStart", "()[J");
         NNDataSet_getSparseEnd = findMethodId(env, REFS, _NNDataSet, "getSparseEnd", "()[J");
         NNDataSet_getSparseIndex = findMethodId(env, REFS, _NNDataSet, "getSparseIndex", "()[J");
@@ -147,99 +133,19 @@ JNIEXPORT jlong JNICALL Java_com_amazon_dsstne_Dsstne_load(JNIEnv *env, jclass c
                                                            jint batchSize)
 {
     const char *networkFileName = env->GetStringUTFChars(jNetworkFileName, 0);
-
-    getGpu().Startup(ARGC, &ARGV);
-    getGpu().SetRandomSeed(SEED);
-    NNNetwork *network = LoadNeuralNetworkNetCDF(networkFileName, batchSize);
-    getGpu().SetNeuralNetwork(network);
-
+    DsstneContext *dc = new DsstneContext(networkFileName, batchSize);
     env->ReleaseStringUTFChars(jNetworkFileName, networkFileName);
-    return (jlong) &getGpu();
+    return (jlong) dc;
 }
 
-bool isSupported(uint32_t attributes)
-{
-    // only support vanilla sparse and dense datasets for now
-    static const vector<Attributes> SUPPORTED_ATTRIBUTES(Attributes::Sparse);
-    for (auto mask : SUPPORTED_ATTRIBUTES)
-    {
-        if (attributes & mask)
-        {
-            attributes -= mask;
-        }
-    }
-    return attributes == 0;
-}
-
-tuple<NNDataSetDimensions, uint32_t> getDataDimensions(JNIEnv *env, jobject jDataset)
+NNDataSetDimensions getDataDimensions(JNIEnv *env, jobject jDataset)
 {
     NNDataSetDimensions dim;
     dim._width = env->CallIntMethod(jDataset, NNDataSet_getDimX);
     dim._length = env->CallIntMethod(jDataset, NNDataSet_getDimY);
     dim._height = env->CallIntMethod(jDataset, NNDataSet_getDimZ);
     dim._dimensions = env->CallIntMethod(jDataset, NNDataSet_getDimensions);
-    uint32_t examples = env->CallIntMethod(jDataset, NNDataSet_getExamples);
-    return make_tuple(dim, examples);
-}
-
-template<typename T> NNDataSetBase* newNNDataSet(JNIEnv *env, jobject jDataset)
-{
-    jstring jName = (jstring) env->CallObjectMethod(jDataset, NNDataSet_getName);
-    const char *name = env->GetStringUTFChars(jName, NULL);
-    jint attributes = env->CallIntMethod(jDataset, NNDataSet_getAttribute);
-
-    if (!isSupported(attributes))
-    {
-        throwJavaException(env, IllegalArgumentException, "Unsupported attributes %u for dataset %s", attributes, name);
-    }
-
-    tuple<NNDataSetDimensions, uint32_t> dim = getDataDimensions(env, jDataset);
-    NNDataSetBase *dataset;
-    if (attributes & Attributes::Sparse)
-    {
-        /* sparse data */
-        dataset = new NNDataSet<T>(get<1>(dim), get<0>(dim), name);
-    } else
-    {
-        /* dense data */
-        dataset = new NNDataSet<T>(get<1>(dim), get<0>(dim), name);
-    }
-
-    env->ReleaseStringUTFChars(jName, name);
-    return dataset;
-}
-
-NNDataSetBase* newNNDataSet(JNIEnv *env, jobject jDataset)
-{
-    DataType dataType = static_cast<DataType>(env->CallIntMethod(jDataset, NNDataSet_getDataTypeOrdinal));
-    NNDataSetBase *dataset;
-    switch (dataType) {
-        case DataType::UInt:
-            dataset = newNNDataSet<uint32_t>(env, jDataset);
-            break;
-        case DataType::Int:
-            dataset = newNNDataSet<int>(env, jDataset);
-            break;
-        case DataType::Float:
-            dataset = newNNDataSet<float>(env, jDataset);
-            break;
-        case DataType::Double:
-            dataset = newNNDataSet<double>(env, jDataset);
-            break;
-        case DataType::Char:
-            dataset = newNNDataSet<char>(env, jDataset);
-            break;
-        case DataType::UChar:
-        case DataType::RGB8:
-            dataset = newNNDataSet<uint8_t>(env, jDataset);
-            break;
-        default:
-            throwJavaException(
-                env, IllegalArgumentException,
-                "Unsupported data type: %u. DataType must be one of: UInt, Int, Float, Double, Char, UChar, RGB8",
-                dataType);
-    }
-    return dataset;
+    return dim;
 }
 
 JNIEXPORT void JNICALL Java_com_amazon_dsstne_Dsstne_loadDatasets(JNIEnv *env, jclass clazz, jlong ptr,
@@ -248,35 +154,49 @@ JNIEXPORT void JNICALL Java_com_amazon_dsstne_Dsstne_loadDatasets(JNIEnv *env, j
     using NNDataSetEnums::DataType;
 
     jsize len = env->GetArrayLength(jDatasets);
-    vector<NNDataSetBase*> datasets;
+    vector<NNDataSetDescriptor> datasetDescriptors;
 
     for (jsize i = 0; i < len; ++i)
     {
         jobject jDataset = env->GetObjectArrayElement(jDatasets, i);
-        NNDataSetBase *dataset = newNNDataSet(env, jDataset);
-        if (dataset == NULL)
-        {
+        DataType dataType = static_cast<DataType>(env->CallIntMethod(jDataset, NNDataSet_getDataTypeOrdinal));
+        jstring jName = (jstring) env->CallObjectMethod(jDataset, NNDataSet_getName);
+        const char *name = env->GetStringUTFChars(jName, NULL);
+        jint attributes = env->CallIntMethod(jDataset, NNDataSet_getAttribute);
+        int examples = env->CallIntMethod(jDataset, NNDataSet_getExamples);
+        int stride = env->CallIntMethod(jDataset, NNDataSet_getStride);
+        NNDataSetDimensions dim = getDataDimensions(env, jDataset);
 
-        }
-        datasets.push_back(dataset);
+        // for dense data x*y*z == stride, for sparse data x*y*z*sparseDensity == stride
+        float sparseDensity = ((double)(dim._width * dim._length * dim._height)) / (double) stride;
+
+        NNDataSetDescriptor descriptor;
+        descriptor._name = name;
+        descriptor._attributes = attributes;
+        descriptor._dataType = dataType;
+        descriptor._dim = dim;
+        descriptor._examples = examples;
+        descriptor._sparseDensity = sparseDensity;
+
+        datasetDescriptors.push_back(descriptor);
+        env->ReleaseStringUTFChars(jName, name);
     }
 
-    GpuContext *gpuContext = checkPtr(env, ptr);
-    NNNetwork *network = gpuContext->_pNetwork;
-    network->LoadDataSets(datasets);
+    DsstneContext *dc = DsstneContext::fromPtr(ptr);
+    dc->initInputLayerDataSets(datasetDescriptors);
 }
 
 JNIEXPORT void JNICALL Java_com_amazon_dsstne_Dsstne_shutdown(JNIEnv *env, jclass clazz, jlong ptr)
 {
-    GpuContext *gpuContext = checkPtr(env, ptr);
-    gpuContext->Shutdown();
+    DsstneContext *dc = DsstneContext::fromPtr(ptr);
+    delete dc;
 }
 
 JNIEXPORT jobject JNICALL Java_com_amazon_dsstne_Dsstne_get_1layers(JNIEnv *env, jclass clazz, jlong ptr,
                                                                     jint kindOrdinal)
 {
-    GpuContext *gpuContext = checkPtr(env, ptr);
-    NNNetwork *network = gpuContext->_pNetwork;
+    DsstneContext *dc = DsstneContext::fromPtr(ptr);
+    NNNetwork *network = dc->getNetwork();
     NNLayer::Kind kind = static_cast<NNLayer::Kind>(kindOrdinal);
 
     std::vector<const NNLayer*> layers;
@@ -327,8 +247,8 @@ bool checkDataset(NNDataSetBase *dstDataset, uint32_t attribute, DataType dataTy
 JNIEXPORT void JNICALL Java_com_amazon_dsstne_Dsstne_predict(JNIEnv *env, jclass clazz, jlong ptr, jint k,
                                                              jobjectArray jInputDatasets, jobjectArray jOutputDatasets)
 {
-    GpuContext *gpuContext = checkPtr(env, ptr);
-    NNNetwork *network = gpuContext->_pNetwork;
+    DsstneContext *dc = DsstneContext::fromPtr(ptr);
+    NNNetwork *network = dc->getNetwork();
 
     vector<const NNLayer*> inputLayers;
     network->GetLayers(NNLayer::Kind::Input, inputLayers);
@@ -344,7 +264,8 @@ JNIEXPORT void JNICALL Java_com_amazon_dsstne_Dsstne_predict(JNIEnv *env, jclass
         jobject jInputDataset = env->GetObjectArrayElement(jInputDatasets, i);
         jstring jDatasetName = (jstring) env->CallObjectMethod(jInputDataset, NNDataSet_getName);
         const char *datasetName = env->GetStringUTFChars(jDatasetName, NULL);
-        tuple<NNDataSetDimensions, uint32_t> dim = getDataDimensions(env, jInputDataset);
+        uint32_t examples = env->CallIntMethod(jInputDataset, NNDataSet_getExamples);
+        NNDataSetDimensions dim = getDataDimensions(env, jInputDataset);
         uint32_t attribute = env->CallIntMethod(jInputDataset, NNDataSet_getAttribute);
         DataType dataType = static_cast<DataType>(env->CallIntMethod(jInputDataset, NNDataSet_getDataTypeOrdinal));
 
@@ -356,7 +277,7 @@ JNIEXPORT void JNICALL Java_com_amazon_dsstne_Dsstne_predict(JNIEnv *env, jclass
         }
 
         NNDataSetBase *dstDataset = layer->GetDataSet();
-        if(!checkDataset(dstDataset, attribute, dataType, get<0>(dim), get<1>(dim))) {
+        if(!checkDataset(dstDataset, attribute, dataType, dim, examples)) {
             throwJavaException(env, IllegalArgumentException, "Input dataset %s does not match the layer %s dataset",
                                datasetName, layer->GetName());
         }
@@ -411,7 +332,13 @@ JNIEXPORT void JNICALL Java_com_amazon_dsstne_Dsstne_predict(JNIEnv *env, jclass
         NNFloat *outputUnitBuffer = network->GetUnitBuffer(datasetName);
         uint32_t stride = network->GetBufferSize(datasetName) / batchSize;
 
-        kCalculateTopK(outputUnitBuffer, scores, indexes, batchSize, stride, k);
+        if(k > 0) {
+            kCalculateTopK(outputUnitBuffer, scores, indexes, batchSize, stride, k);
+        } else {
+            // return the entire output layer
+
+
+        }
 
         env->ReleasePrimitiveArrayCritical(jScores, scores, 0);
         env->ReleasePrimitiveArrayCritical(jIndexes, indexes, 0);
