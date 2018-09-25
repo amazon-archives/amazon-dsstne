@@ -468,6 +468,8 @@ template<typename T> vector<tuple<uint64_t, uint64_t> > NNDataSet<T>::getMemoryU
 template<typename T> NNDataSet<T>::NNDataSet(uint32_t examples, const NNDataSetDimensions &dim, const string &name) :
     NNDataSetBase(name, NNDataSetEnums::getDataType<T>(), examples, examples, dim)
 {
+    // sparse density for dense data is 100%
+    _sparseDensity = 1.0f;
      _stride = _width * _height * _length;
     _vData.resize(_stride * _examples);
 }
@@ -477,6 +479,8 @@ template<typename T> NNDataSet<T>::NNDataSet(uint32_t examples, uint32_t uniqueE
                                              const string &name) :
     NNDataSetBase(name, NNDataSetEnums::getDataType<T>(), examples, uniqueExamples, dim)
 {
+    // sparse density for dense data is 100%
+    _sparseDensity = 1.0f;
     _stride = _width * _height * _length;
     _attributes = NNDataSetEnums::Attributes::Indexed;
     _bIndexed = true;
