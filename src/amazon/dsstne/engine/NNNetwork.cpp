@@ -265,7 +265,7 @@ bool NNNetwork::SetDecay(NNFloat decay)
         _decay = decay;
         // Report new settings
         if (getGpu()._id == 0)
-            printf("NNNetwork::SetDecay: decay set to %f\n.", decay);    
+            printf("NNNetwork::SetDecay: decay set to %f\n.", decay);
         return true;
     }
     else
@@ -530,9 +530,9 @@ _verbose(false)
                 NNLayer* pLayer = _mLayer[s];
                 l->_vIncomingLayer.push_back(pLayer);
                 pLayer->_vOutgoingLayer.push_back(l);
-                
+
                 // Validate dot product, cosine and maxout layers sources are all the same size
-                if ((l->_poolingFunction == PoolingFunction::DotProduct) || 
+                if ((l->_poolingFunction == PoolingFunction::DotProduct) ||
                     (l->_poolingFunction == PoolingFunction::Cosine) ||
                     (l->_poolingFunction == PoolingFunction::Maxout))
                 {
@@ -1654,10 +1654,10 @@ NNFloat NNNetwork::Train(uint32_t epochs, NNFloat alpha, NNFloat lambda, NNFloat
             if (brake_steps < 24)
             {
                 BackPropagate();
-                
+
                 // Increment batch count (do this before weight update in case using Adam optimizer)
-                _batches++;     
-                           
+                _batches++;
+
                 UpdateWeights(step_alpha, lambda, lambda1, mu, mu1);
             }
 
@@ -1784,7 +1784,7 @@ void NNNetwork::UpdateWeights(NNFloat alpha, NNFloat lambda, NNFloat lambda1, NN
     // Calculate batch size
     uint32_t batch                          = _batch;
     if (_position + batch > _examples)
-        batch                               = _examples - _position;    
+        batch                               = _examples - _position;
 
     for (int64_t i = _vWeight.size() - 1; i >= 0; i--)
     {
@@ -2004,6 +2004,10 @@ vector<string> NNNetwork::GetLayers() const
     return vResult;
 }
 
+const string& NNNetwork::GetName() const
+{
+    return _name;
+}
 
 NNFloat* NNNetwork::GetUnitBuffer(const string& layer)
 {
@@ -2227,15 +2231,15 @@ void CalculateDerivedLayerDimensions(NNNetworkDescriptor& d)
                 {
                     NNLayerDescriptor* pS = mLayer[s];
                     //printf("L: %s S: %s %u %u %u %u\n", pL->_name.c_str(), pS->_name.c_str(), pS->_Nx, pS->_Ny, pS->_Nz, pS->_Nw);
-                    
+
                     if (bDotProduct)
-                    {   
+                    {
                         if ((oldNx != pS->_Nx) || (oldNy != pS->_Ny) || (oldNz != pS->_Nz))
                         {
                             if (getGpu()._id == 0)
                                 printf("NNNetwork::CalculateDerivedLayerDimensions: Inconsistent incoming data size for dot product layer %s\n", pL->_name.c_str());
                             getGpu().Shutdown();
-                            exit(-1);                                               
+                            exit(-1);
                         }
                     }
                     else
@@ -2986,7 +2990,7 @@ NNNetwork* LoadNeuralNetworkJSON(const string& fname, const uint32_t batch, cons
                 }
 
                 // Read ScaledMarginalCrossEntropy parameters if present
-                else if ((name.compare("scaledmarginalcrossentropy") == 0) || 
+                else if ((name.compare("scaledmarginalcrossentropy") == 0) ||
                          (name.compare("datascaledmarginalcrossentropy") == 0))
                 {
                     for (Json::ValueIterator pitr = value.begin(); pitr != value.end() ; pitr++)
@@ -3026,7 +3030,7 @@ NNNetwork* LoadNeuralNetworkJSON(const string& fname, const uint32_t batch, cons
                 }
                 else if (name.compare("elualpha") == 0)
                 {
-                    nd._ELUAlpha                    = value.asFloat();                    
+                    nd._ELUAlpha                    = value.asFloat();
                 }
                 else if (name.compare("selulambda") == 0)
                 {
@@ -3036,7 +3040,7 @@ NNNetwork* LoadNeuralNetworkJSON(const string& fname, const uint32_t batch, cons
                 {
                     nd._decay                       = value.asFloat();
                 }
-                
+
                 // Read error function
                 else if (name.compare("errorfunction") == 0)
                 {
@@ -3045,7 +3049,7 @@ NNNetwork* LoadNeuralNetworkJSON(const string& fname, const uint32_t batch, cons
                     else if (vstring.compare("l2") == 0)
                         nd._errorFunction           = ErrorFunction::L2;
                     else if (vstring.compare("l2hinge") == 0)
-                        nd._errorFunction           = ErrorFunction::L2Hinge;                        
+                        nd._errorFunction           = ErrorFunction::L2Hinge;
                     else if (vstring.compare("hinge") == 0)
                         nd._errorFunction           = ErrorFunction::Hinge;
                     else if ((vstring.compare("crossentropy") == 0) || (vstring.compare("cross entropy") == 0))
@@ -3398,8 +3402,8 @@ NNNetwork* LoadNeuralNetworkJSON(const string& fname, const uint32_t batch, cons
                                         }
                                         continue;
                                     }
-                                }                                
-                                
+                                }
+
                                 // Read skip(s) if present
                                 if (lname.compare("skip") == 0)
                                 {
@@ -3430,7 +3434,7 @@ NNNetwork* LoadNeuralNetworkJSON(const string& fname, const uint32_t batch, cons
                                     else if ((s.compare("elu") == 0) || (s.compare("exponentiallinear") == 0))
                                         ldl._activation = Activation::ExponentialLinear;
                                     else if ((s.compare("selu") == 0) || (s.compare("scaledexponentiallinear") == 0))
-                                        ldl._activation = Activation::ScaledExponentialLinear;                                        
+                                        ldl._activation = Activation::ScaledExponentialLinear;
                                     else if (s.compare("softplus") == 0)
                                         ldl._activation = Activation::SoftPlus;
                                     else if (s.compare("softsign") == 0)
@@ -3449,7 +3453,7 @@ NNNetwork* LoadNeuralNetworkJSON(const string& fname, const uint32_t batch, cons
                                     }
                                     continue;
                                 }
-                                
+
                                 // Read layer-specific ELU parameters
                                 else if ((lname.compare("reluslope") == 0) || (lname.compare("slope") == 0))
                                 {
@@ -3459,14 +3463,14 @@ NNNetwork* LoadNeuralNetworkJSON(const string& fname, const uint32_t batch, cons
                                 else if (lname.compare("elualpha") == 0)
                                 {
                                     ldl._ELUAlpha               = lvalue.asFloat();
-                                    continue;                    
+                                    continue;
                                 }
                                 else if (lname.compare("selulambda") == 0)
                                 {
                                     ldl._SELULambda             = lvalue.asFloat();
                                     continue;
                                 }
-                                
+
                                 // Weight normalization
                                 else if (lname.compare("weightnorm") == 0)
                                 {
@@ -3510,7 +3514,7 @@ NNNetwork* LoadNeuralNetworkJSON(const string& fname, const uint32_t batch, cons
                                                 else if (scheme.compare("constant") == 0)
                                                     ldl._weightInit     = Constant;
                                                 else if (scheme.compare("selu") == 0)
-                                                    ldl._weightInit     = SELU;                                                    
+                                                    ldl._weightInit     = SELU;
                                                 else
                                                 {
                                                     printf("LoadNeuralNetworkJSON: Invalid weight initialization scheme: %s\n", scheme.c_str());
@@ -3599,7 +3603,7 @@ NNNetwork* LoadNeuralNetworkJSON(const string& fname, const uint32_t batch, cons
                             bValid                                      = false;
                             goto exit;
                         }
-                        
+
                         // Automagically determine dimensions of input or output units
                         if (bAutoSize)
                         {
@@ -3628,9 +3632,9 @@ NNNetwork* LoadNeuralNetworkJSON(const string& fname, const uint32_t batch, cons
                         {
                             ldl._vSource.push_back(nd._vLayerDescriptor.back()._name);
                         }
-                                               
+
                         // Automagically compute dimensions of dot-product pooling layer (harmless BUG maybe?  Resolve)
-                        if ((ldl._type == NNLayer::Type::Pooling) && 
+                        if ((ldl._type == NNLayer::Type::Pooling) &&
                             (ldl._poolingFunction == PoolingFunction::DotProduct) || (ldl._poolingFunction == PoolingFunction::Cosine))
                         {
                             // Make sure dot product has 2 or more sources
@@ -3638,13 +3642,13 @@ NNNetwork* LoadNeuralNetworkJSON(const string& fname, const uint32_t batch, cons
                             {
                                 printf("LoadNeuralNetworkJSON: Dot product layer %s must have 2 or more sources\n", ldl._name.c_str());
                                 bValid                                  = false;
-                                goto exit;                            
+                                goto exit;
                             }
                             ldl._Nx                                     = ldl._vSource.size() - 1;
                             ldl._Ny                                     = 1;
                             ldl._Nz                                     = 1;
                             ldl._dimensions                             = 1;
-                        }                       
+                        }
 
                         // Add weight descriptors to non-pooling layers
                         if (ldl._type != NNLayer::Type::Pooling)
@@ -3721,7 +3725,7 @@ NNNetwork* LoadNeuralNetworkJSON(const string& fname, const uint32_t batch, cons
             }
         }
     }
-    
+
     // Grab default network values for unspecified layer attributes
     for (size_t i = 0; i <  nd._vLayerDescriptor.size(); i++)
     {
@@ -3813,7 +3817,7 @@ NNNetwork* LoadNeuralNetworkNetCDF(const string& fname, const uint32_t batch)
                 throw NcException("NcException", "NNetwork::NNetwork: No error function supplied in NetCDF input file " + fname, __FILE__, __LINE__);
             }
             errorFunctionAtt.getValues(&(nd._errorFunction));
-            
+
             NcGroupAtt decayAtt              = nc.getAtt("decay");
             if (decayAtt.isNull())
             {
