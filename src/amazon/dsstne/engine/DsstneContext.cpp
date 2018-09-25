@@ -63,7 +63,7 @@ DsstneContext::DsstneContext(const string &networkFilename, uint32_t batchSize, 
 
 DsstneContext::~DsstneContext()
 {
-    const string &networkName = getGpu()._pNetwork->GetName();
+    const string networkName = getGpu()._pNetwork->GetName();
     for(const auto &kv: dOutputScores)
     {
         delete(kv.second);
@@ -75,8 +75,16 @@ DsstneContext::~DsstneContext()
 
     dOutputScores.clear();
     dOutputIndexes.clear();
-    getGpu().Shutdown();
 
+    NNNetwork *network = getNetwork();
+    for(const auto &layerName :network->GetLayers()){
+        const NNLayer *layer = network->GetLayer(layerName);
+        delete layer->GetDataSet();
+    }
+
+    delete network;
+
+    getGpu().Shutdown();
     printf("DsstneContext::~DsstneContext: Destroyed context for network %s\n", networkName.c_str());
 }
 
@@ -92,6 +100,19 @@ void DsstneContext::initInputLayerDataSets(const vector<NNDataSetDescriptor> dat
         NNDataSetBase *dataset = createNNDataSet(descriptor);
         datasets.push_back(dataset);
     }
-    getNetwork()->LoadDataSets(datasets);
+
+    /*
+     * LoadDataSet marks the network as "dirty" meaning that the next time the Predict()
+     * method is called on the network, it will refresh the state of the network
+     * which is expensive as it tries to re-allocate the GpuBuffers by calling the Shard()
+     * method on the dataset.
+     * Run through a prediction once on the dataset to prime (allocate) the GpuBuffers
+     * and RefreshState() of the network once. Going forward we will avoid marking the network
+     * as dirty.
+     */
+    NNNetwork *network = getNetwork();
+    network->LoadDataSets(datasets);
+    network->PredictBatch();
+    network->SetPosition(0);
 }
 
