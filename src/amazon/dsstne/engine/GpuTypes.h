@@ -404,7 +404,7 @@ struct GpuBuffer
     virtual ~GpuBuffer();
     void Allocate();
     void Deallocate();
-    void Upload(T* pBuff = NULL);
+    void Upload(const T* pBuff = NULL) const;
     void Download(T * pBuff = NULL);
     void Copy(T* pBuff);
 };
@@ -526,7 +526,7 @@ void GpuBuffer<T>::Copy(T* pBuff)
 }
 
 template <typename T>
-void GpuBuffer<T>::Upload(T* pBuff)
+void GpuBuffer<T>::Upload(const T* pBuff) const
 {
     if (pBuff)
     {

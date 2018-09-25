@@ -49,6 +49,7 @@ private:
     uint32_t                    _epochs;                    // Total number of training epochs
     uint32_t                    _indices;                   // Total number of indices in all input and output data
     uint32_t                    _batches;                   // Total number of batches trained
+    float                       _decay;                     // Learning rate decay per minibatch (default 0)
 
     // Local response normalization settings
     NNFloat                     _LRN_k;                     // LRN offset
@@ -148,6 +149,7 @@ public:
     bool UnlockWeights(const string& inputLayer, const string& outputLayer);    
     void SetBatch(uint32_t batch);
     void SetPosition(uint32_t position);
+    bool SetDecay(NNFloat decay);
     void SetTrainingMode(TrainingMode mode);
     void SetShuffleIndices(bool bShuffleIndices);
     void SetCPUValidate(bool bValidate);
@@ -158,9 +160,9 @@ public:
     unsigned int GetBatch() const;
     uint32_t GetExamples() const;
     uint32_t GetPosition() const;
-    const NNWeight* GetWeight(const string& inputLayer, const string& outputLayer) const;
+    NNWeight* GetWeight(const string& inputLayer, const string& outputLayer) const;
     uint64_t GetBufferSize(const string& layer) const;
-    const NNLayer* GetLayer(const string &layer) const;
+    NNLayer* GetLayer(const string &layer) const;
 
     /**
      * Adds the layers of the specified layerKind to the end of the provided layers vector.
@@ -180,6 +182,7 @@ public:
     vector<string> GetLayers() const;
     string GetName() const;
     tuple<NNFloat, uint32_t, NNFloat, NNFloat> GetLRN() const;                          // Returns k, n, alpha, beta
+    tuple<NNFloat> GetDecay() const;                                                    // Return learning rate decay
     tuple<uint32_t> GetMaxout() const;                                                  // Returns k
     tuple<NNFloat, NNFloat> GetSparsenessPenalty() const;                               // Returns p, beta
     tuple<NNFloat> GetDenoising() const;                                                // Returns p
@@ -190,9 +193,9 @@ public:
     bool GetDebugLevel() const {return _verbose;}
 
     // Non-const getters
-    NNFloat* GetUnitBuffer(const string& layer) const;
-    NNFloat* GetDeltaBuffer(const string& layer) const;
-    NNFloat* GetWeightBuffer(const string& inputLayer, const string& outputLayer) const;    
+    NNFloat* GetUnitBuffer(const string& layer);
+    NNFloat* GetDeltaBuffer(const string& layer);
+    NNFloat* GetWeightBuffer(const string& inputLayer, const string& outputLayer);    
     NNFloat* GetScratchBuffer(size_t size = 0);                                         // Gets current scratch buffer, resizing if too small
     NNFloat* GetP2PSendBuffer();                                                        // Returns current local send buffer
     NNFloat* GetP2PReceiveBuffer();                                                     // Returns current local receive buffer
@@ -226,7 +229,7 @@ private:
     void ShuffleIndices();
     tuple<NNFloat, NNFloat> CalculateError(NNFloat lambda, NNFloat lambda1);
     void ClearUpdates();
-    void BackPropagate(NNFloat alpha);
+    void BackPropagate();
     void UpdateWeights(NNFloat alpha, NNFloat lambda, NNFloat lambda1, NNFloat mu, NNFloat mu1);
     NNNetwork(NNNetworkDescriptor& nd, uint32_t batch = DefaultBatch);
     void RefreshState();
@@ -245,6 +248,7 @@ struct NNNetworkDescriptor
     vector<NNLayerDescriptor>   _vLayerDescriptor;          // Vector containing neural network layers
     vector<NNWeightDescriptor>  _vWeightDescriptor;         // Vector containing preloaded weight data
     bool                        _bShuffleIndices;           // Flag to signal whether to shuffle training data or not
+    NNFloat                     _decay;                     // Learning rate decay (default 0)
     uint32_t                    _maxout_k;                  // Size of Maxout (default 2)
     NNFloat                     _LRN_k;                     // Local Response Normalization offset (default 2)
     uint32_t                    _LRN_n;                     // Local Response Normalization spread (default 5)

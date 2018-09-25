@@ -33,429 +33,477 @@ void GetKDeltaGpuData()
 template<typename T>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateSigmoidOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, T* pData)
+kCalculateSigmoidOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, T* pData, NNFloat* pDataWeight)
 {
     uint64_t pos                = (blockIdx.y * blockDim.x) + threadIdx.x;
     if (pos < stride)
     {
         uint64_t uOffset        = blockIdx.x * stride;
-        uint64_t dOffset        = (cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x) * stride;
+        uint64_t dpos           = cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x;
+        uint64_t dOffset        = dpos * stride;
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
         NNFloat a               = pUnit[uOffset + pos];
         NNFloat t               = pData[dOffset + pos];
-        pDelta[uOffset + pos]   = (a - t) * a * ((NNFloat)1.0 - a);      
+        pDelta[uOffset + pos]   = w * (a - t) * a * ((NNFloat)1.0 - a);      
     }
 }
 
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateSigmoidOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, unsigned char* pData)
+kCalculateSigmoidOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, unsigned char* pData, NNFloat* pDataWeight)
 {
     uint64_t pos                = (blockIdx.y * blockDim.x) + threadIdx.x;
     if (pos < stride)
     {
         uint64_t uOffset        = blockIdx.x * stride;
-        uint64_t dOffset        = (cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x) * stride;
+        uint64_t dpos           = cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x;
+        uint64_t dOffset        = dpos * stride;
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
         NNFloat a               = pUnit[uOffset + pos];
         NNFloat t               = (NNFloat)pData[dOffset + pos] * (NNFloat)(1.0 / 256.0);
-        pDelta[uOffset + pos]   = (a - t) * a * ((NNFloat)1.0 - a);      
+        pDelta[uOffset + pos]   = w * (a - t) * a * ((NNFloat)1.0 - a);      
     }
 }
 
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateSigmoidOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, char* pData)
+kCalculateSigmoidOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, char* pData, NNFloat* pDataWeight)
 {
     uint64_t pos                = (blockIdx.y * blockDim.x) + threadIdx.x;
     if (pos < stride)
     {
         uint64_t uOffset        = blockIdx.x * stride;
-        uint64_t dOffset        = (cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x) * stride;
+        uint64_t dpos           = cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x;
+        uint64_t dOffset        = dpos * stride;
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
         NNFloat a               = pUnit[uOffset + pos];
         NNFloat t               = (NNFloat)pData[dOffset + pos] * (NNFloat)(1.0 / 128.0);
-        pDelta[uOffset + pos]   = (a - t) * a * ((NNFloat)1.0 - a);      
+        pDelta[uOffset + pos]   = w * (a - t) * a * ((NNFloat)1.0 - a);      
     }
 }
 
 template<typename T>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateTanhOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, T* pData)
+kCalculateTanhOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, T* pData, NNFloat* pDataWeight)
 {
     uint64_t pos                = (blockIdx.y * blockDim.x) + threadIdx.x;
     if (pos < stride)
     {
         uint64_t uOffset        = blockIdx.x * stride;
-        uint64_t dOffset        = (cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x) * stride;
+        uint64_t dpos           = cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x;
+        uint64_t dOffset        = dpos * stride;
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
         NNFloat a               = pUnit[uOffset + pos];
         NNFloat t               = pData[dOffset + pos];
-        pDelta[uOffset + pos]   = (a - t) * ((NNFloat)1.0 - a * a);      
+        pDelta[uOffset + pos]   = w * (a - t) * ((NNFloat)1.0 - a * a);      
     }
 }
 
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateTanhOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, unsigned char* pData)
+kCalculateTanhOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, unsigned char* pData, NNFloat* pDataWeight)
 {
     uint64_t pos                = (blockIdx.y * blockDim.x) + threadIdx.x;
     if (pos < stride)
     {
         uint64_t uOffset        = blockIdx.x * stride;
-        uint64_t dOffset        = (cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x) * stride;
+        uint64_t dpos           = cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x;
+        uint64_t dOffset        = dpos * stride;
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
         NNFloat a               = pUnit[uOffset + pos];
         NNFloat t               = (NNFloat)pData[dOffset + pos] * (NNFloat)(1.0 / 256.0);
-        pDelta[uOffset + pos]   = (a - t) * ((NNFloat)1.0 - a * a);   
+        pDelta[uOffset + pos]   = w * (a - t) * ((NNFloat)1.0 - a * a);   
     }
 }
 
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateTanhOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, char* pData)
+kCalculateTanhOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, char* pData, NNFloat* pDataWeight)
 {
     uint64_t pos                = (blockIdx.y * blockDim.x) + threadIdx.x;
     if (pos < stride)
     {
         uint64_t uOffset        = blockIdx.x * stride;
-        uint64_t dOffset        = (cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x) * stride;
+        uint64_t dpos           = cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x;
+        uint64_t dOffset        = dpos * stride;
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
         NNFloat a               = pUnit[uOffset + pos];
         NNFloat t               = (NNFloat)pData[dOffset + pos] * (NNFloat)(1.0 / 128.0);
-        pDelta[uOffset + pos]   = (a - t) * ((NNFloat)1.0 - a * a);      
+        pDelta[uOffset + pos]   = w * (a - t) * ((NNFloat)1.0 - a * a);      
     }
 }
 
 template<typename T>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateLinearOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, T* pData)
+kCalculateLinearOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, T* pData, NNFloat* pDataWeight)
 {
     uint64_t pos                = (blockIdx.y * blockDim.x) + threadIdx.x;
     if (pos < stride)
     {
         uint64_t uOffset        = blockIdx.x * stride;
-        uint64_t dOffset        = (cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x) * stride;
+        uint64_t dpos           = cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x;
+        uint64_t dOffset        = dpos * stride;
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
         NNFloat a               = pUnit[uOffset + pos];
         NNFloat t               = pData[dOffset + pos];
-        pDelta[uOffset + pos]   = a - t;      
+        pDelta[uOffset + pos]   = w * (a - t);      
     }
 }
 
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateLinearOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, unsigned char* pData)
+kCalculateLinearOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, unsigned char* pData, NNFloat* pDataWeight)
 {
     uint64_t pos                = (blockIdx.y * blockDim.x) + threadIdx.x;
     if (pos < stride)
     {
         uint64_t uOffset        = blockIdx.x * stride;
-        uint64_t dOffset        = (cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x) * stride;
+        uint64_t dpos           = cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x;
+        uint64_t dOffset        = dpos * stride;
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
         NNFloat a               = pUnit[uOffset + pos];
         NNFloat t               = (NNFloat)pData[dOffset + pos] * (NNFloat)(1.0 / 256.0);
-        pDelta[uOffset + pos]   = a - t;      
+        pDelta[uOffset + pos]   = w * (a - t);      
     }
 }
 
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateLinearOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, char* pData)
+kCalculateLinearOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, char* pData, NNFloat* pDataWeight)
 {
     uint64_t pos                = (blockIdx.y * blockDim.x) + threadIdx.x;
     if (pos < stride)
     {
         uint64_t uOffset        = blockIdx.x * stride;
-        uint64_t dOffset        = (cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x) * stride;
+        uint64_t dpos           = cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x;
+        uint64_t dOffset        = dpos * stride;
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
         NNFloat a               = pUnit[uOffset + pos];
         NNFloat t               = (NNFloat)pData[dOffset + pos] * (NNFloat)(1.0 / 128.0);
-        pDelta[uOffset + pos]   = a - t;      
+        pDelta[uOffset + pos]   = w * (a - t);      
     }
 }
 
 template<typename T>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateRELUOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, T* pData)
+kCalculateRELUOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, T* pData, NNFloat* pDataWeight)
 {
     uint64_t pos                = (blockIdx.y * blockDim.x) + threadIdx.x;
     if (pos < stride)
     {
         uint64_t uOffset        = blockIdx.x * stride;
-        uint64_t dOffset        = (cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x) * stride;
+        uint64_t dpos           = cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x;
+        uint64_t dOffset        = dpos * stride;
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
         NNFloat a               = pUnit[uOffset + pos];
         NNFloat t               = pData[dOffset + pos];
-        pDelta[uOffset + pos]   = (a - t) * (a > (NNFloat)0.0);      
+        pDelta[uOffset + pos]   = w * (a - t) * (a > (NNFloat)0.0);      
     }
 }
 
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateRELUOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, unsigned char* pData)
+kCalculateRELUOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, unsigned char* pData, NNFloat* pDataWeight)
 {
     uint64_t pos                = (blockIdx.y * blockDim.x) + threadIdx.x;
     if (pos < stride)
     {
         uint64_t uOffset        = blockIdx.x * stride;
-        uint64_t dOffset        = (cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x) * stride;
+        uint64_t dpos           = cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x;
+        uint64_t dOffset        = dpos * stride;
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
         NNFloat a               = pUnit[uOffset + pos];
         NNFloat t               = (NNFloat)pData[dOffset + pos] * (NNFloat)(1.0 / 256.0);
-        pDelta[uOffset + pos]   = (a - t) * (a > (NNFloat)0.0);      
+        pDelta[uOffset + pos]   = w * (a - t) * (a > (NNFloat)0.0);      
     }
 }
 
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateRELUOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, char* pData)
+kCalculateRELUOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, char* pData, NNFloat* pDataWeight)
 {
     uint64_t pos                = (blockIdx.y * blockDim.x) + threadIdx.x;
     if (pos < stride)
     {
         uint64_t uOffset        = blockIdx.x * stride;
-        uint64_t dOffset        = (cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x) * stride;
+        uint64_t dpos           = cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x;
+        uint64_t dOffset        = dpos * stride;
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
         NNFloat a               = pUnit[uOffset + pos];
         NNFloat t               = (NNFloat)pData[dOffset + pos] * (NNFloat)(1.0 / 128.0);
-        pDelta[uOffset + pos]   = (a - t) * (a > (NNFloat)0.0);      
+        pDelta[uOffset + pos]   = w * (a - t) * (a > (NNFloat)0.0);      
     }
 }
 
 template<typename T>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateLRELUOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, T* pData, NNFloat slope)
+kCalculateLRELUOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, T* pData, NNFloat* pDataWeight, NNFloat slope)
 {
     uint64_t pos                = (blockIdx.y * blockDim.x) + threadIdx.x;
     if (pos < stride)
     {
         uint64_t uOffset        = blockIdx.x * stride;
-        uint64_t dOffset        = (cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x) * stride;
+        uint64_t dpos           = cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x;
+        uint64_t dOffset        = dpos * stride;
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
         NNFloat a               = pUnit[uOffset + pos];
         NNFloat t               = pData[dOffset + pos];
-        pDelta[uOffset + pos]   = (a - t) * ((a > (NNFloat)0.0) + (a <= (NNFloat)0.0) * slope);
+        pDelta[uOffset + pos]   = w * (a - t) * ((a > (NNFloat)0.0) + (a <= (NNFloat)0.0) * slope);
     }
 }
 
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateLRELUOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, unsigned char* pData, NNFloat slope)
+kCalculateLRELUOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, unsigned char* pData, NNFloat* pDataWeight, NNFloat slope)
 {
     uint64_t pos                = (blockIdx.y * blockDim.x) + threadIdx.x;
     if (pos < stride)
     {
         uint64_t uOffset        = blockIdx.x * stride;
-        uint64_t dOffset        = (cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x) * stride;
+        uint64_t dpos           = cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x;
+        uint64_t dOffset        = dpos * stride;
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
         NNFloat a               = pUnit[uOffset + pos];
         NNFloat t               = (NNFloat)pData[dOffset + pos] * (NNFloat)(1.0 / 256.0);
-        pDelta[uOffset + pos]   = (a - t) * ((a > (NNFloat)0.0) + (a <= (NNFloat)0.0) * slope);
+        pDelta[uOffset + pos]   = w * (a - t) * ((a > (NNFloat)0.0) + (a <= (NNFloat)0.0) * slope);
     }
 }
 
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateLRELUOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, char* pData, NNFloat slope)
+kCalculateLRELUOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, char* pData, NNFloat* pDataWeight, NNFloat slope)
 {
     uint64_t pos                = (blockIdx.y * blockDim.x) + threadIdx.x;
     if (pos < stride)
     {
         uint64_t uOffset        = blockIdx.x * stride;
-        uint64_t dOffset        = (cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x) * stride;
+        uint64_t dpos           = cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x;
+        uint64_t dOffset        = dpos * stride;
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
         NNFloat a               = pUnit[uOffset + pos];
         NNFloat t               = (NNFloat)pData[dOffset + pos] * (NNFloat)(1.0 / 128.0);
-        pDelta[uOffset + pos]   = (a - t) * ((a > (NNFloat)0.0) + (a <= (NNFloat)0.0) * slope);
+        pDelta[uOffset + pos]   = w * (a - t) * ((a > (NNFloat)0.0) + (a <= (NNFloat)0.0) * slope);
     }
 }
 
 template<typename T>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateELUOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, T* pData, NNFloat alpha)
+kCalculateELUOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, T* pData, NNFloat* pDataWeight, NNFloat alpha)
 {
     uint64_t pos                = (blockIdx.y * blockDim.x) + threadIdx.x;
     if (pos < stride)
     {
         uint64_t uOffset        = blockIdx.x * stride;
-        uint64_t dOffset        = (cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x) * stride;
+        uint64_t dpos           = cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x;
+        uint64_t dOffset        = dpos * stride;
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
         NNFloat a               = pUnit[uOffset + pos];
         NNFloat t               = pData[dOffset + pos];
-        pDelta[uOffset + pos]   = (a - t) * ((a >= (NNFloat)0.0) + (a < (NNFloat)0.0) * (a + alpha));
+        pDelta[uOffset + pos]   = w * (a - t) * ((a >= (NNFloat)0.0) + (a < (NNFloat)0.0) * (a + alpha));
     }
 }
 
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateELUOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, unsigned char* pData, NNFloat alpha)
+kCalculateELUOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, unsigned char* pData, NNFloat* pDataWeight, NNFloat alpha)
 {
     uint64_t pos                = (blockIdx.y * blockDim.x) + threadIdx.x;
     if (pos < stride)
     {
         uint64_t uOffset        = blockIdx.x * stride;
-        uint64_t dOffset        = (cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x) * stride;
+        uint64_t dpos           = cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x;
+        uint64_t dOffset        = dpos * stride;
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
         NNFloat a               = pUnit[uOffset + pos];
         NNFloat t               = (NNFloat)pData[dOffset + pos] * (NNFloat)(1.0 / 256.0);
-        pDelta[uOffset + pos]   = (a - t) * ((a >= (NNFloat)0.0) + (a < (NNFloat)0.0) * (a + alpha));
+        pDelta[uOffset + pos]   = w * (a - t) * ((a >= (NNFloat)0.0) + (a < (NNFloat)0.0) * (a + alpha));
     }
 }
 
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateELUOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, char* pData, NNFloat alpha)
+kCalculateELUOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, char* pData, NNFloat* pDataWeight, NNFloat alpha)
 {
     uint64_t pos                = (blockIdx.y * blockDim.x) + threadIdx.x;
     if (pos < stride)
     {
         uint64_t uOffset        = blockIdx.x * stride;
-        uint64_t dOffset        = (cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x) * stride;
+        uint64_t dpos           = cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x;
+        uint64_t dOffset        = dpos * stride;
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
         NNFloat a               = pUnit[uOffset + pos];
         NNFloat t               = (NNFloat)pData[dOffset + pos] * (NNFloat)(1.0 / 128.0);
-        pDelta[uOffset + pos]   = (a - t) * ((a >= (NNFloat)0.0) + (a < (NNFloat)0.0) * (a + alpha));
+        pDelta[uOffset + pos]   = w * (a - t) * ((a >= (NNFloat)0.0) + (a < (NNFloat)0.0) * (a + alpha));
     }
 }
 
 template<typename T>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateSELUOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, T* pData, NNFloat alpha, NNFloat lambda)
+kCalculateSELUOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, T* pData, NNFloat* pDataWeight, NNFloat alpha, NNFloat lambda)
 {
     uint64_t pos                = (blockIdx.y * blockDim.x) + threadIdx.x;
     if (pos < stride)
     {
         uint64_t uOffset        = blockIdx.x * stride;
-        uint64_t dOffset        = (cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x) * stride;
+        uint64_t dpos           = cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x;
+        uint64_t dOffset        = dpos * stride;
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
         NNFloat a               = pUnit[uOffset + pos];
         NNFloat t               = pData[dOffset + pos];
-        pDelta[uOffset + pos]   = (a - t) * ((a >= (NNFloat)0.0) * lambda + (a < (NNFloat)0.0) * (lambda * alpha * exp(a)));
+        pDelta[uOffset + pos]   = w * (a - t) * ((a >= (NNFloat)0.0) * lambda + (a < (NNFloat)0.0) * (lambda * alpha * exp(a)));
     }
 }
 
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateSELUOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, unsigned char* pData, NNFloat alpha, NNFloat lambda)
+kCalculateSELUOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, unsigned char* pData, NNFloat* pDataWeight, NNFloat alpha, NNFloat lambda)
 {
     uint64_t pos                = (blockIdx.y * blockDim.x) + threadIdx.x;
     if (pos < stride)
     {
         uint64_t uOffset        = blockIdx.x * stride;
-        uint64_t dOffset        = (cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x) * stride;
+        uint64_t dpos           = cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x;
+        uint64_t dOffset        = dpos * stride;
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
         NNFloat a               = pUnit[uOffset + pos];
         NNFloat t               = (NNFloat)pData[dOffset + pos] * (NNFloat)(1.0 / 256.0);
-        pDelta[uOffset + pos]   = (a - t) * ((a >= (NNFloat)0.0) * lambda + (a < (NNFloat)0.0) * (lambda * alpha * exp(a)));
+        pDelta[uOffset + pos]   = w * (a - t) * ((a >= (NNFloat)0.0) * lambda + (a < (NNFloat)0.0) * (lambda * alpha * exp(a)));
     }
 }
 
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateSELUOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, char* pData, NNFloat alpha, NNFloat lambda)
+kCalculateSELUOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, char* pData, NNFloat* pDataWeight, NNFloat alpha, NNFloat lambda)
 {
     uint64_t pos                = (blockIdx.y * blockDim.x) + threadIdx.x;
     if (pos < stride)
     {
         uint64_t uOffset        = blockIdx.x * stride;
-        uint64_t dOffset        = (cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x) * stride;
+        uint64_t dpos           = cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x;
+        uint64_t dOffset        = dpos * stride;
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
         NNFloat a               = pUnit[uOffset + pos];
         NNFloat t               = (NNFloat)pData[dOffset + pos] * (NNFloat)(1.0 / 128.0);
-        pDelta[uOffset + pos]   = (a - t) * ((a >= (NNFloat)0.0) * lambda + (a < (NNFloat)0.0) * (lambda * alpha * exp(a)));
+        pDelta[uOffset + pos]   = w * (a - t) * ((a >= (NNFloat)0.0) * lambda + (a < (NNFloat)0.0) * (lambda * alpha * exp(a)));
     }
 }
 
 template<typename T>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateSoftMaxOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, T* pData)
+kCalculateSoftMaxOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, T* pData, NNFloat* pDataWeight)
 {
     uint64_t pos                = (blockIdx.y * blockDim.x) + threadIdx.x;
     if (pos < stride)
     {
         uint64_t uOffset        = blockIdx.x * stride;
-        uint64_t dOffset        = (cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x) * stride;
+        uint64_t dpos           = cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x;
+        uint64_t dOffset        = dpos * stride;
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
         NNFloat a               = pUnit[uOffset + pos];
         NNFloat t               = pData[dOffset + pos];
-        pDelta[uOffset + pos]   = a - t;      
+        pDelta[uOffset + pos]   = w * (a - t);      
     }
 }
 
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateSoftMaxOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, unsigned char* pData)
+kCalculateSoftMaxOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, unsigned char* pData, NNFloat* pDataWeight)
 {
     uint64_t pos                = (blockIdx.y * blockDim.x) + threadIdx.x;
     if (pos < stride)
     {
         uint64_t uOffset        = blockIdx.x * stride;
-        uint64_t dOffset        = (cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x) * stride;
+        uint64_t dpos           = cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x;
+        uint64_t dOffset        = dpos * stride;
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
         NNFloat a               = pUnit[uOffset + pos];
         NNFloat t               = (NNFloat)pData[dOffset + pos] * (NNFloat)(1.0 / 256.0);
-        pDelta[uOffset + pos]   = a - t;      
+        pDelta[uOffset + pos]   = w * (a - t);      
     }
 }
 
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateSoftMaxOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, char* pData)
+kCalculateSoftMaxOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, char* pData, NNFloat* pDataWeight)
 {
     uint64_t pos                = (blockIdx.y * blockDim.x) + threadIdx.x;
     if (pos < stride)
     {
         uint64_t uOffset        = blockIdx.x * stride;
-        uint64_t dOffset        = (cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x) * stride;
+        uint64_t dpos           = cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x;
+        uint64_t dOffset        = dpos * stride;
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
         NNFloat a               = pUnit[uOffset + pos];
         NNFloat t               = (NNFloat)pData[dOffset + pos] * (NNFloat)(1.0 / 128.0);
-        pDelta[uOffset + pos]   = a - t;      
+        pDelta[uOffset + pos]   = w * (a - t);      
     }
 }
 
-template<typename T> void kCalculateOutputDelta(Activation activation, uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, T* pData, NNFloat slope, NNFloat alpha, NNFloat lambda)
+template<typename T> void kCalculateOutputDelta(Activation activation, uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, T* pData, NNFloat* pDataWeight, NNFloat slope, NNFloat alpha, NNFloat lambda)
 {
     dim3 grid(batch, (stride + getGpu()._threadsPerBlock - 1) / getGpu()._threadsPerBlock);
     switch (activation)
     {
         case Sigmoid:
-            kCalculateSigmoidOutputDelta_kernel<<<grid, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pData);
+            kCalculateSigmoidOutputDelta_kernel<<<grid, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pData, pDataWeight);
             LAUNCHERROR("kCalculateSigmoidOutputDelta_kernel");
             break;
         
         case Tanh:
-            kCalculateTanhOutputDelta_kernel<<<grid, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pData);
+            kCalculateTanhOutputDelta_kernel<<<grid, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pData, pDataWeight);
             LAUNCHERROR("kCalculateTanhOutputDelta_kernel");
             break;
 
         case Linear:
-            kCalculateLinearOutputDelta_kernel<<<grid, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pData);
+            kCalculateLinearOutputDelta_kernel<<<grid, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pData, pDataWeight);
             LAUNCHERROR("kCalculateLinearOutputDelta_kernel");
             break;
 
         case RectifiedLinear:
-            kCalculateRELUOutputDelta_kernel<<<grid, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pData);
+            kCalculateRELUOutputDelta_kernel<<<grid, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pData, pDataWeight);
             LAUNCHERROR("kCalculateRELUOutputDelta_kernel");
             break;
             
         case LeakyRectifiedLinear:
-            kCalculateLRELUOutputDelta_kernel<<<grid, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pData, slope);
+            kCalculateLRELUOutputDelta_kernel<<<grid, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pData, pDataWeight, slope);
             LAUNCHERROR("kCalculateLRELUOutputDelta_kernel");
             break;
 
         case ExponentialLinear:
-            kCalculateELUOutputDelta_kernel<<<grid, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pData, alpha);
+            kCalculateELUOutputDelta_kernel<<<grid, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pData, pDataWeight, alpha);
             LAUNCHERROR("kCalculateELUOutputDelta_kernel");
             break;
 
         case ScaledExponentialLinear:
-            kCalculateSELUOutputDelta_kernel<<<grid, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pData, alpha, lambda);
+            kCalculateSELUOutputDelta_kernel<<<grid, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pData, pDataWeight, alpha, lambda);
             LAUNCHERROR("kCalculateSELUOutputDelta_kernel");
             break;
 
        case SoftMax:
-            kCalculateSoftMaxOutputDelta_kernel<<<grid, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pData);
+            kCalculateSoftMaxOutputDelta_kernel<<<grid, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pData, pDataWeight);
             LAUNCHERROR("kCalculateSoftMaxOutputDelta_kernel");
             break;                
     }
@@ -464,429 +512,477 @@ template<typename T> void kCalculateOutputDelta(Activation activation, uint32_t 
 template<typename T>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateIndexedSigmoidOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, T* pData)
+kCalculateIndexedSigmoidOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, T* pData, NNFloat* pDataWeight)
 {
     uint64_t pos                = (blockIdx.y * blockDim.x) + threadIdx.x;
     if (pos < stride)
     {
         uint64_t uOffset        = blockIdx.x * stride;
-        uint64_t dOffset        = (cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x) * stride;
+        uint64_t dpos           = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x];     
+        uint64_t dOffset        = dpos * stride;
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
         NNFloat a               = pUnit[uOffset + pos];
         NNFloat t               = pData[dOffset + pos];
-        pDelta[uOffset + pos]   = (a - t) * a * ((NNFloat)1.0 - a);      
+        pDelta[uOffset + pos]   = w * (a - t) * a * ((NNFloat)1.0 - a);      
     }
 }
 
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateIndexedSigmoidOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, unsigned char* pData)
+kCalculateIndexedSigmoidOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, unsigned char* pData, NNFloat* pDataWeight)
 {
     uint64_t pos                = (blockIdx.y * blockDim.x) + threadIdx.x;
     if (pos < stride)
     {
         uint64_t uOffset        = blockIdx.x * stride;
-        uint64_t dOffset        = (cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x) * stride;
+        uint64_t dpos           = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x];
+        uint64_t dOffset        = dpos * stride;
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
         NNFloat a               = pUnit[uOffset + pos];
         NNFloat t               = (NNFloat)pData[dOffset + pos] * (NNFloat)(1.0 / 256.0);
-        pDelta[uOffset + pos]   = (a - t) * a * ((NNFloat)1.0 - a);      
+        pDelta[uOffset + pos]   = w * (a - t) * a * ((NNFloat)1.0 - a);      
     }
 }
 
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateIndexedSigmoidOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, char* pData)
+kCalculateIndexedSigmoidOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, char* pData, NNFloat* pDataWeight)
 {
     uint64_t pos                = (blockIdx.y * blockDim.x) + threadIdx.x;
     if (pos < stride)
     {
         uint64_t uOffset        = blockIdx.x * stride;
-        uint64_t dOffset        = (cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x) * stride;
+        uint64_t dpos           = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x];
+        uint64_t dOffset        = dpos * stride;
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
         NNFloat a               = pUnit[uOffset + pos];
         NNFloat t               = (NNFloat)pData[dOffset + pos] * (NNFloat)(1.0 / 128.0);
-        pDelta[uOffset + pos]   = (a - t) * a * ((NNFloat)1.0 - a);      
+        pDelta[uOffset + pos]   = w * (a - t) * a * ((NNFloat)1.0 - a);      
     }
 }
 
 template<typename T>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateIndexedTanhOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, T* pData)
+kCalculateIndexedTanhOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, T* pData, NNFloat* pDataWeight)
 {
     uint64_t pos                = (blockIdx.y * blockDim.x) + threadIdx.x;
     if (pos < stride)
     {
         uint64_t uOffset        = blockIdx.x * stride;
-        uint64_t dOffset        = (cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x) * stride;
+        uint64_t dpos           = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x];
+        uint64_t dOffset        = dpos * stride;
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
         NNFloat a               = pUnit[uOffset + pos];
         NNFloat t               = pData[dOffset + pos];
-        pDelta[uOffset + pos]   = (a - t) * ((NNFloat)1.0 - a * a);      
+        pDelta[uOffset + pos]   = w * (a - t) * ((NNFloat)1.0 - a * a);      
     }
 }
 
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateIndexedTanhOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, unsigned char* pData)
+kCalculateIndexedTanhOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, unsigned char* pData, NNFloat* pDataWeight)
 {
     uint64_t pos                = (blockIdx.y * blockDim.x) + threadIdx.x;
     if (pos < stride)
     {
         uint64_t uOffset        = blockIdx.x * stride;
-        uint64_t dOffset        = (cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x) * stride;
+        uint64_t dpos           = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x];
+        uint64_t dOffset        = dpos * stride;
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
         NNFloat a               = pUnit[uOffset + pos];
         NNFloat t               = (NNFloat)pData[dOffset + pos] * (NNFloat)(1.0 / 256.0);
-        pDelta[uOffset + pos]   = (a - t) * ((NNFloat)1.0 - a * a);   
+        pDelta[uOffset + pos]   = w * (a - t) * ((NNFloat)1.0 - a * a);   
     }
 }
 
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateIndexedTanhOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, char* pData)
+kCalculateIndexedTanhOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, char* pData, NNFloat* pDataWeight)
 {
     uint64_t pos                = (blockIdx.y * blockDim.x) + threadIdx.x;
     if (pos < stride)
     {
         uint64_t uOffset        = blockIdx.x * stride;
-        uint64_t dOffset        = (cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x) * stride;
+        uint64_t dpos           = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x];
+        uint64_t dOffset        = dpos * stride;
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
         NNFloat a               = pUnit[uOffset + pos];
         NNFloat t               = (NNFloat)pData[dOffset + pos] * (NNFloat)(1.0 / 128.0);
-        pDelta[uOffset + pos]   = (a - t) * ((NNFloat)1.0 - a * a);      
+        pDelta[uOffset + pos]   = w * (a - t) * ((NNFloat)1.0 - a * a);      
     }
 }
 
 template<typename T>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateIndexedLinearOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, T* pData)
+kCalculateIndexedLinearOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, T* pData, NNFloat* pDataWeight)
 {
     uint64_t pos                = (blockIdx.y * blockDim.x) + threadIdx.x;
     if (pos < stride)
     {
         uint64_t uOffset        = blockIdx.x * stride;
-        uint64_t dOffset        = (cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x) * stride;
+        uint64_t dpos           = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x];
+        uint64_t dOffset        = dpos * stride;
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
         NNFloat a               = pUnit[uOffset + pos];
         NNFloat t               = pData[dOffset + pos];
-        pDelta[uOffset + pos]   = a - t;      
+        pDelta[uOffset + pos]   = w * (a - t);      
     }
 }
 
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateIndexedLinearOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, unsigned char* pData)
+kCalculateIndexedLinearOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, unsigned char* pData, NNFloat* pDataWeight)
 {
     uint64_t pos                = (blockIdx.y * blockDim.x) + threadIdx.x;
     if (pos < stride)
     {
         uint64_t uOffset        = blockIdx.x * stride;
-        uint64_t dOffset        = (cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x) * stride;
+        uint64_t dpos           = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x];
+        uint64_t dOffset        = dpos * stride;
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
         NNFloat a               = pUnit[uOffset + pos];
         NNFloat t               = (NNFloat)pData[dOffset + pos] * (NNFloat)(1.0 / 256.0);
-        pDelta[uOffset + pos]   = a - t;      
+        pDelta[uOffset + pos]   = w * (a - t);      
     }
 }
 
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateIndexedLinearOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, char* pData)
+kCalculateIndexedLinearOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, char* pData, NNFloat* pDataWeight)
 {
     uint64_t pos                = (blockIdx.y * blockDim.x) + threadIdx.x;
     if (pos < stride)
     {
         uint64_t uOffset        = blockIdx.x * stride;
-        uint64_t dOffset        = (cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x) * stride;
+        uint64_t dpos           = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x];
+        uint64_t dOffset        = dpos * stride;
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
         NNFloat a               = pUnit[uOffset + pos];
         NNFloat t               = (NNFloat)pData[dOffset + pos] * (NNFloat)(1.0 / 128.0);
-        pDelta[uOffset + pos]   = a - t;      
+        pDelta[uOffset + pos]   = w * (a - t);      
     }
 }
 
 template<typename T>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateIndexedRELUOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, T* pData)
+kCalculateIndexedRELUOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, T* pData, NNFloat* pDataWeight)
 {
     uint64_t pos                = (blockIdx.y * blockDim.x) + threadIdx.x;
     if (pos < stride)
     {
         uint64_t uOffset        = blockIdx.x * stride;
-        uint64_t dOffset        = (cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x) * stride;
+        uint64_t dpos           = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x];
+        uint64_t dOffset        = dpos * stride;
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
         NNFloat a               = pUnit[uOffset + pos];
         NNFloat t               = pData[dOffset + pos];
-        pDelta[uOffset + pos]   = (a - t) * (a > (NNFloat)0.0);      
+        pDelta[uOffset + pos]   = w * (a - t) * (a > (NNFloat)0.0);      
     }
 }
 
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateIndexedRELUOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, unsigned char* pData)
+kCalculateIndexedRELUOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, unsigned char* pData, NNFloat* pDataWeight)
 {
     uint64_t pos                = (blockIdx.y * blockDim.x) + threadIdx.x;
     if (pos < stride)
     {
         uint64_t uOffset        = blockIdx.x * stride;
-        uint64_t dOffset        = (cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x) * stride;
+        uint64_t dpos           = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x];
+        uint64_t dOffset        = dpos * stride;
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
         NNFloat a               = pUnit[uOffset + pos];
         NNFloat t               = (NNFloat)pData[dOffset + pos] * (NNFloat)(1.0 / 256.0);
-        pDelta[uOffset + pos]   = (a - t) * (a > (NNFloat)0.0);      
+        pDelta[uOffset + pos]   = w * (a - t) * (a > (NNFloat)0.0);      
     }
 }
 
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateIndexedRELUOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, char* pData)
+kCalculateIndexedRELUOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, char* pData, NNFloat* pDataWeight)
 {
     uint64_t pos                = (blockIdx.y * blockDim.x) + threadIdx.x;
     if (pos < stride)
     {
         uint64_t uOffset        = blockIdx.x * stride;
-        uint64_t dOffset        = (cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x) * stride;
+        uint64_t dpos           = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x];
+        uint64_t dOffset        = dpos * stride;
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
         NNFloat a               = pUnit[uOffset + pos];
         NNFloat t               = (NNFloat)pData[dOffset + pos] * (NNFloat)(1.0 / 128.0);
-        pDelta[uOffset + pos]   = (a - t) * (a > (NNFloat)0.0);      
+        pDelta[uOffset + pos]   = w * (a - t) * (a > (NNFloat)0.0);      
     }
 }
 
 template<typename T>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateIndexedLRELUOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, T* pData, NNFloat slope)
+kCalculateIndexedLRELUOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, T* pData, NNFloat* pDataWeight, NNFloat slope)
 {
     uint64_t pos                = (blockIdx.y * blockDim.x) + threadIdx.x;
     if (pos < stride)
     {
         uint64_t uOffset        = blockIdx.x * stride;
-        uint64_t dOffset        = (cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x) * stride;
+        uint64_t dpos           = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x];
+        uint64_t dOffset        = dpos * stride;
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
         NNFloat a               = pUnit[uOffset + pos];
         NNFloat t               = pData[dOffset + pos];
-        pDelta[uOffset + pos]   = (a - t) * ((a > (NNFloat)0.0) + (a <= (NNFloat)0.0) * slope);
+        pDelta[uOffset + pos]   = w * (a - t) * ((a > (NNFloat)0.0) + (a <= (NNFloat)0.0) * slope);
     }
 }
 
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateIndexedLRELUOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, unsigned char* pData, NNFloat slope)
+kCalculateIndexedLRELUOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, unsigned char* pData, NNFloat* pDataWeight, NNFloat slope)
 {
     uint64_t pos                = (blockIdx.y * blockDim.x) + threadIdx.x;
     if (pos < stride)
     {
         uint64_t uOffset        = blockIdx.x * stride;
-        uint64_t dOffset        = (cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x) * stride;
+        uint64_t dpos           = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x];
+        uint64_t dOffset        = dpos * stride;
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
         NNFloat a               = pUnit[uOffset + pos];
         NNFloat t               = (NNFloat)pData[dOffset + pos] * (NNFloat)(1.0 / 256.0);
-        pDelta[uOffset + pos]   = (a - t) * ((a > (NNFloat)0.0) + (a <= (NNFloat)0.0) * slope);
+        pDelta[uOffset + pos]   = w * (a - t) * ((a > (NNFloat)0.0) + (a <= (NNFloat)0.0) * slope);
     }
 }
 
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateIndexedLRELUOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, char* pData, NNFloat slope)
+kCalculateIndexedLRELUOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, char* pData, NNFloat* pDataWeight, NNFloat slope)
 {
     uint64_t pos                = (blockIdx.y * blockDim.x) + threadIdx.x;
     if (pos < stride)
     {
         uint64_t uOffset        = blockIdx.x * stride;
-        uint64_t dOffset        = (cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x) * stride;
+        uint64_t dpos           = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x];
+        uint64_t dOffset        = dpos * stride;
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
         NNFloat a               = pUnit[uOffset + pos];
         NNFloat t               = (NNFloat)pData[dOffset + pos] * (NNFloat)(1.0 / 128.0);
-        pDelta[uOffset + pos]   = (a - t) * ((a > (NNFloat)0.0) + (a <= (NNFloat)0.0) * slope);
+        pDelta[uOffset + pos]   = w * (a - t) * ((a > (NNFloat)0.0) + (a <= (NNFloat)0.0) * slope);
     }
 }
 
 template<typename T>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateIndexedELUOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, T* pData, NNFloat alpha)
+kCalculateIndexedELUOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, T* pData, NNFloat* pDataWeight, NNFloat alpha)
 {
     uint64_t pos                = (blockIdx.y * blockDim.x) + threadIdx.x;
     if (pos < stride)
     {
         uint64_t uOffset        = blockIdx.x * stride;
-        uint64_t dOffset        = (cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x) * stride;
+        uint64_t dpos           = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x];
+        uint64_t dOffset        = dpos * stride;
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
         NNFloat a               = pUnit[uOffset + pos];
         NNFloat t               = pData[dOffset + pos];
-        pDelta[uOffset + pos]   = (a - t) * ((a >= (NNFloat)0.0) + (a < (NNFloat)0.0) * (a + alpha));
+        pDelta[uOffset + pos]   = w * (a - t) * ((a >= (NNFloat)0.0) + (a < (NNFloat)0.0) * (a + alpha));
     }
 }
 
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateIndexedELUOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, unsigned char* pData, NNFloat alpha)
+kCalculateIndexedELUOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, unsigned char* pData, NNFloat* pDataWeight, NNFloat alpha)
 {
     uint64_t pos                = (blockIdx.y * blockDim.x) + threadIdx.x;
     if (pos < stride)
     {
         uint64_t uOffset        = blockIdx.x * stride;
-        uint64_t dOffset        = (cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x) * stride;
+        uint64_t dpos           = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x];
+        uint64_t dOffset        = dpos * stride;
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
         NNFloat a               = pUnit[uOffset + pos];
         NNFloat t               = (NNFloat)pData[dOffset + pos] * (NNFloat)(1.0 / 256.0);
-        pDelta[uOffset + pos]   = (a - t) * ((a >= (NNFloat)0.0) + (a < (NNFloat)0.0) * (a + alpha));
+        pDelta[uOffset + pos]   = w * (a - t) * ((a >= (NNFloat)0.0) + (a < (NNFloat)0.0) * (a + alpha));
     }
 }
 
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateIndexedELUOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, char* pData, NNFloat alpha)
+kCalculateIndexedELUOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, char* pData, NNFloat* pDataWeight, NNFloat alpha)
 {
     uint64_t pos                = (blockIdx.y * blockDim.x) + threadIdx.x;
     if (pos < stride)
     {
         uint64_t uOffset        = blockIdx.x * stride;
-        uint64_t dOffset        = (cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x) * stride;
+        uint64_t dpos           = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x];
+        uint64_t dOffset        = dpos * stride;
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
         NNFloat a               = pUnit[uOffset + pos];
         NNFloat t               = (NNFloat)pData[dOffset + pos] * (NNFloat)(1.0 / 128.0);
-        pDelta[uOffset + pos]   = (a - t) * ((a >= (NNFloat)0.0) + (a < (NNFloat)0.0) * (a + alpha));
+        pDelta[uOffset + pos]   = w * (a - t) * ((a >= (NNFloat)0.0) + (a < (NNFloat)0.0) * (a + alpha));
     }
 }
 
 template<typename T>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateIndexedSELUOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, T* pData, NNFloat alpha, NNFloat lambda)
+kCalculateIndexedSELUOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, T* pData, NNFloat* pDataWeight, NNFloat alpha, NNFloat lambda)
 {
     uint64_t pos                = (blockIdx.y * blockDim.x) + threadIdx.x;
     if (pos < stride)
     {
         uint64_t uOffset        = blockIdx.x * stride;
-        uint64_t dOffset        = (cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x) * stride;
+        uint64_t dpos           = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x];
+        uint64_t dOffset        = dpos * stride;
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
         NNFloat a               = pUnit[uOffset + pos];
         NNFloat t               = pData[dOffset + pos];
-        pDelta[uOffset + pos]   = (a - t) * ((a >= (NNFloat)0.0) * lambda + (a < (NNFloat)0.0) * (lambda * alpha * exp(a)));
+        pDelta[uOffset + pos]   = w * (a - t) * ((a >= (NNFloat)0.0) * lambda + (a < (NNFloat)0.0) * (lambda * alpha * exp(a)));
     }
 }
 
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateIndexedSELUOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, unsigned char* pData, NNFloat alpha, NNFloat lambda)
+kCalculateIndexedSELUOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, unsigned char* pData, NNFloat* pDataWeight, NNFloat alpha, NNFloat lambda)
 {
     uint64_t pos                = (blockIdx.y * blockDim.x) + threadIdx.x;
     if (pos < stride)
     {
         uint64_t uOffset        = blockIdx.x * stride;
-        uint64_t dOffset        = (cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x) * stride;
+        uint64_t dpos           = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x];
+        uint64_t dOffset        = dpos * stride;
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
         NNFloat a               = pUnit[uOffset + pos];
         NNFloat t               = (NNFloat)pData[dOffset + pos] * (NNFloat)(1.0 / 256.0);
-        pDelta[uOffset + pos]   = (a - t) * ((a >= (NNFloat)0.0) * lambda + (a < (NNFloat)0.0) * (lambda * alpha * exp(a)));
+        pDelta[uOffset + pos]   = w * (a - t) * ((a >= (NNFloat)0.0) * lambda + (a < (NNFloat)0.0) * (lambda * alpha * exp(a)));
     }
 }
 
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateIndexedSELUOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, char* pData, NNFloat alpha, NNFloat lambda)
+kCalculateIndexedSELUOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, char* pData, NNFloat* pDataWeight, NNFloat alpha, NNFloat lambda)
 {
     uint64_t pos                = (blockIdx.y * blockDim.x) + threadIdx.x;
     if (pos < stride)
     {
         uint64_t uOffset        = blockIdx.x * stride;
-        uint64_t dOffset        = (cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x) * stride;
+        uint64_t dpos           = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x];
+        uint64_t dOffset        = dpos * stride;
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
         NNFloat a               = pUnit[uOffset + pos];
         NNFloat t               = (NNFloat)pData[dOffset + pos] * (NNFloat)(1.0 / 128.0);
-        pDelta[uOffset + pos]   = (a - t) * ((a >= (NNFloat)0.0) * lambda + (a < (NNFloat)0.0) * (lambda * alpha * exp(a)));
+        pDelta[uOffset + pos]   = w * (a - t) * ((a >= (NNFloat)0.0) * lambda + (a < (NNFloat)0.0) * (lambda * alpha * exp(a)));
     }
 }
 
 template<typename T>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateIndexedSoftMaxOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, T* pData)
+kCalculateIndexedSoftMaxOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, T* pData, NNFloat* pDataWeight)
 {
     uint64_t pos                = (blockIdx.y * blockDim.x) + threadIdx.x;
     if (pos < stride)
     {
         uint64_t uOffset        = blockIdx.x * stride;
-        uint64_t dOffset        = (cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x) * stride;
+        uint64_t dpos           = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x];
+        uint64_t dOffset        = dpos * stride;
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
         NNFloat a               = pUnit[uOffset + pos];
         NNFloat t               = pData[dOffset + pos];
-        pDelta[uOffset + pos]   = a - t;      
+        pDelta[uOffset + pos]   = w * (a - t);      
     }
 }
 
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateIndexedSoftMaxOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, unsigned char* pData)
+kCalculateIndexedSoftMaxOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, unsigned char* pData, NNFloat* pDataWeight)
 {
     uint64_t pos                = (blockIdx.y * blockDim.x) + threadIdx.x;
     if (pos < stride)
     {
         uint64_t uOffset        = blockIdx.x * stride;
-        uint64_t dOffset        = (cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x) * stride;
+        uint64_t dpos           = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x];
+        uint64_t dOffset        = dpos * stride;
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
         NNFloat a               = pUnit[uOffset + pos];
         NNFloat t               = (NNFloat)pData[dOffset + pos] * (NNFloat)(1.0 / 256.0);
-        pDelta[uOffset + pos]   = a - t;      
+        pDelta[uOffset + pos]   = w * (a - t);      
     }
 }
 
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateIndexedSoftMaxOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, char* pData)
+kCalculateIndexedSoftMaxOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, char* pData, NNFloat* pDataWeight)
 {
     uint64_t pos                = (blockIdx.y * blockDim.x) + threadIdx.x;
     if (pos < stride)
     {
         uint64_t uOffset        = blockIdx.x * stride;
-        uint64_t dOffset        = (cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x) * stride;
+        uint64_t dpos           = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x];
+        uint64_t dOffset        = dpos * stride;
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
         NNFloat a               = pUnit[uOffset + pos];
         NNFloat t               = (NNFloat)pData[dOffset + pos] * (NNFloat)(1.0 / 128.0);
-        pDelta[uOffset + pos]   = a - t;      
+        pDelta[uOffset + pos]   = w * (a - t);      
     }
 }
 
-template<typename T> void kCalculateIndexedOutputDelta(Activation activation, uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, T* pData, NNFloat slope, NNFloat alpha, NNFloat lambda)
+template<typename T> void kCalculateIndexedOutputDelta(Activation activation, uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, T* pData, NNFloat* pDataWeight, NNFloat slope, NNFloat alpha, NNFloat lambda)
 {
     dim3 grid(batch, (stride + getGpu()._threadsPerBlock - 1) / getGpu()._threadsPerBlock);
     switch (activation)
     {
         case Sigmoid:
-            kCalculateIndexedSigmoidOutputDelta_kernel<<<grid, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pIndex, pData);
+            kCalculateIndexedSigmoidOutputDelta_kernel<<<grid, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pIndex, pData, pDataWeight);
             LAUNCHERROR("kCalculateIndexedSigmoidOutputDelta_kernel");
             break;
         
         case Tanh:
-            kCalculateIndexedTanhOutputDelta_kernel<<<grid, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pIndex, pData);
+            kCalculateIndexedTanhOutputDelta_kernel<<<grid, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pIndex, pData, pDataWeight);
             LAUNCHERROR("kCalculateIndexedTanhOutputDelta_kernel");
             break;
 
         case Linear:
-            kCalculateIndexedLinearOutputDelta_kernel<<<grid, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pIndex, pData);
+            kCalculateIndexedLinearOutputDelta_kernel<<<grid, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pIndex, pData, pDataWeight);
             LAUNCHERROR("kCalculateIndexedLinearOutputDelta_kernel");
             break;
 
         case RectifiedLinear:
-            kCalculateIndexedRELUOutputDelta_kernel<<<grid, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pIndex, pData);
+            kCalculateIndexedRELUOutputDelta_kernel<<<grid, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pIndex, pData, pDataWeight);
             LAUNCHERROR("kCalculateIndexedRELUOutputDelta_kernel");
             break;
             
         case LeakyRectifiedLinear:
-            kCalculateIndexedLRELUOutputDelta_kernel<<<grid, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pIndex, pData, slope);
+            kCalculateIndexedLRELUOutputDelta_kernel<<<grid, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pIndex, pData, pDataWeight, slope);
             LAUNCHERROR("kCalculateIndexedLRELUOutputDelta_kernel");
             break;
 
         case ExponentialLinear:
-            kCalculateIndexedELUOutputDelta_kernel<<<grid, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pIndex, pData, alpha);
+            kCalculateIndexedELUOutputDelta_kernel<<<grid, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pIndex, pData, pDataWeight, alpha);
             LAUNCHERROR("kCalculateIndexedELUOutputDelta_kernel");
             break;
 
         case ScaledExponentialLinear:
-            kCalculateIndexedSELUOutputDelta_kernel<<<grid, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pIndex, pData, alpha, lambda);
+            kCalculateIndexedSELUOutputDelta_kernel<<<grid, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pIndex, pData, pDataWeight, alpha, lambda);
             LAUNCHERROR("kCalculateIndexedSELUOutputDelta_kernel");
             break;
 
        case SoftMax:
-            kCalculateIndexedSoftMaxOutputDelta_kernel<<<grid, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pIndex, pData);
+            kCalculateIndexedSoftMaxOutputDelta_kernel<<<grid, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pIndex, pData, pDataWeight);
             LAUNCHERROR("kCalculateIndexedSoftMaxOutputDelta_kernel");
             break;                
     }
@@ -895,477 +991,525 @@ template<typename T> void kCalculateIndexedOutputDelta(Activation activation, ui
 template<typename T>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateSigmoidL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, T* pData)
+kCalculateSigmoidL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, T* pData, NNFloat* pDataWeight)
 {
     uint64_t pos                = (blockIdx.y * blockDim.x) + threadIdx.x;
     if (pos < stride)
     {
         uint64_t uOffset        = blockIdx.x * stride;
-        uint64_t dOffset        = (cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x) * stride;
+        uint64_t dpos           = cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x;
+        uint64_t dOffset        = dpos * stride;
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
         NNFloat a               = pUnit[uOffset + pos];
         NNFloat t               = pData[dOffset + pos];
         NNFloat diff            = a - fabsf(t);
         diff                    = (t > (T)0.0) ? min((NNFloat)0.0f, diff) : max((NNFloat)0.0, diff);        
-        pDelta[uOffset + pos]   = diff * a * ((NNFloat)1.0 - a);      
+        pDelta[uOffset + pos]   = w * diff * a * ((NNFloat)1.0 - a);      
     }
 }
 
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateSigmoidL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, unsigned char* pData)
+kCalculateSigmoidL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, unsigned char* pData, NNFloat* pDataWeight)
 {
     uint64_t pos                = (blockIdx.y * blockDim.x) + threadIdx.x;
     if (pos < stride)
     {
         uint64_t uOffset        = blockIdx.x * stride;
-        uint64_t dOffset        = (cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x) * stride;
+        uint64_t dpos           = cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x;
+        uint64_t dOffset        = dpos * stride;
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
         NNFloat a               = pUnit[uOffset + pos];
         NNFloat t               = (NNFloat)pData[dOffset + pos] * (NNFloat)(1.0 / 256.0);
         NNFloat diff            = a - fabsf(t);
         diff                    = (t > (NNFloat)0.0) ? min((NNFloat)0.0f, diff) : max((NNFloat)0.0, diff);        
-        pDelta[uOffset + pos]   = diff * a * ((NNFloat)1.0 - a);      
+        pDelta[uOffset + pos]   = w * diff * a * ((NNFloat)1.0 - a);      
     }
 }
 
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateSigmoidL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, char* pData)
+kCalculateSigmoidL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, char* pData, NNFloat* pDataWeight)
 {
     uint64_t pos                = (blockIdx.y * blockDim.x) + threadIdx.x;
     if (pos < stride)
     {
         uint64_t uOffset        = blockIdx.x * stride;
-        uint64_t dOffset        = (cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x) * stride;
+        uint64_t dpos           = cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x;
+        uint64_t dOffset        = dpos * stride;
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
         NNFloat a               = pUnit[uOffset + pos];
         NNFloat t               = (NNFloat)pData[dOffset + pos] * (NNFloat)(1.0 / 128.0);
         NNFloat diff            = a - fabsf(t);
         diff                    = (t > (NNFloat)0.0) ? min((NNFloat)0.0f, diff) : max((NNFloat)0.0, diff);         
-        pDelta[uOffset + pos]   = diff * a * ((NNFloat)1.0 - a);      
+        pDelta[uOffset + pos]   = w * diff * a * ((NNFloat)1.0 - a);      
     }
 }
 
 template<typename T>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateTanhL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, T* pData)
+kCalculateTanhL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, T* pData, NNFloat* pDataWeight)
 {
     uint64_t pos                = (blockIdx.y * blockDim.x) + threadIdx.x;
     if (pos < stride)
     {
         uint64_t uOffset        = blockIdx.x * stride;
-        uint64_t dOffset        = (cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x) * stride;
+        uint64_t dpos           = cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x;
+        uint64_t dOffset        = dpos * stride;
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
         NNFloat a               = pUnit[uOffset + pos];
         NNFloat t               = pData[dOffset + pos];
         NNFloat diff            = a - fabsf(t);
         diff                    = (t > (T)0.0) ? min((NNFloat)0.0f, diff) : max((NNFloat)0.0, diff);         
-        pDelta[uOffset + pos]   = diff * ((NNFloat)1.0 - a * a);      
+        pDelta[uOffset + pos]   = w * diff * ((NNFloat)1.0 - a * a);      
     }
 }
 
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateTanhL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, unsigned char* pData)
+kCalculateTanhL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, unsigned char* pData, NNFloat* pDataWeight)
 {
     uint64_t pos                = (blockIdx.y * blockDim.x) + threadIdx.x;
     if (pos < stride)
     {
         uint64_t uOffset        = blockIdx.x * stride;
-        uint64_t dOffset        = (cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x) * stride;
+        uint64_t dpos           = cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x;
+        uint64_t dOffset        = dpos * stride;
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
         NNFloat a               = pUnit[uOffset + pos];
         NNFloat t               = (NNFloat)pData[dOffset + pos] * (NNFloat)(1.0 / 256.0);
         NNFloat diff            = a - fabsf(t);
         diff                    = (t > (NNFloat)0.0) ? min((NNFloat)0.0f, diff) : max((NNFloat)0.0, diff);    
-        pDelta[uOffset + pos]   = diff * ((NNFloat)1.0 - a * a);   
+        pDelta[uOffset + pos]   = w * diff * ((NNFloat)1.0 - a * a);   
     }
 }
 
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateTanhL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, char* pData)
+kCalculateTanhL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, char* pData, NNFloat* pDataWeight)
 {
     uint64_t pos                = (blockIdx.y * blockDim.x) + threadIdx.x;
     if (pos < stride)
     {
         uint64_t uOffset        = blockIdx.x * stride;
-        uint64_t dOffset        = (cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x) * stride;
+        uint64_t dpos           = cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x;
+        uint64_t dOffset        = dpos * stride;
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
         NNFloat a               = pUnit[uOffset + pos];
         NNFloat t               = (NNFloat)pData[dOffset + pos] * (NNFloat)(1.0 / 128.0);
         NNFloat diff            = a - fabsf(t);
         diff                    = (t > (NNFloat)0.0) ? min((NNFloat)0.0f, diff) : max((NNFloat)0.0, diff);         
-        pDelta[uOffset + pos]   = diff * ((NNFloat)1.0 - a * a);      
+        pDelta[uOffset + pos]   = w * diff * ((NNFloat)1.0 - a * a);      
     }
 }
 
 template<typename T>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateLinearL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, T* pData)
+kCalculateLinearL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, T* pData, NNFloat* pDataWeight)
 {
     uint64_t pos                = (blockIdx.y * blockDim.x) + threadIdx.x;
     if (pos < stride)
     {
         uint64_t uOffset        = blockIdx.x * stride;
-        uint64_t dOffset        = (cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x) * stride;
+        uint64_t dpos           = cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x;
+        uint64_t dOffset        = dpos * stride;
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
         NNFloat a               = pUnit[uOffset + pos];
         NNFloat t               = pData[dOffset + pos];
         NNFloat diff            = a - fabsf(t);
-        diff                    = (t > (T)0.0) ? min((NNFloat)0.0f, diff) : max((NNFloat)0.0, diff);         
-        pDelta[uOffset + pos]   = diff;      
+        diff                    = ((t > (T)0.0) ? min((NNFloat)0.0f, diff) : max((NNFloat)0.0, diff));         
+        pDelta[uOffset + pos]   = w * diff;      
     }
 }
 
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateLinearL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, unsigned char* pData)
+kCalculateLinearL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, unsigned char* pData, NNFloat* pDataWeight)
 {
     uint64_t pos                = (blockIdx.y * blockDim.x) + threadIdx.x;
     if (pos < stride)
     {
         uint64_t uOffset        = blockIdx.x * stride;
-        uint64_t dOffset        = (cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x) * stride;
+        uint64_t dpos           = cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x;
+        uint64_t dOffset        = dpos * stride;
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
         NNFloat a               = pUnit[uOffset + pos];
         NNFloat t               = (NNFloat)pData[dOffset + pos] * (NNFloat)(1.0 / 256.0);
         NNFloat diff            = a - fabsf(t);
         diff                    = (t > (NNFloat)0.0) ? min((NNFloat)0.0f, diff) : max((NNFloat)0.0, diff);     
-        pDelta[uOffset + pos]   = diff;      
+        pDelta[uOffset + pos]   = w * diff;      
     }
 }
 
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateLinearL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, char* pData)
+kCalculateLinearL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, char* pData, NNFloat* pDataWeight)
 {
     uint64_t pos                = (blockIdx.y * blockDim.x) + threadIdx.x;
     if (pos < stride)
     {
         uint64_t uOffset        = blockIdx.x * stride;
-        uint64_t dOffset        = (cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x) * stride;
+        uint64_t dpos           = cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x;
+        uint64_t dOffset        = dpos * stride;
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
         NNFloat a               = pUnit[uOffset + pos];
         NNFloat t               = (NNFloat)pData[dOffset + pos] * (NNFloat)(1.0 / 128.0);    
         NNFloat diff            = a - fabsf(t);
         diff                    = (t > (NNFloat)0.0) ? min((NNFloat)0.0f, diff) : max((NNFloat)0.0, diff);         
-        pDelta[uOffset + pos]   = diff;      
+        pDelta[uOffset + pos]   = w * diff;      
     }
 }
 
 template<typename T>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateRELUL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, T* pData)
+kCalculateRELUL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, T* pData, NNFloat* pDataWeight)
 {
     uint64_t pos                = (blockIdx.y * blockDim.x) + threadIdx.x;
     if (pos < stride)
     {
         uint64_t uOffset        = blockIdx.x * stride;
-        uint64_t dOffset        = (cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x) * stride;
+        uint64_t dpos           = cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x;
+        uint64_t dOffset        = dpos * stride;
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
         NNFloat a               = pUnit[uOffset + pos];
         NNFloat t               = pData[dOffset + pos];
         NNFloat diff            = a - fabsf(t);
         diff                    = (t > (T)0.0) ? min((NNFloat)0.0f, diff) : max((NNFloat)0.0, diff);         
-        pDelta[uOffset + pos]   = diff * (a > (NNFloat)0.0);      
+        pDelta[uOffset + pos]   = w * diff * (a > (NNFloat)0.0);      
     }
 }
 
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateRELUL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, unsigned char* pData)
+kCalculateRELUL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, unsigned char* pData, NNFloat* pDataWeight)
 {
     uint64_t pos                = (blockIdx.y * blockDim.x) + threadIdx.x;
     if (pos < stride)
     {
         uint64_t uOffset        = blockIdx.x * stride;
-        uint64_t dOffset        = (cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x) * stride;
+        uint64_t dpos           = cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x;
+        uint64_t dOffset        = dpos * stride;
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
         NNFloat a               = pUnit[uOffset + pos];
         NNFloat t               = (NNFloat)pData[dOffset + pos] * (NNFloat)(1.0 / 256.0);
         NNFloat diff            = a - fabsf(t);
         diff                    = (t > (NNFloat)0.0) ? min((NNFloat)0.0f, diff) : max((NNFloat)0.0, diff);       
-        pDelta[uOffset + pos]   = diff * (a > (NNFloat)0.0);      
+        pDelta[uOffset + pos]   = w * diff * (a > (NNFloat)0.0);      
     }
 }
 
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateRELUL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, char* pData)
+kCalculateRELUL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, char* pData, NNFloat* pDataWeight)
 {
     uint64_t pos                = (blockIdx.y * blockDim.x) + threadIdx.x;
     if (pos < stride)
     {
         uint64_t uOffset        = blockIdx.x * stride;
-        uint64_t dOffset        = (cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x) * stride;
+        uint64_t dpos           = cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x;
+        uint64_t dOffset        = dpos * stride;
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
         NNFloat a               = pUnit[uOffset + pos];
         NNFloat t               = (NNFloat)pData[dOffset + pos] * (NNFloat)(1.0 / 128.0);
         NNFloat diff            = a - fabsf(t);
         diff                    = (t > (NNFloat)0.0) ? min((NNFloat)0.0f, diff) : max((NNFloat)0.0, diff);         
-        pDelta[uOffset + pos]   = diff * (a > (NNFloat)0.0);      
+        pDelta[uOffset + pos]   = w * diff * (a > (NNFloat)0.0);      
     }
 }
 
 template<typename T>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateLRELUL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, T* pData, NNFloat slope)
+kCalculateLRELUL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, T* pData, NNFloat* pDataWeight, NNFloat slope)
 {
     uint64_t pos                = (blockIdx.y * blockDim.x) + threadIdx.x;
     if (pos < stride)
     {
         uint64_t uOffset        = blockIdx.x * stride;
-        uint64_t dOffset        = (cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x) * stride;
+        uint64_t dpos           = cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x;
+        uint64_t dOffset        = dpos * stride;
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
         NNFloat a               = pUnit[uOffset + pos];
         NNFloat t               = pData[dOffset + pos];
         NNFloat diff            = a - fabsf(t);
         diff                    = (t > (T)0.0) ? min((NNFloat)0.0f, diff) : max((NNFloat)0.0, diff);         
-        pDelta[uOffset + pos]   = diff * ((a > (NNFloat)0.0) + (a <= (NNFloat)0.0) * slope);
+        pDelta[uOffset + pos]   = w * diff * ((a > (NNFloat)0.0) + (a <= (NNFloat)0.0) * slope);
     }
 }
 
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateLRELUL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, unsigned char* pData, NNFloat slope)
+kCalculateLRELUL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, unsigned char* pData, NNFloat* pDataWeight, NNFloat slope)
 {
     uint64_t pos                = (blockIdx.y * blockDim.x) + threadIdx.x;
     if (pos < stride)
     {
         uint64_t uOffset        = blockIdx.x * stride;
-        uint64_t dOffset        = (cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x) * stride;
+        uint64_t dpos           = cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x;
+        uint64_t dOffset        = dpos * stride;
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
         NNFloat a               = pUnit[uOffset + pos];
         NNFloat t               = (NNFloat)pData[dOffset + pos] * (NNFloat)(1.0 / 256.0);
         NNFloat diff            = a - fabsf(t);
         diff                    = (t > (NNFloat)0.0) ? min((NNFloat)0.0f, diff) : max((NNFloat)0.0, diff);    
-        pDelta[uOffset + pos]   = diff * ((a > (NNFloat)0.0) + (a <= (NNFloat)0.0) * slope);
+        pDelta[uOffset + pos]   = w * diff * ((a > (NNFloat)0.0) + (a <= (NNFloat)0.0) * slope);
     }
 }
 
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateLRELUL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, char* pData, NNFloat slope)
+kCalculateLRELUL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, char* pData, NNFloat* pDataWeight, NNFloat slope)
 {
     uint64_t pos                = (blockIdx.y * blockDim.x) + threadIdx.x;
     if (pos < stride)
     {
         uint64_t uOffset        = blockIdx.x * stride;
-        uint64_t dOffset        = (cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x) * stride;
+        uint64_t dpos           = cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x;
+        uint64_t dOffset        = dpos * stride;
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
         NNFloat a               = pUnit[uOffset + pos];
         NNFloat t               = (NNFloat)pData[dOffset + pos] * (NNFloat)(1.0 / 128.0);
         NNFloat diff            = a - fabsf(t);
         diff                    = (t > (NNFloat)0.0) ? min((NNFloat)0.0f, diff) : max((NNFloat)0.0, diff);         
-        pDelta[uOffset + pos]   = diff * ((a > (NNFloat)0.0) + (a <= (NNFloat)0.0) * slope);
+        pDelta[uOffset + pos]   = w * diff * ((a > (NNFloat)0.0) + (a <= (NNFloat)0.0) * slope);
     }
 }
 
 template<typename T>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateELUL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, T* pData, NNFloat alpha)
+kCalculateELUL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, T* pData, NNFloat* pDataWeight, NNFloat alpha)
 {
     uint64_t pos                = (blockIdx.y * blockDim.x) + threadIdx.x;
     if (pos < stride)
     {
         uint64_t uOffset        = blockIdx.x * stride;
-        uint64_t dOffset        = (cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x) * stride;
+        uint64_t dpos           = cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x;
+        uint64_t dOffset        = dpos * stride;
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
         NNFloat a               = pUnit[uOffset + pos];
         NNFloat t               = pData[dOffset + pos];
         NNFloat diff            = a - fabsf(t);
         diff                    = (t > (T)0.0) ? min((NNFloat)0.0f, diff) : max((NNFloat)0.0, diff);         
-        pDelta[uOffset + pos]   = diff * ((a >= (NNFloat)0.0) + (a < (NNFloat)0.0) * (a + alpha));
+        pDelta[uOffset + pos]   = w * diff * ((a >= (NNFloat)0.0) + (a < (NNFloat)0.0) * (a + alpha));
     }
 }
 
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateELUL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, unsigned char* pData, NNFloat alpha)
+kCalculateELUL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, unsigned char* pData, NNFloat* pDataWeight, NNFloat alpha)
 {
     uint64_t pos                = (blockIdx.y * blockDim.x) + threadIdx.x;
     if (pos < stride)
     {
         uint64_t uOffset        = blockIdx.x * stride;
-        uint64_t dOffset        = (cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x) * stride;
+        uint64_t dpos           = cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x;
+        uint64_t dOffset        = dpos * stride;
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
         NNFloat a               = pUnit[uOffset + pos];
         NNFloat t               = (NNFloat)pData[dOffset + pos] * (NNFloat)(1.0 / 256.0);
         NNFloat diff            = a - fabsf(t);
         diff                    = (t > (NNFloat)0.0) ? min((NNFloat)0.0f, diff) : max((NNFloat)0.0, diff);          
-        pDelta[uOffset + pos]   = diff * ((a >= (NNFloat)0.0) + (a < (NNFloat)0.0) * (a + alpha));
+        pDelta[uOffset + pos]   = w * diff * ((a >= (NNFloat)0.0) + (a < (NNFloat)0.0) * (a + alpha));
     }
 }
 
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateELUL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, char* pData, NNFloat alpha)
+kCalculateELUL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, char* pData, NNFloat* pDataWeight, NNFloat alpha)
 {
     uint64_t pos                = (blockIdx.y * blockDim.x) + threadIdx.x;
     if (pos < stride)
     {
         uint64_t uOffset        = blockIdx.x * stride;
-        uint64_t dOffset        = (cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x) * stride;
+        uint64_t dpos           = cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x;
+        uint64_t dOffset        = dpos * stride;
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
         NNFloat a               = pUnit[uOffset + pos];
         NNFloat t               = (NNFloat)pData[dOffset + pos] * (NNFloat)(1.0 / 128.0);
         NNFloat diff            = a - fabsf(t);
         diff                    = (t > (NNFloat)0.0) ? min((NNFloat)0.0f, diff) : max((NNFloat)0.0, diff);          
-        pDelta[uOffset + pos]   = diff * ((a >= (NNFloat)0.0) + (a < (NNFloat)0.0) * (a + alpha));
+        pDelta[uOffset + pos]   = w * diff * ((a >= (NNFloat)0.0) + (a < (NNFloat)0.0) * (a + alpha));
     }
 }
 
 template<typename T>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateSELUL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, T* pData, NNFloat alpha, NNFloat lambda)
+kCalculateSELUL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, T* pData, NNFloat* pDataWeight, NNFloat alpha, NNFloat lambda)
 {
     uint64_t pos                = (blockIdx.y * blockDim.x) + threadIdx.x;
     if (pos < stride)
     {
         uint64_t uOffset        = blockIdx.x * stride;
-        uint64_t dOffset        = (cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x) * stride;
+        uint64_t dpos           = cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x;
+        uint64_t dOffset        = dpos * stride;
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
         NNFloat a               = pUnit[uOffset + pos];
         NNFloat t               = pData[dOffset + pos];
         NNFloat diff            = a - fabsf(t);
         diff                    = (t > (T)0.0) ? min((NNFloat)0.0f, diff) : max((NNFloat)0.0, diff);          
-        pDelta[uOffset + pos]   = diff * ((a >= (NNFloat)0.0) * lambda + (a < (NNFloat)0.0) * (lambda * alpha * exp(a)));
+        pDelta[uOffset + pos]   = w * diff * ((a >= (NNFloat)0.0) * lambda + (a < (NNFloat)0.0) * (lambda * alpha * exp(a)));
     }
 }
 
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateSELUL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, unsigned char* pData, NNFloat alpha, NNFloat lambda)
+kCalculateSELUL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, unsigned char* pData, NNFloat* pDataWeight, NNFloat alpha, NNFloat lambda)
 {
     uint64_t pos                = (blockIdx.y * blockDim.x) + threadIdx.x;
     if (pos < stride)
     {
         uint64_t uOffset        = blockIdx.x * stride;
-        uint64_t dOffset        = (cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x) * stride;
+        uint64_t dpos           = cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x;
+        uint64_t dOffset        = dpos * stride;
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
         NNFloat a               = pUnit[uOffset + pos];
         NNFloat t               = (NNFloat)pData[dOffset + pos] * (NNFloat)(1.0 / 256.0);
         NNFloat diff            = a - fabsf(t);
         diff                    = (t > (NNFloat)0.0) ? min((NNFloat)0.0f, diff) : max((NNFloat)0.0, diff);          
-        pDelta[uOffset + pos]   = diff * ((a >= (NNFloat)0.0) * lambda + (a < (NNFloat)0.0) * (lambda * alpha * exp(a)));
+        pDelta[uOffset + pos]   = w * diff * ((a >= (NNFloat)0.0) * lambda + (a < (NNFloat)0.0) * (lambda * alpha * exp(a)));
     }
 }
 
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateSELUL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, char* pData, NNFloat alpha, NNFloat lambda)
+kCalculateSELUL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, char* pData, NNFloat* pDataWeight, NNFloat alpha, NNFloat lambda)
 {
     uint64_t pos                = (blockIdx.y * blockDim.x) + threadIdx.x;
     if (pos < stride)
     {
         uint64_t uOffset        = blockIdx.x * stride;
-        uint64_t dOffset        = (cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x) * stride;
+        uint64_t dpos           = cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x;
+        uint64_t dOffset        = dpos * stride;
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
         NNFloat a               = pUnit[uOffset + pos];
         NNFloat t               = (NNFloat)pData[dOffset + pos] * (NNFloat)(1.0 / 128.0);
         NNFloat diff            = a - fabsf(t);
         diff                    = (t > (NNFloat)0.0) ? min((NNFloat)0.0f, diff) : max((NNFloat)0.0, diff);          
-        pDelta[uOffset + pos]   = diff * ((a >= (NNFloat)0.0) * lambda + (a < (NNFloat)0.0) * (lambda * alpha * exp(a)));
+        pDelta[uOffset + pos]   = w * diff * ((a >= (NNFloat)0.0) * lambda + (a < (NNFloat)0.0) * (lambda * alpha * exp(a)));
     }
 }
 
 template<typename T>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateSoftMaxL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, T* pData)
+kCalculateSoftMaxL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, T* pData, NNFloat* pDataWeight)
 {
     uint64_t pos                = (blockIdx.y * blockDim.x) + threadIdx.x;
     if (pos < stride)
     {
         uint64_t uOffset        = blockIdx.x * stride;
-        uint64_t dOffset        = (cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x) * stride;
+        uint64_t dpos           = cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x;
+        uint64_t dOffset        = dpos * stride;
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
         NNFloat a               = pUnit[uOffset + pos];
         NNFloat t               = pData[dOffset + pos];
         NNFloat diff            = a - fabsf(t);
         diff                    = (t > (T)0.0) ? min((NNFloat)0.0f, diff) : max((NNFloat)0.0, diff);          
-        pDelta[uOffset + pos]   = diff;      
+        pDelta[uOffset + pos]   = w * diff;      
     }
 }
 
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateSoftMaxL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, unsigned char* pData)
+kCalculateSoftMaxL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, unsigned char* pData, NNFloat* pDataWeight)
 {
     uint64_t pos                = (blockIdx.y * blockDim.x) + threadIdx.x;
     if (pos < stride)
     {
         uint64_t uOffset        = blockIdx.x * stride;
-        uint64_t dOffset        = (cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x) * stride;
+        uint64_t dpos           = cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x;
+        uint64_t dOffset        = dpos * stride;
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
         NNFloat a               = pUnit[uOffset + pos];
         NNFloat t               = (NNFloat)pData[dOffset + pos] * (NNFloat)(1.0 / 256.0);
         NNFloat diff            = a - fabsf(t);
         diff                    = (t > (NNFloat)0.0) ? min((NNFloat)0.0f, diff) : max((NNFloat)0.0, diff);          
-        pDelta[uOffset + pos]   = diff;      
+        pDelta[uOffset + pos]   = w * diff;      
     }
 }
 
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateSoftMaxL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, char* pData)
+kCalculateSoftMaxL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, char* pData, NNFloat* pDataWeight)
 {
     uint64_t pos                = (blockIdx.y * blockDim.x) + threadIdx.x;
     if (pos < stride)
     {
         uint64_t uOffset        = blockIdx.x * stride;
-        uint64_t dOffset        = (cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x) * stride;
+        uint64_t dpos           = cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x;
+        uint64_t dOffset        = dpos * stride;
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
         NNFloat a               = pUnit[uOffset + pos];
         NNFloat t               = (NNFloat)pData[dOffset + pos] * (NNFloat)(1.0 / 128.0);
         NNFloat diff            = a - fabsf(t);
         diff                    = (t > (NNFloat)0.0) ? min((NNFloat)0.0f, diff) : max((NNFloat)0.0, diff);          
-        pDelta[uOffset + pos]   = diff;      
+        pDelta[uOffset + pos]   = w * diff;      
     }
 }
 
-template<typename T> void kCalculateL2HingeOutputDelta(Activation activation, uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, T* pData, NNFloat slope, NNFloat alpha, NNFloat lambda)
+template<typename T> void kCalculateL2HingeOutputDelta(Activation activation, uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, T* pData, NNFloat* pDataWeight, NNFloat slope, NNFloat alpha, NNFloat lambda)
 {
     dim3 grid(batch, (stride + getGpu()._threadsPerBlock - 1) / getGpu()._threadsPerBlock);
     switch (activation)
     {
         case Sigmoid:
-            kCalculateSigmoidL2HingeOutputDelta_kernel<<<grid, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pData);
+            kCalculateSigmoidL2HingeOutputDelta_kernel<<<grid, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pData, pDataWeight);
             LAUNCHERROR("kCalculateSigmoidL2HingeOutputDelta_kernel");
             break;
         
         case Tanh:
-            kCalculateTanhL2HingeOutputDelta_kernel<<<grid, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pData);
+            kCalculateTanhL2HingeOutputDelta_kernel<<<grid, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pData, pDataWeight);
             LAUNCHERROR("kCalculateTanhL2HingeOutputDelta_kernel");
             break;
 
         case Linear:
-            kCalculateLinearL2HingeOutputDelta_kernel<<<grid, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pData);
+            kCalculateLinearL2HingeOutputDelta_kernel<<<grid, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pData, pDataWeight);
             LAUNCHERROR("kCalculateLinearL2HingeOutputDelta_kernel");
             break;
 
         case RectifiedLinear:
-            kCalculateRELUL2HingeOutputDelta_kernel<<<grid, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pData);
+            kCalculateRELUL2HingeOutputDelta_kernel<<<grid, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pData, pDataWeight);
             LAUNCHERROR("kCalculateRELUL2HingeOutputDelta_kernel");
             break;
             
         case LeakyRectifiedLinear:
-            kCalculateLRELUL2HingeOutputDelta_kernel<<<grid, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pData, slope);
+            kCalculateLRELUL2HingeOutputDelta_kernel<<<grid, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pData, pDataWeight, slope);
             LAUNCHERROR("kCalculateLRELUL2HingeOutputDelta_kernel");
             break;
 
         case ExponentialLinear:
-            kCalculateELUL2HingeOutputDelta_kernel<<<grid, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pData, alpha);
+            kCalculateELUL2HingeOutputDelta_kernel<<<grid, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pData, pDataWeight, alpha);
             LAUNCHERROR("kCalculateELUL2HingeOutputDelta_kernel");
             break;
 
         case ScaledExponentialLinear:
-            kCalculateSELUL2HingeOutputDelta_kernel<<<grid, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pData, alpha, lambda);
+            kCalculateSELUL2HingeOutputDelta_kernel<<<grid, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pData, pDataWeight, alpha, lambda);
             LAUNCHERROR("kCalculateSELUL2HingeOutputDelta_kernel");
             break;
 
        case SoftMax:
-            kCalculateSoftMaxL2HingeOutputDelta_kernel<<<grid, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pData);
+            kCalculateSoftMaxL2HingeOutputDelta_kernel<<<grid, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pData, pDataWeight);
             LAUNCHERROR("kCalculateSoftMaxL2HingeOutputDelta_kernel");
             break;                
     }
@@ -1374,477 +1518,525 @@ template<typename T> void kCalculateL2HingeOutputDelta(Activation activation, ui
 template<typename T>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateIndexedSigmoidL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, T* pData)
+kCalculateIndexedSigmoidL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, T* pData, NNFloat* pDataWeight)
 {
     uint64_t pos                = (blockIdx.y * blockDim.x) + threadIdx.x;
     if (pos < stride)
     {
         uint64_t uOffset        = blockIdx.x * stride;
-        uint64_t dOffset        = (cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x) * stride;
+        uint64_t dpos           = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x];
+        uint64_t dOffset        = dpos * stride;
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
         NNFloat a               = pUnit[uOffset + pos];
         NNFloat t               = pData[dOffset + pos];
         NNFloat diff            = a - fabsf(t);
         diff                    = (t > (T)0.0) ? min((NNFloat)0.0f, diff) : max((NNFloat)0.0, diff);          
-        pDelta[uOffset + pos]   = diff * a * ((NNFloat)1.0 - a);      
+        pDelta[uOffset + pos]   = w * diff * a * ((NNFloat)1.0 - a);      
     }
 }
 
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateIndexedSigmoidL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, unsigned char* pData)
+kCalculateIndexedSigmoidL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, unsigned char* pData, NNFloat* pDataWeight)
 {
     uint64_t pos                = (blockIdx.y * blockDim.x) + threadIdx.x;
     if (pos < stride)
     {
         uint64_t uOffset        = blockIdx.x * stride;
-        uint64_t dOffset        = (cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x) * stride;
+        uint64_t dpos           = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x];
+        uint64_t dOffset        = dpos * stride;
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
         NNFloat a               = pUnit[uOffset + pos];
         NNFloat t               = (NNFloat)pData[dOffset + pos] * (NNFloat)(1.0 / 256.0);
         NNFloat diff            = a - fabsf(t);
         diff                    = (t > (NNFloat)0.0) ? min((NNFloat)0.0f, diff) : max((NNFloat)0.0, diff);          
-        pDelta[uOffset + pos]   = diff * a * ((NNFloat)1.0 - a);      
+        pDelta[uOffset + pos]   = w * diff * a * ((NNFloat)1.0 - a);      
     }
 }
 
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateIndexedSigmoidL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, char* pData)
+kCalculateIndexedSigmoidL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, char* pData, NNFloat* pDataWeight)
 {
     uint64_t pos                = (blockIdx.y * blockDim.x) + threadIdx.x;
     if (pos < stride)
     {
         uint64_t uOffset        = blockIdx.x * stride;
-        uint64_t dOffset        = (cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x) * stride;
+        uint64_t dpos           = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x];
+        uint64_t dOffset        = dpos * stride;
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
         NNFloat a               = pUnit[uOffset + pos];
         NNFloat t               = (NNFloat)pData[dOffset + pos] * (NNFloat)(1.0 / 128.0);
         NNFloat diff            = a - fabsf(t);
         diff                    = (t > (NNFloat)0.0) ? min((NNFloat)0.0f, diff) : max((NNFloat)0.0, diff);          
-        pDelta[uOffset + pos]   = diff * a * ((NNFloat)1.0 - a);      
+        pDelta[uOffset + pos]   = w * diff * a * ((NNFloat)1.0 - a);      
     }
 }
 
 template<typename T>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateIndexedTanhL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, T* pData)
+kCalculateIndexedTanhL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, T* pData, NNFloat* pDataWeight)
 {
     uint64_t pos                = (blockIdx.y * blockDim.x) + threadIdx.x;
     if (pos < stride)
     {
         uint64_t uOffset        = blockIdx.x * stride;
-        uint64_t dOffset        = (cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x) * stride;
+        uint64_t dpos           = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x];
+        uint64_t dOffset        = dpos * stride;
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
         NNFloat a               = pUnit[uOffset + pos];
         NNFloat t               = pData[dOffset + pos];
         NNFloat diff            = a - fabsf(t);
         diff                    = (t > (T)0.0) ? min((NNFloat)0.0f, diff) : max((NNFloat)0.0, diff);          
-        pDelta[uOffset + pos]   = diff * ((NNFloat)1.0 - a * a);      
+        pDelta[uOffset + pos]   = w * diff * ((NNFloat)1.0 - a * a);      
     }
 }
 
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateIndexedTanhL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, unsigned char* pData)
+kCalculateIndexedTanhL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, unsigned char* pData, NNFloat* pDataWeight)
 {
     uint64_t pos                = (blockIdx.y * blockDim.x) + threadIdx.x;
     if (pos < stride)
     {
         uint64_t uOffset        = blockIdx.x * stride;
-        uint64_t dOffset        = (cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x) * stride;
+        uint64_t dpos           = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x];
+        uint64_t dOffset        = dpos * stride;
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
         NNFloat a               = pUnit[uOffset + pos];
         NNFloat t               = (NNFloat)pData[dOffset + pos] * (NNFloat)(1.0 / 256.0);
         NNFloat diff            = a - fabsf(t);
         diff                    = (t > (NNFloat)0.0) ? min((NNFloat)0.0f, diff) : max((NNFloat)0.0, diff);          
-        pDelta[uOffset + pos]   = diff * ((NNFloat)1.0 - a * a);   
+        pDelta[uOffset + pos]   = w * diff * ((NNFloat)1.0 - a * a);   
     }
 }
 
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateIndexedTanhL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, char* pData)
+kCalculateIndexedTanhL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, char* pData, NNFloat* pDataWeight)
 {
     uint64_t pos                = (blockIdx.y * blockDim.x) + threadIdx.x;
     if (pos < stride)
     {
         uint64_t uOffset        = blockIdx.x * stride;
-        uint64_t dOffset        = (cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x) * stride;
+        uint64_t dpos           = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x];
+        uint64_t dOffset        = dpos * stride;
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
         NNFloat a               = pUnit[uOffset + pos];
         NNFloat t               = (NNFloat)pData[dOffset + pos] * (NNFloat)(1.0 / 128.0);
         NNFloat diff            = a - fabsf(t);
         diff                    = (t > (NNFloat)0.0) ? min((NNFloat)0.0f, diff) : max((NNFloat)0.0, diff);          
-        pDelta[uOffset + pos]   = diff * ((NNFloat)1.0 - a * a);      
+        pDelta[uOffset + pos]   = w * diff * ((NNFloat)1.0 - a * a);      
     }
 }
 
 template<typename T>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateIndexedLinearL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, T* pData)
+kCalculateIndexedLinearL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, T* pData, NNFloat* pDataWeight)
 {
     uint64_t pos                = (blockIdx.y * blockDim.x) + threadIdx.x;
     if (pos < stride)
     {
         uint64_t uOffset        = blockIdx.x * stride;
-        uint64_t dOffset        = (cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x) * stride;
+        uint64_t dpos           = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x];
+        uint64_t dOffset        = dpos * stride;
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
         NNFloat a               = pUnit[uOffset + pos];
         NNFloat t               = pData[dOffset + pos];
         NNFloat diff            = a - fabsf(t);
         diff                    = (t > (T)0.0) ? min((NNFloat)0.0f, diff) : max((NNFloat)0.0, diff);          
-        pDelta[uOffset + pos]   = diff;      
+        pDelta[uOffset + pos]   = w * diff;      
     }
 }
 
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateIndexedLinearL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, unsigned char* pData)
+kCalculateIndexedLinearL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, unsigned char* pData, NNFloat* pDataWeight)
 {
     uint64_t pos                = (blockIdx.y * blockDim.x) + threadIdx.x;
     if (pos < stride)
     {
         uint64_t uOffset        = blockIdx.x * stride;
-        uint64_t dOffset        = (cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x) * stride;
+        uint64_t dpos           = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x];
+        uint64_t dOffset        = dpos * stride;
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
         NNFloat a               = pUnit[uOffset + pos];
         NNFloat t               = (NNFloat)pData[dOffset + pos] * (NNFloat)(1.0 / 256.0);
         NNFloat diff            = a - fabsf(t);
         diff                    = (t > (NNFloat)0.0) ? min((NNFloat)0.0f, diff) : max((NNFloat)0.0, diff);          
-        pDelta[uOffset + pos]   = diff;      
+        pDelta[uOffset + pos]   = w * diff;      
     }
 }
 
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateIndexedLinearL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, char* pData)
+kCalculateIndexedLinearL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, char* pData, NNFloat* pDataWeight)
 {
     uint64_t pos                = (blockIdx.y * blockDim.x) + threadIdx.x;
     if (pos < stride)
     {
         uint64_t uOffset        = blockIdx.x * stride;
-        uint64_t dOffset        = (cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x) * stride;
+        uint64_t dpos           = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x];
+        uint64_t dOffset        = dpos * stride;
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
         NNFloat a               = pUnit[uOffset + pos];
         NNFloat t               = (NNFloat)pData[dOffset + pos] * (NNFloat)(1.0 / 128.0);
         NNFloat diff            = a - fabsf(t);
         diff                    = (t > (NNFloat)0.0) ? min((NNFloat)0.0f, diff) : max((NNFloat)0.0, diff);          
-        pDelta[uOffset + pos]   = diff;      
+        pDelta[uOffset + pos]   = w * diff;      
     }
 }
 
 template<typename T>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateIndexedRELUL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, T* pData)
+kCalculateIndexedRELUL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, T* pData, NNFloat* pDataWeight)
 {
     uint64_t pos                = (blockIdx.y * blockDim.x) + threadIdx.x;
     if (pos < stride)
     {
         uint64_t uOffset        = blockIdx.x * stride;
-        uint64_t dOffset        = (cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x) * stride;
+        uint64_t dpos           = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x];
+        uint64_t dOffset        = dpos * stride;
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
         NNFloat a               = pUnit[uOffset + pos];
         NNFloat t               = pData[dOffset + pos];
         NNFloat diff            = a - fabsf(t);
         diff                    = (t > (T)0.0) ? min((NNFloat)0.0f, diff) : max((NNFloat)0.0, diff);          
-        pDelta[uOffset + pos]   = diff * (a > (NNFloat)0.0);      
+        pDelta[uOffset + pos]   = w * diff * (a > (NNFloat)0.0);      
     }
 }
 
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateIndexedRELUL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, unsigned char* pData)
+kCalculateIndexedRELUL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, unsigned char* pData, NNFloat* pDataWeight)
 {
     uint64_t pos                = (blockIdx.y * blockDim.x) + threadIdx.x;
     if (pos < stride)
     {
         uint64_t uOffset        = blockIdx.x * stride;
-        uint64_t dOffset        = (cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x) * stride;
+        uint64_t dpos           = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x];
+        uint64_t dOffset        = dpos * stride;
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
         NNFloat a               = pUnit[uOffset + pos];
         NNFloat t               = (NNFloat)pData[dOffset + pos] * (NNFloat)(1.0 / 256.0);
         NNFloat diff            = a - fabsf(t);
         diff                    = (t > (NNFloat)0.0) ? min((NNFloat)0.0f, diff) : max((NNFloat)0.0, diff);          
-        pDelta[uOffset + pos]   = diff * (a > (NNFloat)0.0);      
+        pDelta[uOffset + pos]   = w * diff * (a > (NNFloat)0.0);      
     }
 }
 
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateIndexedRELUL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, char* pData)
+kCalculateIndexedRELUL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, char* pData, NNFloat* pDataWeight)
 {
     uint64_t pos                = (blockIdx.y * blockDim.x) + threadIdx.x;
     if (pos < stride)
     {
         uint64_t uOffset        = blockIdx.x * stride;
-        uint64_t dOffset        = (cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x) * stride;
+        uint64_t dpos           = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x];
+        uint64_t dOffset        = dpos * stride;
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
         NNFloat a               = pUnit[uOffset + pos];
         NNFloat t               = (NNFloat)pData[dOffset + pos] * (NNFloat)(1.0 / 128.0);
         NNFloat diff            = a - fabsf(t);
         diff                    = (t > (NNFloat)0.0) ? min((NNFloat)0.0f, diff) : max((NNFloat)0.0, diff);          
-        pDelta[uOffset + pos]   = diff * (a > (NNFloat)0.0);      
+        pDelta[uOffset + pos]   = w * diff * (a > (NNFloat)0.0);      
     }
 }
 
 template<typename T>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateIndexedLRELUL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, T* pData, NNFloat slope)
+kCalculateIndexedLRELUL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, T* pData, NNFloat* pDataWeight, NNFloat slope)
 {
     uint64_t pos                = (blockIdx.y * blockDim.x) + threadIdx.x;
     if (pos < stride)
     {
         uint64_t uOffset        = blockIdx.x * stride;
-        uint64_t dOffset        = (cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x) * stride;
+        uint64_t dpos           = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x];
+        uint64_t dOffset        = dpos * stride;
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
         NNFloat a               = pUnit[uOffset + pos];
         NNFloat t               = pData[dOffset + pos];
         NNFloat diff            = a - fabsf(t);
         diff                    = (t > (T)0.0) ? min((NNFloat)0.0f, diff) : max((NNFloat)0.0, diff);          
-        pDelta[uOffset + pos]   = diff * ((a > (NNFloat)0.0) + (a <= (NNFloat)0.0) * slope);
+        pDelta[uOffset + pos]   = w * diff * ((a > (NNFloat)0.0) + (a <= (NNFloat)0.0) * slope);
     }
 }
 
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateIndexedLRELUL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, unsigned char* pData, NNFloat slope)
+kCalculateIndexedLRELUL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, unsigned char* pData, NNFloat* pDataWeight, NNFloat slope)
 {
     uint64_t pos                = (blockIdx.y * blockDim.x) + threadIdx.x;
     if (pos < stride)
     {
         uint64_t uOffset        = blockIdx.x * stride;
-        uint64_t dOffset        = (cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x) * stride;
+        uint64_t dpos           = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x];
+        uint64_t dOffset        = dpos * stride;
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
         NNFloat a               = pUnit[uOffset + pos];
         NNFloat t               = (NNFloat)pData[dOffset + pos] * (NNFloat)(1.0 / 256.0);
         NNFloat diff            = a - fabsf(t);
         diff                    = (t > (NNFloat)0.0) ? min((NNFloat)0.0f, diff) : max((NNFloat)0.0, diff);          
-        pDelta[uOffset + pos]   = diff * ((a > (NNFloat)0.0) + (a <= (NNFloat)0.0) * slope);
+        pDelta[uOffset + pos]   = w * diff * ((a > (NNFloat)0.0) + (a <= (NNFloat)0.0) * slope);
     }
 }
 
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateIndexedLRELUL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, char* pData, NNFloat slope)
+kCalculateIndexedLRELUL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, char* pData, NNFloat* pDataWeight, NNFloat slope)
 {
     uint64_t pos                = (blockIdx.y * blockDim.x) + threadIdx.x;
     if (pos < stride)
     {
         uint64_t uOffset        = blockIdx.x * stride;
-        uint64_t dOffset        = (cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x) * stride;
+        uint64_t dpos           = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x];
+        uint64_t dOffset        = dpos * stride;
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
         NNFloat a               = pUnit[uOffset + pos];
         NNFloat t               = (NNFloat)pData[dOffset + pos] * (NNFloat)(1.0 / 128.0);
         NNFloat diff            = a - fabsf(t);
         diff                    = (t > (NNFloat)0.0) ? min((NNFloat)0.0f, diff) : max((NNFloat)0.0, diff);          
-        pDelta[uOffset + pos]   = diff * ((a > (NNFloat)0.0) + (a <= (NNFloat)0.0) * slope);
+        pDelta[uOffset + pos]   = w * diff * ((a > (NNFloat)0.0) + (a <= (NNFloat)0.0) * slope);
     }
 }
 
 template<typename T>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateIndexedELUL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, T* pData, NNFloat alpha)
+kCalculateIndexedELUL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, T* pData, NNFloat* pDataWeight, NNFloat alpha)
 {
     uint64_t pos                = (blockIdx.y * blockDim.x) + threadIdx.x;
     if (pos < stride)
     {
         uint64_t uOffset        = blockIdx.x * stride;
-        uint64_t dOffset        = (cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x) * stride;
+        uint64_t dpos           = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x];
+        uint64_t dOffset        = dpos * stride;
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
         NNFloat a               = pUnit[uOffset + pos];
         NNFloat t               = pData[dOffset + pos];
         NNFloat diff            = a - fabsf(t);
         diff                    = (t > (T)0.0) ? min((NNFloat)0.0f, diff) : max((NNFloat)0.0, diff);          
-        pDelta[uOffset + pos]   = diff * ((a >= (NNFloat)0.0) + (a < (NNFloat)0.0) * (a + alpha));
+        pDelta[uOffset + pos]   = w * diff * ((a >= (NNFloat)0.0) + (a < (NNFloat)0.0) * (a + alpha));
     }
 }
 
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateIndexedELUL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, unsigned char* pData, NNFloat alpha)
+kCalculateIndexedELUL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, unsigned char* pData, NNFloat* pDataWeight, NNFloat alpha)
 {
     uint64_t pos                = (blockIdx.y * blockDim.x) + threadIdx.x;
     if (pos < stride)
     {
         uint64_t uOffset        = blockIdx.x * stride;
-        uint64_t dOffset        = (cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x) * stride;
+        uint64_t dpos           = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x];
+        uint64_t dOffset        = dpos * stride;
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
         NNFloat a               = pUnit[uOffset + pos];
         NNFloat t               = (NNFloat)pData[dOffset + pos] * (NNFloat)(1.0 / 256.0);
         NNFloat diff            = a - fabsf(t);
         diff                    = (t > (NNFloat)0.0) ? min((NNFloat)0.0f, diff) : max((NNFloat)0.0, diff);          
-        pDelta[uOffset + pos]   = diff * ((a >= (NNFloat)0.0) + (a < (NNFloat)0.0) * (a + alpha));
+        pDelta[uOffset + pos]   = w * diff * ((a >= (NNFloat)0.0) + (a < (NNFloat)0.0) * (a + alpha));
     }
 }
 
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateIndexedELUL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, char* pData, NNFloat alpha)
+kCalculateIndexedELUL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, char* pData, NNFloat* pDataWeight, NNFloat alpha)
 {
     uint64_t pos                = (blockIdx.y * blockDim.x) + threadIdx.x;
     if (pos < stride)
     {
         uint64_t uOffset        = blockIdx.x * stride;
-        uint64_t dOffset        = (cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x) * stride;
+        uint64_t dpos           = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x];
+        uint64_t dOffset        = dpos * stride;
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
         NNFloat a               = pUnit[uOffset + pos];
         NNFloat t               = (NNFloat)pData[dOffset + pos] * (NNFloat)(1.0 / 128.0);
         NNFloat diff            = a - fabsf(t);
         diff                    = (t > (NNFloat)0.0) ? min((NNFloat)0.0f, diff) : max((NNFloat)0.0, diff);          
-        pDelta[uOffset + pos]   = diff * ((a >= (NNFloat)0.0) + (a < (NNFloat)0.0) * (a + alpha));
+        pDelta[uOffset + pos]   = w * diff * ((a >= (NNFloat)0.0) + (a < (NNFloat)0.0) * (a + alpha));
     }
 }
 
 template<typename T>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateIndexedSELUL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, T* pData, NNFloat alpha, NNFloat lambda)
+kCalculateIndexedSELUL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, T* pData, NNFloat* pDataWeight, NNFloat alpha, NNFloat lambda)
 {
     uint64_t pos                = (blockIdx.y * blockDim.x) + threadIdx.x;
     if (pos < stride)
     {
         uint64_t uOffset        = blockIdx.x * stride;
-        uint64_t dOffset        = (cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x) * stride;
+        uint64_t dpos           = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x];
+        uint64_t dOffset        = dpos * stride;
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
         NNFloat a               = pUnit[uOffset + pos];
         NNFloat t               = pData[dOffset + pos];
         NNFloat diff            = a - fabsf(t);
         diff                    = (t > (T)0.0) ? min((NNFloat)0.0f, diff) : max((NNFloat)0.0, diff);          
-        pDelta[uOffset + pos]   = diff * ((a >= (NNFloat)0.0) * lambda + (a < (NNFloat)0.0) * (lambda * alpha * exp(a)));
+        pDelta[uOffset + pos]   = w * diff * ((a >= (NNFloat)0.0) * lambda + (a < (NNFloat)0.0) * (lambda * alpha * exp(a)));
     }
 }
 
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateIndexedSELUL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, unsigned char* pData, NNFloat alpha, NNFloat lambda)
+kCalculateIndexedSELUL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, unsigned char* pData, NNFloat* pDataWeight, NNFloat alpha, NNFloat lambda)
 {
     uint64_t pos                = (blockIdx.y * blockDim.x) + threadIdx.x;
     if (pos < stride)
     {
         uint64_t uOffset        = blockIdx.x * stride;
-        uint64_t dOffset        = (cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x) * stride;
+        uint64_t dpos           = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x];
+        uint64_t dOffset        = dpos * stride;
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
         NNFloat a               = pUnit[uOffset + pos];
         NNFloat t               = (NNFloat)pData[dOffset + pos] * (NNFloat)(1.0 / 256.0);
         NNFloat diff            = a - fabsf(t);
         diff                    = (t > (NNFloat)0.0) ? min((NNFloat)0.0f, diff) : max((NNFloat)0.0, diff);          
-        pDelta[uOffset + pos]   = diff * ((a >= (NNFloat)0.0) * lambda + (a < (NNFloat)0.0) * (lambda * alpha * exp(a)));
+        pDelta[uOffset + pos]   = w * diff * ((a >= (NNFloat)0.0) * lambda + (a < (NNFloat)0.0) * (lambda * alpha * exp(a)));
     }
 }
 
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateIndexedSELUL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, char* pData, NNFloat alpha, NNFloat lambda)
+kCalculateIndexedSELUL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, char* pData, NNFloat* pDataWeight, NNFloat alpha, NNFloat lambda)
 {
     uint64_t pos                = (blockIdx.y * blockDim.x) + threadIdx.x;
     if (pos < stride)
     {
         uint64_t uOffset        = blockIdx.x * stride;
-        uint64_t dOffset        = (cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x) * stride;
+        uint64_t dpos           = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x];
+        uint64_t dOffset        = dpos * stride;
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
         NNFloat a               = pUnit[uOffset + pos];
         NNFloat t               = (NNFloat)pData[dOffset + pos] * (NNFloat)(1.0 / 128.0);
         NNFloat diff            = a - fabsf(t);
         diff                    = (t > (NNFloat)0.0) ? min((NNFloat)0.0f, diff) : max((NNFloat)0.0, diff);          
-        pDelta[uOffset + pos]   = diff * ((a >= (NNFloat)0.0) * lambda + (a < (NNFloat)0.0) * (lambda * alpha * exp(a)));
+        pDelta[uOffset + pos]   = w * diff * ((a >= (NNFloat)0.0) * lambda + (a < (NNFloat)0.0) * (lambda * alpha * exp(a)));
     }
 }
 
 template<typename T>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateIndexedSoftMaxL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, T* pData)
+kCalculateIndexedSoftMaxL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, T* pData, NNFloat* pDataWeight)
 {
     uint64_t pos                = (blockIdx.y * blockDim.x) + threadIdx.x;
     if (pos < stride)
     {
         uint64_t uOffset        = blockIdx.x * stride;
-        uint64_t dOffset        = (cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x) * stride;
+        uint64_t dpos           = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x];
+        uint64_t dOffset        = dpos * stride;
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
         NNFloat a               = pUnit[uOffset + pos];
         NNFloat t               = pData[dOffset + pos];
         NNFloat diff            = a - fabsf(t);
         diff                    = (t > (T)0.0) ? min((NNFloat)0.0f, diff) : max((NNFloat)0.0, diff);          
-        pDelta[uOffset + pos]   = diff;      
+        pDelta[uOffset + pos]   = w * diff;      
     }
 }
 
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateIndexedSoftMaxL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, unsigned char* pData)
+kCalculateIndexedSoftMaxL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, unsigned char* pData, NNFloat* pDataWeight)
 {
     uint64_t pos                = (blockIdx.y * blockDim.x) + threadIdx.x;
     if (pos < stride)
     {
         uint64_t uOffset        = blockIdx.x * stride;
-        uint64_t dOffset        = (cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x) * stride;
+        uint64_t dpos           = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x];
+        uint64_t dOffset        = dpos * stride;
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
         NNFloat a               = pUnit[uOffset + pos];
         NNFloat t               = (NNFloat)pData[dOffset + pos] * (NNFloat)(1.0 / 256.0);
         NNFloat diff            = a - fabsf(t);
         diff                    = (t > (NNFloat)0.0) ? min((NNFloat)0.0f, diff) : max((NNFloat)0.0, diff);          
-        pDelta[uOffset + pos]   = diff;      
+        pDelta[uOffset + pos]   = w * diff;      
     }
 }
 
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateIndexedSoftMaxL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, char* pData)
+kCalculateIndexedSoftMaxL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, char* pData, NNFloat* pDataWeight)
 {
     uint64_t pos                = (blockIdx.y * blockDim.x) + threadIdx.x;
     if (pos < stride)
     {
         uint64_t uOffset        = blockIdx.x * stride;
-        uint64_t dOffset        = (cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x) * stride;
+        uint64_t dpos           = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x];
+        uint64_t dOffset        = dpos * stride;
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
         NNFloat a               = pUnit[uOffset + pos];
         NNFloat t               = (NNFloat)pData[dOffset + pos] * (NNFloat)(1.0 / 128.0);
         NNFloat diff            = a - fabsf(t);
         diff                    = (t > (NNFloat)0.0) ? min((NNFloat)0.0f, diff) : max((NNFloat)0.0, diff);          
-        pDelta[uOffset + pos]   = diff;      
+        pDelta[uOffset + pos]   = w * diff;      
     }
 }
 
-template<typename T> void kCalculateIndexedL2HingeOutputDelta(Activation activation, uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, T* pData, NNFloat slope, NNFloat alpha, NNFloat lambda)
+template<typename T> void kCalculateIndexedL2HingeOutputDelta(Activation activation, uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, T* pData, NNFloat* pDataWeight, NNFloat slope, NNFloat alpha, NNFloat lambda)
 {
     dim3 grid(batch, (stride + getGpu()._threadsPerBlock - 1) / getGpu()._threadsPerBlock);
     switch (activation)
     {
         case Sigmoid:
-            kCalculateIndexedSigmoidL2HingeOutputDelta_kernel<<<grid, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pIndex, pData);
+            kCalculateIndexedSigmoidL2HingeOutputDelta_kernel<<<grid, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pIndex, pData, pDataWeight);
             LAUNCHERROR("kCalculateIndexedSigmoidL2HingeOutputDelta_kernel");
             break;
         
         case Tanh:
-            kCalculateIndexedTanhL2HingeOutputDelta_kernel<<<grid, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pIndex, pData);
+            kCalculateIndexedTanhL2HingeOutputDelta_kernel<<<grid, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pIndex, pData, pDataWeight);
             LAUNCHERROR("kCalculateIndexedTanhL2HingeOutputDelta_kernel");
             break;
 
         case Linear:
-            kCalculateIndexedLinearL2HingeOutputDelta_kernel<<<grid, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pIndex, pData);
+            kCalculateIndexedLinearL2HingeOutputDelta_kernel<<<grid, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pIndex, pData, pDataWeight);
             LAUNCHERROR("kCalculateIndexedLinearL2HingeOutputDelta_kernel");
             break;
 
         case RectifiedLinear:
-            kCalculateIndexedRELUL2HingeOutputDelta_kernel<<<grid, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pIndex, pData);
+            kCalculateIndexedRELUL2HingeOutputDelta_kernel<<<grid, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pIndex, pData, pDataWeight);
             LAUNCHERROR("kCalculateIndexedRELUL2HingeOutputDelta_kernel");
             break;
             
         case LeakyRectifiedLinear:
-            kCalculateIndexedLRELUL2HingeOutputDelta_kernel<<<grid, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pIndex, pData, slope);
+            kCalculateIndexedLRELUL2HingeOutputDelta_kernel<<<grid, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pIndex, pData, pDataWeight, slope);
             LAUNCHERROR("kCalculateIndexedLRELUL2HingeOutputDelta_kernel");
             break;
 
         case ExponentialLinear:
-            kCalculateIndexedELUL2HingeOutputDelta_kernel<<<grid, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pIndex, pData, alpha);
+            kCalculateIndexedELUL2HingeOutputDelta_kernel<<<grid, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pIndex, pData, pDataWeight, alpha);
             LAUNCHERROR("kCalculateIndexedELUL2HingeOutputDelta_kernel");
             break;
 
         case ScaledExponentialLinear:
-            kCalculateIndexedSELUL2HingeOutputDelta_kernel<<<grid, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pIndex, pData, alpha, lambda);
+            kCalculateIndexedSELUL2HingeOutputDelta_kernel<<<grid, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pIndex, pData, pDataWeight, alpha, lambda);
             LAUNCHERROR("kCalculateIndexedSELUL2HIngeOutputDelta_kernel");
             break;
 
        case SoftMax:
-            kCalculateIndexedSoftMaxL2HingeOutputDelta_kernel<<<grid, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pIndex, pData);
+            kCalculateIndexedSoftMaxL2HingeOutputDelta_kernel<<<grid, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pIndex, pData, pDataWeight);
             LAUNCHERROR("kCalculateIndexedSoftMaxL2HingeOutputDelta_kernel");
             break;                
     }
@@ -1853,11 +2045,13 @@ template<typename T> void kCalculateIndexedL2HingeOutputDelta(Activation activat
 template<typename T>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateHingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, T* pData)
+kCalculateHingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, T* pData, NNFloat* pDataWeight)
 {
     uint64_t pos                = threadIdx.x;
     uint64_t uOffset            = blockIdx.x * stride;
-    uint64_t dOffset            = (cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x) * stride;
+    uint64_t dpos               = cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x;
+    uint64_t dOffset            = dpos * stride;
+    NNFloat w                   = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
     pUnit                      += uOffset;
     pDelta                     += uOffset;
     pData                      += dOffset;
@@ -1865,7 +2059,7 @@ kCalculateHingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t st
     {
         NNFloat a               = pUnit[pos];
         NNFloat t               = pData[pos];
-        pDelta[pos]             = (a < (NNFloat)0.0) ? -t : (NNFloat)0.0;
+        pDelta[pos]             = w * ((a < (NNFloat)0.0) ? -t : (NNFloat)0.0);
         pos                    += blockDim.x;
     }
 }
@@ -1873,11 +2067,13 @@ kCalculateHingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t st
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateHingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, unsigned char* pData)
+kCalculateHingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, unsigned char* pData, NNFloat* pDataWeight)
 {
     uint64_t pos                = threadIdx.x;
     uint64_t uOffset            = blockIdx.x * stride;
-    uint64_t dOffset            = (cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x) * stride;
+    uint64_t dpos               = cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x;
+    uint64_t dOffset            = dpos * stride;
+    NNFloat w                   = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
     pUnit                      += uOffset;
     pDelta                     += uOffset;
     pData                      += dOffset;
@@ -1885,7 +2081,7 @@ kCalculateHingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t st
     {
         NNFloat a               = pUnit[pos];
         NNFloat t               = (NNFloat)pData[pos] * (NNFloat)(1.0 / 256.0);
-        pDelta[pos]             = (a < (NNFloat)0.0) ? -t : (NNFloat)0.0;
+        pDelta[pos]             = w * ((a < (NNFloat)0.0) ? -t : (NNFloat)0.0);
         pos                    += blockDim.x;
     }
 }
@@ -1893,11 +2089,13 @@ kCalculateHingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t st
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateHingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, char* pData)
+kCalculateHingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, char* pData, NNFloat* pDataWeight)
 {
     uint64_t pos                = threadIdx.x;
     uint64_t uOffset            = blockIdx.x * stride;
-    uint64_t dOffset            = (cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x) * stride;
+    uint64_t dpos               = cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x;
+    uint64_t dOffset            = dpos * stride;
+    NNFloat w                   = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
     pUnit                      += uOffset;
     pDelta                     += uOffset;
     pData                      += dOffset;
@@ -1905,27 +2103,29 @@ kCalculateHingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t st
     {
         NNFloat a               = pUnit[pos];
         NNFloat t               = (NNFloat)pData[pos] * (NNFloat)(1.0 / 128.0);
-        pDelta[pos]             = (a < (NNFloat)0.0) ? -t : (NNFloat)0.0;
+        pDelta[pos]             = w * ((a < (NNFloat)0.0) ? -t : (NNFloat)0.0);
         pos                    += blockDim.x;
     }
 }
 
 
-template<typename T> void kCalculateHingeOutputDelta(Activation activation, uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, T* pData)
+template<typename T> void kCalculateHingeOutputDelta(Activation activation, uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, T* pData, NNFloat* pDataWeight)
 {
     unsigned long threads = max(32, min(stride, getGpu()._threadsPerBlock));
-    kCalculateHingeOutputDelta_kernel<<<batch, threads>>>(position, batch, stride,  pUnit, pDelta, pData);
+    kCalculateHingeOutputDelta_kernel<<<batch, threads>>>(position, batch, stride,  pUnit, pDelta, pData, pDataWeight);
     LAUNCHERROR("kCalculateHingeOutputDelta_kernel");    
 }
 
 template<typename T>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateIndexedHingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, T* pData)
+kCalculateIndexedHingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, T* pData, NNFloat* pDataWeight)
 {
     uint64_t pos                = threadIdx.x;
     uint64_t uOffset            = blockIdx.x * stride;
-    uint64_t dOffset            = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x] * stride;
+    uint64_t dpos               = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x];
+    uint64_t dOffset            = dpos * stride;
+    NNFloat w                   = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;    
     pUnit                      += uOffset;
     pDelta                     += uOffset;
     pData                      += dOffset;
@@ -1933,7 +2133,7 @@ kCalculateIndexedHingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint
     {
         NNFloat a               = pUnit[pos];
         NNFloat t               = pData[pos];
-        pDelta[pos]             = (a < (NNFloat)0.0) ? -t : (NNFloat)0.0;
+        pDelta[pos]             = w * ((a < (NNFloat)0.0) ? -t : (NNFloat)0.0);
         pos                    += blockDim.x;
     }
 }
@@ -1941,11 +2141,13 @@ kCalculateIndexedHingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateIndexedHingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, unsigned char* pData)
+kCalculateIndexedHingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, unsigned char* pData, NNFloat* pDataWeight)
 {
     uint64_t pos                = threadIdx.x;
     uint64_t uOffset            = blockIdx.x * stride;
-    uint64_t dOffset            = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x] * stride;
+    uint64_t dpos               = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x];
+    uint64_t dOffset            = dpos * stride;
+    NNFloat w                   = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0; 
     pUnit                      += uOffset;
     pDelta                     += uOffset;
     pData                      += dOffset;
@@ -1953,7 +2155,7 @@ kCalculateIndexedHingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint
     {
         NNFloat a               = pUnit[pos];
         NNFloat t               = (NNFloat)pData[pos] * (NNFloat)(1.0 / 256.0);
-        pDelta[pos]             = (a < (NNFloat)0.0) ? -t : (NNFloat)0.0;
+        pDelta[pos]             = w * ((a < (NNFloat)0.0) ? -t : (NNFloat)0.0);
         pos                    += blockDim.x;
     }
 }
@@ -1961,11 +2163,13 @@ kCalculateIndexedHingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateIndexedHingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, char* pData)
+kCalculateIndexedHingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, char* pData, NNFloat* pDataWeight)
 {
     uint64_t pos                = threadIdx.x;
     uint64_t uOffset            = blockIdx.x * stride;
-    uint64_t dOffset            = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x] * stride;
+    uint64_t dpos               = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x];
+    uint64_t dOffset            = dpos * stride;
+    NNFloat w                   = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0; 
     pUnit                      += uOffset;
     pDelta                     += uOffset;
     pData                      += dOffset;
@@ -1973,32 +2177,32 @@ kCalculateIndexedHingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint
     {
         NNFloat a               = pUnit[pos];
         NNFloat t               = (NNFloat)pData[pos] * (NNFloat)(1.0 / 128.0);
-        pDelta[pos]             = (a < (NNFloat)0.0) ? -t : (NNFloat)0.0;
+        pDelta[pos]             = w * ((a < (NNFloat)0.0) ? -t : (NNFloat)0.0);
         pos                    += blockDim.x;
     }
 }
 
 
-template<typename T> void kCalculateIndexedHingeOutputDelta(Activation activation, uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, T* pData)
+template<typename T> void kCalculateIndexedHingeOutputDelta(Activation activation, uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, T* pData, NNFloat* pDataWeight)
 {
     unsigned long threads = max(32, min(stride, getGpu()._threadsPerBlock));
-    kCalculateIndexedHingeOutputDelta_kernel<<<batch, threads>>>(position, batch, stride,  pUnit, pDelta, pIndex, pData);
+    kCalculateIndexedHingeOutputDelta_kernel<<<batch, threads>>>(position, batch, stride,  pUnit, pDelta, pIndex, pData, pDataWeight);
     LAUNCHERROR("kCalculateHingeOutputDelta_kernel");    
 }
 
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateSparseRawSigmoidOutputDelta_kernel(uint32_t position, NNFloat* pSparseWeight, uint32_t stride, uint64_t size, NNFloat* pUnit,  NNFloat* pDelta)
+kCalculateSparseRawSigmoidOutputDelta_kernel(uint32_t position, NNFloat* pDataWeight, uint32_t stride, uint64_t size, NNFloat* pUnit,  NNFloat* pDelta)
 {
     uint64_t pos                = (blockIdx.x * blockDim.x) + threadIdx.x;
     if (pos < size)
     {
         NNFloat w               = cData._deltaBoost_zero;
-        if (pSparseWeight != NULL)
+        if (pDataWeight != NULL)
         {
             uint64_t dpos       = (pos / stride) + position;
             dpos                = cData._bShuffleIndices ? cData._pShuffleIndex[dpos] : dpos;
-            w                  *= pSparseWeight[dpos];
+            w                  *= pDataWeight[dpos];
         }
         NNFloat a               = pUnit[pos];
         pDelta[pos]             = w * a * a * ((NNFloat)1.0 - a);      
@@ -2007,7 +2211,7 @@ kCalculateSparseRawSigmoidOutputDelta_kernel(uint32_t position, NNFloat* pSparse
 
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateSparseNonZeroSigmoidOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pSparseWeight)
+kCalculateSparseNonZeroSigmoidOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pDataWeight)
 {
     uint64_t pos                = ((blockIdx.x * blockDim.x) + threadIdx.x) / cData._warpSize;
     if (pos < batch)
@@ -2015,7 +2219,7 @@ kCalculateSparseNonZeroSigmoidOutputDelta_kernel(uint32_t position, uint32_t bat
         uint32_t dpos           = cData._bShuffleIndices ? cData._pShuffleIndex[position + pos] : position + pos;
         uint64_t pos1           = pSparseStart[dpos] + (threadIdx.x & cData._warpMask);
         uint64_t end            = pSparseEnd[dpos];
-        NNFloat w               = cData._deltaBoost_one * ((pSparseWeight != NULL) ? pSparseWeight[dpos] : (NNFloat)1.0);
+        NNFloat w               = cData._deltaBoost_one * ((pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0);
         uint64_t offset         = pos * stride;
         while (pos1 < end)
         {
@@ -2029,17 +2233,17 @@ kCalculateSparseNonZeroSigmoidOutputDelta_kernel(uint32_t position, uint32_t bat
 
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateSparseRawTanhOutputDelta_kernel(uint32_t position, NNFloat* pSparseWeight, uint32_t stride, uint64_t size, NNFloat* pUnit,  NNFloat* pDelta)
+kCalculateSparseRawTanhOutputDelta_kernel(uint32_t position, NNFloat* pDataWeight, uint32_t stride, uint64_t size, NNFloat* pUnit,  NNFloat* pDelta)
 {
     uint64_t pos                = (blockIdx.x * blockDim.x) + threadIdx.x;
     if (pos < size)
     {
         NNFloat w               = (NNFloat)1.0;
-        if (pSparseWeight != NULL)
+        if (pDataWeight != NULL)
         {
             uint64_t dpos       = (pos / stride) + position;
             dpos                = cData._bShuffleIndices ? cData._pShuffleIndex[dpos] : dpos;
-            w                  *= pSparseWeight[dpos];
+            w                  *= pDataWeight[dpos];
         }
         NNFloat a               = pUnit[pos];    
         pDelta[pos]             = w * a * ((NNFloat)1.0 - a * a);       
@@ -2048,7 +2252,7 @@ kCalculateSparseRawTanhOutputDelta_kernel(uint32_t position, NNFloat* pSparseWei
 
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateSparseNonZeroTanhOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pSparseWeight)
+kCalculateSparseNonZeroTanhOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pDataWeight)
 {
     uint64_t pos                = ((blockIdx.x * blockDim.x) + threadIdx.x) / cData._warpSize;
     if (pos < batch)
@@ -2056,7 +2260,7 @@ kCalculateSparseNonZeroTanhOutputDelta_kernel(uint32_t position, uint32_t batch,
         uint32_t dpos           = cData._bShuffleIndices ? cData._pShuffleIndex[position + pos] : position + pos;
         uint64_t pos1           = pSparseStart[dpos] + (threadIdx.x & cData._warpMask);
         uint64_t end            = pSparseEnd[dpos];
-        NNFloat w               = (pSparseWeight != NULL) ? pSparseWeight[dpos] : (NNFloat)1.0;
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
         uint64_t offset         = pos * stride;
         while (pos1 < end)
         {
@@ -2070,17 +2274,17 @@ kCalculateSparseNonZeroTanhOutputDelta_kernel(uint32_t position, uint32_t batch,
 
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateSparseRawLinearOutputDelta_kernel(uint32_t position, NNFloat* pSparseWeight, uint32_t stride, uint64_t size, NNFloat* pUnit,  NNFloat* pDelta)
+kCalculateSparseRawLinearOutputDelta_kernel(uint32_t position, NNFloat* pDataWeight, uint32_t stride, uint64_t size, NNFloat* pUnit,  NNFloat* pDelta)
 {
     uint64_t pos                = (blockIdx.x * blockDim.x) + threadIdx.x;
     if (pos < size)
     {
         NNFloat w               = (NNFloat)1.0;
-        if (pSparseWeight != NULL)
+        if (pDataWeight != NULL)
         {
             uint64_t dpos       = (pos / stride) + position;
             dpos                = cData._bShuffleIndices ? cData._pShuffleIndex[dpos] : dpos;
-            w                  *= pSparseWeight[dpos];
+            w                  *= pDataWeight[dpos];
         }
         NNFloat a               = pUnit[pos];    
         pDelta[pos]             = w * a;         
@@ -2089,7 +2293,7 @@ kCalculateSparseRawLinearOutputDelta_kernel(uint32_t position, NNFloat* pSparseW
 
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateSparseNonZeroLinearOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pSparseWeight)
+kCalculateSparseNonZeroLinearOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pDataWeight)
 {
     uint64_t pos                = ((blockIdx.x * blockDim.x) + threadIdx.x) / cData._warpSize;
     if (pos < batch)
@@ -2097,7 +2301,7 @@ kCalculateSparseNonZeroLinearOutputDelta_kernel(uint32_t position, uint32_t batc
         uint32_t dpos           = cData._bShuffleIndices ? cData._pShuffleIndex[position + pos] : position + pos;
         uint64_t pos1           = pSparseStart[dpos] + (threadIdx.x & cData._warpMask);
         uint64_t end            = pSparseEnd[dpos];
-        NNFloat w               = (pSparseWeight != NULL) ? pSparseWeight[dpos] : (NNFloat)1.0;
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
         uint64_t offset         = pos * stride;
         while (pos1 < end)
         {
@@ -2111,17 +2315,17 @@ kCalculateSparseNonZeroLinearOutputDelta_kernel(uint32_t position, uint32_t batc
 
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateSparseRawRELUOutputDelta_kernel(uint32_t position, NNFloat* pSparseWeight, uint32_t stride, uint64_t size, NNFloat* pUnit,  NNFloat* pDelta)
+kCalculateSparseRawRELUOutputDelta_kernel(uint32_t position, NNFloat* pDataWeight, uint32_t stride, uint64_t size, NNFloat* pUnit,  NNFloat* pDelta)
 {
     uint64_t pos                = (blockIdx.x * blockDim.x) + threadIdx.x;
     if (pos < size)
     {
         NNFloat w               = (NNFloat)1.0;
-        if (pSparseWeight != NULL)
+        if (pDataWeight != NULL)
         {
             uint64_t dpos       = (pos / stride) + position;
             dpos                = cData._bShuffleIndices ? cData._pShuffleIndex[dpos] : dpos;
-            w                  *= pSparseWeight[dpos];
+            w                  *= pDataWeight[dpos];
         }
         NNFloat a               = pUnit[pos];         
         pDelta[pos]             = w * a * (a > (NNFloat)0.0);   
@@ -2130,17 +2334,17 @@ kCalculateSparseRawRELUOutputDelta_kernel(uint32_t position, NNFloat* pSparseWei
 
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateSparseRawLRELUOutputDelta_kernel(uint32_t position, NNFloat* pSparseWeight, uint32_t stride, uint64_t size, NNFloat* pUnit,  NNFloat* pDelta, NNFloat slope)
+kCalculateSparseRawLRELUOutputDelta_kernel(uint32_t position, NNFloat* pDataWeight, uint32_t stride, uint64_t size, NNFloat* pUnit,  NNFloat* pDelta, NNFloat slope)
 {
     uint64_t pos                = (blockIdx.x * blockDim.x) + threadIdx.x;
     if (pos < size)
     {
         NNFloat w               = (NNFloat)1.0;
-        if (pSparseWeight != NULL)
+        if (pDataWeight != NULL)
         {
             uint64_t dpos       = (pos / stride) + position;
             dpos                = cData._bShuffleIndices ? cData._pShuffleIndex[dpos] : dpos;
-            w                  *= pSparseWeight[dpos];
+            w                  *= pDataWeight[dpos];
         }
         NNFloat a               = pUnit[pos];
         pDelta[pos]             = w * a * ((a > (NNFloat)0.0) + (a <= (NNFloat)0.0) * slope);
@@ -2150,17 +2354,17 @@ kCalculateSparseRawLRELUOutputDelta_kernel(uint32_t position, NNFloat* pSparseWe
 
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateSparseRawELUOutputDelta_kernel(uint32_t position, NNFloat* pSparseWeight, uint32_t stride, uint64_t size, NNFloat* pUnit,  NNFloat* pDelta, NNFloat alpha)
+kCalculateSparseRawELUOutputDelta_kernel(uint32_t position, NNFloat* pDataWeight, uint32_t stride, uint64_t size, NNFloat* pUnit,  NNFloat* pDelta, NNFloat alpha)
 {
     uint64_t pos                = (blockIdx.x * blockDim.x) + threadIdx.x;
     if (pos < size)
     {
         NNFloat w               = (NNFloat)1.0;
-        if (pSparseWeight != NULL)
+        if (pDataWeight != NULL)
         {
             uint64_t dpos       = (pos / stride) + position;
             dpos                = cData._bShuffleIndices ? cData._pShuffleIndex[dpos] : dpos;
-            w                  *= pSparseWeight[dpos];
+            w                  *= pDataWeight[dpos];
         }
         NNFloat a               = pUnit[pos];
         pDelta[pos]             = w * a * ((a > (NNFloat)0.0) + (a <= (NNFloat)0.0) * (a + alpha));
@@ -2170,17 +2374,17 @@ kCalculateSparseRawELUOutputDelta_kernel(uint32_t position, NNFloat* pSparseWeig
 
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateSparseRawSELUOutputDelta_kernel(uint32_t position, NNFloat* pSparseWeight, uint32_t stride, uint64_t size, NNFloat* pUnit,  NNFloat* pDelta, NNFloat alpha, NNFloat lambda)
+kCalculateSparseRawSELUOutputDelta_kernel(uint32_t position, NNFloat* pDataWeight, uint32_t stride, uint64_t size, NNFloat* pUnit,  NNFloat* pDelta, NNFloat alpha, NNFloat lambda)
 {
     uint64_t pos                = (blockIdx.x * blockDim.x) + threadIdx.x;
     if (pos < size)
     {
         NNFloat w               = (NNFloat)1.0;
-        if (pSparseWeight != NULL)
+        if (pDataWeight != NULL)
         {
             uint64_t dpos       = (pos / stride) + position;
             dpos                = cData._bShuffleIndices ? cData._pShuffleIndex[dpos] : dpos;
-            w                  *= pSparseWeight[dpos];
+            w                  *= pDataWeight[dpos];
         }
         NNFloat a               = pUnit[pos];
         pDelta[pos]             = w * a * ((a > (NNFloat)0.0) * lambda + (a <= (NNFloat)0.0) * lambda * alpha * exp(a));
@@ -2189,7 +2393,7 @@ kCalculateSparseRawSELUOutputDelta_kernel(uint32_t position, NNFloat* pSparseWei
 
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateSparseNonZeroRELUOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pSparseWeight)
+kCalculateSparseNonZeroRELUOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pDataWeight)
 {
     uint64_t pos                = ((blockIdx.x * blockDim.x) + threadIdx.x) / cData._warpSize;
     if (pos < batch)
@@ -2197,7 +2401,7 @@ kCalculateSparseNonZeroRELUOutputDelta_kernel(uint32_t position, uint32_t batch,
         uint32_t dpos           = cData._bShuffleIndices ? cData._pShuffleIndex[position + pos] : position + pos;
         uint64_t pos1           = pSparseStart[dpos] + (threadIdx.x & cData._warpMask);
         uint64_t end            = pSparseEnd[dpos];
-        NNFloat w               = (pSparseWeight != NULL) ? pSparseWeight[dpos] : (NNFloat)1.0;
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
         uint64_t offset         = pos * stride;
         while (pos1 < end)
         {
@@ -2211,7 +2415,7 @@ kCalculateSparseNonZeroRELUOutputDelta_kernel(uint32_t position, uint32_t batch,
 
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateSparseNonZeroLRELUOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pSparseWeight, NNFloat slope)
+kCalculateSparseNonZeroLRELUOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pDataWeight, NNFloat slope)
 {
     uint64_t pos                = ((blockIdx.x * blockDim.x) + threadIdx.x) / cData._warpSize;
     if (pos < batch)
@@ -2219,7 +2423,7 @@ kCalculateSparseNonZeroLRELUOutputDelta_kernel(uint32_t position, uint32_t batch
         uint32_t dpos           = cData._bShuffleIndices ? cData._pShuffleIndex[position + pos] : position + pos;
         uint64_t pos1           = pSparseStart[dpos] + (threadIdx.x & cData._warpMask);
         uint64_t end            = pSparseEnd[dpos];
-        NNFloat w               = (pSparseWeight != NULL) ? pSparseWeight[dpos] : (NNFloat)1.0;
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
         uint64_t offset         = pos * stride;
         while (pos1 < end)
         {
@@ -2233,14 +2437,14 @@ kCalculateSparseNonZeroLRELUOutputDelta_kernel(uint32_t position, uint32_t batch
 
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateSparseNonZeroELUOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pSparseWeight, NNFloat alpha)
+kCalculateSparseNonZeroELUOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pDataWeight, NNFloat alpha)
 {
     uint64_t pos                = ((blockIdx.x * blockDim.x) + threadIdx.x) / cData._warpSize;
     if (pos < batch)
     {
         uint32_t dpos           = cData._bShuffleIndices ? cData._pShuffleIndex[position + pos] : position + pos;
         uint64_t pos1           = pSparseStart[dpos] + (threadIdx.x & cData._warpMask);
-        NNFloat w               = (pSparseWeight != NULL) ? pSparseWeight[dpos] : (NNFloat)1.0;
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
         uint64_t end            = pSparseEnd[dpos];
         uint64_t offset         = pos * stride;
         while (pos1 < end)
@@ -2255,7 +2459,7 @@ kCalculateSparseNonZeroELUOutputDelta_kernel(uint32_t position, uint32_t batch, 
 
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateSparseNonZeroSELUOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pSparseWeight, NNFloat alpha, NNFloat lambda)
+kCalculateSparseNonZeroSELUOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pDataWeight, NNFloat alpha, NNFloat lambda)
 {
     uint64_t pos                = ((blockIdx.x * blockDim.x) + threadIdx.x) / cData._warpSize;
     if (pos < batch)
@@ -2263,7 +2467,7 @@ kCalculateSparseNonZeroSELUOutputDelta_kernel(uint32_t position, uint32_t batch,
         uint32_t dpos           = cData._bShuffleIndices ? cData._pShuffleIndex[position + pos] : position + pos;
         uint64_t pos1           = pSparseStart[dpos] + (threadIdx.x & cData._warpMask);
         uint64_t end            = pSparseEnd[dpos];
-        NNFloat w               = (pSparseWeight != NULL) ? pSparseWeight[dpos] : (NNFloat)1.0;
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
         uint64_t offset         = pos * stride;
         while (pos1 < end)
         {
@@ -2277,17 +2481,17 @@ kCalculateSparseNonZeroSELUOutputDelta_kernel(uint32_t position, uint32_t batch,
 
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateSparseRawSoftMaxOutputDelta_kernel(uint32_t position, NNFloat* pSparseWeight, uint32_t stride, uint64_t size, NNFloat* pUnit,  NNFloat* pDelta)
+kCalculateSparseRawSoftMaxOutputDelta_kernel(uint32_t position, NNFloat* pDataWeight, uint32_t stride, uint64_t size, NNFloat* pUnit,  NNFloat* pDelta)
 {
     uint64_t pos                = (blockIdx.x * blockDim.x) + threadIdx.x;
     if (pos < size)
     {
         NNFloat w               = (NNFloat)1.0;
-        if (pSparseWeight != NULL)
+        if (pDataWeight != NULL)
         {
             uint64_t dpos       = (pos / stride) + position;
             dpos                = cData._bShuffleIndices ? cData._pShuffleIndex[dpos] : dpos;
-            w                  *= pSparseWeight[dpos];
+            w                  *= pDataWeight[dpos];
         }
         NNFloat a               = pUnit[pos];    
         pDelta[pos]             = w * a;         
@@ -2296,7 +2500,7 @@ kCalculateSparseRawSoftMaxOutputDelta_kernel(uint32_t position, NNFloat* pSparse
 
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateSparseNonZeroSoftMaxOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pSparseWeight)
+kCalculateSparseNonZeroSoftMaxOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pDataWeight)
 {
     uint64_t pos                = ((blockIdx.x * blockDim.x) + threadIdx.x) / cData._warpSize;
     if (pos < batch)
@@ -2304,7 +2508,7 @@ kCalculateSparseNonZeroSoftMaxOutputDelta_kernel(uint32_t position, uint32_t bat
         uint32_t dpos           = cData._bShuffleIndices ? cData._pShuffleIndex[position + pos] : position + pos;
         uint64_t pos1           = pSparseStart[dpos];
         uint64_t end            = pSparseEnd[dpos];
-        NNFloat w               = (pSparseWeight != NULL) ? pSparseWeight[dpos] : (NNFloat)1.0 / (NNFloat)(end - pos1);
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0 / (NNFloat)(end - pos1);
         pos1                   += threadIdx.x & cData._warpMask;
         uint64_t offset         = pos * stride;
         while (pos1 < end)
@@ -2317,7 +2521,7 @@ kCalculateSparseNonZeroSoftMaxOutputDelta_kernel(uint32_t position, uint32_t bat
     }
 }
 
-void kCalculateSparseOutputDelta(Activation activation, uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pSparseWeight, bool bSparseIgnoreZero, NNFloat slope, NNFloat alpha, NNFloat lambda)
+void kCalculateSparseOutputDelta(Activation activation, uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pDataWeight, bool bSparseIgnoreZero, NNFloat slope, NNFloat alpha, NNFloat lambda)
 {
     uint64_t size               = (uint64_t)batch * (uint64_t)stride;
     dim3 grid1(CalculateBlocks(size));
@@ -2334,80 +2538,80 @@ void kCalculateSparseOutputDelta(Activation activation, uint32_t position, uint3
         case Sigmoid:
             if (!bSparseIgnoreZero)
             {
-                kCalculateSparseRawSigmoidOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(position, pSparseWeight, stride, size, pUnit, pDelta);
+                kCalculateSparseRawSigmoidOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(position, pDataWeight, stride, size, pUnit, pDelta);
                 LAUNCHERROR("kCalculateSparseRawSigmoidOutputDelta_kernel");
             }
-            kCalculateSparseNonZeroSigmoidOutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pSparseStart, pSparseEnd, pSparseIndex, pSparseWeight);
+            kCalculateSparseNonZeroSigmoidOutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pSparseStart, pSparseEnd, pSparseIndex, pDataWeight);
             LAUNCHERROR("kCalculateSparseNonZeroSigmoidOutputDelta_kernel");
             break;
         
         case Tanh:
             if (!bSparseIgnoreZero)
             {
-                kCalculateSparseRawTanhOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(position, pSparseWeight, stride, size, pUnit, pDelta);
+                kCalculateSparseRawTanhOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(position, pDataWeight, stride, size, pUnit, pDelta);
                 LAUNCHERROR("kCalculateSparseRawTanhOutputDelta_kernel");
             }
-            kCalculateSparseNonZeroTanhOutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pSparseStart, pSparseEnd, pSparseIndex, pSparseWeight);
+            kCalculateSparseNonZeroTanhOutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pSparseStart, pSparseEnd, pSparseIndex, pDataWeight);
             LAUNCHERROR("kCalculateSparseNonZeroTanhOutputDelta_kernel");
             break;
 
         case Linear:
             if (!bSparseIgnoreZero)
             {
-                kCalculateSparseRawLinearOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(position, pSparseWeight, stride, size, pUnit, pDelta);
+                kCalculateSparseRawLinearOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(position, pDataWeight, stride, size, pUnit, pDelta);
                 LAUNCHERROR("kCalculateSparseRawLinearOutputDelta_kernel");
             }
-            kCalculateSparseNonZeroLinearOutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pSparseStart, pSparseEnd, pSparseIndex, pSparseWeight);
+            kCalculateSparseNonZeroLinearOutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pSparseStart, pSparseEnd, pSparseIndex, pDataWeight);
             LAUNCHERROR("kCalculateSparseNonZeroLinearOutputDelta_kernel");
             break;
 
         case RectifiedLinear:
             if (!bSparseIgnoreZero)
             {
-                kCalculateSparseRawRELUOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(position, pSparseWeight, stride, size, pUnit, pDelta);
+                kCalculateSparseRawRELUOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(position, pDataWeight, stride, size, pUnit, pDelta);
                 LAUNCHERROR("kCalculateSparseRawRELUOutputDelta_kernel");
             }
-            kCalculateSparseNonZeroRELUOutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pSparseStart, pSparseEnd, pSparseIndex, pSparseWeight);
+            kCalculateSparseNonZeroRELUOutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pSparseStart, pSparseEnd, pSparseIndex, pDataWeight);
             LAUNCHERROR("kCalculateSparseNonZeroRELUOutputDelta_kernel");
             break;
 
         case LeakyRectifiedLinear:
             if (!bSparseIgnoreZero)
             {
-                kCalculateSparseRawLRELUOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(position, pSparseWeight, stride, size, pUnit, pDelta, slope);
+                kCalculateSparseRawLRELUOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(position, pDataWeight, stride, size, pUnit, pDelta, slope);
                 LAUNCHERROR("kCalculateSparseRawLRELUOutputDelta_kernel");
             }
-            kCalculateSparseNonZeroLRELUOutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pSparseStart, pSparseEnd, pSparseIndex, pSparseWeight, slope);
+            kCalculateSparseNonZeroLRELUOutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pSparseStart, pSparseEnd, pSparseIndex, pDataWeight, slope);
             LAUNCHERROR("kCalculateSparseNonZeroLRELUOutputDelta_kernel");
             break;
 
         case ExponentialLinear:
             if (!bSparseIgnoreZero)
             {
-                kCalculateSparseRawELUOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(position, pSparseWeight, stride, size, pUnit, pDelta, alpha);
+                kCalculateSparseRawELUOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(position, pDataWeight, stride, size, pUnit, pDelta, alpha);
                 LAUNCHERROR("kCalculateSparseRawELUOutputDelta_kernel");
             }
-            kCalculateSparseNonZeroELUOutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pSparseStart, pSparseEnd, pSparseIndex, pSparseWeight, alpha);
+            kCalculateSparseNonZeroELUOutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pSparseStart, pSparseEnd, pSparseIndex, pDataWeight, alpha);
             LAUNCHERROR("kCalculateSparseNonZeroELUOutputDelta_kernel");
             break;
 
         case ScaledExponentialLinear:
             if (!bSparseIgnoreZero)
             {
-                kCalculateSparseRawSELUOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(position, pSparseWeight, stride, size, pUnit, pDelta, alpha, lambda);
+                kCalculateSparseRawSELUOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(position, pDataWeight, stride, size, pUnit, pDelta, alpha, lambda);
                 LAUNCHERROR("kCalculateSparseRawSELUOutputDelta_kernel");
             }
-            kCalculateSparseNonZeroSELUOutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pSparseStart, pSparseEnd, pSparseIndex, pSparseWeight, alpha, lambda);
+            kCalculateSparseNonZeroSELUOutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pSparseStart, pSparseEnd, pSparseIndex, pDataWeight, alpha, lambda);
             LAUNCHERROR("kCalculateSparseNonZeroSELUOutputDelta_kernel");
             break;
 
         case SoftMax:
             if (!bSparseIgnoreZero)
             {
-                kCalculateSparseRawSoftMaxOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(position, pSparseWeight, stride, size, pUnit, pDelta);
+                kCalculateSparseRawSoftMaxOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(position, pDataWeight, stride, size, pUnit, pDelta);
                 LAUNCHERROR("kCalculateSparseRawSoftMaxOutputDelta_kernel");
             }
-            kCalculateSparseNonZeroSoftMaxOutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pSparseStart, pSparseEnd, pSparseIndex, pSparseWeight);
+            kCalculateSparseNonZeroSoftMaxOutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pSparseStart, pSparseEnd, pSparseIndex, pDataWeight);
             LAUNCHERROR("kCalculateSparseNonZeroSoftMaxOutputDelta_kernel");
             break;                        
     }
@@ -2415,7 +2619,7 @@ void kCalculateSparseOutputDelta(Activation activation, uint32_t position, uint3
 
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateIndexedSparseNonZeroSigmoidOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pSparseWeight)
+kCalculateIndexedSparseNonZeroSigmoidOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pDataWeight)
 {
     uint64_t pos                = ((blockIdx.x * blockDim.x) + threadIdx.x) / cData._warpSize;
     if (pos < batch)
@@ -2423,7 +2627,7 @@ kCalculateIndexedSparseNonZeroSigmoidOutputDelta_kernel(uint32_t position, uint3
         uint32_t dpos           = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + pos] : position + pos];
         uint64_t pos1           = pSparseStart[dpos] + (threadIdx.x & cData._warpMask);
         uint64_t end            = pSparseEnd[dpos];
-        NNFloat w               = cData._deltaBoost_one * ((pSparseWeight != NULL) ? pSparseWeight[dpos] : (NNFloat)1.0);
+        NNFloat w               = cData._deltaBoost_one * ((pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0);
         uint64_t offset         = pos * stride;
         while (pos1 < end)
         {
@@ -2437,7 +2641,7 @@ kCalculateIndexedSparseNonZeroSigmoidOutputDelta_kernel(uint32_t position, uint3
 
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateIndexedSparseNonZeroTanhOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pSparseWeight)
+kCalculateIndexedSparseNonZeroTanhOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pDataWeight)
 {
     uint64_t pos                = ((blockIdx.x * blockDim.x) + threadIdx.x) / cData._warpSize;
     if (pos < batch)
@@ -2445,7 +2649,7 @@ kCalculateIndexedSparseNonZeroTanhOutputDelta_kernel(uint32_t position, uint32_t
         uint32_t dpos           = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + pos] : position + pos];
         uint64_t pos1           = pSparseStart[dpos] + (threadIdx.x & cData._warpMask);
         uint64_t end            = pSparseEnd[dpos];
-        NNFloat w               = (pSparseWeight != NULL) ? pSparseWeight[dpos] : (NNFloat)1.0;
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
         uint64_t offset         = pos * stride;
         while (pos1 < end)
         {
@@ -2459,7 +2663,7 @@ kCalculateIndexedSparseNonZeroTanhOutputDelta_kernel(uint32_t position, uint32_t
 
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateIndexedSparseNonZeroLinearOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pSparseWeight)
+kCalculateIndexedSparseNonZeroLinearOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pDataWeight)
 {
     uint64_t pos                = ((blockIdx.x * blockDim.x) + threadIdx.x) / cData._warpSize;
     if (pos < batch)
@@ -2467,7 +2671,7 @@ kCalculateIndexedSparseNonZeroLinearOutputDelta_kernel(uint32_t position, uint32
         uint32_t dpos           = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + pos] : position + pos];
         uint64_t pos1           = pSparseStart[dpos] + (threadIdx.x & cData._warpMask);
         uint64_t end            = pSparseEnd[dpos];
-        NNFloat w               = (pSparseWeight != NULL) ? pSparseWeight[dpos] : (NNFloat)1.0;
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
         uint64_t offset         = pos * stride;
         while (pos1 < end)
         {
@@ -2481,7 +2685,7 @@ kCalculateIndexedSparseNonZeroLinearOutputDelta_kernel(uint32_t position, uint32
 
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateIndexedSparseNonZeroRELUOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pSparseWeight)
+kCalculateIndexedSparseNonZeroRELUOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pDataWeight)
 {
     uint64_t pos                = ((blockIdx.x * blockDim.x) + threadIdx.x) / cData._warpSize;
     if (pos < batch)
@@ -2489,7 +2693,7 @@ kCalculateIndexedSparseNonZeroRELUOutputDelta_kernel(uint32_t position, uint32_t
         uint32_t dpos           = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + pos] : position + pos];
         uint64_t pos1           = pSparseStart[dpos] + (threadIdx.x & cData._warpMask);
         uint64_t end            = pSparseEnd[dpos];
-        NNFloat w               = (pSparseWeight != NULL) ? pSparseWeight[dpos] : (NNFloat)1.0;
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
         uint64_t offset         = pos * stride;
         while (pos1 < end)
         {
@@ -2503,7 +2707,7 @@ kCalculateIndexedSparseNonZeroRELUOutputDelta_kernel(uint32_t position, uint32_t
 
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateIndexedSparseNonZeroLRELUOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pSparseWeight, NNFloat slope)
+kCalculateIndexedSparseNonZeroLRELUOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pDataWeight, NNFloat slope)
 {
     uint64_t pos                = ((blockIdx.x * blockDim.x) + threadIdx.x) / cData._warpSize;
     if (pos < batch)
@@ -2511,7 +2715,7 @@ kCalculateIndexedSparseNonZeroLRELUOutputDelta_kernel(uint32_t position, uint32_
         uint32_t dpos           = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + pos] : position + pos];
         uint64_t pos1           = pSparseStart[dpos] + (threadIdx.x & cData._warpMask);
         uint64_t end            = pSparseEnd[dpos];
-        NNFloat w               = (pSparseWeight != NULL) ? pSparseWeight[dpos] : (NNFloat)1.0;
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
         uint64_t offset         = pos * stride;
         while (pos1 < end)
         {
@@ -2525,7 +2729,7 @@ kCalculateIndexedSparseNonZeroLRELUOutputDelta_kernel(uint32_t position, uint32_
 
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateIndexedSparseNonZeroELUOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pSparseWeight, NNFloat alpha)
+kCalculateIndexedSparseNonZeroELUOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pDataWeight, NNFloat alpha)
 {
     uint64_t pos                = ((blockIdx.x * blockDim.x) + threadIdx.x) / cData._warpSize;
     if (pos < batch)
@@ -2533,7 +2737,7 @@ kCalculateIndexedSparseNonZeroELUOutputDelta_kernel(uint32_t position, uint32_t 
         uint32_t dpos           = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + pos] : position + pos];
         uint64_t pos1           = pSparseStart[dpos] + (threadIdx.x & cData._warpMask);
         uint64_t end            = pSparseEnd[dpos];
-        NNFloat w               = (pSparseWeight != NULL) ? pSparseWeight[dpos] : (NNFloat)1.0;
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
         uint64_t offset         = pos * stride;
         while (pos1 < end)
         {
@@ -2547,7 +2751,7 @@ kCalculateIndexedSparseNonZeroELUOutputDelta_kernel(uint32_t position, uint32_t 
 
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateIndexedSparseNonZeroSELUOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pSparseWeight, NNFloat alpha, NNFloat lambda)
+kCalculateIndexedSparseNonZeroSELUOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pDataWeight, NNFloat alpha, NNFloat lambda)
 {
     uint64_t pos                = ((blockIdx.x * blockDim.x) + threadIdx.x) / cData._warpSize;
     if (pos < batch)
@@ -2555,7 +2759,7 @@ kCalculateIndexedSparseNonZeroSELUOutputDelta_kernel(uint32_t position, uint32_t
         uint32_t dpos           = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + pos] : position + pos];
         uint64_t pos1           = pSparseStart[dpos] + (threadIdx.x & cData._warpMask);
         uint64_t end            = pSparseEnd[dpos];
-        NNFloat w               = (pSparseWeight != NULL) ? pSparseWeight[dpos] : (NNFloat)1.0;
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
         uint64_t offset         = pos * stride;
         while (pos1 < end)
         {
@@ -2569,7 +2773,7 @@ kCalculateIndexedSparseNonZeroSELUOutputDelta_kernel(uint32_t position, uint32_t
 
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateIndexedSparseNonZeroSoftMaxOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pSparseWeight)
+kCalculateIndexedSparseNonZeroSoftMaxOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pDataWeight)
 {
     uint64_t pos                = ((blockIdx.x * blockDim.x) + threadIdx.x) / cData._warpSize;
     if (pos < batch)
@@ -2577,7 +2781,7 @@ kCalculateIndexedSparseNonZeroSoftMaxOutputDelta_kernel(uint32_t position, uint3
         uint32_t dpos           = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + pos] : position + pos];
         uint64_t pos1           = pSparseStart[dpos];
         uint64_t end            = pSparseEnd[dpos];
-        NNFloat w               = (pSparseWeight != NULL) ? pSparseWeight[dpos] : (NNFloat)1.0 / (NNFloat)(end - pos1);
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0 / (NNFloat)(end - pos1);
         pos1                   += threadIdx.x & cData._warpMask;
         uint64_t offset         = pos * stride;
         while (pos1 < end)
@@ -2590,7 +2794,7 @@ kCalculateIndexedSparseNonZeroSoftMaxOutputDelta_kernel(uint32_t position, uint3
     }
 }
 
-void kCalculateIndexedSparseOutputDelta(Activation activation, uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pSparseWeight, bool bSparseIgnoreZero, NNFloat slope, NNFloat alpha, NNFloat lambda)
+void kCalculateIndexedSparseOutputDelta(Activation activation, uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pDataWeight, bool bSparseIgnoreZero, NNFloat slope, NNFloat alpha, NNFloat lambda)
 {
     uint64_t size               = (uint64_t)batch * (uint64_t)stride;
     dim3 grid1(CalculateBlocks(size));
@@ -2607,80 +2811,80 @@ void kCalculateIndexedSparseOutputDelta(Activation activation, uint32_t position
         case Sigmoid:
             if (!bSparseIgnoreZero)
             {
-                kCalculateSparseRawSigmoidOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(position, pSparseWeight, stride, size, pUnit, pDelta);
+                kCalculateSparseRawSigmoidOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(position, pDataWeight, stride, size, pUnit, pDelta);
                 LAUNCHERROR("kCalculateSparseRawSigmoidOutputDelta_kernel");
             }
-            kCalculateIndexedSparseNonZeroSigmoidOutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pIndex, pSparseStart, pSparseEnd, pSparseIndex, pSparseWeight);
+            kCalculateIndexedSparseNonZeroSigmoidOutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pIndex, pSparseStart, pSparseEnd, pSparseIndex, pDataWeight);
             LAUNCHERROR("kIndexedCalculateSparseNonZeroSigmoidOutputDelta_kernel");
             break;
         
         case Tanh:
             if (!bSparseIgnoreZero)
             {
-                kCalculateSparseRawTanhOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(position, pSparseWeight, stride, size, pUnit, pDelta);
+                kCalculateSparseRawTanhOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(position, pDataWeight, stride, size, pUnit, pDelta);
                 LAUNCHERROR("kCalculateSparseRawTanhOutputDelta_kernel");
             }
-            kCalculateIndexedSparseNonZeroTanhOutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pIndex, pSparseStart, pSparseEnd, pSparseIndex, pSparseWeight);
+            kCalculateIndexedSparseNonZeroTanhOutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pIndex, pSparseStart, pSparseEnd, pSparseIndex, pDataWeight);
             LAUNCHERROR("kCalculateIndexedSparseNonZeroTanhOutputDelta_kernel");
             break;
 
         case Linear:
             if (!bSparseIgnoreZero)
             {
-                kCalculateSparseRawLinearOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(position, pSparseWeight, stride, size, pUnit, pDelta);
+                kCalculateSparseRawLinearOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(position, pDataWeight, stride, size, pUnit, pDelta);
                 LAUNCHERROR("kCalculateSparseRawLinearOutputDelta_kernel");
             }
-            kCalculateIndexedSparseNonZeroLinearOutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pIndex, pSparseStart, pSparseEnd, pSparseIndex, pSparseWeight);
+            kCalculateIndexedSparseNonZeroLinearOutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pIndex, pSparseStart, pSparseEnd, pSparseIndex, pDataWeight);
             LAUNCHERROR("kCalculateIndexedSparseNonZeroLinearOutputDelta_kernel");
             break;
 
         case RectifiedLinear:
             if (!bSparseIgnoreZero)
             {
-                kCalculateSparseRawRELUOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(position, pSparseWeight, stride, size, pUnit, pDelta);
+                kCalculateSparseRawRELUOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(position, pDataWeight, stride, size, pUnit, pDelta);
                 LAUNCHERROR("kCalculateSparseRawRELUOutputDelta_kernel");
             }
-            kCalculateIndexedSparseNonZeroRELUOutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pIndex, pSparseStart, pSparseEnd, pSparseIndex, pSparseWeight);
+            kCalculateIndexedSparseNonZeroRELUOutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pIndex, pSparseStart, pSparseEnd, pSparseIndex, pDataWeight);
             LAUNCHERROR("kCalculateIndexedSparseNonZeroRELUOutputDelta_kernel");
             break;
 
         case LeakyRectifiedLinear:
             if (!bSparseIgnoreZero)
             {
-                kCalculateSparseRawLRELUOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(position, pSparseWeight, stride, size, pUnit, pDelta, slope);
+                kCalculateSparseRawLRELUOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(position, pDataWeight, stride, size, pUnit, pDelta, slope);
                 LAUNCHERROR("kCalculateSparseRawLRELUOutputDelta_kernel");
             }
-            kCalculateIndexedSparseNonZeroLRELUOutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pIndex, pSparseStart, pSparseEnd, pSparseIndex, pSparseWeight, slope);
+            kCalculateIndexedSparseNonZeroLRELUOutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pIndex, pSparseStart, pSparseEnd, pSparseIndex, pDataWeight, slope);
             LAUNCHERROR("kCalculateIndexedSparseNonZeroLRELUOutputDelta_kernel");
             break;
 
         case ExponentialLinear:
             if (!bSparseIgnoreZero)
             {
-                kCalculateSparseRawELUOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(position, pSparseWeight, stride, size, pUnit, pDelta, alpha);
+                kCalculateSparseRawELUOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(position, pDataWeight, stride, size, pUnit, pDelta, alpha);
                 LAUNCHERROR("kCalculateSparseRawELUOutputDelta_kernel");
             }
-            kCalculateIndexedSparseNonZeroELUOutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pIndex, pSparseStart, pSparseEnd, pSparseIndex, pSparseWeight, alpha);
+            kCalculateIndexedSparseNonZeroELUOutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pIndex, pSparseStart, pSparseEnd, pSparseIndex, pDataWeight, alpha);
             LAUNCHERROR("kCalculateIndexedSparseNonZeroELUOutputDelta_kernel");
             break;
 
         case ScaledExponentialLinear:
             if (!bSparseIgnoreZero)
             {
-                kCalculateSparseRawSELUOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(position, pSparseWeight, stride, size, pUnit, pDelta, alpha, lambda);
+                kCalculateSparseRawSELUOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(position, pDataWeight, stride, size, pUnit, pDelta, alpha, lambda);
                 LAUNCHERROR("kCalculateSparseRawSELUOutputDelta_kernel");
             }
-            kCalculateIndexedSparseNonZeroSELUOutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pIndex, pSparseStart, pSparseEnd, pSparseIndex, pSparseWeight, alpha, lambda);
+            kCalculateIndexedSparseNonZeroSELUOutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pIndex, pSparseStart, pSparseEnd, pSparseIndex, pDataWeight, alpha, lambda);
             LAUNCHERROR("kCalculateIndexedSparseNonZeroSELUOutputDelta_kernel");
             break;
 
         case SoftMax:
             if (!bSparseIgnoreZero)
             {
-                kCalculateSparseRawSoftMaxOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(position, pSparseWeight, stride, size, pUnit, pDelta);
+                kCalculateSparseRawSoftMaxOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(position, pDataWeight, stride, size, pUnit, pDelta);
                 LAUNCHERROR("kCalculateSparseRawSoftMaxOutputDelta_kernel");
             }
-            kCalculateIndexedSparseNonZeroSoftMaxOutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pIndex, pSparseStart, pSparseEnd, pSparseIndex, pSparseWeight);
+            kCalculateIndexedSparseNonZeroSoftMaxOutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pIndex, pSparseStart, pSparseEnd, pSparseIndex, pDataWeight);
             LAUNCHERROR("kCalculateIndexedSparseNonZeroSoftMaxOutputDelta_kernel");
             break;                        
     }
@@ -2689,7 +2893,7 @@ void kCalculateIndexedSparseOutputDelta(Activation activation, uint32_t position
 template<typename T>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateSparseAnalogNonZeroSigmoidOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pSparseWeight, T* pSparseData)
+kCalculateSparseAnalogNonZeroSigmoidOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pDataWeight, T* pSparseData)
 {
     uint64_t pos                = ((blockIdx.x * blockDim.x) + threadIdx.x) / cData._warpSize;
     if (pos < batch)
@@ -2697,7 +2901,7 @@ kCalculateSparseAnalogNonZeroSigmoidOutputDelta_kernel(uint32_t position, uint32
         uint32_t dpos           = cData._bShuffleIndices ? cData._pShuffleIndex[position + pos] : position + pos;
         uint64_t pos1           = pSparseStart[dpos] + (threadIdx.x & cData._warpMask);
         uint64_t end            = pSparseEnd[dpos];
-        NNFloat w               = cData._deltaBoost_one * ((pSparseWeight != NULL) ? pSparseWeight[dpos] : (NNFloat)1.0);
+        NNFloat w               = cData._deltaBoost_one * ((pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0);
         uint64_t offset         = pos * stride;
         while (pos1 < end)
         {
@@ -2713,7 +2917,7 @@ kCalculateSparseAnalogNonZeroSigmoidOutputDelta_kernel(uint32_t position, uint32
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateSparseAnalogNonZeroSigmoidOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pSparseWeight, unsigned char* pSparseData)
+kCalculateSparseAnalogNonZeroSigmoidOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pDataWeight, unsigned char* pSparseData)
 {
     uint64_t pos                = ((blockIdx.x * blockDim.x) + threadIdx.x) / cData._warpSize;
     if (pos < batch)
@@ -2721,7 +2925,7 @@ kCalculateSparseAnalogNonZeroSigmoidOutputDelta_kernel(uint32_t position, uint32
         uint32_t dpos           = cData._bShuffleIndices ? cData._pShuffleIndex[position + pos] : position + pos;
         uint64_t pos1           = pSparseStart[dpos] + (threadIdx.x & cData._warpMask);
         uint64_t end            = pSparseEnd[dpos];
-        NNFloat w               = cData._deltaBoost_one * ((pSparseWeight != NULL) ? pSparseWeight[dpos] : (NNFloat)1.0);
+        NNFloat w               = cData._deltaBoost_one * ((pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0);
         uint64_t offset         = pos * stride;
         while (pos1 < end)
         {
@@ -2737,7 +2941,7 @@ kCalculateSparseAnalogNonZeroSigmoidOutputDelta_kernel(uint32_t position, uint32
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateSparseAnalogNonZeroSigmoidOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pSparseWeight, char* pSparseData)
+kCalculateSparseAnalogNonZeroSigmoidOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pDataWeight, char* pSparseData)
 {
     uint64_t pos                = ((blockIdx.x * blockDim.x) + threadIdx.x) / cData._warpSize;
     if (pos < batch)
@@ -2745,7 +2949,7 @@ kCalculateSparseAnalogNonZeroSigmoidOutputDelta_kernel(uint32_t position, uint32
         uint32_t dpos           = cData._bShuffleIndices ? cData._pShuffleIndex[position + pos] : position + pos;
         uint64_t pos1           = pSparseStart[dpos] + (threadIdx.x & cData._warpMask);
         uint64_t end            = pSparseEnd[dpos];
-        NNFloat w               = cData._deltaBoost_one * ((pSparseWeight != NULL) ? pSparseWeight[dpos] : (NNFloat)1.0);
+        NNFloat w               = cData._deltaBoost_one * ((pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0);
         uint64_t offset         = pos * stride;
         while (pos1 < end)
         {
@@ -2761,7 +2965,7 @@ kCalculateSparseAnalogNonZeroSigmoidOutputDelta_kernel(uint32_t position, uint32
 template<typename T>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateSparseAnalogNonZeroTanhOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pSparseWeight, T* pSparseData)
+kCalculateSparseAnalogNonZeroTanhOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pDataWeight, T* pSparseData)
 {
     uint64_t pos                = ((blockIdx.x * blockDim.x) + threadIdx.x) / cData._warpSize;
     if (pos < batch)
@@ -2769,7 +2973,7 @@ kCalculateSparseAnalogNonZeroTanhOutputDelta_kernel(uint32_t position, uint32_t 
         uint32_t dpos           = cData._bShuffleIndices ? cData._pShuffleIndex[position + pos] : position + pos;
         uint64_t pos1           = pSparseStart[dpos] + (threadIdx.x & cData._warpMask);
         uint64_t end            = pSparseEnd[dpos];
-        NNFloat w               = cData._deltaBoost_one * ((pSparseWeight != NULL) ? pSparseWeight[dpos] : (NNFloat)1.0);
+        NNFloat w               = cData._deltaBoost_one * ((pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0);
         uint64_t offset         = pos * stride;
         while (pos1 < end)
         {
@@ -2785,7 +2989,7 @@ kCalculateSparseAnalogNonZeroTanhOutputDelta_kernel(uint32_t position, uint32_t 
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateSparseAnalogNonZeroTanhOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pSparseWeight, unsigned char* pSparseData)
+kCalculateSparseAnalogNonZeroTanhOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pDataWeight, unsigned char* pSparseData)
 {
     uint64_t pos                = ((blockIdx.x * blockDim.x) + threadIdx.x) / cData._warpSize;
     if (pos < batch)
@@ -2793,7 +2997,7 @@ kCalculateSparseAnalogNonZeroTanhOutputDelta_kernel(uint32_t position, uint32_t 
         uint32_t dpos           = cData._bShuffleIndices ? cData._pShuffleIndex[position + pos] : position + pos;
         uint64_t pos1           = pSparseStart[dpos] + (threadIdx.x & cData._warpMask);
         uint64_t end            = pSparseEnd[dpos];
-        NNFloat w               = cData._deltaBoost_one * ((pSparseWeight != NULL) ? pSparseWeight[dpos] : (NNFloat)1.0);
+        NNFloat w               = cData._deltaBoost_one * ((pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0);
         uint64_t offset         = pos * stride;
         while (pos1 < end)
         {
@@ -2809,7 +3013,7 @@ kCalculateSparseAnalogNonZeroTanhOutputDelta_kernel(uint32_t position, uint32_t 
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateSparseAnalogNonZeroTanhOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pSparseWeight, char* pSparseData)
+kCalculateSparseAnalogNonZeroTanhOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pDataWeight, char* pSparseData)
 {
     uint64_t pos                = ((blockIdx.x * blockDim.x) + threadIdx.x) / cData._warpSize;
     if (pos < batch)
@@ -2817,7 +3021,7 @@ kCalculateSparseAnalogNonZeroTanhOutputDelta_kernel(uint32_t position, uint32_t 
         uint32_t dpos           = cData._bShuffleIndices ? cData._pShuffleIndex[position + pos] : position + pos;
         uint64_t pos1           = pSparseStart[dpos] + (threadIdx.x & cData._warpMask);
         uint64_t end            = pSparseEnd[dpos];
-        NNFloat w               = cData._deltaBoost_one * ((pSparseWeight != NULL) ? pSparseWeight[dpos] : (NNFloat)1.0);
+        NNFloat w               = cData._deltaBoost_one * ((pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0);
         uint64_t offset         = pos * stride;
         while (pos1 < end)
         {
@@ -2833,7 +3037,7 @@ kCalculateSparseAnalogNonZeroTanhOutputDelta_kernel(uint32_t position, uint32_t 
 template<typename T>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateSparseAnalogNonZeroLinearOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pSparseWeight, T* pSparseData)
+kCalculateSparseAnalogNonZeroLinearOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pDataWeight, T* pSparseData)
 {
     uint64_t pos                = ((blockIdx.x * blockDim.x) + threadIdx.x) / cData._warpSize;
     if (pos < batch)
@@ -2841,7 +3045,7 @@ kCalculateSparseAnalogNonZeroLinearOutputDelta_kernel(uint32_t position, uint32_
         uint32_t dpos           = cData._bShuffleIndices ? cData._pShuffleIndex[position + pos] : position + pos;
         uint64_t pos1           = pSparseStart[dpos] + (threadIdx.x & cData._warpMask);
         uint64_t end            = pSparseEnd[dpos];
-        NNFloat w               = cData._deltaBoost_one * ((pSparseWeight != NULL) ? pSparseWeight[dpos] : (NNFloat)1.0);
+        NNFloat w               = cData._deltaBoost_one * ((pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0);
         uint64_t offset         = pos * stride;
         while (pos1 < end)
         {
@@ -2857,14 +3061,14 @@ kCalculateSparseAnalogNonZeroLinearOutputDelta_kernel(uint32_t position, uint32_
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateSparseAnalogNonZeroLinearOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pSparseWeight, unsigned char* pSparseData)
+kCalculateSparseAnalogNonZeroLinearOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pDataWeight, unsigned char* pSparseData)
 {
     uint64_t pos                = ((blockIdx.x * blockDim.x) + threadIdx.x) / cData._warpSize;
     if (pos < batch)
     {
         uint32_t dpos           = cData._bShuffleIndices ? cData._pShuffleIndex[position + pos] : position + pos;
         uint64_t pos1           = pSparseStart[dpos] + (threadIdx.x & cData._warpMask);
-        NNFloat w               = cData._deltaBoost_one * ((pSparseWeight != NULL) ? pSparseWeight[dpos] : (NNFloat)1.0);
+        NNFloat w               = cData._deltaBoost_one * ((pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0);
         uint64_t end            = pSparseEnd[dpos];
         uint64_t offset         = pos * stride;
         while (pos1 < end)
@@ -2881,7 +3085,7 @@ kCalculateSparseAnalogNonZeroLinearOutputDelta_kernel(uint32_t position, uint32_
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateSparseAnalogNonZeroLinearOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pSparseWeight, char* pSparseData)
+kCalculateSparseAnalogNonZeroLinearOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pDataWeight, char* pSparseData)
 {
     uint64_t pos                = ((blockIdx.x * blockDim.x) + threadIdx.x) / cData._warpSize;
     if (pos < batch)
@@ -2889,7 +3093,7 @@ kCalculateSparseAnalogNonZeroLinearOutputDelta_kernel(uint32_t position, uint32_
         uint32_t dpos           = cData._bShuffleIndices ? cData._pShuffleIndex[position + pos] : position + pos;
         uint64_t pos1           = pSparseStart[dpos] + (threadIdx.x & cData._warpMask);
         uint64_t end            = pSparseEnd[dpos];
-        NNFloat w               = cData._deltaBoost_one * ((pSparseWeight != NULL) ? pSparseWeight[dpos] : (NNFloat)1.0);
+        NNFloat w               = cData._deltaBoost_one * ((pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0);
         uint64_t offset         = pos * stride;
         while (pos1 < end)
         {
@@ -2905,7 +3109,7 @@ kCalculateSparseAnalogNonZeroLinearOutputDelta_kernel(uint32_t position, uint32_
 template<typename T>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateSparseAnalogNonZeroRELUOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pSparseWeight, T* pSparseData)
+kCalculateSparseAnalogNonZeroRELUOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pDataWeight, T* pSparseData)
 {
     uint64_t pos                = ((blockIdx.x * blockDim.x) + threadIdx.x) / cData._warpSize;
     if (pos < batch)
@@ -2913,7 +3117,7 @@ kCalculateSparseAnalogNonZeroRELUOutputDelta_kernel(uint32_t position, uint32_t 
         uint32_t dpos           = cData._bShuffleIndices ? cData._pShuffleIndex[position + pos] : position + pos;
         uint64_t pos1           = pSparseStart[dpos] + (threadIdx.x & cData._warpMask);
         uint64_t end            = pSparseEnd[dpos];
-        NNFloat w               = cData._deltaBoost_one * ((pSparseWeight != NULL) ? pSparseWeight[dpos] : (NNFloat)1.0);
+        NNFloat w               = cData._deltaBoost_one * ((pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0);
         uint64_t offset         = pos * stride;
         while (pos1 < end)
         {
@@ -2929,7 +3133,7 @@ kCalculateSparseAnalogNonZeroRELUOutputDelta_kernel(uint32_t position, uint32_t 
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateSparseAnalogNonZeroRELUOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pSparseWeight, unsigned char* pSparseData)
+kCalculateSparseAnalogNonZeroRELUOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pDataWeight, unsigned char* pSparseData)
 {
     uint64_t pos                = ((blockIdx.x * blockDim.x) + threadIdx.x) / cData._warpSize;
     if (pos < batch)
@@ -2937,7 +3141,7 @@ kCalculateSparseAnalogNonZeroRELUOutputDelta_kernel(uint32_t position, uint32_t 
         uint32_t dpos           = cData._bShuffleIndices ? cData._pShuffleIndex[position + pos] : position + pos;
         uint64_t pos1           = pSparseStart[dpos] + (threadIdx.x & cData._warpMask);
         uint64_t end            = pSparseEnd[dpos];
-        NNFloat w               = cData._deltaBoost_one * ((pSparseWeight != NULL) ? pSparseWeight[dpos] : (NNFloat)1.0);
+        NNFloat w               = cData._deltaBoost_one * ((pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0);
         uint64_t offset         = pos * stride;
         while (pos1 < end)
         {
@@ -2953,7 +3157,7 @@ kCalculateSparseAnalogNonZeroRELUOutputDelta_kernel(uint32_t position, uint32_t 
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateSparseAnalogNonZeroRELUOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pSparseWeight, char* pSparseData)
+kCalculateSparseAnalogNonZeroRELUOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pDataWeight, char* pSparseData)
 {
     uint64_t pos                = ((blockIdx.x * blockDim.x) + threadIdx.x) / cData._warpSize;
     if (pos < batch)
@@ -2961,7 +3165,7 @@ kCalculateSparseAnalogNonZeroRELUOutputDelta_kernel(uint32_t position, uint32_t 
         uint32_t dpos           = cData._bShuffleIndices ? cData._pShuffleIndex[position + pos] : position + pos;
         uint64_t pos1           = pSparseStart[dpos] + (threadIdx.x & cData._warpMask);
         uint64_t end            = pSparseEnd[dpos];
-        NNFloat w               = cData._deltaBoost_one * ((pSparseWeight != NULL) ? pSparseWeight[dpos] : (NNFloat)1.0);
+        NNFloat w               = cData._deltaBoost_one * ((pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0);
         uint64_t offset         = pos * stride;
         while (pos1 < end)
         {
@@ -2977,7 +3181,7 @@ kCalculateSparseAnalogNonZeroRELUOutputDelta_kernel(uint32_t position, uint32_t 
 template<typename T>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateSparseAnalogNonZeroLRELUOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pSparseWeight, T* pSparseData, NNFloat slope)
+kCalculateSparseAnalogNonZeroLRELUOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pDataWeight, T* pSparseData, NNFloat slope)
 {
     uint64_t pos                = ((blockIdx.x * blockDim.x) + threadIdx.x) / cData._warpSize;
     if (pos < batch)
@@ -2985,7 +3189,7 @@ kCalculateSparseAnalogNonZeroLRELUOutputDelta_kernel(uint32_t position, uint32_t
         uint32_t dpos           = cData._bShuffleIndices ? cData._pShuffleIndex[position + pos] : position + pos;
         uint64_t pos1           = pSparseStart[dpos] + (threadIdx.x & cData._warpMask);
         uint64_t end            = pSparseEnd[dpos];
-        NNFloat w               = cData._deltaBoost_one * ((pSparseWeight != NULL) ? pSparseWeight[dpos] : (NNFloat)1.0);
+        NNFloat w               = cData._deltaBoost_one * ((pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0);
         uint64_t offset         = pos * stride;
         while (pos1 < end)
         {
@@ -3001,7 +3205,7 @@ kCalculateSparseAnalogNonZeroLRELUOutputDelta_kernel(uint32_t position, uint32_t
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateSparseAnalogNonZeroLRELUOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pSparseWeight, unsigned char* pSparseData, NNFloat slope)
+kCalculateSparseAnalogNonZeroLRELUOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pDataWeight, unsigned char* pSparseData, NNFloat slope)
 {
     uint64_t pos                = ((blockIdx.x * blockDim.x) + threadIdx.x) / cData._warpSize;
     if (pos < batch)
@@ -3009,7 +3213,7 @@ kCalculateSparseAnalogNonZeroLRELUOutputDelta_kernel(uint32_t position, uint32_t
         uint32_t dpos           = cData._bShuffleIndices ? cData._pShuffleIndex[position + pos] : position + pos;
         uint64_t pos1           = pSparseStart[dpos] + (threadIdx.x & cData._warpMask);
         uint64_t end            = pSparseEnd[dpos];
-        NNFloat w               = cData._deltaBoost_one * ((pSparseWeight != NULL) ? pSparseWeight[dpos] : (NNFloat)1.0);
+        NNFloat w               = cData._deltaBoost_one * ((pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0);
         uint64_t offset         = pos * stride;
         while (pos1 < end)
         {
@@ -3025,7 +3229,7 @@ kCalculateSparseAnalogNonZeroLRELUOutputDelta_kernel(uint32_t position, uint32_t
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateSparseAnalogNonZeroLRELUOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pSparseWeight, char* pSparseData, NNFloat slope)
+kCalculateSparseAnalogNonZeroLRELUOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pDataWeight, char* pSparseData, NNFloat slope)
 {
     uint64_t pos                = ((blockIdx.x * blockDim.x) + threadIdx.x) / cData._warpSize;
     if (pos < batch)
@@ -3033,7 +3237,7 @@ kCalculateSparseAnalogNonZeroLRELUOutputDelta_kernel(uint32_t position, uint32_t
         uint32_t dpos           = cData._bShuffleIndices ? cData._pShuffleIndex[position + pos] : position + pos;
         uint64_t pos1           = pSparseStart[dpos] + (threadIdx.x & cData._warpMask);
         uint64_t end            = pSparseEnd[dpos];
-        NNFloat w               = cData._deltaBoost_one * ((pSparseWeight != NULL) ? pSparseWeight[dpos] : (NNFloat)1.0);
+        NNFloat w               = cData._deltaBoost_one * ((pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0);
         uint64_t offset         = pos * stride;
         while (pos1 < end)
         {
@@ -3049,7 +3253,7 @@ kCalculateSparseAnalogNonZeroLRELUOutputDelta_kernel(uint32_t position, uint32_t
 template<typename T>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateSparseAnalogNonZeroELUOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pSparseWeight, T* pSparseData, NNFloat alpha)
+kCalculateSparseAnalogNonZeroELUOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pDataWeight, T* pSparseData, NNFloat alpha)
 {
     uint64_t pos                = ((blockIdx.x * blockDim.x) + threadIdx.x) / cData._warpSize;
     if (pos < batch)
@@ -3057,7 +3261,7 @@ kCalculateSparseAnalogNonZeroELUOutputDelta_kernel(uint32_t position, uint32_t b
         uint32_t dpos           = cData._bShuffleIndices ? cData._pShuffleIndex[position + pos] : position + pos;
         uint64_t pos1           = pSparseStart[dpos] + (threadIdx.x & cData._warpMask);
         uint64_t end            = pSparseEnd[dpos];
-        NNFloat w               = cData._deltaBoost_one * ((pSparseWeight != NULL) ? pSparseWeight[dpos] : (NNFloat)1.0);
+        NNFloat w               = cData._deltaBoost_one * ((pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0);
         uint64_t offset         = pos * stride;
         while (pos1 < end)
         {
@@ -3073,7 +3277,7 @@ kCalculateSparseAnalogNonZeroELUOutputDelta_kernel(uint32_t position, uint32_t b
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateSparseAnalogNonZeroELUOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pSparseWeight, unsigned char* pSparseData, NNFloat alpha)
+kCalculateSparseAnalogNonZeroELUOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pDataWeight, unsigned char* pSparseData, NNFloat alpha)
 {
     uint64_t pos                = ((blockIdx.x * blockDim.x) + threadIdx.x) / cData._warpSize;
     if (pos < batch)
@@ -3081,7 +3285,7 @@ kCalculateSparseAnalogNonZeroELUOutputDelta_kernel(uint32_t position, uint32_t b
         uint32_t dpos           = cData._bShuffleIndices ? cData._pShuffleIndex[position + pos] : position + pos;
         uint64_t pos1           = pSparseStart[dpos] + (threadIdx.x & cData._warpMask);
         uint64_t end            = pSparseEnd[dpos];
-        NNFloat w               = cData._deltaBoost_one * ((pSparseWeight != NULL) ? pSparseWeight[dpos] : (NNFloat)1.0);
+        NNFloat w               = cData._deltaBoost_one * ((pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0);
         uint64_t offset         = pos * stride;
         while (pos1 < end)
         {
@@ -3097,7 +3301,7 @@ kCalculateSparseAnalogNonZeroELUOutputDelta_kernel(uint32_t position, uint32_t b
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateSparseAnalogNonZeroELUOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pSparseWeight, char* pSparseData, NNFloat alpha)
+kCalculateSparseAnalogNonZeroELUOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pDataWeight, char* pSparseData, NNFloat alpha)
 {
     uint64_t pos                = ((blockIdx.x * blockDim.x) + threadIdx.x) / cData._warpSize;
     if (pos < batch)
@@ -3105,7 +3309,7 @@ kCalculateSparseAnalogNonZeroELUOutputDelta_kernel(uint32_t position, uint32_t b
         uint32_t dpos           = cData._bShuffleIndices ? cData._pShuffleIndex[position + pos] : position + pos;
         uint64_t pos1           = pSparseStart[dpos] + (threadIdx.x & cData._warpMask);
         uint64_t end            = pSparseEnd[dpos];
-        NNFloat w               = cData._deltaBoost_one * ((pSparseWeight != NULL) ? pSparseWeight[dpos] : (NNFloat)1.0);
+        NNFloat w               = cData._deltaBoost_one * ((pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0);
         uint64_t offset         = pos * stride;
         while (pos1 < end)
         {
@@ -3121,7 +3325,7 @@ kCalculateSparseAnalogNonZeroELUOutputDelta_kernel(uint32_t position, uint32_t b
 template<typename T>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateSparseAnalogNonZeroSELUOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pSparseWeight, T* pSparseData, NNFloat alpha, NNFloat lambda)
+kCalculateSparseAnalogNonZeroSELUOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pDataWeight, T* pSparseData, NNFloat alpha, NNFloat lambda)
 {
     uint64_t pos                = ((blockIdx.x * blockDim.x) + threadIdx.x) / cData._warpSize;
     if (pos < batch)
@@ -3129,7 +3333,7 @@ kCalculateSparseAnalogNonZeroSELUOutputDelta_kernel(uint32_t position, uint32_t 
         uint32_t dpos           = cData._bShuffleIndices ? cData._pShuffleIndex[position + pos] : position + pos;
         uint64_t pos1           = pSparseStart[dpos] + (threadIdx.x & cData._warpMask);
         uint64_t end            = pSparseEnd[dpos];
-        NNFloat w               = cData._deltaBoost_one * ((pSparseWeight != NULL) ? pSparseWeight[dpos] : (NNFloat)1.0);
+        NNFloat w               = cData._deltaBoost_one * ((pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0);
         uint64_t offset         = pos * stride;
         while (pos1 < end)
         {
@@ -3145,7 +3349,7 @@ kCalculateSparseAnalogNonZeroSELUOutputDelta_kernel(uint32_t position, uint32_t 
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateSparseAnalogNonZeroSELUOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pSparseWeight, unsigned char* pSparseData, NNFloat alpha, NNFloat lambda)
+kCalculateSparseAnalogNonZeroSELUOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pDataWeight, unsigned char* pSparseData, NNFloat alpha, NNFloat lambda)
 {
     uint64_t pos                = ((blockIdx.x * blockDim.x) + threadIdx.x) / cData._warpSize;
     if (pos < batch)
@@ -3153,7 +3357,7 @@ kCalculateSparseAnalogNonZeroSELUOutputDelta_kernel(uint32_t position, uint32_t 
         uint32_t dpos           = cData._bShuffleIndices ? cData._pShuffleIndex[position + pos] : position + pos;
         uint64_t pos1           = pSparseStart[dpos] + (threadIdx.x & cData._warpMask);
         uint64_t end            = pSparseEnd[dpos];
-        NNFloat w               = cData._deltaBoost_one * ((pSparseWeight != NULL) ? pSparseWeight[dpos] : (NNFloat)1.0);
+        NNFloat w               = cData._deltaBoost_one * ((pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0);
         uint64_t offset         = pos * stride;
         while (pos1 < end)
         {
@@ -3169,7 +3373,7 @@ kCalculateSparseAnalogNonZeroSELUOutputDelta_kernel(uint32_t position, uint32_t 
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateSparseAnalogNonZeroSELUOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pSparseWeight, char* pSparseData, NNFloat alpha, NNFloat lambda)
+kCalculateSparseAnalogNonZeroSELUOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pDataWeight, char* pSparseData, NNFloat alpha, NNFloat lambda)
 {
     uint64_t pos                = ((blockIdx.x * blockDim.x) + threadIdx.x) / cData._warpSize;
     if (pos < batch)
@@ -3177,7 +3381,7 @@ kCalculateSparseAnalogNonZeroSELUOutputDelta_kernel(uint32_t position, uint32_t 
         uint32_t dpos           = cData._bShuffleIndices ? cData._pShuffleIndex[position + pos] : position + pos;
         uint64_t pos1           = pSparseStart[dpos] + (threadIdx.x & cData._warpMask);
         uint64_t end            = pSparseEnd[dpos];
-        NNFloat w               = cData._deltaBoost_one * ((pSparseWeight != NULL) ? pSparseWeight[dpos] : (NNFloat)1.0);
+        NNFloat w               = cData._deltaBoost_one * ((pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0);
         uint64_t offset         = pos * stride;
         while (pos1 < end)
         {
@@ -3193,7 +3397,7 @@ kCalculateSparseAnalogNonZeroSELUOutputDelta_kernel(uint32_t position, uint32_t 
 template<typename T>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateSparseAnalogNonZeroSoftMaxOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pSparseWeight, T* pSparseData)
+kCalculateSparseAnalogNonZeroSoftMaxOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pDataWeight, T* pSparseData)
 {
     uint64_t pos                = ((blockIdx.x * blockDim.x) + threadIdx.x) / cData._warpSize;
     if (pos < batch)
@@ -3201,7 +3405,7 @@ kCalculateSparseAnalogNonZeroSoftMaxOutputDelta_kernel(uint32_t position, uint32
         uint32_t dpos           = cData._bShuffleIndices ? cData._pShuffleIndex[position + pos] : position + pos;
         uint64_t pos1           = pSparseStart[dpos] + (threadIdx.x & cData._warpMask);
         uint64_t end            = pSparseEnd[dpos];
-        NNFloat w               = cData._deltaBoost_one * ((pSparseWeight != NULL) ? pSparseWeight[dpos] : (NNFloat)1.0);
+        NNFloat w               = cData._deltaBoost_one * ((pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0);
         uint64_t offset         = pos * stride;
         while (pos1 < end)
         {
@@ -3217,7 +3421,7 @@ kCalculateSparseAnalogNonZeroSoftMaxOutputDelta_kernel(uint32_t position, uint32
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateSparseAnalogNonZeroSoftMaxOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pSparseWeight, unsigned char* pSparseData)
+kCalculateSparseAnalogNonZeroSoftMaxOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pDataWeight, unsigned char* pSparseData)
 {
     uint64_t pos                = ((blockIdx.x * blockDim.x) + threadIdx.x) / cData._warpSize;
     if (pos < batch)
@@ -3225,7 +3429,7 @@ kCalculateSparseAnalogNonZeroSoftMaxOutputDelta_kernel(uint32_t position, uint32
         uint32_t dpos           = cData._bShuffleIndices ? cData._pShuffleIndex[position + pos] : position + pos;
         uint64_t pos1           = pSparseStart[dpos] + (threadIdx.x & cData._warpMask);
         uint64_t end            = pSparseEnd[dpos];
-        NNFloat w               = cData._deltaBoost_one * ((pSparseWeight != NULL) ? pSparseWeight[dpos] : (NNFloat)1.0);
+        NNFloat w               = cData._deltaBoost_one * ((pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0);
         uint64_t offset         = pos * stride;
         while (pos1 < end)
         {
@@ -3241,7 +3445,7 @@ kCalculateSparseAnalogNonZeroSoftMaxOutputDelta_kernel(uint32_t position, uint32
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateSparseAnalogNonZeroSoftMaxOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pSparseWeight, char* pSparseData)
+kCalculateSparseAnalogNonZeroSoftMaxOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pDataWeight, char* pSparseData)
 {
     uint64_t pos                = ((blockIdx.x * blockDim.x) + threadIdx.x) / cData._warpSize;
     if (pos < batch)
@@ -3249,7 +3453,7 @@ kCalculateSparseAnalogNonZeroSoftMaxOutputDelta_kernel(uint32_t position, uint32
         uint32_t dpos           = cData._bShuffleIndices ? cData._pShuffleIndex[position + pos] : position + pos;
         uint64_t pos1           = pSparseStart[dpos] + (threadIdx.x & cData._warpMask);
         uint64_t end            = pSparseEnd[dpos];
-        NNFloat w               = cData._deltaBoost_one * ((pSparseWeight != NULL) ? pSparseWeight[dpos] : (NNFloat)1.0);
+        NNFloat w               = cData._deltaBoost_one * ((pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0);
         uint64_t offset         = pos * stride;
         while (pos1 < end)
         {
@@ -3263,7 +3467,7 @@ kCalculateSparseAnalogNonZeroSoftMaxOutputDelta_kernel(uint32_t position, uint32
 }
 
 template<typename T>
-void kCalculateSparseAnalogOutputDelta(Activation activation, uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pSparseWeight, T* pSparseData, bool bSparseIgnoreZero, NNFloat slope, NNFloat alpha, NNFloat lambda)
+void kCalculateSparseAnalogOutputDelta(Activation activation, uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pDataWeight, T* pSparseData, bool bSparseIgnoreZero, NNFloat slope, NNFloat alpha, NNFloat lambda)
 {
     uint64_t size               = (uint64_t)batch * (uint64_t)stride;
     dim3 grid1(CalculateBlocks(size));
@@ -3280,80 +3484,80 @@ void kCalculateSparseAnalogOutputDelta(Activation activation, uint32_t position,
         case Sigmoid:
             if (!bSparseIgnoreZero)
             {
-                kCalculateSparseRawSigmoidOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(position, pSparseWeight, stride, size, pUnit, pDelta);
+                kCalculateSparseRawSigmoidOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(position, pDataWeight, stride, size, pUnit, pDelta);
                 LAUNCHERROR("kCalculateSparseRawSigmoidOutputDelta_kernel");
             }
-            kCalculateSparseAnalogNonZeroSigmoidOutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pSparseStart, pSparseEnd, pSparseIndex, pSparseWeight, pSparseData);
+            kCalculateSparseAnalogNonZeroSigmoidOutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pSparseStart, pSparseEnd, pSparseIndex, pDataWeight, pSparseData);
             LAUNCHERROR("kCalculateSparseAnalogNonZeroSigmoidOutputDelta_kernel");
             break;
         
         case Tanh:
             if (!bSparseIgnoreZero)
             {
-                kCalculateSparseRawTanhOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(position, pSparseWeight, stride, size, pUnit, pDelta);
+                kCalculateSparseRawTanhOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(position, pDataWeight, stride, size, pUnit, pDelta);
                 LAUNCHERROR("kCalculateSparseRawTanhOutputDelta_kernel");
             }
-            kCalculateSparseAnalogNonZeroTanhOutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pSparseStart, pSparseEnd, pSparseIndex, pSparseWeight, pSparseData);
+            kCalculateSparseAnalogNonZeroTanhOutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pSparseStart, pSparseEnd, pSparseIndex, pDataWeight, pSparseData);
             LAUNCHERROR("kCalculateSparseAnalogNonZeroTanhOutputDelta_kernel");
             break;
 
         case Linear:
             if (!bSparseIgnoreZero)
             {
-                kCalculateSparseRawLinearOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(position, pSparseWeight, stride, size, pUnit, pDelta);
+                kCalculateSparseRawLinearOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(position, pDataWeight, stride, size, pUnit, pDelta);
                 LAUNCHERROR("kCalculateSparseRawLinearOutputDelta_kernel");
             }
-            kCalculateSparseAnalogNonZeroLinearOutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pSparseStart, pSparseEnd, pSparseIndex, pSparseWeight, pSparseData);
+            kCalculateSparseAnalogNonZeroLinearOutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pSparseStart, pSparseEnd, pSparseIndex, pDataWeight, pSparseData);
             LAUNCHERROR("kCalculateSparseAnalogNonZeroLinearOutputDelta_kernel");
             break;
 
         case RectifiedLinear:
             if (!bSparseIgnoreZero)
             {
-                kCalculateSparseRawRELUOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(position, pSparseWeight, stride, size, pUnit, pDelta);
+                kCalculateSparseRawRELUOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(position, pDataWeight, stride, size, pUnit, pDelta);
                 LAUNCHERROR("kCalculateSparseRawRELUOutputDelta_kernel");
             }
-            kCalculateSparseAnalogNonZeroRELUOutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pSparseStart, pSparseEnd, pSparseIndex, pSparseWeight, pSparseData);
+            kCalculateSparseAnalogNonZeroRELUOutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pSparseStart, pSparseEnd, pSparseIndex, pDataWeight, pSparseData);
             LAUNCHERROR("kCalculateSparseAnalogNonZeroRELUOutputDelta_kernel");
             break;
             
         case LeakyRectifiedLinear:
             if (!bSparseIgnoreZero)
             {
-                kCalculateSparseRawLRELUOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(position, pSparseWeight, stride, size, pUnit, pDelta, slope);
+                kCalculateSparseRawLRELUOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(position, pDataWeight, stride, size, pUnit, pDelta, slope);
                 LAUNCHERROR("kCalculateSparseRawLRELUOutputDelta_kernel");
             }
-            kCalculateSparseAnalogNonZeroLRELUOutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pSparseStart, pSparseEnd, pSparseIndex, pSparseWeight, pSparseData, slope);
+            kCalculateSparseAnalogNonZeroLRELUOutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pSparseStart, pSparseEnd, pSparseIndex, pDataWeight, pSparseData, slope);
             LAUNCHERROR("kCalculateSparseAnalogNonZeroLRELUOutputDelta_kernel");
             break;
 
         case ExponentialLinear:
             if (!bSparseIgnoreZero)
             {
-                kCalculateSparseRawELUOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(position, pSparseWeight, stride, size, pUnit, pDelta, alpha);
+                kCalculateSparseRawELUOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(position, pDataWeight, stride, size, pUnit, pDelta, alpha);
                 LAUNCHERROR("kCalculateSparseRawELUOutputDelta_kernel");
             }
-            kCalculateSparseAnalogNonZeroELUOutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pSparseStart, pSparseEnd, pSparseIndex, pSparseWeight, pSparseData, alpha);
+            kCalculateSparseAnalogNonZeroELUOutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pSparseStart, pSparseEnd, pSparseIndex, pDataWeight, pSparseData, alpha);
             LAUNCHERROR("kCalculateSparseAnalogNonZeroELUOutputDelta_kernel");
             break;
 
         case ScaledExponentialLinear:
             if (!bSparseIgnoreZero)
             {
-                kCalculateSparseRawSELUOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(position, pSparseWeight, stride, size, pUnit, pDelta, alpha, lambda);
+                kCalculateSparseRawSELUOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(position, pDataWeight, stride, size, pUnit, pDelta, alpha, lambda);
                 LAUNCHERROR("kCalculateSparseRawSELUOutputDelta_kernel");
             }
-            kCalculateSparseAnalogNonZeroSELUOutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pSparseStart, pSparseEnd, pSparseIndex, pSparseWeight, pSparseData, alpha, lambda);
+            kCalculateSparseAnalogNonZeroSELUOutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pSparseStart, pSparseEnd, pSparseIndex, pDataWeight, pSparseData, alpha, lambda);
             LAUNCHERROR("kCalculateSparseAnalogNonZeroSELUOutputDelta_kernel");
             break;
 
         case SoftMax:
             if (!bSparseIgnoreZero)
             {
-                kCalculateSparseRawSoftMaxOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(position, pSparseWeight, stride, size, pUnit, pDelta);
+                kCalculateSparseRawSoftMaxOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(position, pDataWeight, stride, size, pUnit, pDelta);
                 LAUNCHERROR("kCalculateSparseRawSoftMaxOutputDelta_kernel");
             }
-            kCalculateSparseAnalogNonZeroSoftMaxOutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pSparseStart, pSparseEnd, pSparseIndex, pSparseWeight, pSparseData);
+            kCalculateSparseAnalogNonZeroSoftMaxOutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pSparseStart, pSparseEnd, pSparseIndex, pDataWeight, pSparseData);
             LAUNCHERROR("kCalculateSparseAnalogNonZeroSoftMaxOutputDelta_kernel");
             break;         
     }
@@ -3362,7 +3566,7 @@ void kCalculateSparseAnalogOutputDelta(Activation activation, uint32_t position,
 template<typename T>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateIndexedSparseAnalogNonZeroSigmoidOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pSparseWeight, T* pSparseData)
+kCalculateIndexedSparseAnalogNonZeroSigmoidOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pDataWeight, T* pSparseData)
 {
     uint64_t pos                = ((blockIdx.x * blockDim.x) + threadIdx.x) / cData._warpSize;
     if (pos < batch)
@@ -3370,7 +3574,7 @@ kCalculateIndexedSparseAnalogNonZeroSigmoidOutputDelta_kernel(uint32_t position,
         uint32_t dpos           = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + pos] : position + pos];
         uint64_t pos1           = pSparseStart[dpos] + (threadIdx.x & cData._warpMask);
         uint64_t end            = pSparseEnd[dpos];
-        NNFloat w               = cData._deltaBoost_one * ((pSparseWeight != NULL) ? pSparseWeight[dpos] : (NNFloat)1.0);
+        NNFloat w               = cData._deltaBoost_one * ((pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0);
         uint64_t offset         = pos * stride;
         while (pos1 < end)
         {
@@ -3386,7 +3590,7 @@ kCalculateIndexedSparseAnalogNonZeroSigmoidOutputDelta_kernel(uint32_t position,
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateIndexedSparseAnalogNonZeroSigmoidOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pSparseWeight, unsigned char* pSparseData)
+kCalculateIndexedSparseAnalogNonZeroSigmoidOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pDataWeight, unsigned char* pSparseData)
 {
     uint64_t pos                = ((blockIdx.x * blockDim.x) + threadIdx.x) / cData._warpSize;
     if (pos < batch)
@@ -3394,7 +3598,7 @@ kCalculateIndexedSparseAnalogNonZeroSigmoidOutputDelta_kernel(uint32_t position,
         uint32_t dpos           = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + pos] : position + pos];
         uint64_t pos1           = pSparseStart[dpos] + (threadIdx.x & cData._warpMask);
         uint64_t end            = pSparseEnd[dpos];
-        NNFloat w               = cData._deltaBoost_one * ((pSparseWeight != NULL) ? pSparseWeight[dpos] : (NNFloat)1.0);
+        NNFloat w               = cData._deltaBoost_one * ((pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0);
         uint64_t offset         = pos * stride;
         while (pos1 < end)
         {
@@ -3410,7 +3614,7 @@ kCalculateIndexedSparseAnalogNonZeroSigmoidOutputDelta_kernel(uint32_t position,
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateIndexedSparseAnalogNonZeroSigmoidOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pSparseWeight, char* pSparseData)
+kCalculateIndexedSparseAnalogNonZeroSigmoidOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pDataWeight, char* pSparseData)
 {
     uint64_t pos                = ((blockIdx.x * blockDim.x) + threadIdx.x) / cData._warpSize;
     if (pos < batch)
@@ -3418,7 +3622,7 @@ kCalculateIndexedSparseAnalogNonZeroSigmoidOutputDelta_kernel(uint32_t position,
         uint32_t dpos           = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + pos] : position + pos];
         uint64_t pos1           = pSparseStart[dpos] + (threadIdx.x & cData._warpMask);
         uint64_t end            = pSparseEnd[dpos];
-        NNFloat w               = cData._deltaBoost_one * ((pSparseWeight != NULL) ? pSparseWeight[dpos] : (NNFloat)1.0);
+        NNFloat w               = cData._deltaBoost_one * ((pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0);
         uint64_t offset         = pos * stride;
         while (pos1 < end)
         {
@@ -3434,7 +3638,7 @@ kCalculateIndexedSparseAnalogNonZeroSigmoidOutputDelta_kernel(uint32_t position,
 template<typename T>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateIndexedSparseAnalogNonZeroTanhOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pSparseWeight, T* pSparseData)
+kCalculateIndexedSparseAnalogNonZeroTanhOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pDataWeight, T* pSparseData)
 {
     uint64_t pos                = ((blockIdx.x * blockDim.x) + threadIdx.x) / cData._warpSize;
     if (pos < batch)
@@ -3442,7 +3646,7 @@ kCalculateIndexedSparseAnalogNonZeroTanhOutputDelta_kernel(uint32_t position, ui
         uint32_t dpos           = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + pos] : position + pos];
         uint64_t pos1           = pSparseStart[dpos] + (threadIdx.x & cData._warpMask);
         uint64_t end            = pSparseEnd[dpos];
-        NNFloat w               = cData._deltaBoost_one * ((pSparseWeight != NULL) ? pSparseWeight[dpos] : (NNFloat)1.0);
+        NNFloat w               = cData._deltaBoost_one * ((pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0);
         uint64_t offset         = pos * stride;
         while (pos1 < end)
         {
@@ -3458,7 +3662,7 @@ kCalculateIndexedSparseAnalogNonZeroTanhOutputDelta_kernel(uint32_t position, ui
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateIndexedSparseAnalogNonZeroTanhOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t *pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pSparseWeight, unsigned char* pSparseData)
+kCalculateIndexedSparseAnalogNonZeroTanhOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t *pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pDataWeight, unsigned char* pSparseData)
 {
     uint64_t pos                = ((blockIdx.x * blockDim.x) + threadIdx.x) / cData._warpSize;
     if (pos < batch)
@@ -3466,7 +3670,7 @@ kCalculateIndexedSparseAnalogNonZeroTanhOutputDelta_kernel(uint32_t position, ui
         uint32_t dpos           = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + pos] : position + pos];
         uint64_t pos1           = pSparseStart[dpos] + (threadIdx.x & cData._warpMask);
         uint64_t end            = pSparseEnd[dpos];
-        NNFloat w               = cData._deltaBoost_one * ((pSparseWeight != NULL) ? pSparseWeight[dpos] : (NNFloat)1.0);
+        NNFloat w               = cData._deltaBoost_one * ((pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0);
         uint64_t offset         = pos * stride;
         while (pos1 < end)
         {
@@ -3482,7 +3686,7 @@ kCalculateIndexedSparseAnalogNonZeroTanhOutputDelta_kernel(uint32_t position, ui
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateIndexedSparseAnalogNonZeroTanhOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pSparseWeight, char* pSparseData)
+kCalculateIndexedSparseAnalogNonZeroTanhOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pDataWeight, char* pSparseData)
 {
     uint64_t pos                = ((blockIdx.x * blockDim.x) + threadIdx.x) / cData._warpSize;
     if (pos < batch)
@@ -3490,7 +3694,7 @@ kCalculateIndexedSparseAnalogNonZeroTanhOutputDelta_kernel(uint32_t position, ui
         uint32_t dpos           = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + pos] : position + pos];
         uint64_t pos1           = pSparseStart[dpos] + (threadIdx.x & cData._warpMask);
         uint64_t end            = pSparseEnd[dpos];
-        NNFloat w               = cData._deltaBoost_one * ((pSparseWeight != NULL) ? pSparseWeight[dpos] : (NNFloat)1.0);
+        NNFloat w               = cData._deltaBoost_one * ((pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0);
         uint64_t offset         = pos * stride;
         while (pos1 < end)
         {
@@ -3506,7 +3710,7 @@ kCalculateIndexedSparseAnalogNonZeroTanhOutputDelta_kernel(uint32_t position, ui
 template<typename T>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateIndexedSparseAnalogNonZeroLinearOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pSparseWeight, T* pSparseData)
+kCalculateIndexedSparseAnalogNonZeroLinearOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pDataWeight, T* pSparseData)
 {
     uint64_t pos                = ((blockIdx.x * blockDim.x) + threadIdx.x) / cData._warpSize;
     if (pos < batch)
@@ -3514,7 +3718,7 @@ kCalculateIndexedSparseAnalogNonZeroLinearOutputDelta_kernel(uint32_t position, 
         uint32_t dpos           = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + pos] : position + pos];
         uint64_t pos1           = pSparseStart[dpos] + (threadIdx.x & cData._warpMask);
         uint64_t end            = pSparseEnd[dpos];
-        NNFloat w               = cData._deltaBoost_one * ((pSparseWeight != NULL) ? pSparseWeight[dpos] : (NNFloat)1.0);
+        NNFloat w               = cData._deltaBoost_one * ((pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0);
         uint64_t offset         = pos * stride;
         while (pos1 < end)
         {
@@ -3530,7 +3734,7 @@ kCalculateIndexedSparseAnalogNonZeroLinearOutputDelta_kernel(uint32_t position, 
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateIndexedSparseAnalogNonZeroLinearOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pSparseWeight, unsigned char* pSparseData)
+kCalculateIndexedSparseAnalogNonZeroLinearOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pDataWeight, unsigned char* pSparseData)
 {
     uint64_t pos                = ((blockIdx.x * blockDim.x) + threadIdx.x) / cData._warpSize;
     if (pos < batch)
@@ -3538,7 +3742,7 @@ kCalculateIndexedSparseAnalogNonZeroLinearOutputDelta_kernel(uint32_t position, 
         uint32_t dpos           = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + pos] : position + pos];
         uint64_t pos1           = pSparseStart[dpos] + (threadIdx.x & cData._warpMask);
         uint64_t end            = pSparseEnd[dpos];
-        NNFloat w               = cData._deltaBoost_one * ((pSparseWeight != NULL) ? pSparseWeight[dpos] : (NNFloat)1.0);
+        NNFloat w               = cData._deltaBoost_one * ((pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0);
         uint64_t offset         = pos * stride;
         while (pos1 < end)
         {
@@ -3554,7 +3758,7 @@ kCalculateIndexedSparseAnalogNonZeroLinearOutputDelta_kernel(uint32_t position, 
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateIndexedSparseAnalogNonZeroLinearOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pSparseWeight, char* pSparseData)
+kCalculateIndexedSparseAnalogNonZeroLinearOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pDataWeight, char* pSparseData)
 {
     uint64_t pos                = ((blockIdx.x * blockDim.x) + threadIdx.x) / cData._warpSize;
     if (pos < batch)
@@ -3562,7 +3766,7 @@ kCalculateIndexedSparseAnalogNonZeroLinearOutputDelta_kernel(uint32_t position, 
         uint32_t dpos           = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + pos] : position + pos];
         uint64_t pos1           = pSparseStart[dpos] + (threadIdx.x & cData._warpMask);
         uint64_t end            = pSparseEnd[dpos];
-        NNFloat w               = cData._deltaBoost_one * ((pSparseWeight != NULL) ? pSparseWeight[dpos] : (NNFloat)1.0);
+        NNFloat w               = cData._deltaBoost_one * ((pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0);
         uint64_t offset         = pos * stride;
         while (pos1 < end)
         {
@@ -3578,7 +3782,7 @@ kCalculateIndexedSparseAnalogNonZeroLinearOutputDelta_kernel(uint32_t position, 
 template<typename T>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateIndexedSparseAnalogNonZeroRELUOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pSparseWeight, T* pSparseData)
+kCalculateIndexedSparseAnalogNonZeroRELUOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pDataWeight, T* pSparseData)
 {
     uint64_t pos                = ((blockIdx.x * blockDim.x) + threadIdx.x) / cData._warpSize;
     if (pos < batch)
@@ -3586,7 +3790,7 @@ kCalculateIndexedSparseAnalogNonZeroRELUOutputDelta_kernel(uint32_t position, ui
         uint32_t dpos           = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + pos] : position + pos];
         uint64_t pos1           = pSparseStart[dpos] + (threadIdx.x & cData._warpMask);
         uint64_t end            = pSparseEnd[dpos];
-        NNFloat w               = cData._deltaBoost_one * ((pSparseWeight != NULL) ? pSparseWeight[dpos] : (NNFloat)1.0);
+        NNFloat w               = cData._deltaBoost_one * ((pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0);
         uint64_t offset         = pos * stride;
         while (pos1 < end)
         {
@@ -3602,7 +3806,7 @@ kCalculateIndexedSparseAnalogNonZeroRELUOutputDelta_kernel(uint32_t position, ui
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateIndexedSparseAnalogNonZeroRELUOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pSparseWeight, unsigned char* pSparseData)
+kCalculateIndexedSparseAnalogNonZeroRELUOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pDataWeight, unsigned char* pSparseData)
 {
     uint64_t pos                = ((blockIdx.x * blockDim.x) + threadIdx.x) / cData._warpSize;
     if (pos < batch)
@@ -3610,7 +3814,7 @@ kCalculateIndexedSparseAnalogNonZeroRELUOutputDelta_kernel(uint32_t position, ui
         uint32_t dpos           = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + pos] : position + pos];
         uint64_t pos1           = pSparseStart[dpos] + (threadIdx.x & cData._warpMask);
         uint64_t end            = pSparseEnd[dpos];
-        NNFloat w               = cData._deltaBoost_one * ((pSparseWeight != NULL) ? pSparseWeight[dpos] : (NNFloat)1.0);
+        NNFloat w               = cData._deltaBoost_one * ((pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0);
         uint64_t offset         = pos * stride;
         while (pos1 < end)
         {
@@ -3626,7 +3830,7 @@ kCalculateIndexedSparseAnalogNonZeroRELUOutputDelta_kernel(uint32_t position, ui
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateIndexedSparseAnalogNonZeroRELUOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pSparseWeight, char* pSparseData)
+kCalculateIndexedSparseAnalogNonZeroRELUOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pDataWeight, char* pSparseData)
 {
     uint64_t pos                = ((blockIdx.x * blockDim.x) + threadIdx.x) / cData._warpSize;
     if (pos < batch)
@@ -3634,7 +3838,7 @@ kCalculateIndexedSparseAnalogNonZeroRELUOutputDelta_kernel(uint32_t position, ui
         uint32_t dpos           = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + pos] : position + pos];
         uint64_t pos1           = pSparseStart[dpos] + (threadIdx.x & cData._warpMask);
         uint64_t end            = pSparseEnd[dpos];
-        NNFloat w               = cData._deltaBoost_one * ((pSparseWeight != NULL) ? pSparseWeight[dpos] : (NNFloat)1.0);
+        NNFloat w               = cData._deltaBoost_one * ((pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0);
         uint64_t offset         = pos * stride;
         while (pos1 < end)
         {
@@ -3650,7 +3854,7 @@ kCalculateIndexedSparseAnalogNonZeroRELUOutputDelta_kernel(uint32_t position, ui
 template<typename T>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateIndexedSparseAnalogNonZeroLRELUOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pSparseWeight, T* pSparseData, NNFloat slope)
+kCalculateIndexedSparseAnalogNonZeroLRELUOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pDataWeight, T* pSparseData, NNFloat slope)
 {
     uint64_t pos                = ((blockIdx.x * blockDim.x) + threadIdx.x) / cData._warpSize;
     if (pos < batch)
@@ -3658,7 +3862,7 @@ kCalculateIndexedSparseAnalogNonZeroLRELUOutputDelta_kernel(uint32_t position, u
         uint32_t dpos           = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + pos] : position + pos];
         uint64_t pos1           = pSparseStart[dpos] + (threadIdx.x & cData._warpMask);
         uint64_t end            = pSparseEnd[dpos];
-        NNFloat w               = cData._deltaBoost_one * ((pSparseWeight != NULL) ? pSparseWeight[dpos] : (NNFloat)1.0);
+        NNFloat w               = cData._deltaBoost_one * ((pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0);
         uint64_t offset         = pos * stride;
         while (pos1 < end)
         {
@@ -3674,7 +3878,7 @@ kCalculateIndexedSparseAnalogNonZeroLRELUOutputDelta_kernel(uint32_t position, u
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateIndexedSparseAnalogNonZeroLRELUOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pSparseWeight, unsigned char* pSparseData, NNFloat slope)
+kCalculateIndexedSparseAnalogNonZeroLRELUOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pDataWeight, unsigned char* pSparseData, NNFloat slope)
 {
     uint64_t pos                = ((blockIdx.x * blockDim.x) + threadIdx.x) / cData._warpSize;
     if (pos < batch)
@@ -3682,7 +3886,7 @@ kCalculateIndexedSparseAnalogNonZeroLRELUOutputDelta_kernel(uint32_t position, u
         uint32_t dpos           = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + pos] : position + pos];
         uint64_t pos1           = pSparseStart[dpos] + (threadIdx.x & cData._warpMask);
         uint64_t end            = pSparseEnd[dpos];
-        NNFloat w               = cData._deltaBoost_one * ((pSparseWeight != NULL) ? pSparseWeight[dpos] : (NNFloat)1.0);
+        NNFloat w               = cData._deltaBoost_one * ((pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0);
         uint64_t offset         = pos * stride;
         while (pos1 < end)
         {
@@ -3698,7 +3902,7 @@ kCalculateIndexedSparseAnalogNonZeroLRELUOutputDelta_kernel(uint32_t position, u
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateIndexedSparseAnalogNonZeroLRELUOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pSparseWeight, char* pSparseData, NNFloat slope)
+kCalculateIndexedSparseAnalogNonZeroLRELUOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pDataWeight, char* pSparseData, NNFloat slope)
 {
     uint64_t pos                = ((blockIdx.x * blockDim.x) + threadIdx.x) / cData._warpSize;
     if (pos < batch)
@@ -3706,7 +3910,7 @@ kCalculateIndexedSparseAnalogNonZeroLRELUOutputDelta_kernel(uint32_t position, u
         uint32_t dpos           = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + pos] : position + pos];
         uint64_t pos1           = pSparseStart[dpos] + (threadIdx.x & cData._warpMask);
         uint64_t end            = pSparseEnd[dpos];
-        NNFloat w               = cData._deltaBoost_one * ((pSparseWeight != NULL) ? pSparseWeight[dpos] : (NNFloat)1.0);
+        NNFloat w               = cData._deltaBoost_one * ((pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0);
         uint64_t offset         = pos * stride;
         while (pos1 < end)
         {
@@ -3722,7 +3926,7 @@ kCalculateIndexedSparseAnalogNonZeroLRELUOutputDelta_kernel(uint32_t position, u
 template<typename T>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateIndexedSparseAnalogNonZeroELUOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pSparseWeight, T* pSparseData, NNFloat alpha)
+kCalculateIndexedSparseAnalogNonZeroELUOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pDataWeight, T* pSparseData, NNFloat alpha)
 {
     uint64_t pos                = ((blockIdx.x * blockDim.x) + threadIdx.x) / cData._warpSize;
     if (pos < batch)
@@ -3730,7 +3934,7 @@ kCalculateIndexedSparseAnalogNonZeroELUOutputDelta_kernel(uint32_t position, uin
         uint32_t dpos           = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + pos] : position + pos];
         uint64_t pos1           = pSparseStart[dpos] + (threadIdx.x & cData._warpMask);
         uint64_t end            = pSparseEnd[dpos];
-        NNFloat w               = cData._deltaBoost_one * ((pSparseWeight != NULL) ? pSparseWeight[dpos] : (NNFloat)1.0);
+        NNFloat w               = cData._deltaBoost_one * ((pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0);
         uint64_t offset         = pos * stride;
         while (pos1 < end)
         {
@@ -3746,7 +3950,7 @@ kCalculateIndexedSparseAnalogNonZeroELUOutputDelta_kernel(uint32_t position, uin
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateIndexedSparseAnalogNonZeroELUOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pSparseWeight, unsigned char* pSparseData, NNFloat alpha)
+kCalculateIndexedSparseAnalogNonZeroELUOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pDataWeight, unsigned char* pSparseData, NNFloat alpha)
 {
     uint64_t pos                = ((blockIdx.x * blockDim.x) + threadIdx.x) / cData._warpSize;
     if (pos < batch)
@@ -3754,7 +3958,7 @@ kCalculateIndexedSparseAnalogNonZeroELUOutputDelta_kernel(uint32_t position, uin
         uint32_t dpos           = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + pos] : position + pos];
         uint64_t pos1           = pSparseStart[dpos] + (threadIdx.x & cData._warpMask);
         uint64_t end            = pSparseEnd[dpos];
-        NNFloat w               = cData._deltaBoost_one * ((pSparseWeight != NULL) ? pSparseWeight[dpos] : (NNFloat)1.0);
+        NNFloat w               = cData._deltaBoost_one * ((pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0);
         uint64_t offset         = pos * stride;
         while (pos1 < end)
         {
@@ -3770,7 +3974,7 @@ kCalculateIndexedSparseAnalogNonZeroELUOutputDelta_kernel(uint32_t position, uin
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateIndexedSparseAnalogNonZeroELUOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pSparseWeight, char* pSparseData, NNFloat alpha)
+kCalculateIndexedSparseAnalogNonZeroELUOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pDataWeight, char* pSparseData, NNFloat alpha)
 {
     uint64_t pos                = ((blockIdx.x * blockDim.x) + threadIdx.x) / cData._warpSize;
     if (pos < batch)
@@ -3778,7 +3982,7 @@ kCalculateIndexedSparseAnalogNonZeroELUOutputDelta_kernel(uint32_t position, uin
         uint32_t dpos           = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + pos] : position + pos];
         uint64_t pos1           = pSparseStart[dpos] + (threadIdx.x & cData._warpMask);
         uint64_t end            = pSparseEnd[dpos];
-        NNFloat w               = cData._deltaBoost_one * ((pSparseWeight != NULL) ? pSparseWeight[dpos] : (NNFloat)1.0);
+        NNFloat w               = cData._deltaBoost_one * ((pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0);
         uint64_t offset         = pos * stride;
         while (pos1 < end)
         {
@@ -3794,7 +3998,7 @@ kCalculateIndexedSparseAnalogNonZeroELUOutputDelta_kernel(uint32_t position, uin
 template<typename T>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateIndexedSparseAnalogNonZeroSELUOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pSparseWeight, T* pSparseData, NNFloat alpha, NNFloat lambda)
+kCalculateIndexedSparseAnalogNonZeroSELUOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pDataWeight, T* pSparseData, NNFloat alpha, NNFloat lambda)
 {
     uint64_t pos                = ((blockIdx.x * blockDim.x) + threadIdx.x) / cData._warpSize;
     if (pos < batch)
@@ -3802,7 +4006,7 @@ kCalculateIndexedSparseAnalogNonZeroSELUOutputDelta_kernel(uint32_t position, ui
         uint32_t dpos           = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + pos] : position + pos];
         uint64_t pos1           = pSparseStart[dpos] + (threadIdx.x & cData._warpMask);
         uint64_t end            = pSparseEnd[dpos];
-        NNFloat w               = cData._deltaBoost_one * ((pSparseWeight != NULL) ? pSparseWeight[dpos] : (NNFloat)1.0);
+        NNFloat w               = cData._deltaBoost_one * ((pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0);
         uint64_t offset         = pos * stride;
         while (pos1 < end)
         {
@@ -3818,7 +4022,7 @@ kCalculateIndexedSparseAnalogNonZeroSELUOutputDelta_kernel(uint32_t position, ui
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateIndexedSparseAnalogNonZeroSELUOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat *pSparseWeight, unsigned char* pSparseData, NNFloat alpha, NNFloat lambda)
+kCalculateIndexedSparseAnalogNonZeroSELUOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat *pDataWeight, unsigned char* pSparseData, NNFloat alpha, NNFloat lambda)
 {
     uint64_t pos                = ((blockIdx.x * blockDim.x) + threadIdx.x) / cData._warpSize;
     if (pos < batch)
@@ -3826,7 +4030,7 @@ kCalculateIndexedSparseAnalogNonZeroSELUOutputDelta_kernel(uint32_t position, ui
         uint32_t dpos           = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + pos] : position + pos];
         uint64_t pos1           = pSparseStart[dpos] + (threadIdx.x & cData._warpMask);
         uint64_t end            = pSparseEnd[dpos];
-        NNFloat w               = cData._deltaBoost_one * ((pSparseWeight != NULL) ? pSparseWeight[dpos] : (NNFloat)1.0);
+        NNFloat w               = cData._deltaBoost_one * ((pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0);
         uint64_t offset         = pos * stride;
         while (pos1 < end)
         {
@@ -3842,7 +4046,7 @@ kCalculateIndexedSparseAnalogNonZeroSELUOutputDelta_kernel(uint32_t position, ui
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateIndexedSparseAnalogNonZeroSELUOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pSparseWeight, char* pSparseData, NNFloat alpha, NNFloat lambda)
+kCalculateIndexedSparseAnalogNonZeroSELUOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pDataWeight, char* pSparseData, NNFloat alpha, NNFloat lambda)
 {
     uint64_t pos                = ((blockIdx.x * blockDim.x) + threadIdx.x) / cData._warpSize;
     if (pos < batch)
@@ -3850,7 +4054,7 @@ kCalculateIndexedSparseAnalogNonZeroSELUOutputDelta_kernel(uint32_t position, ui
         uint32_t dpos           = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + pos] : position + pos];
         uint64_t pos1           = pSparseStart[dpos] + (threadIdx.x & cData._warpMask);
         uint64_t end            = pSparseEnd[dpos];
-        NNFloat w               = cData._deltaBoost_one * ((pSparseWeight != NULL) ? pSparseWeight[dpos] : (NNFloat)1.0);
+        NNFloat w               = cData._deltaBoost_one * ((pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0);
         uint64_t offset         = pos * stride;
         while (pos1 < end)
         {
@@ -3866,7 +4070,7 @@ kCalculateIndexedSparseAnalogNonZeroSELUOutputDelta_kernel(uint32_t position, ui
 template<typename T>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateIndexedSparseAnalogNonZeroSoftMaxOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pSparseWeight, T* pSparseData)
+kCalculateIndexedSparseAnalogNonZeroSoftMaxOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pDataWeight, T* pSparseData)
 {
     uint64_t pos                = ((blockIdx.x * blockDim.x) + threadIdx.x) / cData._warpSize;
     if (pos < batch)
@@ -3874,7 +4078,7 @@ kCalculateIndexedSparseAnalogNonZeroSoftMaxOutputDelta_kernel(uint32_t position,
         uint32_t dpos           = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + pos] : position + pos];
         uint64_t pos1           = pSparseStart[dpos] + (threadIdx.x & cData._warpMask);
         uint64_t end            = pSparseEnd[dpos];
-        NNFloat w               = cData._deltaBoost_one * ((pSparseWeight != NULL) ? pSparseWeight[dpos] : (NNFloat)1.0);
+        NNFloat w               = cData._deltaBoost_one * ((pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0);
         uint64_t offset         = pos * stride;
         while (pos1 < end)
         {
@@ -3890,7 +4094,7 @@ kCalculateIndexedSparseAnalogNonZeroSoftMaxOutputDelta_kernel(uint32_t position,
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateIndexedSparseAnalogNonZeroSoftMaxOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pSparseWeight, unsigned char* pSparseData)
+kCalculateIndexedSparseAnalogNonZeroSoftMaxOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pDataWeight, unsigned char* pSparseData)
 {
     uint64_t pos                = ((blockIdx.x * blockDim.x) + threadIdx.x) / cData._warpSize;
     if (pos < batch)
@@ -3898,7 +4102,7 @@ kCalculateIndexedSparseAnalogNonZeroSoftMaxOutputDelta_kernel(uint32_t position,
         uint32_t dpos           = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + pos] : position + pos];
         uint64_t pos1           = pSparseStart[dpos] + (threadIdx.x & cData._warpMask);
         uint64_t end            = pSparseEnd[dpos];
-        NNFloat w               = cData._deltaBoost_one * ((pSparseWeight != NULL) ? pSparseWeight[dpos] : (NNFloat)1.0);
+        NNFloat w               = cData._deltaBoost_one * ((pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0);
         uint64_t offset         = pos * stride;
         while (pos1 < end)
         {
@@ -3914,7 +4118,7 @@ kCalculateIndexedSparseAnalogNonZeroSoftMaxOutputDelta_kernel(uint32_t position,
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateIndexedSparseAnalogNonZeroSoftMaxOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat *pSparseWeight, char* pSparseData)
+kCalculateIndexedSparseAnalogNonZeroSoftMaxOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat *pDataWeight, char* pSparseData)
 {
     uint64_t pos                = ((blockIdx.x * blockDim.x) + threadIdx.x) / cData._warpSize;
     if (pos < batch)
@@ -3922,7 +4126,7 @@ kCalculateIndexedSparseAnalogNonZeroSoftMaxOutputDelta_kernel(uint32_t position,
         uint32_t dpos           = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + pos] : position + pos];
         uint64_t pos1           = pSparseStart[dpos] + (threadIdx.x & cData._warpMask);
         uint64_t end            = pSparseEnd[dpos];
-        NNFloat w               = cData._deltaBoost_one * ((pSparseWeight != NULL) ? pSparseWeight[dpos] : (NNFloat)1.0);
+        NNFloat w               = cData._deltaBoost_one * ((pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0);
         uint64_t offset         = pos * stride;
         while (pos1 < end)
         {
@@ -3936,7 +4140,7 @@ kCalculateIndexedSparseAnalogNonZeroSoftMaxOutputDelta_kernel(uint32_t position,
 }
 
 template<typename T>
-void kCalculateIndexedSparseAnalogOutputDelta(Activation activation, uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pSparseWeight, T* pSparseData, bool bSparseIgnoreZero, NNFloat slope, NNFloat alpha, NNFloat lambda)
+void kCalculateIndexedSparseAnalogOutputDelta(Activation activation, uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pDataWeight, T* pSparseData, bool bSparseIgnoreZero, NNFloat slope, NNFloat alpha, NNFloat lambda)
 {
     uint64_t size               = (uint64_t)batch * (uint64_t)stride;
     dim3 grid1(CalculateBlocks(size));
@@ -3953,80 +4157,80 @@ void kCalculateIndexedSparseAnalogOutputDelta(Activation activation, uint32_t po
         case Sigmoid:
             if (!bSparseIgnoreZero)
             {
-                kCalculateSparseRawSigmoidOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(position, pSparseWeight, stride, size, pUnit, pDelta);
+                kCalculateSparseRawSigmoidOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(position, pDataWeight, stride, size, pUnit, pDelta);
                 LAUNCHERROR("kCalculateSparseRawSigmoidOutputDelta_kernel");
             }
-            kCalculateIndexedSparseAnalogNonZeroSigmoidOutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pIndex, pSparseStart, pSparseEnd, pSparseIndex, pSparseWeight, pSparseData);
+            kCalculateIndexedSparseAnalogNonZeroSigmoidOutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pIndex, pSparseStart, pSparseEnd, pSparseIndex, pDataWeight, pSparseData);
             LAUNCHERROR("kCalculateIndexedSparseAnalogNonZeroSigmoidOutputDelta_kernel");
             break;
         
         case Tanh:
             if (!bSparseIgnoreZero)
             {
-                kCalculateSparseRawTanhOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(position, pSparseWeight, stride, size, pUnit, pDelta);
+                kCalculateSparseRawTanhOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(position, pDataWeight, stride, size, pUnit, pDelta);
                 LAUNCHERROR("kCalculateSparseRawTanhOutputDelta_kernel");
             }
-            kCalculateIndexedSparseAnalogNonZeroTanhOutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pIndex, pSparseStart, pSparseEnd, pSparseIndex, pSparseWeight, pSparseData);
+            kCalculateIndexedSparseAnalogNonZeroTanhOutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pIndex, pSparseStart, pSparseEnd, pSparseIndex, pDataWeight, pSparseData);
             LAUNCHERROR("kCalculateIndexedSparseAnalogNonZeroTanhOutputDelta_kernel");
             break;
 
         case Linear:
             if (!bSparseIgnoreZero)
             {
-                kCalculateSparseRawLinearOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(position, pSparseWeight, stride, size, pUnit, pDelta);
+                kCalculateSparseRawLinearOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(position, pDataWeight, stride, size, pUnit, pDelta);
                 LAUNCHERROR("kCalculateSparseRawLinearOutputDelta_kernel");
             }
-            kCalculateIndexedSparseAnalogNonZeroLinearOutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pIndex, pSparseStart, pSparseEnd, pSparseIndex, pSparseWeight, pSparseData);
+            kCalculateIndexedSparseAnalogNonZeroLinearOutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pIndex, pSparseStart, pSparseEnd, pSparseIndex, pDataWeight, pSparseData);
             LAUNCHERROR("kCalculateIndexedSparseAnalogNonZeroLinearOutputDelta_kernel");
             break;
 
         case RectifiedLinear:
             if (!bSparseIgnoreZero)
             {
-                kCalculateSparseRawRELUOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(position, pSparseWeight, stride, size, pUnit, pDelta);
+                kCalculateSparseRawRELUOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(position, pDataWeight, stride, size, pUnit, pDelta);
                 LAUNCHERROR("kCalculateSparseRawRELUOutputDelta_kernel");
             }
-            kCalculateIndexedSparseAnalogNonZeroRELUOutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pIndex, pSparseStart, pSparseEnd, pSparseIndex, pSparseWeight, pSparseData);
+            kCalculateIndexedSparseAnalogNonZeroRELUOutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pIndex, pSparseStart, pSparseEnd, pSparseIndex, pDataWeight, pSparseData);
             LAUNCHERROR("kCalculateIndexedSparseAnalogNonZeroRELUOutputDelta_kernel");
             break;
             
         case LeakyRectifiedLinear:
             if (!bSparseIgnoreZero)
             {
-                kCalculateSparseRawLRELUOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(position, pSparseWeight, stride, size, pUnit, pDelta, slope);
+                kCalculateSparseRawLRELUOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(position, pDataWeight, stride, size, pUnit, pDelta, slope);
                 LAUNCHERROR("kCalculateSparseRawLRELUOutputDelta_kernel");
             }
-            kCalculateIndexedSparseAnalogNonZeroLRELUOutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pIndex, pSparseStart, pSparseEnd, pSparseIndex, pSparseWeight, pSparseData, slope);
+            kCalculateIndexedSparseAnalogNonZeroLRELUOutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pIndex, pSparseStart, pSparseEnd, pSparseIndex, pDataWeight, pSparseData, slope);
             LAUNCHERROR("kCalculateIndexedSparseAnalogNonZeroLRELUOutputDelta_kernel");
             break;
 
         case ExponentialLinear:
             if (!bSparseIgnoreZero)
             {
-                kCalculateSparseRawELUOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(position, pSparseWeight, stride, size, pUnit, pDelta, alpha);
+                kCalculateSparseRawELUOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(position, pDataWeight, stride, size, pUnit, pDelta, alpha);
                 LAUNCHERROR("kCalculateSparseRawELUOutputDelta_kernel");
             }
-            kCalculateIndexedSparseAnalogNonZeroELUOutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pIndex, pSparseStart, pSparseEnd, pSparseIndex, pSparseWeight, pSparseData, alpha);
+            kCalculateIndexedSparseAnalogNonZeroELUOutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pIndex, pSparseStart, pSparseEnd, pSparseIndex, pDataWeight, pSparseData, alpha);
             LAUNCHERROR("kCalculateIndexedSparseAnalogNonZeroELUOutputDelta_kernel");
             break;
 
         case ScaledExponentialLinear:
             if (!bSparseIgnoreZero)
             {
-                kCalculateSparseRawSELUOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(position, pSparseWeight, stride, size, pUnit, pDelta, alpha, lambda);
+                kCalculateSparseRawSELUOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(position, pDataWeight, stride, size, pUnit, pDelta, alpha, lambda);
                 LAUNCHERROR("kCalculateSparseRawSELUOutputDelta_kernel");
             }
-            kCalculateIndexedSparseAnalogNonZeroSELUOutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pIndex, pSparseStart, pSparseEnd, pSparseIndex, pSparseWeight, pSparseData, alpha, lambda);
+            kCalculateIndexedSparseAnalogNonZeroSELUOutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pIndex, pSparseStart, pSparseEnd, pSparseIndex, pDataWeight, pSparseData, alpha, lambda);
             LAUNCHERROR("kCalculateIndexedSparseAnalogNonZeroSELUOutputDelta_kernel");
             break;
 
         case SoftMax:
             if (!bSparseIgnoreZero)
             {
-                kCalculateSparseRawSoftMaxOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(position, pSparseWeight, stride, size, pUnit, pDelta);
+                kCalculateSparseRawSoftMaxOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(position, pDataWeight, stride, size, pUnit, pDelta);
                 LAUNCHERROR("kCalculateSparseRawSoftMaxOutputDelta_kernel");
             }
-            kCalculateIndexedSparseAnalogNonZeroSoftMaxOutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pIndex, pSparseStart, pSparseEnd, pSparseIndex, pSparseWeight, pSparseData);
+            kCalculateIndexedSparseAnalogNonZeroSoftMaxOutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pIndex, pSparseStart, pSparseEnd, pSparseIndex, pDataWeight, pSparseData);
             LAUNCHERROR("kCalculateIndexedSparseAnalogNonZeroSoftMaxOutputDelta_kernel");
             break;         
     }
@@ -4034,17 +4238,17 @@ void kCalculateIndexedSparseAnalogOutputDelta(Activation activation, uint32_t po
 
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateSparseRawSigmoidL2HingeOutputDelta_kernel(uint32_t position, NNFloat* pSparseWeight, uint32_t stride, uint64_t size, NNFloat* pUnit,  NNFloat* pDelta)
+kCalculateSparseRawSigmoidL2HingeOutputDelta_kernel(uint32_t position, NNFloat* pDataWeight, uint32_t stride, uint64_t size, NNFloat* pUnit,  NNFloat* pDelta)
 {
     uint64_t pos                = (blockIdx.x * blockDim.x) + threadIdx.x;
     if (pos < size)
     {
         NNFloat w               = cData._deltaBoost_zero;
-        if (pSparseWeight != NULL)
+        if (pDataWeight != NULL)
         {
             uint64_t dpos       = (pos / stride) + position;
             dpos                = cData._bShuffleIndices ? cData._pShuffleIndex[dpos] : dpos;
-            w                  *= pSparseWeight[dpos];
+            w                  *= pDataWeight[dpos];
         }
         NNFloat a               = max((NNFloat)0.0, pUnit[pos]);
         pDelta[pos]             = w * a * a * ((NNFloat)1.0 - a);      
@@ -4053,7 +4257,7 @@ kCalculateSparseRawSigmoidL2HingeOutputDelta_kernel(uint32_t position, NNFloat* 
 
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateSparseNonZeroSigmoidL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pSparseWeight)
+kCalculateSparseNonZeroSigmoidL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pDataWeight)
 {
     uint64_t pos                = ((blockIdx.x * blockDim.x) + threadIdx.x) / cData._warpSize;
     if (pos < batch)
@@ -4061,7 +4265,7 @@ kCalculateSparseNonZeroSigmoidL2HingeOutputDelta_kernel(uint32_t position, uint3
         uint32_t dpos           = cData._bShuffleIndices ? cData._pShuffleIndex[position + pos] : position + pos;
         uint64_t pos1           = pSparseStart[dpos] + (threadIdx.x & cData._warpMask);
         uint64_t end            = pSparseEnd[dpos];
-        NNFloat w               = cData._deltaBoost_one * ((pSparseWeight != NULL) ? pSparseWeight[dpos] : (NNFloat)1.0);
+        NNFloat w               = cData._deltaBoost_one * ((pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0);
         uint64_t offset         = pos * stride;
         while (pos1 < end)
         {
@@ -4076,17 +4280,17 @@ kCalculateSparseNonZeroSigmoidL2HingeOutputDelta_kernel(uint32_t position, uint3
 
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateSparseRawTanhL2HingeOutputDelta_kernel(uint32_t position, NNFloat* pSparseWeight, uint32_t stride, uint64_t size, NNFloat* pUnit,  NNFloat* pDelta)
+kCalculateSparseRawTanhL2HingeOutputDelta_kernel(uint32_t position, NNFloat* pDataWeight, uint32_t stride, uint64_t size, NNFloat* pUnit,  NNFloat* pDelta)
 {
     uint64_t pos                = (blockIdx.x * blockDim.x) + threadIdx.x;
     if (pos < size)
     {
         NNFloat w               = (NNFloat)1.0;
-        if (pSparseWeight != NULL)
+        if (pDataWeight != NULL)
         {
             uint64_t dpos       = (pos / stride) + position;
             dpos                = cData._bShuffleIndices ? cData._pShuffleIndex[dpos] : dpos;
-            w                  *= pSparseWeight[dpos];
+            w                  *= pDataWeight[dpos];
         }
         NNFloat a               = max((NNFloat)0.0, pUnit[pos]);    
         pDelta[pos]             = w * a * ((NNFloat)1.0 - a * a);       
@@ -4095,7 +4299,7 @@ kCalculateSparseRawTanhL2HingeOutputDelta_kernel(uint32_t position, NNFloat* pSp
 
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateSparseNonZeroTanhL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pSparseWeight)
+kCalculateSparseNonZeroTanhL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pDataWeight)
 {
     uint64_t pos                = ((blockIdx.x * blockDim.x) + threadIdx.x) / cData._warpSize;
     if (pos < batch)
@@ -4103,7 +4307,7 @@ kCalculateSparseNonZeroTanhL2HingeOutputDelta_kernel(uint32_t position, uint32_t
         uint32_t dpos           = cData._bShuffleIndices ? cData._pShuffleIndex[position + pos] : position + pos;
         uint64_t pos1           = pSparseStart[dpos] + (threadIdx.x & cData._warpMask);
         uint64_t end            = pSparseEnd[dpos];
-        NNFloat w               = (pSparseWeight != NULL) ? pSparseWeight[dpos] : (NNFloat)1.0;
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
         uint64_t offset         = pos * stride;
         while (pos1 < end)
         {
@@ -4118,17 +4322,17 @@ kCalculateSparseNonZeroTanhL2HingeOutputDelta_kernel(uint32_t position, uint32_t
 
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateSparseRawLinearL2HingeOutputDelta_kernel(uint32_t position, NNFloat* pSparseWeight, uint32_t stride, uint64_t size, NNFloat* pUnit,  NNFloat* pDelta)
+kCalculateSparseRawLinearL2HingeOutputDelta_kernel(uint32_t position, NNFloat* pDataWeight, uint32_t stride, uint64_t size, NNFloat* pUnit,  NNFloat* pDelta)
 {
     uint64_t pos                = (blockIdx.x * blockDim.x) + threadIdx.x;
     if (pos < size)
     {
         NNFloat w               = (NNFloat)1.0;
-        if (pSparseWeight != NULL)
+        if (pDataWeight != NULL)
         {
             uint64_t dpos       = (pos / stride) + position;
             dpos                = cData._bShuffleIndices ? cData._pShuffleIndex[dpos] : dpos;
-            w                  *= pSparseWeight[dpos];
+            w                  *= pDataWeight[dpos];
         }
         NNFloat a               = max((NNFloat)0.0, pUnit[pos]);    
         pDelta[pos]             = w * a;         
@@ -4137,7 +4341,7 @@ kCalculateSparseRawLinearL2HingeOutputDelta_kernel(uint32_t position, NNFloat* p
 
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateSparseNonZeroLinearL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pSparseWeight)
+kCalculateSparseNonZeroLinearL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pDataWeight)
 {
     uint64_t pos                = ((blockIdx.x * blockDim.x) + threadIdx.x) / cData._warpSize;
     if (pos < batch)
@@ -4145,7 +4349,7 @@ kCalculateSparseNonZeroLinearL2HingeOutputDelta_kernel(uint32_t position, uint32
         uint32_t dpos           = cData._bShuffleIndices ? cData._pShuffleIndex[position + pos] : position + pos;
         uint64_t pos1           = pSparseStart[dpos] + (threadIdx.x & cData._warpMask);
         uint64_t end            = pSparseEnd[dpos];
-        NNFloat w               = (pSparseWeight != NULL) ? pSparseWeight[dpos] : (NNFloat)1.0;
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
         uint64_t offset         = pos * stride;
         while (pos1 < end)
         {
@@ -4160,17 +4364,17 @@ kCalculateSparseNonZeroLinearL2HingeOutputDelta_kernel(uint32_t position, uint32
 
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateSparseRawRELUL2HingeOutputDelta_kernel(uint32_t position, NNFloat* pSparseWeight, uint32_t stride, uint64_t size, NNFloat* pUnit,  NNFloat* pDelta)
+kCalculateSparseRawRELUL2HingeOutputDelta_kernel(uint32_t position, NNFloat* pDataWeight, uint32_t stride, uint64_t size, NNFloat* pUnit,  NNFloat* pDelta)
 {
     uint64_t pos                = (blockIdx.x * blockDim.x) + threadIdx.x;
     if (pos < size)
     {
         NNFloat w               = (NNFloat)1.0;
-        if (pSparseWeight != NULL)
+        if (pDataWeight != NULL)
         {
             uint64_t dpos       = (pos / stride) + position;
             dpos                = cData._bShuffleIndices ? cData._pShuffleIndex[dpos] : dpos;
-            w                  *= pSparseWeight[dpos];
+            w                  *= pDataWeight[dpos];
         }
         NNFloat a               = max((NNFloat)0.0, pUnit[pos]);         
         pDelta[pos]             = w * a * (a > (NNFloat)0.0);   
@@ -4179,17 +4383,17 @@ kCalculateSparseRawRELUL2HingeOutputDelta_kernel(uint32_t position, NNFloat* pSp
 
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateSparseRawLRELUL2HingeOutputDelta_kernel(uint32_t position, NNFloat* pSparseWeight, uint32_t stride, uint64_t size, NNFloat* pUnit,  NNFloat* pDelta, NNFloat slope)
+kCalculateSparseRawLRELUL2HingeOutputDelta_kernel(uint32_t position, NNFloat* pDataWeight, uint32_t stride, uint64_t size, NNFloat* pUnit,  NNFloat* pDelta, NNFloat slope)
 {
     uint64_t pos                = (blockIdx.x * blockDim.x) + threadIdx.x;
     if (pos < size)
     {
         NNFloat w               = (NNFloat)1.0;
-        if (pSparseWeight != NULL)
+        if (pDataWeight != NULL)
         {
             uint64_t dpos       = (pos / stride) + position;
             dpos                = cData._bShuffleIndices ? cData._pShuffleIndex[dpos] : dpos;
-            w                  *= pSparseWeight[dpos];
+            w                  *= pDataWeight[dpos];
         }
         NNFloat a               = max((NNFloat)0.0, pUnit[pos]);
         pDelta[pos]             = w * a * ((a > (NNFloat)0.0) + (a <= (NNFloat)0.0) * slope);
@@ -4199,17 +4403,17 @@ kCalculateSparseRawLRELUL2HingeOutputDelta_kernel(uint32_t position, NNFloat* pS
 
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateSparseRawELUL2HingeOutputDelta_kernel(uint32_t position, NNFloat* pSparseWeight, uint32_t stride, uint64_t size, NNFloat* pUnit,  NNFloat* pDelta, NNFloat alpha)
+kCalculateSparseRawELUL2HingeOutputDelta_kernel(uint32_t position, NNFloat* pDataWeight, uint32_t stride, uint64_t size, NNFloat* pUnit,  NNFloat* pDelta, NNFloat alpha)
 {
     uint64_t pos                = (blockIdx.x * blockDim.x) + threadIdx.x;
     if (pos < size)
     {
         NNFloat w               = (NNFloat)1.0;
-        if (pSparseWeight != NULL)
+        if (pDataWeight != NULL)
         {
             uint64_t dpos       = (pos / stride) + position;
             dpos                = cData._bShuffleIndices ? cData._pShuffleIndex[dpos] : dpos;
-            w                  *= pSparseWeight[dpos];
+            w                  *= pDataWeight[dpos];
         }
         NNFloat a               = pUnit[pos];
         NNFloat diff            = min((NNFloat)0.0, a - (NNFloat)1.0);         
@@ -4220,17 +4424,17 @@ kCalculateSparseRawELUL2HingeOutputDelta_kernel(uint32_t position, NNFloat* pSpa
 
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateSparseRawSELUL2HingeOutputDelta_kernel(uint32_t position, NNFloat* pSparseWeight, uint32_t stride, uint64_t size, NNFloat* pUnit,  NNFloat* pDelta, NNFloat alpha, NNFloat lambda)
+kCalculateSparseRawSELUL2HingeOutputDelta_kernel(uint32_t position, NNFloat* pDataWeight, uint32_t stride, uint64_t size, NNFloat* pUnit,  NNFloat* pDelta, NNFloat alpha, NNFloat lambda)
 {
     uint64_t pos                = (blockIdx.x * blockDim.x) + threadIdx.x;
     if (pos < size)
     {
         NNFloat w               = (NNFloat)1.0;
-        if (pSparseWeight != NULL)
+        if (pDataWeight != NULL)
         {
             uint64_t dpos       = (pos / stride) + position;
             dpos                = cData._bShuffleIndices ? cData._pShuffleIndex[dpos] : dpos;
-            w                  *= pSparseWeight[dpos];
+            w                  *= pDataWeight[dpos];
         }
         NNFloat a               = max((NNFloat)0.0, pUnit[pos]);
         pDelta[pos]             = w * a * ((a > (NNFloat)0.0) * lambda + (a <= (NNFloat)0.0) * lambda * alpha * exp(a));
@@ -4239,7 +4443,7 @@ kCalculateSparseRawSELUL2HingeOutputDelta_kernel(uint32_t position, NNFloat* pSp
 
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateSparseNonZeroRELUL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pSparseWeight)
+kCalculateSparseNonZeroRELUL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pDataWeight)
 {
     uint64_t pos                = ((blockIdx.x * blockDim.x) + threadIdx.x) / cData._warpSize;
     if (pos < batch)
@@ -4247,7 +4451,7 @@ kCalculateSparseNonZeroRELUL2HingeOutputDelta_kernel(uint32_t position, uint32_t
         uint32_t dpos           = cData._bShuffleIndices ? cData._pShuffleIndex[position + pos] : position + pos;
         uint64_t pos1           = pSparseStart[dpos] + (threadIdx.x & cData._warpMask);
         uint64_t end            = pSparseEnd[dpos];
-        NNFloat w               = (pSparseWeight != NULL) ? pSparseWeight[dpos] : (NNFloat)1.0;
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
         uint64_t offset         = pos * stride;
         while (pos1 < end)
         {
@@ -4262,7 +4466,7 @@ kCalculateSparseNonZeroRELUL2HingeOutputDelta_kernel(uint32_t position, uint32_t
 
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateSparseNonZeroLRELUL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pSparseWeight, NNFloat slope)
+kCalculateSparseNonZeroLRELUL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pDataWeight, NNFloat slope)
 {
     uint64_t pos                = ((blockIdx.x * blockDim.x) + threadIdx.x) / cData._warpSize;
     if (pos < batch)
@@ -4270,7 +4474,7 @@ kCalculateSparseNonZeroLRELUL2HingeOutputDelta_kernel(uint32_t position, uint32_
         uint32_t dpos           = cData._bShuffleIndices ? cData._pShuffleIndex[position + pos] : position + pos;
         uint64_t pos1           = pSparseStart[dpos] + (threadIdx.x & cData._warpMask);
         uint64_t end            = pSparseEnd[dpos];
-        NNFloat w               = (pSparseWeight != NULL) ? pSparseWeight[dpos] : (NNFloat)1.0;
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
         uint64_t offset         = pos * stride;
         while (pos1 < end)
         {
@@ -4285,14 +4489,14 @@ kCalculateSparseNonZeroLRELUL2HingeOutputDelta_kernel(uint32_t position, uint32_
 
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateSparseNonZeroELUL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pSparseWeight, NNFloat alpha)
+kCalculateSparseNonZeroELUL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pDataWeight, NNFloat alpha)
 {
     uint64_t pos                = ((blockIdx.x * blockDim.x) + threadIdx.x) / cData._warpSize;
     if (pos < batch)
     {
         uint32_t dpos           = cData._bShuffleIndices ? cData._pShuffleIndex[position + pos] : position + pos;
         uint64_t pos1           = pSparseStart[dpos] + (threadIdx.x & cData._warpMask);
-        NNFloat w               = (pSparseWeight != NULL) ? pSparseWeight[dpos] : (NNFloat)1.0;
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
         uint64_t end            = pSparseEnd[dpos];
         uint64_t offset         = pos * stride;
         while (pos1 < end)
@@ -4308,7 +4512,7 @@ kCalculateSparseNonZeroELUL2HingeOutputDelta_kernel(uint32_t position, uint32_t 
 
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateSparseNonZeroSELUL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pSparseWeight, NNFloat alpha, NNFloat lambda)
+kCalculateSparseNonZeroSELUL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pDataWeight, NNFloat alpha, NNFloat lambda)
 {
     uint64_t pos                = ((blockIdx.x * blockDim.x) + threadIdx.x) / cData._warpSize;
     if (pos < batch)
@@ -4316,7 +4520,7 @@ kCalculateSparseNonZeroSELUL2HingeOutputDelta_kernel(uint32_t position, uint32_t
         uint32_t dpos           = cData._bShuffleIndices ? cData._pShuffleIndex[position + pos] : position + pos;
         uint64_t pos1           = pSparseStart[dpos] + (threadIdx.x & cData._warpMask);
         uint64_t end            = pSparseEnd[dpos];
-        NNFloat w               = (pSparseWeight != NULL) ? pSparseWeight[dpos] : (NNFloat)1.0;
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
         uint64_t offset         = pos * stride;
         while (pos1 < end)
         {
@@ -4331,17 +4535,17 @@ kCalculateSparseNonZeroSELUL2HingeOutputDelta_kernel(uint32_t position, uint32_t
 
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateSparseRawSoftMaxL2HingeOutputDelta_kernel(uint32_t position, NNFloat* pSparseWeight, uint32_t stride, uint64_t size, NNFloat* pUnit,  NNFloat* pDelta)
+kCalculateSparseRawSoftMaxL2HingeOutputDelta_kernel(uint32_t position, NNFloat* pDataWeight, uint32_t stride, uint64_t size, NNFloat* pUnit,  NNFloat* pDelta)
 {
     uint64_t pos                = (blockIdx.x * blockDim.x) + threadIdx.x;
     if (pos < size)
     {
         NNFloat w               = (NNFloat)1.0;
-        if (pSparseWeight != NULL)
+        if (pDataWeight != NULL)
         {
             uint64_t dpos       = (pos / stride) + position;
             dpos                = cData._bShuffleIndices ? cData._pShuffleIndex[dpos] : dpos;
-            w                  *= pSparseWeight[dpos];
+            w                  *= pDataWeight[dpos];
         }
         NNFloat a               = max((NNFloat)0.0, pUnit[pos]);    
         pDelta[pos]             = w * a;         
@@ -4350,7 +4554,7 @@ kCalculateSparseRawSoftMaxL2HingeOutputDelta_kernel(uint32_t position, NNFloat* 
 
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateSparseNonZeroSoftMaxL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pSparseWeight)
+kCalculateSparseNonZeroSoftMaxL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pDataWeight)
 {
     uint64_t pos                = ((blockIdx.x * blockDim.x) + threadIdx.x) / cData._warpSize;
     if (pos < batch)
@@ -4358,7 +4562,7 @@ kCalculateSparseNonZeroSoftMaxL2HingeOutputDelta_kernel(uint32_t position, uint3
         uint32_t dpos           = cData._bShuffleIndices ? cData._pShuffleIndex[position + pos] : position + pos;
         uint64_t pos1           = pSparseStart[dpos];
         uint64_t end            = pSparseEnd[dpos];
-        NNFloat w               = (pSparseWeight != NULL) ? pSparseWeight[dpos] : (NNFloat)1.0 / (NNFloat)(end - pos1);
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0 / (NNFloat)(end - pos1);
         pos1                   += threadIdx.x & cData._warpMask;
         uint64_t offset         = pos * stride;
         while (pos1 < end)
@@ -4372,7 +4576,7 @@ kCalculateSparseNonZeroSoftMaxL2HingeOutputDelta_kernel(uint32_t position, uint3
     }
 }
 
-void kCalculateSparseL2HingeOutputDelta(Activation activation, uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pSparseWeight, bool bSparseIgnoreZero, NNFloat slope, NNFloat alpha, NNFloat lambda)
+void kCalculateSparseL2HingeOutputDelta(Activation activation, uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pDataWeight, bool bSparseIgnoreZero, NNFloat slope, NNFloat alpha, NNFloat lambda)
 {
     uint64_t size               = (uint64_t)batch * (uint64_t)stride;
     dim3 grid1(CalculateBlocks(size));
@@ -4389,80 +4593,80 @@ void kCalculateSparseL2HingeOutputDelta(Activation activation, uint32_t position
         case Sigmoid:
             if (!bSparseIgnoreZero)
             {
-                kCalculateSparseRawSigmoidL2HingeOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(position, pSparseWeight, stride, size, pUnit, pDelta);
+                kCalculateSparseRawSigmoidL2HingeOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(position, pDataWeight, stride, size, pUnit, pDelta);
                 LAUNCHERROR("kCalculateSparseRawSigmoidL2HingeOutputDelta_kernel");
             }
-            kCalculateSparseNonZeroSigmoidL2HingeOutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pSparseStart, pSparseEnd, pSparseIndex, pSparseWeight);
+            kCalculateSparseNonZeroSigmoidL2HingeOutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pSparseStart, pSparseEnd, pSparseIndex, pDataWeight);
             LAUNCHERROR("kCalculateSparseNonZeroSigmoidSparseL2HingeOutputDelta_kernel");
             break;
         
         case Tanh:
             if (!bSparseIgnoreZero)
             {
-                kCalculateSparseRawTanhL2HingeOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(position, pSparseWeight, stride, size, pUnit, pDelta);
+                kCalculateSparseRawTanhL2HingeOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(position, pDataWeight, stride, size, pUnit, pDelta);
                 LAUNCHERROR("kCalculateSparseRawTanhL2HingeOutputDelta_kernel");
             }
-            kCalculateSparseNonZeroTanhL2HingeOutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pSparseStart, pSparseEnd, pSparseIndex, pSparseWeight);
+            kCalculateSparseNonZeroTanhL2HingeOutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pSparseStart, pSparseEnd, pSparseIndex, pDataWeight);
             LAUNCHERROR("kCalculateSparseNonZeroTanhL2HingeOutputDelta_kernel");
             break;
 
         case Linear:
             if (!bSparseIgnoreZero)
             {
-                kCalculateSparseRawLinearL2HingeOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(position, pSparseWeight, stride, size, pUnit, pDelta);
+                kCalculateSparseRawLinearL2HingeOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(position, pDataWeight, stride, size, pUnit, pDelta);
                 LAUNCHERROR("kCalculateSparseRawLinearL2HingeOutputDelta_kernel");
             }
-            kCalculateSparseNonZeroLinearL2HingeOutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pSparseStart, pSparseEnd, pSparseIndex, pSparseWeight);
+            kCalculateSparseNonZeroLinearL2HingeOutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pSparseStart, pSparseEnd, pSparseIndex, pDataWeight);
             LAUNCHERROR("kCalculateSparseNonZeroLinearL2HingeOutputDelta_kernel");
             break;
 
         case RectifiedLinear:
             if (!bSparseIgnoreZero)
             {
-                kCalculateSparseRawRELUL2HingeOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(position, pSparseWeight, stride, size, pUnit, pDelta);
+                kCalculateSparseRawRELUL2HingeOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(position, pDataWeight, stride, size, pUnit, pDelta);
                 LAUNCHERROR("kCalculateSparseRawRELUL2HingeOutputDelta_kernel");
             }
-            kCalculateSparseNonZeroRELUL2HingeOutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pSparseStart, pSparseEnd, pSparseIndex, pSparseWeight);
+            kCalculateSparseNonZeroRELUL2HingeOutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pSparseStart, pSparseEnd, pSparseIndex, pDataWeight);
             LAUNCHERROR("kCalculateSparseNonZeroRELUL2HingeOutputDelta_kernel");
             break;
 
         case LeakyRectifiedLinear:
             if (!bSparseIgnoreZero)
             {
-                kCalculateSparseRawLRELUL2HingeOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(position, pSparseWeight, stride, size, pUnit, pDelta, slope);
+                kCalculateSparseRawLRELUL2HingeOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(position, pDataWeight, stride, size, pUnit, pDelta, slope);
                 LAUNCHERROR("kCalculateSparseRawLRELUL2HingeOutputDelta_kernel");
             }
-            kCalculateSparseNonZeroLRELUL2HingeOutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pSparseStart, pSparseEnd, pSparseIndex, pSparseWeight, slope);
+            kCalculateSparseNonZeroLRELUL2HingeOutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pSparseStart, pSparseEnd, pSparseIndex, pDataWeight, slope);
             LAUNCHERROR("kCalculateSparseNonZeroLRELUL2HingeOutputDelta_kernel");
             break;
 
         case ExponentialLinear:
             if (!bSparseIgnoreZero)
             {
-                kCalculateSparseRawELUL2HingeOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(position, pSparseWeight, stride, size, pUnit, pDelta, alpha);
+                kCalculateSparseRawELUL2HingeOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(position, pDataWeight, stride, size, pUnit, pDelta, alpha);
                 LAUNCHERROR("kCalculateSparseRawELUL2HingeOutputDelta_kernel");
             }
-            kCalculateSparseNonZeroELUL2HingeOutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pSparseStart, pSparseEnd, pSparseIndex, pSparseWeight, alpha);
+            kCalculateSparseNonZeroELUL2HingeOutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pSparseStart, pSparseEnd, pSparseIndex, pDataWeight, alpha);
             LAUNCHERROR("kCalculateSparseNonZeroELUL2HingeOutputDelta_kernel");
             break;
 
         case ScaledExponentialLinear:
             if (!bSparseIgnoreZero)
             {
-                kCalculateSparseRawSELUL2HingeOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(position, pSparseWeight, stride, size, pUnit, pDelta, alpha, lambda);
+                kCalculateSparseRawSELUL2HingeOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(position, pDataWeight, stride, size, pUnit, pDelta, alpha, lambda);
                 LAUNCHERROR("kCalculateSparseRawSELUl2HingeOutputDelta_kernel");
             }
-            kCalculateSparseNonZeroSELUL2HingeOutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pSparseStart, pSparseEnd, pSparseIndex, pSparseWeight, alpha, lambda);
+            kCalculateSparseNonZeroSELUL2HingeOutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pSparseStart, pSparseEnd, pSparseIndex, pDataWeight, alpha, lambda);
             LAUNCHERROR("kCalculateSparseNonZeroSELUL2HingeOutputDelta_kernel");
             break;
 
         case SoftMax:
             if (!bSparseIgnoreZero)
             {
-                kCalculateSparseRawSoftMaxL2HingeOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(position, pSparseWeight, stride, size, pUnit, pDelta);
+                kCalculateSparseRawSoftMaxL2HingeOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(position, pDataWeight, stride, size, pUnit, pDelta);
                 LAUNCHERROR("kCalculateSparseRawSoftMaxL2HingeOutputDelta_kernel");
             }
-            kCalculateSparseNonZeroSoftMaxL2HingeOutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pSparseStart, pSparseEnd, pSparseIndex, pSparseWeight);
+            kCalculateSparseNonZeroSoftMaxL2HingeOutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pSparseStart, pSparseEnd, pSparseIndex, pDataWeight);
             LAUNCHERROR("kCalculateSparseNonZeroSoftMaxL2HingeOutputDelta_kernel");
             break;                        
     }
@@ -4470,7 +4674,7 @@ void kCalculateSparseL2HingeOutputDelta(Activation activation, uint32_t position
 
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateIndexedSparseNonZeroSigmoidL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pSparseWeight)
+kCalculateIndexedSparseNonZeroSigmoidL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pDataWeight)
 {
     uint64_t pos                = ((blockIdx.x * blockDim.x) + threadIdx.x) / cData._warpSize;
     if (pos < batch)
@@ -4478,7 +4682,7 @@ kCalculateIndexedSparseNonZeroSigmoidL2HingeOutputDelta_kernel(uint32_t position
         uint32_t dpos           = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + pos] : position + pos];
         uint64_t pos1           = pSparseStart[dpos] + (threadIdx.x & cData._warpMask);
         uint64_t end            = pSparseEnd[dpos];
-        NNFloat w               = cData._deltaBoost_one * ((pSparseWeight != NULL) ? pSparseWeight[dpos] : (NNFloat)1.0);
+        NNFloat w               = cData._deltaBoost_one * ((pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0);
         uint64_t offset         = pos * stride;
         while (pos1 < end)
         {
@@ -4493,7 +4697,7 @@ kCalculateIndexedSparseNonZeroSigmoidL2HingeOutputDelta_kernel(uint32_t position
 
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateIndexedSparseNonZeroTanhL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pSparseWeight)
+kCalculateIndexedSparseNonZeroTanhL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pDataWeight)
 {
     uint64_t pos                = ((blockIdx.x * blockDim.x) + threadIdx.x) / cData._warpSize;
     if (pos < batch)
@@ -4501,7 +4705,7 @@ kCalculateIndexedSparseNonZeroTanhL2HingeOutputDelta_kernel(uint32_t position, u
         uint32_t dpos           = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + pos] : position + pos];
         uint64_t pos1           = pSparseStart[dpos] + (threadIdx.x & cData._warpMask);
         uint64_t end            = pSparseEnd[dpos];
-        NNFloat w               = (pSparseWeight != NULL) ? pSparseWeight[dpos] : (NNFloat)1.0;
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
         uint64_t offset         = pos * stride;
         while (pos1 < end)
         {
@@ -4516,7 +4720,7 @@ kCalculateIndexedSparseNonZeroTanhL2HingeOutputDelta_kernel(uint32_t position, u
 
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateIndexedSparseNonZeroLinearL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pSparseWeight)
+kCalculateIndexedSparseNonZeroLinearL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pDataWeight)
 {
     uint64_t pos                = ((blockIdx.x * blockDim.x) + threadIdx.x) / cData._warpSize;
     if (pos < batch)
@@ -4524,7 +4728,7 @@ kCalculateIndexedSparseNonZeroLinearL2HingeOutputDelta_kernel(uint32_t position,
         uint32_t dpos           = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + pos] : position + pos];
         uint64_t pos1           = pSparseStart[dpos] + (threadIdx.x & cData._warpMask);
         uint64_t end            = pSparseEnd[dpos];
-        NNFloat w               = (pSparseWeight != NULL) ? pSparseWeight[dpos] : (NNFloat)1.0;
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
         uint64_t offset         = pos * stride;
         while (pos1 < end)
         {
@@ -4539,7 +4743,7 @@ kCalculateIndexedSparseNonZeroLinearL2HingeOutputDelta_kernel(uint32_t position,
 
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateIndexedSparseNonZeroRELUL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pSparseWeight)
+kCalculateIndexedSparseNonZeroRELUL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pDataWeight)
 {
     uint64_t pos                = ((blockIdx.x * blockDim.x) + threadIdx.x) / cData._warpSize;
     if (pos < batch)
@@ -4547,7 +4751,7 @@ kCalculateIndexedSparseNonZeroRELUL2HingeOutputDelta_kernel(uint32_t position, u
         uint32_t dpos           = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + pos] : position + pos];
         uint64_t pos1           = pSparseStart[dpos] + (threadIdx.x & cData._warpMask);
         uint64_t end            = pSparseEnd[dpos];
-        NNFloat w               = (pSparseWeight != NULL) ? pSparseWeight[dpos] : (NNFloat)1.0;
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
         uint64_t offset         = pos * stride;
         while (pos1 < end)
         {
@@ -4562,7 +4766,7 @@ kCalculateIndexedSparseNonZeroRELUL2HingeOutputDelta_kernel(uint32_t position, u
 
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateIndexedSparseNonZeroLRELUL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pSparseWeight, NNFloat slope)
+kCalculateIndexedSparseNonZeroLRELUL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pDataWeight, NNFloat slope)
 {
     uint64_t pos                = ((blockIdx.x * blockDim.x) + threadIdx.x) / cData._warpSize;
     if (pos < batch)
@@ -4570,7 +4774,7 @@ kCalculateIndexedSparseNonZeroLRELUL2HingeOutputDelta_kernel(uint32_t position, 
         uint32_t dpos           = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + pos] : position + pos];
         uint64_t pos1           = pSparseStart[dpos] + (threadIdx.x & cData._warpMask);
         uint64_t end            = pSparseEnd[dpos];
-        NNFloat w               = (pSparseWeight != NULL) ? pSparseWeight[dpos] : (NNFloat)1.0;
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
         uint64_t offset         = pos * stride;
         while (pos1 < end)
         {
@@ -4585,7 +4789,7 @@ kCalculateIndexedSparseNonZeroLRELUL2HingeOutputDelta_kernel(uint32_t position, 
 
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateIndexedSparseNonZeroELUL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pSparseWeight, NNFloat alpha)
+kCalculateIndexedSparseNonZeroELUL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pDataWeight, NNFloat alpha)
 {
     uint64_t pos                = ((blockIdx.x * blockDim.x) + threadIdx.x) / cData._warpSize;
     if (pos < batch)
@@ -4593,7 +4797,7 @@ kCalculateIndexedSparseNonZeroELUL2HingeOutputDelta_kernel(uint32_t position, ui
         uint32_t dpos           = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + pos] : position + pos];
         uint64_t pos1           = pSparseStart[dpos] + (threadIdx.x & cData._warpMask);
         uint64_t end            = pSparseEnd[dpos];
-        NNFloat w               = (pSparseWeight != NULL) ? pSparseWeight[dpos] : (NNFloat)1.0;
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
         uint64_t offset         = pos * stride;
         while (pos1 < end)
         {
@@ -4608,7 +4812,7 @@ kCalculateIndexedSparseNonZeroELUL2HingeOutputDelta_kernel(uint32_t position, ui
 
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateIndexedSparseNonZeroSELUL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pSparseWeight, NNFloat alpha, NNFloat lambda)
+kCalculateIndexedSparseNonZeroSELUL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pDataWeight, NNFloat alpha, NNFloat lambda)
 {
     uint64_t pos                = ((blockIdx.x * blockDim.x) + threadIdx.x) / cData._warpSize;
     if (pos < batch)
@@ -4616,7 +4820,7 @@ kCalculateIndexedSparseNonZeroSELUL2HingeOutputDelta_kernel(uint32_t position, u
         uint32_t dpos           = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + pos] : position + pos];
         uint64_t pos1           = pSparseStart[dpos] + (threadIdx.x & cData._warpMask);
         uint64_t end            = pSparseEnd[dpos];
-        NNFloat w               = (pSparseWeight != NULL) ? pSparseWeight[dpos] : (NNFloat)1.0;
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
         uint64_t offset         = pos * stride;
         while (pos1 < end)
         {
@@ -4631,7 +4835,7 @@ kCalculateIndexedSparseNonZeroSELUL2HingeOutputDelta_kernel(uint32_t position, u
 
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateIndexedSparseNonZeroSoftMaxL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pSparseWeight)
+kCalculateIndexedSparseNonZeroSoftMaxL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pDataWeight)
 {
     uint64_t pos                = ((blockIdx.x * blockDim.x) + threadIdx.x) / cData._warpSize;
     if (pos < batch)
@@ -4639,7 +4843,7 @@ kCalculateIndexedSparseNonZeroSoftMaxL2HingeOutputDelta_kernel(uint32_t position
         uint32_t dpos           = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + pos] : position + pos];
         uint64_t pos1           = pSparseStart[dpos];
         uint64_t end            = pSparseEnd[dpos];
-        NNFloat w               = (pSparseWeight != NULL) ? pSparseWeight[dpos] : (NNFloat)1.0 / (NNFloat)(end - pos1);
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0 / (NNFloat)(end - pos1);
         pos1                   += threadIdx.x & cData._warpMask;
         uint64_t offset         = pos * stride;
         while (pos1 < end)
@@ -4653,7 +4857,7 @@ kCalculateIndexedSparseNonZeroSoftMaxL2HingeOutputDelta_kernel(uint32_t position
     }
 }
 
-void kCalculateIndexedSparseL2HingeOutputDelta(Activation activation, uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pSparseWeight, bool bSparseIgnoreZero, NNFloat slope, NNFloat alpha, NNFloat lambda)
+void kCalculateIndexedSparseL2HingeOutputDelta(Activation activation, uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pDataWeight, bool bSparseIgnoreZero, NNFloat slope, NNFloat alpha, NNFloat lambda)
 {
     uint64_t size               = (uint64_t)batch * (uint64_t)stride;
     dim3 grid1(CalculateBlocks(size));
@@ -4670,80 +4874,80 @@ void kCalculateIndexedSparseL2HingeOutputDelta(Activation activation, uint32_t p
         case Sigmoid:
             if (!bSparseIgnoreZero)
             {
-                kCalculateSparseRawSigmoidL2HingeOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(position, pSparseWeight, stride, size, pUnit, pDelta);
+                kCalculateSparseRawSigmoidL2HingeOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(position, pDataWeight, stride, size, pUnit, pDelta);
                 LAUNCHERROR("kCalculateSparseRawSigmoidL2HingeOutputDelta_kernel");
             }
-            kCalculateIndexedSparseNonZeroSigmoidL2HingeOutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pIndex, pSparseStart, pSparseEnd, pSparseIndex, pSparseWeight);
+            kCalculateIndexedSparseNonZeroSigmoidL2HingeOutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pIndex, pSparseStart, pSparseEnd, pSparseIndex, pDataWeight);
             LAUNCHERROR("kIndexedCalculateSparseNonZeroSigmoidL2HingeOutputDelta_kernel");
             break;
         
         case Tanh:
             if (!bSparseIgnoreZero)
             {
-                kCalculateSparseRawTanhL2HingeOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(position, pSparseWeight, stride, size, pUnit, pDelta);
+                kCalculateSparseRawTanhL2HingeOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(position, pDataWeight, stride, size, pUnit, pDelta);
                 LAUNCHERROR("kCalculateSparseRawTanhL2HingeOutputDelta_kernel");
             }
-            kCalculateIndexedSparseNonZeroTanhL2HingeOutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pIndex, pSparseStart, pSparseEnd, pSparseIndex, pSparseWeight);
+            kCalculateIndexedSparseNonZeroTanhL2HingeOutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pIndex, pSparseStart, pSparseEnd, pSparseIndex, pDataWeight);
             LAUNCHERROR("kCalculateIndexedSparseNonZeroTanhL2HingeOutputDelta_kernel");
             break;
 
         case Linear:
             if (!bSparseIgnoreZero)
             {
-                kCalculateSparseRawLinearL2HingeOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(position, pSparseWeight, stride, size, pUnit, pDelta);
+                kCalculateSparseRawLinearL2HingeOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(position, pDataWeight, stride, size, pUnit, pDelta);
                 LAUNCHERROR("kCalculateSparseRawLinearL2HingeOutputDelta_kernel");
             }
-            kCalculateIndexedSparseNonZeroLinearL2HingeOutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pIndex, pSparseStart, pSparseEnd, pSparseIndex, pSparseWeight);
+            kCalculateIndexedSparseNonZeroLinearL2HingeOutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pIndex, pSparseStart, pSparseEnd, pSparseIndex, pDataWeight);
             LAUNCHERROR("kCalculateIndexedSparseNonZeroLinearL2HingeOutputDelta_kernel");
             break;
 
         case RectifiedLinear:
             if (!bSparseIgnoreZero)
             {
-                kCalculateSparseRawRELUL2HingeOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(position, pSparseWeight, stride, size, pUnit, pDelta);
+                kCalculateSparseRawRELUL2HingeOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(position, pDataWeight, stride, size, pUnit, pDelta);
                 LAUNCHERROR("kCalculateSparseRawRELUL2HingeOutputDelta_kernel");
             }
-            kCalculateIndexedSparseNonZeroRELUL2HingeOutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pIndex, pSparseStart, pSparseEnd, pSparseIndex, pSparseWeight);
+            kCalculateIndexedSparseNonZeroRELUL2HingeOutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pIndex, pSparseStart, pSparseEnd, pSparseIndex, pDataWeight);
             LAUNCHERROR("kCalculateIndexedSparseNonZeroRELUL2HingeOutputDelta_kernel");
             break;
 
         case LeakyRectifiedLinear:
             if (!bSparseIgnoreZero)
             {
-                kCalculateSparseRawLRELUL2HingeOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(position, pSparseWeight, stride, size, pUnit, pDelta, slope);
+                kCalculateSparseRawLRELUL2HingeOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(position, pDataWeight, stride, size, pUnit, pDelta, slope);
                 LAUNCHERROR("kCalculateSparseRawLRELUL2HingeOutputDelta_kernel");
             }
-            kCalculateIndexedSparseNonZeroLRELUL2HingeOutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pIndex, pSparseStart, pSparseEnd, pSparseIndex, pSparseWeight, slope);
+            kCalculateIndexedSparseNonZeroLRELUL2HingeOutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pIndex, pSparseStart, pSparseEnd, pSparseIndex, pDataWeight, slope);
             LAUNCHERROR("kCalculateIndexedSparseNonZeroLRELUL2HingeOutputDelta_kernel");
             break;
 
         case ExponentialLinear:
             if (!bSparseIgnoreZero)
             {
-                kCalculateSparseRawELUL2HingeOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(position, pSparseWeight, stride, size, pUnit, pDelta, alpha);
+                kCalculateSparseRawELUL2HingeOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(position, pDataWeight, stride, size, pUnit, pDelta, alpha);
                 LAUNCHERROR("kCalculateSparseRawELUL2HingeOutputDelta_kernel");
             }
-            kCalculateIndexedSparseNonZeroELUL2HingeOutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pIndex, pSparseStart, pSparseEnd, pSparseIndex, pSparseWeight, alpha);
+            kCalculateIndexedSparseNonZeroELUL2HingeOutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pIndex, pSparseStart, pSparseEnd, pSparseIndex, pDataWeight, alpha);
             LAUNCHERROR("kCalculateIndexedSparseNonZeroELUL2HingeOutputDelta_kernel");
             break;
 
         case ScaledExponentialLinear:
             if (!bSparseIgnoreZero)
             {
-                kCalculateSparseRawSELUL2HingeOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(position, pSparseWeight, stride, size, pUnit, pDelta, alpha, lambda);
+                kCalculateSparseRawSELUL2HingeOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(position, pDataWeight, stride, size, pUnit, pDelta, alpha, lambda);
                 LAUNCHERROR("kCalculateSparseRawSELUL2HingeOutputDelta_kernel");
             }
-            kCalculateIndexedSparseNonZeroSELUL2HingeOutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pIndex, pSparseStart, pSparseEnd, pSparseIndex, pSparseWeight, alpha, lambda);
+            kCalculateIndexedSparseNonZeroSELUL2HingeOutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pIndex, pSparseStart, pSparseEnd, pSparseIndex, pDataWeight, alpha, lambda);
             LAUNCHERROR("kCalculateIndexedSparseNonZeroSELUL2HingeOutputDelta_kernel");
             break;
 
         case SoftMax:
             if (!bSparseIgnoreZero)
             {
-                kCalculateSparseRawSoftMaxL2HingeOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(position, pSparseWeight, stride, size, pUnit, pDelta);
+                kCalculateSparseRawSoftMaxL2HingeOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(position, pDataWeight, stride, size, pUnit, pDelta);
                 LAUNCHERROR("kCalculateSparseRawSoftMaxL2HingeOutputDelta_kernel");
             }
-            kCalculateIndexedSparseNonZeroSoftMaxL2HingeOutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pIndex, pSparseStart, pSparseEnd, pSparseIndex, pSparseWeight);
+            kCalculateIndexedSparseNonZeroSoftMaxL2HingeOutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pIndex, pSparseStart, pSparseEnd, pSparseIndex, pDataWeight);
             LAUNCHERROR("kCalculateIndexedSparseNonZeroSoftMaxL2HingeOutputDelta_kernel");
             break;                        
     }
@@ -4752,7 +4956,7 @@ void kCalculateIndexedSparseL2HingeOutputDelta(Activation activation, uint32_t p
 template<typename T>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateSparseAnalogNonZeroSigmoidL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pSparseWeight, T* pSparseData)
+kCalculateSparseAnalogNonZeroSigmoidL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pDataWeight, T* pSparseData)
 {
     uint64_t pos                = ((blockIdx.x * blockDim.x) + threadIdx.x) / cData._warpSize;
     if (pos < batch)
@@ -4760,7 +4964,7 @@ kCalculateSparseAnalogNonZeroSigmoidL2HingeOutputDelta_kernel(uint32_t position,
         uint32_t dpos           = cData._bShuffleIndices ? cData._pShuffleIndex[position + pos] : position + pos;
         uint64_t pos1           = pSparseStart[dpos] + (threadIdx.x & cData._warpMask);
         uint64_t end            = pSparseEnd[dpos];
-        NNFloat w               = cData._deltaBoost_one * ((pSparseWeight != NULL) ? pSparseWeight[dpos] : (NNFloat)1.0);
+        NNFloat w               = cData._deltaBoost_one * ((pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0);
         uint64_t offset         = pos * stride;
         while (pos1 < end)
         {
@@ -4778,7 +4982,7 @@ kCalculateSparseAnalogNonZeroSigmoidL2HingeOutputDelta_kernel(uint32_t position,
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateSparseAnalogNonZeroSigmoidL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pSparseWeight, unsigned char* pSparseData)
+kCalculateSparseAnalogNonZeroSigmoidL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pDataWeight, unsigned char* pSparseData)
 {
     uint64_t pos                = ((blockIdx.x * blockDim.x) + threadIdx.x) / cData._warpSize;
     if (pos < batch)
@@ -4786,7 +4990,7 @@ kCalculateSparseAnalogNonZeroSigmoidL2HingeOutputDelta_kernel(uint32_t position,
         uint32_t dpos           = cData._bShuffleIndices ? cData._pShuffleIndex[position + pos] : position + pos;
         uint64_t pos1           = pSparseStart[dpos] + (threadIdx.x & cData._warpMask);
         uint64_t end            = pSparseEnd[dpos];
-        NNFloat w               = cData._deltaBoost_one * ((pSparseWeight != NULL) ? pSparseWeight[dpos] : (NNFloat)1.0);
+        NNFloat w               = cData._deltaBoost_one * ((pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0);
         uint64_t offset         = pos * stride;
         while (pos1 < end)
         {
@@ -4804,7 +5008,7 @@ kCalculateSparseAnalogNonZeroSigmoidL2HingeOutputDelta_kernel(uint32_t position,
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateSparseAnalogNonZeroSigmoidL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pSparseWeight, char* pSparseData)
+kCalculateSparseAnalogNonZeroSigmoidL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pDataWeight, char* pSparseData)
 {
     uint64_t pos                = ((blockIdx.x * blockDim.x) + threadIdx.x) / cData._warpSize;
     if (pos < batch)
@@ -4812,7 +5016,7 @@ kCalculateSparseAnalogNonZeroSigmoidL2HingeOutputDelta_kernel(uint32_t position,
         uint32_t dpos           = cData._bShuffleIndices ? cData._pShuffleIndex[position + pos] : position + pos;
         uint64_t pos1           = pSparseStart[dpos] + (threadIdx.x & cData._warpMask);
         uint64_t end            = pSparseEnd[dpos];
-        NNFloat w               = cData._deltaBoost_one * ((pSparseWeight != NULL) ? pSparseWeight[dpos] : (NNFloat)1.0);
+        NNFloat w               = cData._deltaBoost_one * ((pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0);
         uint64_t offset         = pos * stride;
         while (pos1 < end)
         {
@@ -4830,7 +5034,7 @@ kCalculateSparseAnalogNonZeroSigmoidL2HingeOutputDelta_kernel(uint32_t position,
 template<typename T>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateSparseAnalogNonZeroTanhL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pSparseWeight, T* pSparseData)
+kCalculateSparseAnalogNonZeroTanhL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pDataWeight, T* pSparseData)
 {
     uint64_t pos                = ((blockIdx.x * blockDim.x) + threadIdx.x) / cData._warpSize;
     if (pos < batch)
@@ -4838,7 +5042,7 @@ kCalculateSparseAnalogNonZeroTanhL2HingeOutputDelta_kernel(uint32_t position, ui
         uint32_t dpos           = cData._bShuffleIndices ? cData._pShuffleIndex[position + pos] : position + pos;
         uint64_t pos1           = pSparseStart[dpos] + (threadIdx.x & cData._warpMask);
         uint64_t end            = pSparseEnd[dpos];
-        NNFloat w               = cData._deltaBoost_one * ((pSparseWeight != NULL) ? pSparseWeight[dpos] : (NNFloat)1.0);
+        NNFloat w               = cData._deltaBoost_one * ((pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0);
         uint64_t offset         = pos * stride;
         while (pos1 < end)
         {
@@ -4856,7 +5060,7 @@ kCalculateSparseAnalogNonZeroTanhL2HingeOutputDelta_kernel(uint32_t position, ui
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateSparseAnalogNonZeroTanhL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pSparseWeight, unsigned char* pSparseData)
+kCalculateSparseAnalogNonZeroTanhL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pDataWeight, unsigned char* pSparseData)
 {
     uint64_t pos                = ((blockIdx.x * blockDim.x) + threadIdx.x) / cData._warpSize;
     if (pos < batch)
@@ -4864,7 +5068,7 @@ kCalculateSparseAnalogNonZeroTanhL2HingeOutputDelta_kernel(uint32_t position, ui
         uint32_t dpos           = cData._bShuffleIndices ? cData._pShuffleIndex[position + pos] : position + pos;
         uint64_t pos1           = pSparseStart[dpos] + (threadIdx.x & cData._warpMask);
         uint64_t end            = pSparseEnd[dpos];
-        NNFloat w               = cData._deltaBoost_one * ((pSparseWeight != NULL) ? pSparseWeight[dpos] : (NNFloat)1.0);
+        NNFloat w               = cData._deltaBoost_one * ((pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0);
         uint64_t offset         = pos * stride;
         while (pos1 < end)
         {
@@ -4882,7 +5086,7 @@ kCalculateSparseAnalogNonZeroTanhL2HingeOutputDelta_kernel(uint32_t position, ui
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateSparseAnalogNonZeroTanhL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pSparseWeight, char* pSparseData)
+kCalculateSparseAnalogNonZeroTanhL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pDataWeight, char* pSparseData)
 {
     uint64_t pos                = ((blockIdx.x * blockDim.x) + threadIdx.x) / cData._warpSize;
     if (pos < batch)
@@ -4890,7 +5094,7 @@ kCalculateSparseAnalogNonZeroTanhL2HingeOutputDelta_kernel(uint32_t position, ui
         uint32_t dpos           = cData._bShuffleIndices ? cData._pShuffleIndex[position + pos] : position + pos;
         uint64_t pos1           = pSparseStart[dpos] + (threadIdx.x & cData._warpMask);
         uint64_t end            = pSparseEnd[dpos];
-        NNFloat w               = cData._deltaBoost_one * ((pSparseWeight != NULL) ? pSparseWeight[dpos] : (NNFloat)1.0);
+        NNFloat w               = cData._deltaBoost_one * ((pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0);
         uint64_t offset         = pos * stride;
         while (pos1 < end)
         {
@@ -4908,7 +5112,7 @@ kCalculateSparseAnalogNonZeroTanhL2HingeOutputDelta_kernel(uint32_t position, ui
 template<typename T>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateSparseAnalogNonZeroLinearL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pSparseWeight, T* pSparseData)
+kCalculateSparseAnalogNonZeroLinearL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pDataWeight, T* pSparseData)
 {
     uint64_t pos                = ((blockIdx.x * blockDim.x) + threadIdx.x) / cData._warpSize;
     if (pos < batch)
@@ -4916,7 +5120,7 @@ kCalculateSparseAnalogNonZeroLinearL2HingeOutputDelta_kernel(uint32_t position, 
         uint32_t dpos           = cData._bShuffleIndices ? cData._pShuffleIndex[position + pos] : position + pos;
         uint64_t pos1           = pSparseStart[dpos] + (threadIdx.x & cData._warpMask);
         uint64_t end            = pSparseEnd[dpos];
-        NNFloat w               = cData._deltaBoost_one * ((pSparseWeight != NULL) ? pSparseWeight[dpos] : (NNFloat)1.0);
+        NNFloat w               = cData._deltaBoost_one * ((pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0);
         uint64_t offset         = pos * stride;
         while (pos1 < end)
         {
@@ -4934,14 +5138,14 @@ kCalculateSparseAnalogNonZeroLinearL2HingeOutputDelta_kernel(uint32_t position, 
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateSparseAnalogNonZeroLinearL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pSparseWeight, unsigned char* pSparseData)
+kCalculateSparseAnalogNonZeroLinearL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pDataWeight, unsigned char* pSparseData)
 {
     uint64_t pos                = ((blockIdx.x * blockDim.x) + threadIdx.x) / cData._warpSize;
     if (pos < batch)
     {
         uint32_t dpos           = cData._bShuffleIndices ? cData._pShuffleIndex[position + pos] : position + pos;
         uint64_t pos1           = pSparseStart[dpos] + (threadIdx.x & cData._warpMask);
-        NNFloat w               = cData._deltaBoost_one * ((pSparseWeight != NULL) ? pSparseWeight[dpos] : (NNFloat)1.0);
+        NNFloat w               = cData._deltaBoost_one * ((pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0);
         uint64_t end            = pSparseEnd[dpos];
         uint64_t offset         = pos * stride;
         while (pos1 < end)
@@ -4960,7 +5164,7 @@ kCalculateSparseAnalogNonZeroLinearL2HingeOutputDelta_kernel(uint32_t position, 
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateSparseAnalogNonZeroLinearL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pSparseWeight, char* pSparseData)
+kCalculateSparseAnalogNonZeroLinearL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pDataWeight, char* pSparseData)
 {
     uint64_t pos                = ((blockIdx.x * blockDim.x) + threadIdx.x) / cData._warpSize;
     if (pos < batch)
@@ -4968,7 +5172,7 @@ kCalculateSparseAnalogNonZeroLinearL2HingeOutputDelta_kernel(uint32_t position, 
         uint32_t dpos           = cData._bShuffleIndices ? cData._pShuffleIndex[position + pos] : position + pos;
         uint64_t pos1           = pSparseStart[dpos] + (threadIdx.x & cData._warpMask);
         uint64_t end            = pSparseEnd[dpos];
-        NNFloat w               = cData._deltaBoost_one * ((pSparseWeight != NULL) ? pSparseWeight[dpos] : (NNFloat)1.0);
+        NNFloat w               = cData._deltaBoost_one * ((pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0);
         uint64_t offset         = pos * stride;
         while (pos1 < end)
         {
@@ -4986,7 +5190,7 @@ kCalculateSparseAnalogNonZeroLinearL2HingeOutputDelta_kernel(uint32_t position, 
 template<typename T>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateSparseAnalogNonZeroRELUL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pSparseWeight, T* pSparseData)
+kCalculateSparseAnalogNonZeroRELUL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pDataWeight, T* pSparseData)
 {
     uint64_t pos                = ((blockIdx.x * blockDim.x) + threadIdx.x) / cData._warpSize;
     if (pos < batch)
@@ -4994,7 +5198,7 @@ kCalculateSparseAnalogNonZeroRELUL2HingeOutputDelta_kernel(uint32_t position, ui
         uint32_t dpos           = cData._bShuffleIndices ? cData._pShuffleIndex[position + pos] : position + pos;
         uint64_t pos1           = pSparseStart[dpos] + (threadIdx.x & cData._warpMask);
         uint64_t end            = pSparseEnd[dpos];
-        NNFloat w               = cData._deltaBoost_one * ((pSparseWeight != NULL) ? pSparseWeight[dpos] : (NNFloat)1.0);
+        NNFloat w               = cData._deltaBoost_one * ((pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0);
         uint64_t offset         = pos * stride;
         while (pos1 < end)
         {
@@ -5012,7 +5216,7 @@ kCalculateSparseAnalogNonZeroRELUL2HingeOutputDelta_kernel(uint32_t position, ui
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateSparseAnalogNonZeroRELUL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pSparseWeight, unsigned char* pSparseData)
+kCalculateSparseAnalogNonZeroRELUL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pDataWeight, unsigned char* pSparseData)
 {
     uint64_t pos                = ((blockIdx.x * blockDim.x) + threadIdx.x) / cData._warpSize;
     if (pos < batch)
@@ -5020,7 +5224,7 @@ kCalculateSparseAnalogNonZeroRELUL2HingeOutputDelta_kernel(uint32_t position, ui
         uint32_t dpos           = cData._bShuffleIndices ? cData._pShuffleIndex[position + pos] : position + pos;
         uint64_t pos1           = pSparseStart[dpos] + (threadIdx.x & cData._warpMask);
         uint64_t end            = pSparseEnd[dpos];
-        NNFloat w               = cData._deltaBoost_one * ((pSparseWeight != NULL) ? pSparseWeight[dpos] : (NNFloat)1.0);
+        NNFloat w               = cData._deltaBoost_one * ((pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0);
         uint64_t offset         = pos * stride;
         while (pos1 < end)
         {
@@ -5038,7 +5242,7 @@ kCalculateSparseAnalogNonZeroRELUL2HingeOutputDelta_kernel(uint32_t position, ui
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateSparseAnalogNonZeroRELUL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pSparseWeight, char* pSparseData)
+kCalculateSparseAnalogNonZeroRELUL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pDataWeight, char* pSparseData)
 {
     uint64_t pos                = ((blockIdx.x * blockDim.x) + threadIdx.x) / cData._warpSize;
     if (pos < batch)
@@ -5046,7 +5250,7 @@ kCalculateSparseAnalogNonZeroRELUL2HingeOutputDelta_kernel(uint32_t position, ui
         uint32_t dpos           = cData._bShuffleIndices ? cData._pShuffleIndex[position + pos] : position + pos;
         uint64_t pos1           = pSparseStart[dpos] + (threadIdx.x & cData._warpMask);
         uint64_t end            = pSparseEnd[dpos];
-        NNFloat w               = cData._deltaBoost_one * ((pSparseWeight != NULL) ? pSparseWeight[dpos] : (NNFloat)1.0);
+        NNFloat w               = cData._deltaBoost_one * ((pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0);
         uint64_t offset         = pos * stride;
         while (pos1 < end)
         {
@@ -5064,7 +5268,7 @@ kCalculateSparseAnalogNonZeroRELUL2HingeOutputDelta_kernel(uint32_t position, ui
 template<typename T>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateSparseAnalogNonZeroLRELUL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pSparseWeight, T* pSparseData, NNFloat slope)
+kCalculateSparseAnalogNonZeroLRELUL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pDataWeight, T* pSparseData, NNFloat slope)
 {
     uint64_t pos                = ((blockIdx.x * blockDim.x) + threadIdx.x) / cData._warpSize;
     if (pos < batch)
@@ -5072,7 +5276,7 @@ kCalculateSparseAnalogNonZeroLRELUL2HingeOutputDelta_kernel(uint32_t position, u
         uint32_t dpos           = cData._bShuffleIndices ? cData._pShuffleIndex[position + pos] : position + pos;
         uint64_t pos1           = pSparseStart[dpos] + (threadIdx.x & cData._warpMask);
         uint64_t end            = pSparseEnd[dpos];
-        NNFloat w               = cData._deltaBoost_one * ((pSparseWeight != NULL) ? pSparseWeight[dpos] : (NNFloat)1.0);
+        NNFloat w               = cData._deltaBoost_one * ((pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0);
         uint64_t offset         = pos * stride;
         while (pos1 < end)
         {
@@ -5090,7 +5294,7 @@ kCalculateSparseAnalogNonZeroLRELUL2HingeOutputDelta_kernel(uint32_t position, u
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateSparseAnalogNonZeroLRELUL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pSparseWeight, unsigned char* pSparseData, NNFloat slope)
+kCalculateSparseAnalogNonZeroLRELUL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pDataWeight, unsigned char* pSparseData, NNFloat slope)
 {
     uint64_t pos                = ((blockIdx.x * blockDim.x) + threadIdx.x) / cData._warpSize;
     if (pos < batch)
@@ -5098,7 +5302,7 @@ kCalculateSparseAnalogNonZeroLRELUL2HingeOutputDelta_kernel(uint32_t position, u
         uint32_t dpos           = cData._bShuffleIndices ? cData._pShuffleIndex[position + pos] : position + pos;
         uint64_t pos1           = pSparseStart[dpos] + (threadIdx.x & cData._warpMask);
         uint64_t end            = pSparseEnd[dpos];
-        NNFloat w               = cData._deltaBoost_one * ((pSparseWeight != NULL) ? pSparseWeight[dpos] : (NNFloat)1.0);
+        NNFloat w               = cData._deltaBoost_one * ((pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0);
         uint64_t offset         = pos * stride;
         while (pos1 < end)
         {
@@ -5116,7 +5320,7 @@ kCalculateSparseAnalogNonZeroLRELUL2HingeOutputDelta_kernel(uint32_t position, u
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateSparseAnalogNonZeroLRELUL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pSparseWeight, char* pSparseData, NNFloat slope)
+kCalculateSparseAnalogNonZeroLRELUL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pDataWeight, char* pSparseData, NNFloat slope)
 {
     uint64_t pos                = ((blockIdx.x * blockDim.x) + threadIdx.x) / cData._warpSize;
     if (pos < batch)
@@ -5124,7 +5328,7 @@ kCalculateSparseAnalogNonZeroLRELUL2HingeOutputDelta_kernel(uint32_t position, u
         uint32_t dpos           = cData._bShuffleIndices ? cData._pShuffleIndex[position + pos] : position + pos;
         uint64_t pos1           = pSparseStart[dpos] + (threadIdx.x & cData._warpMask);
         uint64_t end            = pSparseEnd[dpos];
-        NNFloat w               = cData._deltaBoost_one * ((pSparseWeight != NULL) ? pSparseWeight[dpos] : (NNFloat)1.0);
+        NNFloat w               = cData._deltaBoost_one * ((pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0);
         uint64_t offset         = pos * stride;
         while (pos1 < end)
         {
@@ -5142,7 +5346,7 @@ kCalculateSparseAnalogNonZeroLRELUL2HingeOutputDelta_kernel(uint32_t position, u
 template<typename T>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateSparseAnalogNonZeroELUL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pSparseWeight, T* pSparseData, NNFloat alpha)
+kCalculateSparseAnalogNonZeroELUL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pDataWeight, T* pSparseData, NNFloat alpha)
 {
     uint64_t pos                = ((blockIdx.x * blockDim.x) + threadIdx.x) / cData._warpSize;
     if (pos < batch)
@@ -5150,7 +5354,7 @@ kCalculateSparseAnalogNonZeroELUL2HingeOutputDelta_kernel(uint32_t position, uin
         uint32_t dpos           = cData._bShuffleIndices ? cData._pShuffleIndex[position + pos] : position + pos;
         uint64_t pos1           = pSparseStart[dpos] + (threadIdx.x & cData._warpMask);
         uint64_t end            = pSparseEnd[dpos];
-        NNFloat w               = cData._deltaBoost_one * ((pSparseWeight != NULL) ? pSparseWeight[dpos] : (NNFloat)1.0);
+        NNFloat w               = cData._deltaBoost_one * ((pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0);
         uint64_t offset         = pos * stride;
         while (pos1 < end)
         {
@@ -5168,7 +5372,7 @@ kCalculateSparseAnalogNonZeroELUL2HingeOutputDelta_kernel(uint32_t position, uin
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateSparseAnalogNonZeroELUL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pSparseWeight, unsigned char* pSparseData, NNFloat alpha)
+kCalculateSparseAnalogNonZeroELUL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pDataWeight, unsigned char* pSparseData, NNFloat alpha)
 {
     uint64_t pos                = ((blockIdx.x * blockDim.x) + threadIdx.x) / cData._warpSize;
     if (pos < batch)
@@ -5176,7 +5380,7 @@ kCalculateSparseAnalogNonZeroELUL2HingeOutputDelta_kernel(uint32_t position, uin
         uint32_t dpos           = cData._bShuffleIndices ? cData._pShuffleIndex[position + pos] : position + pos;
         uint64_t pos1           = pSparseStart[dpos] + (threadIdx.x & cData._warpMask);
         uint64_t end            = pSparseEnd[dpos];
-        NNFloat w               = cData._deltaBoost_one * ((pSparseWeight != NULL) ? pSparseWeight[dpos] : (NNFloat)1.0);
+        NNFloat w               = cData._deltaBoost_one * ((pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0);
         uint64_t offset         = pos * stride;
         while (pos1 < end)
         {
@@ -5194,7 +5398,7 @@ kCalculateSparseAnalogNonZeroELUL2HingeOutputDelta_kernel(uint32_t position, uin
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateSparseAnalogNonZeroELUL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pSparseWeight, char* pSparseData, NNFloat alpha)
+kCalculateSparseAnalogNonZeroELUL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pDataWeight, char* pSparseData, NNFloat alpha)
 {
     uint64_t pos                = ((blockIdx.x * blockDim.x) + threadIdx.x) / cData._warpSize;
     if (pos < batch)
@@ -5202,7 +5406,7 @@ kCalculateSparseAnalogNonZeroELUL2HingeOutputDelta_kernel(uint32_t position, uin
         uint32_t dpos           = cData._bShuffleIndices ? cData._pShuffleIndex[position + pos] : position + pos;
         uint64_t pos1           = pSparseStart[dpos] + (threadIdx.x & cData._warpMask);
         uint64_t end            = pSparseEnd[dpos];
-        NNFloat w               = cData._deltaBoost_one * ((pSparseWeight != NULL) ? pSparseWeight[dpos] : (NNFloat)1.0);
+        NNFloat w               = cData._deltaBoost_one * ((pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0);
         uint64_t offset         = pos * stride;
         while (pos1 < end)
         {
@@ -5220,7 +5424,7 @@ kCalculateSparseAnalogNonZeroELUL2HingeOutputDelta_kernel(uint32_t position, uin
 template<typename T>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateSparseAnalogNonZeroSELUL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pSparseWeight, T* pSparseData, NNFloat alpha, NNFloat lambda)
+kCalculateSparseAnalogNonZeroSELUL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pDataWeight, T* pSparseData, NNFloat alpha, NNFloat lambda)
 {
     uint64_t pos                = ((blockIdx.x * blockDim.x) + threadIdx.x) / cData._warpSize;
     if (pos < batch)
@@ -5228,7 +5432,7 @@ kCalculateSparseAnalogNonZeroSELUL2HingeOutputDelta_kernel(uint32_t position, ui
         uint32_t dpos           = cData._bShuffleIndices ? cData._pShuffleIndex[position + pos] : position + pos;
         uint64_t pos1           = pSparseStart[dpos] + (threadIdx.x & cData._warpMask);
         uint64_t end            = pSparseEnd[dpos];
-        NNFloat w               = cData._deltaBoost_one * ((pSparseWeight != NULL) ? pSparseWeight[dpos] : (NNFloat)1.0);
+        NNFloat w               = cData._deltaBoost_one * ((pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0);
         uint64_t offset         = pos * stride;
         while (pos1 < end)
         {
@@ -5246,7 +5450,7 @@ kCalculateSparseAnalogNonZeroSELUL2HingeOutputDelta_kernel(uint32_t position, ui
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateSparseAnalogNonZeroSELUL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pSparseWeight, unsigned char* pSparseData, NNFloat alpha, NNFloat lambda)
+kCalculateSparseAnalogNonZeroSELUL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pDataWeight, unsigned char* pSparseData, NNFloat alpha, NNFloat lambda)
 {
     uint64_t pos                = ((blockIdx.x * blockDim.x) + threadIdx.x) / cData._warpSize;
     if (pos < batch)
@@ -5254,7 +5458,7 @@ kCalculateSparseAnalogNonZeroSELUL2HingeOutputDelta_kernel(uint32_t position, ui
         uint32_t dpos           = cData._bShuffleIndices ? cData._pShuffleIndex[position + pos] : position + pos;
         uint64_t pos1           = pSparseStart[dpos] + (threadIdx.x & cData._warpMask);
         uint64_t end            = pSparseEnd[dpos];
-        NNFloat w               = cData._deltaBoost_one * ((pSparseWeight != NULL) ? pSparseWeight[dpos] : (NNFloat)1.0);
+        NNFloat w               = cData._deltaBoost_one * ((pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0);
         uint64_t offset         = pos * stride;
         while (pos1 < end)
         {
@@ -5272,7 +5476,7 @@ kCalculateSparseAnalogNonZeroSELUL2HingeOutputDelta_kernel(uint32_t position, ui
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateSparseAnalogNonZeroSELUL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pSparseWeight, char* pSparseData, NNFloat alpha, NNFloat lambda)
+kCalculateSparseAnalogNonZeroSELUL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pDataWeight, char* pSparseData, NNFloat alpha, NNFloat lambda)
 {
     uint64_t pos                = ((blockIdx.x * blockDim.x) + threadIdx.x) / cData._warpSize;
     if (pos < batch)
@@ -5280,7 +5484,7 @@ kCalculateSparseAnalogNonZeroSELUL2HingeOutputDelta_kernel(uint32_t position, ui
         uint32_t dpos           = cData._bShuffleIndices ? cData._pShuffleIndex[position + pos] : position + pos;
         uint64_t pos1           = pSparseStart[dpos] + (threadIdx.x & cData._warpMask);
         uint64_t end            = pSparseEnd[dpos];
-        NNFloat w               = cData._deltaBoost_one * ((pSparseWeight != NULL) ? pSparseWeight[dpos] : (NNFloat)1.0);
+        NNFloat w               = cData._deltaBoost_one * ((pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0);
         uint64_t offset         = pos * stride;
         while (pos1 < end)
         {
@@ -5298,7 +5502,7 @@ kCalculateSparseAnalogNonZeroSELUL2HingeOutputDelta_kernel(uint32_t position, ui
 template<typename T>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateSparseAnalogNonZeroSoftMaxL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pSparseWeight, T* pSparseData)
+kCalculateSparseAnalogNonZeroSoftMaxL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pDataWeight, T* pSparseData)
 {
     uint64_t pos                = ((blockIdx.x * blockDim.x) + threadIdx.x) / cData._warpSize;
     if (pos < batch)
@@ -5306,7 +5510,7 @@ kCalculateSparseAnalogNonZeroSoftMaxL2HingeOutputDelta_kernel(uint32_t position,
         uint32_t dpos           = cData._bShuffleIndices ? cData._pShuffleIndex[position + pos] : position + pos;
         uint64_t pos1           = pSparseStart[dpos] + (threadIdx.x & cData._warpMask);
         uint64_t end            = pSparseEnd[dpos];
-        NNFloat w               = cData._deltaBoost_one * ((pSparseWeight != NULL) ? pSparseWeight[dpos] : (NNFloat)1.0);
+        NNFloat w               = cData._deltaBoost_one * ((pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0);
         uint64_t offset         = pos * stride;
         while (pos1 < end)
         {
@@ -5324,7 +5528,7 @@ kCalculateSparseAnalogNonZeroSoftMaxL2HingeOutputDelta_kernel(uint32_t position,
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateSparseAnalogNonZeroSoftMaxL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pSparseWeight, unsigned char* pSparseData)
+kCalculateSparseAnalogNonZeroSoftMaxL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pDataWeight, unsigned char* pSparseData)
 {
     uint64_t pos                = ((blockIdx.x * blockDim.x) + threadIdx.x) / cData._warpSize;
     if (pos < batch)
@@ -5332,7 +5536,7 @@ kCalculateSparseAnalogNonZeroSoftMaxL2HingeOutputDelta_kernel(uint32_t position,
         uint32_t dpos           = cData._bShuffleIndices ? cData._pShuffleIndex[position + pos] : position + pos;
         uint64_t pos1           = pSparseStart[dpos] + (threadIdx.x & cData._warpMask);
         uint64_t end            = pSparseEnd[dpos];
-        NNFloat w               = cData._deltaBoost_one * ((pSparseWeight != NULL) ? pSparseWeight[dpos] : (NNFloat)1.0);
+        NNFloat w               = cData._deltaBoost_one * ((pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0);
         uint64_t offset         = pos * stride;
         while (pos1 < end)
         {
@@ -5350,7 +5554,7 @@ kCalculateSparseAnalogNonZeroSoftMaxL2HingeOutputDelta_kernel(uint32_t position,
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateSparseAnalogNonZeroSoftMaxL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pSparseWeight, char* pSparseData)
+kCalculateSparseAnalogNonZeroSoftMaxL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pDataWeight, char* pSparseData)
 {
     uint64_t pos                = ((blockIdx.x * blockDim.x) + threadIdx.x) / cData._warpSize;
     if (pos < batch)
@@ -5358,7 +5562,7 @@ kCalculateSparseAnalogNonZeroSoftMaxL2HingeOutputDelta_kernel(uint32_t position,
         uint32_t dpos           = cData._bShuffleIndices ? cData._pShuffleIndex[position + pos] : position + pos;
         uint64_t pos1           = pSparseStart[dpos] + (threadIdx.x & cData._warpMask);
         uint64_t end            = pSparseEnd[dpos];
-        NNFloat w               = cData._deltaBoost_one * ((pSparseWeight != NULL) ? pSparseWeight[dpos] : (NNFloat)1.0);
+        NNFloat w               = cData._deltaBoost_one * ((pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0);
         uint64_t offset         = pos * stride;
         while (pos1 < end)
         {
@@ -5374,7 +5578,7 @@ kCalculateSparseAnalogNonZeroSoftMaxL2HingeOutputDelta_kernel(uint32_t position,
 }
 
 template<typename T>
-void kCalculateSparseAnalogL2HingeOutputDelta(Activation activation, uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pSparseWeight, T* pSparseData, bool bSparseIgnoreZero, NNFloat slope, NNFloat alpha, NNFloat lambda)
+void kCalculateSparseAnalogL2HingeOutputDelta(Activation activation, uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pDataWeight, T* pSparseData, bool bSparseIgnoreZero, NNFloat slope, NNFloat alpha, NNFloat lambda)
 {
     uint64_t size               = (uint64_t)batch * (uint64_t)stride;
     dim3 grid1(CalculateBlocks(size));
@@ -5391,80 +5595,80 @@ void kCalculateSparseAnalogL2HingeOutputDelta(Activation activation, uint32_t po
         case Sigmoid:
             if (!bSparseIgnoreZero)
             {
-                kCalculateSparseRawSigmoidL2HingeOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(position, pSparseWeight, stride, size, pUnit, pDelta);
+                kCalculateSparseRawSigmoidL2HingeOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(position, pDataWeight, stride, size, pUnit, pDelta);
                 LAUNCHERROR("kCalculateSparseRawSigmoidL2HingeOutputDelta_kernel");
             }
-            kCalculateSparseAnalogNonZeroSigmoidL2HingeOutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pSparseStart, pSparseEnd, pSparseIndex, pSparseWeight, pSparseData);
+            kCalculateSparseAnalogNonZeroSigmoidL2HingeOutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pSparseStart, pSparseEnd, pSparseIndex, pDataWeight, pSparseData);
             LAUNCHERROR("kCalculateSparseAnalogNonZeroSigmoidL2HingeOutputDelta_kernel");
             break;
         
         case Tanh:
             if (!bSparseIgnoreZero)
             {
-                kCalculateSparseRawTanhL2HingeOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(position, pSparseWeight, stride, size, pUnit, pDelta);
+                kCalculateSparseRawTanhL2HingeOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(position, pDataWeight, stride, size, pUnit, pDelta);
                 LAUNCHERROR("kCalculateSparseRawTanhL2HingeOutputDelta_kernel");
             }
-            kCalculateSparseAnalogNonZeroTanhL2HingeOutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pSparseStart, pSparseEnd, pSparseIndex, pSparseWeight, pSparseData);
+            kCalculateSparseAnalogNonZeroTanhL2HingeOutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pSparseStart, pSparseEnd, pSparseIndex, pDataWeight, pSparseData);
             LAUNCHERROR("kCalculateSparseAnalogNonZeroTanhL2HingeOutputDelta_kernel");
             break;
 
         case Linear:
             if (!bSparseIgnoreZero)
             {
-                kCalculateSparseRawLinearL2HingeOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(position, pSparseWeight, stride, size, pUnit, pDelta);
+                kCalculateSparseRawLinearL2HingeOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(position, pDataWeight, stride, size, pUnit, pDelta);
                 LAUNCHERROR("kCalculateSparseRawLinearL2HingeOutputDelta_kernel");
             }
-            kCalculateSparseAnalogNonZeroLinearL2HingeOutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pSparseStart, pSparseEnd, pSparseIndex, pSparseWeight, pSparseData);
+            kCalculateSparseAnalogNonZeroLinearL2HingeOutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pSparseStart, pSparseEnd, pSparseIndex, pDataWeight, pSparseData);
             LAUNCHERROR("kCalculateSparseAnalogNonZeroLinearL2HingeOutputDelta_kernel");
             break;
 
         case RectifiedLinear:
             if (!bSparseIgnoreZero)
             {
-                kCalculateSparseRawRELUL2HingeOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(position, pSparseWeight, stride, size, pUnit, pDelta);
+                kCalculateSparseRawRELUL2HingeOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(position, pDataWeight, stride, size, pUnit, pDelta);
                 LAUNCHERROR("kCalculateSparseRawRELUL2HingeOutputDelta_kernel");
             }
-            kCalculateSparseAnalogNonZeroRELUL2HingeOutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pSparseStart, pSparseEnd, pSparseIndex, pSparseWeight, pSparseData);
+            kCalculateSparseAnalogNonZeroRELUL2HingeOutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pSparseStart, pSparseEnd, pSparseIndex, pDataWeight, pSparseData);
             LAUNCHERROR("kCalculateSparseAnalogNonZeroRELUL2HingeOutputDelta_kernel");
             break;
             
         case LeakyRectifiedLinear:
             if (!bSparseIgnoreZero)
             {
-                kCalculateSparseRawLRELUL2HingeOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(position, pSparseWeight, stride, size, pUnit, pDelta, slope);
+                kCalculateSparseRawLRELUL2HingeOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(position, pDataWeight, stride, size, pUnit, pDelta, slope);
                 LAUNCHERROR("kCalculateSparseRawLRELUL2HingeOutputDelta_kernel");
             }
-            kCalculateSparseAnalogNonZeroLRELUL2HingeOutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pSparseStart, pSparseEnd, pSparseIndex, pSparseWeight, pSparseData, slope);
+            kCalculateSparseAnalogNonZeroLRELUL2HingeOutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pSparseStart, pSparseEnd, pSparseIndex, pDataWeight, pSparseData, slope);
             LAUNCHERROR("kCalculateSparseAnalogNonZeroLRELUL2HingeOutputDelta_kernel");
             break;
 
         case ExponentialLinear:
             if (!bSparseIgnoreZero)
             {
-                kCalculateSparseRawELUL2HingeOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(position, pSparseWeight, stride, size, pUnit, pDelta, alpha);
+                kCalculateSparseRawELUL2HingeOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(position, pDataWeight, stride, size, pUnit, pDelta, alpha);
                 LAUNCHERROR("kCalculateSparseRawELUL2HingeOutputDelta_kernel");
             }
-            kCalculateSparseAnalogNonZeroELUL2HingeOutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pSparseStart, pSparseEnd, pSparseIndex, pSparseWeight, pSparseData, alpha);
+            kCalculateSparseAnalogNonZeroELUL2HingeOutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pSparseStart, pSparseEnd, pSparseIndex, pDataWeight, pSparseData, alpha);
             LAUNCHERROR("kCalculateSparseAnalogNonZeroELUL2HingeOutputDelta_kernel");
             break;
 
         case ScaledExponentialLinear:
             if (!bSparseIgnoreZero)
             {
-                kCalculateSparseRawSELUL2HingeOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(position, pSparseWeight, stride, size, pUnit, pDelta, alpha, lambda);
+                kCalculateSparseRawSELUL2HingeOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(position, pDataWeight, stride, size, pUnit, pDelta, alpha, lambda);
                 LAUNCHERROR("kCalculateSparseRawSELUL2HingeOutputDelta_kernel");
             }
-            kCalculateSparseAnalogNonZeroSELUL2HingeOutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pSparseStart, pSparseEnd, pSparseIndex, pSparseWeight, pSparseData, alpha, lambda);
+            kCalculateSparseAnalogNonZeroSELUL2HingeOutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pSparseStart, pSparseEnd, pSparseIndex, pDataWeight, pSparseData, alpha, lambda);
             LAUNCHERROR("kCalculateSparseAnalogNonZeroSELUL2HingeOutputDelta_kernel");
             break;
 
         case SoftMax:
             if (!bSparseIgnoreZero)
             {
-                kCalculateSparseRawSoftMaxL2HingeOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(position, pSparseWeight, stride, size, pUnit, pDelta);
+                kCalculateSparseRawSoftMaxL2HingeOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(position, pDataWeight, stride, size, pUnit, pDelta);
                 LAUNCHERROR("kCalculateSparseRawSoftMaxL2HingeOutputDelta_kernel");
             }
-            kCalculateSparseAnalogNonZeroSoftMaxL2HingeOutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pSparseStart, pSparseEnd, pSparseIndex, pSparseWeight, pSparseData);
+            kCalculateSparseAnalogNonZeroSoftMaxL2HingeOutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pSparseStart, pSparseEnd, pSparseIndex, pDataWeight, pSparseData);
             LAUNCHERROR("kCalculateSparseAnalogNonZeroSoftMaxL2HingeOutputDelta_kernel");
             break;         
     }
@@ -5473,7 +5677,7 @@ void kCalculateSparseAnalogL2HingeOutputDelta(Activation activation, uint32_t po
 template<typename T>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateIndexedSparseAnalogNonZeroSigmoidL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pSparseWeight, T* pSparseData)
+kCalculateIndexedSparseAnalogNonZeroSigmoidL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pDataWeight, T* pSparseData)
 {
     uint64_t pos                = ((blockIdx.x * blockDim.x) + threadIdx.x) / cData._warpSize;
     if (pos < batch)
@@ -5481,7 +5685,7 @@ kCalculateIndexedSparseAnalogNonZeroSigmoidL2HingeOutputDelta_kernel(uint32_t po
         uint32_t dpos           = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + pos] : position + pos];
         uint64_t pos1           = pSparseStart[dpos] + (threadIdx.x & cData._warpMask);
         uint64_t end            = pSparseEnd[dpos];
-        NNFloat w               = cData._deltaBoost_one * ((pSparseWeight != NULL) ? pSparseWeight[dpos] : (NNFloat)1.0);
+        NNFloat w               = cData._deltaBoost_one * ((pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0);
         uint64_t offset         = pos * stride;
         while (pos1 < end)
         {
@@ -5499,7 +5703,7 @@ kCalculateIndexedSparseAnalogNonZeroSigmoidL2HingeOutputDelta_kernel(uint32_t po
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateIndexedSparseAnalogNonZeroSigmoidL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pSparseWeight, unsigned char* pSparseData)
+kCalculateIndexedSparseAnalogNonZeroSigmoidL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pDataWeight, unsigned char* pSparseData)
 {
     uint64_t pos                = ((blockIdx.x * blockDim.x) + threadIdx.x) / cData._warpSize;
     if (pos < batch)
@@ -5507,7 +5711,7 @@ kCalculateIndexedSparseAnalogNonZeroSigmoidL2HingeOutputDelta_kernel(uint32_t po
         uint32_t dpos           = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + pos] : position + pos];
         uint64_t pos1           = pSparseStart[dpos] + (threadIdx.x & cData._warpMask);
         uint64_t end            = pSparseEnd[dpos];
-        NNFloat w               = cData._deltaBoost_one * ((pSparseWeight != NULL) ? pSparseWeight[dpos] : (NNFloat)1.0);
+        NNFloat w               = cData._deltaBoost_one * ((pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0);
         uint64_t offset         = pos * stride;
         while (pos1 < end)
         {
@@ -5525,7 +5729,7 @@ kCalculateIndexedSparseAnalogNonZeroSigmoidL2HingeOutputDelta_kernel(uint32_t po
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateIndexedSparseAnalogNonZeroSigmoidL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pSparseWeight, char* pSparseData)
+kCalculateIndexedSparseAnalogNonZeroSigmoidL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pDataWeight, char* pSparseData)
 {
     uint64_t pos                = ((blockIdx.x * blockDim.x) + threadIdx.x) / cData._warpSize;
     if (pos < batch)
@@ -5533,7 +5737,7 @@ kCalculateIndexedSparseAnalogNonZeroSigmoidL2HingeOutputDelta_kernel(uint32_t po
         uint32_t dpos           = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + pos] : position + pos];
         uint64_t pos1           = pSparseStart[dpos] + (threadIdx.x & cData._warpMask);
         uint64_t end            = pSparseEnd[dpos];
-        NNFloat w               = cData._deltaBoost_one * ((pSparseWeight != NULL) ? pSparseWeight[dpos] : (NNFloat)1.0);
+        NNFloat w               = cData._deltaBoost_one * ((pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0);
         uint64_t offset         = pos * stride;
         while (pos1 < end)
         {
@@ -5551,7 +5755,7 @@ kCalculateIndexedSparseAnalogNonZeroSigmoidL2HingeOutputDelta_kernel(uint32_t po
 template<typename T>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateIndexedSparseAnalogNonZeroTanhL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pSparseWeight, T* pSparseData)
+kCalculateIndexedSparseAnalogNonZeroTanhL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pDataWeight, T* pSparseData)
 {
     uint64_t pos                = ((blockIdx.x * blockDim.x) + threadIdx.x) / cData._warpSize;
     if (pos < batch)
@@ -5559,7 +5763,7 @@ kCalculateIndexedSparseAnalogNonZeroTanhL2HingeOutputDelta_kernel(uint32_t posit
         uint32_t dpos           = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + pos] : position + pos];
         uint64_t pos1           = pSparseStart[dpos] + (threadIdx.x & cData._warpMask);
         uint64_t end            = pSparseEnd[dpos];
-        NNFloat w               = cData._deltaBoost_one * ((pSparseWeight != NULL) ? pSparseWeight[dpos] : (NNFloat)1.0);
+        NNFloat w               = cData._deltaBoost_one * ((pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0);
         uint64_t offset         = pos * stride;
         while (pos1 < end)
         {
@@ -5577,7 +5781,7 @@ kCalculateIndexedSparseAnalogNonZeroTanhL2HingeOutputDelta_kernel(uint32_t posit
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateIndexedSparseAnalogNonZeroTanhL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t *pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pSparseWeight, unsigned char* pSparseData)
+kCalculateIndexedSparseAnalogNonZeroTanhL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t *pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pDataWeight, unsigned char* pSparseData)
 {
     uint64_t pos                = ((blockIdx.x * blockDim.x) + threadIdx.x) / cData._warpSize;
     if (pos < batch)
@@ -5585,7 +5789,7 @@ kCalculateIndexedSparseAnalogNonZeroTanhL2HingeOutputDelta_kernel(uint32_t posit
         uint32_t dpos           = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + pos] : position + pos];
         uint64_t pos1           = pSparseStart[dpos] + (threadIdx.x & cData._warpMask);
         uint64_t end            = pSparseEnd[dpos];
-        NNFloat w               = cData._deltaBoost_one * ((pSparseWeight != NULL) ? pSparseWeight[dpos] : (NNFloat)1.0);
+        NNFloat w               = cData._deltaBoost_one * ((pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0);
         uint64_t offset         = pos * stride;
         while (pos1 < end)
         {
@@ -5603,7 +5807,7 @@ kCalculateIndexedSparseAnalogNonZeroTanhL2HingeOutputDelta_kernel(uint32_t posit
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateIndexedSparseAnalogNonZeroTanhL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pSparseWeight, char* pSparseData)
+kCalculateIndexedSparseAnalogNonZeroTanhL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pDataWeight, char* pSparseData)
 {
     uint64_t pos                = ((blockIdx.x * blockDim.x) + threadIdx.x) / cData._warpSize;
     if (pos < batch)
@@ -5611,7 +5815,7 @@ kCalculateIndexedSparseAnalogNonZeroTanhL2HingeOutputDelta_kernel(uint32_t posit
         uint32_t dpos           = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + pos] : position + pos];
         uint64_t pos1           = pSparseStart[dpos] + (threadIdx.x & cData._warpMask);
         uint64_t end            = pSparseEnd[dpos];
-        NNFloat w               = cData._deltaBoost_one * ((pSparseWeight != NULL) ? pSparseWeight[dpos] : (NNFloat)1.0);
+        NNFloat w               = cData._deltaBoost_one * ((pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0);
         uint64_t offset         = pos * stride;
         while (pos1 < end)
         {
@@ -5629,7 +5833,7 @@ kCalculateIndexedSparseAnalogNonZeroTanhL2HingeOutputDelta_kernel(uint32_t posit
 template<typename T>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateIndexedSparseAnalogNonZeroLinearL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pSparseWeight, T* pSparseData)
+kCalculateIndexedSparseAnalogNonZeroLinearL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pDataWeight, T* pSparseData)
 {
     uint64_t pos                = ((blockIdx.x * blockDim.x) + threadIdx.x) / cData._warpSize;
     if (pos < batch)
@@ -5637,7 +5841,7 @@ kCalculateIndexedSparseAnalogNonZeroLinearL2HingeOutputDelta_kernel(uint32_t pos
         uint32_t dpos           = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + pos] : position + pos];
         uint64_t pos1           = pSparseStart[dpos] + (threadIdx.x & cData._warpMask);
         uint64_t end            = pSparseEnd[dpos];
-        NNFloat w               = cData._deltaBoost_one * ((pSparseWeight != NULL) ? pSparseWeight[dpos] : (NNFloat)1.0);
+        NNFloat w               = cData._deltaBoost_one * ((pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0);
         uint64_t offset         = pos * stride;
         while (pos1 < end)
         {
@@ -5655,7 +5859,7 @@ kCalculateIndexedSparseAnalogNonZeroLinearL2HingeOutputDelta_kernel(uint32_t pos
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateIndexedSparseAnalogNonZeroLinearL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pSparseWeight, unsigned char* pSparseData)
+kCalculateIndexedSparseAnalogNonZeroLinearL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pDataWeight, unsigned char* pSparseData)
 {
     uint64_t pos                = ((blockIdx.x * blockDim.x) + threadIdx.x) / cData._warpSize;
     if (pos < batch)
@@ -5663,7 +5867,7 @@ kCalculateIndexedSparseAnalogNonZeroLinearL2HingeOutputDelta_kernel(uint32_t pos
         uint32_t dpos           = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + pos] : position + pos];
         uint64_t pos1           = pSparseStart[dpos] + (threadIdx.x & cData._warpMask);
         uint64_t end            = pSparseEnd[dpos];
-        NNFloat w               = cData._deltaBoost_one * ((pSparseWeight != NULL) ? pSparseWeight[dpos] : (NNFloat)1.0);
+        NNFloat w               = cData._deltaBoost_one * ((pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0);
         uint64_t offset         = pos * stride;
         while (pos1 < end)
         {
@@ -5681,7 +5885,7 @@ kCalculateIndexedSparseAnalogNonZeroLinearL2HingeOutputDelta_kernel(uint32_t pos
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateIndexedSparseAnalogNonZeroLinearL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pSparseWeight, char* pSparseData)
+kCalculateIndexedSparseAnalogNonZeroLinearL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pDataWeight, char* pSparseData)
 {
     uint64_t pos                = ((blockIdx.x * blockDim.x) + threadIdx.x) / cData._warpSize;
     if (pos < batch)
@@ -5689,7 +5893,7 @@ kCalculateIndexedSparseAnalogNonZeroLinearL2HingeOutputDelta_kernel(uint32_t pos
         uint32_t dpos           = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + pos] : position + pos];
         uint64_t pos1           = pSparseStart[dpos] + (threadIdx.x & cData._warpMask);
         uint64_t end            = pSparseEnd[dpos];
-        NNFloat w               = cData._deltaBoost_one * ((pSparseWeight != NULL) ? pSparseWeight[dpos] : (NNFloat)1.0);
+        NNFloat w               = cData._deltaBoost_one * ((pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0);
         uint64_t offset         = pos * stride;
         while (pos1 < end)
         {
@@ -5707,7 +5911,7 @@ kCalculateIndexedSparseAnalogNonZeroLinearL2HingeOutputDelta_kernel(uint32_t pos
 template<typename T>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateIndexedSparseAnalogNonZeroRELUL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pSparseWeight, T* pSparseData)
+kCalculateIndexedSparseAnalogNonZeroRELUL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pDataWeight, T* pSparseData)
 {
     uint64_t pos                = ((blockIdx.x * blockDim.x) + threadIdx.x) / cData._warpSize;
     if (pos < batch)
@@ -5715,7 +5919,7 @@ kCalculateIndexedSparseAnalogNonZeroRELUL2HingeOutputDelta_kernel(uint32_t posit
         uint32_t dpos           = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + pos] : position + pos];
         uint64_t pos1           = pSparseStart[dpos] + (threadIdx.x & cData._warpMask);
         uint64_t end            = pSparseEnd[dpos];
-        NNFloat w               = cData._deltaBoost_one * ((pSparseWeight != NULL) ? pSparseWeight[dpos] : (NNFloat)1.0);
+        NNFloat w               = cData._deltaBoost_one * ((pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0);
         uint64_t offset         = pos * stride;
         while (pos1 < end)
         {
@@ -5733,7 +5937,7 @@ kCalculateIndexedSparseAnalogNonZeroRELUL2HingeOutputDelta_kernel(uint32_t posit
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateIndexedSparseAnalogNonZeroRELUL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pSparseWeight, unsigned char* pSparseData)
+kCalculateIndexedSparseAnalogNonZeroRELUL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pDataWeight, unsigned char* pSparseData)
 {
     uint64_t pos                = ((blockIdx.x * blockDim.x) + threadIdx.x) / cData._warpSize;
     if (pos < batch)
@@ -5741,7 +5945,7 @@ kCalculateIndexedSparseAnalogNonZeroRELUL2HingeOutputDelta_kernel(uint32_t posit
         uint32_t dpos           = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + pos] : position + pos];
         uint64_t pos1           = pSparseStart[dpos] + (threadIdx.x & cData._warpMask);
         uint64_t end            = pSparseEnd[dpos];
-        NNFloat w               = cData._deltaBoost_one * ((pSparseWeight != NULL) ? pSparseWeight[dpos] : (NNFloat)1.0);
+        NNFloat w               = cData._deltaBoost_one * ((pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0);
         uint64_t offset         = pos * stride;
         while (pos1 < end)
         {
@@ -5759,7 +5963,7 @@ kCalculateIndexedSparseAnalogNonZeroRELUL2HingeOutputDelta_kernel(uint32_t posit
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateIndexedSparseAnalogNonZeroRELUL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pSparseWeight, char* pSparseData)
+kCalculateIndexedSparseAnalogNonZeroRELUL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pDataWeight, char* pSparseData)
 {
     uint64_t pos                = ((blockIdx.x * blockDim.x) + threadIdx.x) / cData._warpSize;
     if (pos < batch)
@@ -5767,7 +5971,7 @@ kCalculateIndexedSparseAnalogNonZeroRELUL2HingeOutputDelta_kernel(uint32_t posit
         uint32_t dpos           = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + pos] : position + pos];
         uint64_t pos1           = pSparseStart[dpos] + (threadIdx.x & cData._warpMask);
         uint64_t end            = pSparseEnd[dpos];
-        NNFloat w               = cData._deltaBoost_one * ((pSparseWeight != NULL) ? pSparseWeight[dpos] : (NNFloat)1.0);
+        NNFloat w               = cData._deltaBoost_one * ((pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0);
         uint64_t offset         = pos * stride;
         while (pos1 < end)
         {
@@ -5785,7 +5989,7 @@ kCalculateIndexedSparseAnalogNonZeroRELUL2HingeOutputDelta_kernel(uint32_t posit
 template<typename T>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateIndexedSparseAnalogNonZeroLRELUL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pSparseWeight, T* pSparseData, NNFloat slope)
+kCalculateIndexedSparseAnalogNonZeroLRELUL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pDataWeight, T* pSparseData, NNFloat slope)
 {
     uint64_t pos                = ((blockIdx.x * blockDim.x) + threadIdx.x) / cData._warpSize;
     if (pos < batch)
@@ -5793,7 +5997,7 @@ kCalculateIndexedSparseAnalogNonZeroLRELUL2HingeOutputDelta_kernel(uint32_t posi
         uint32_t dpos           = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + pos] : position + pos];
         uint64_t pos1           = pSparseStart[dpos] + (threadIdx.x & cData._warpMask);
         uint64_t end            = pSparseEnd[dpos];
-        NNFloat w               = cData._deltaBoost_one * ((pSparseWeight != NULL) ? pSparseWeight[dpos] : (NNFloat)1.0);
+        NNFloat w               = cData._deltaBoost_one * ((pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0);
         uint64_t offset         = pos * stride;
         while (pos1 < end)
         {
@@ -5811,7 +6015,7 @@ kCalculateIndexedSparseAnalogNonZeroLRELUL2HingeOutputDelta_kernel(uint32_t posi
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateIndexedSparseAnalogNonZeroLRELUL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pSparseWeight, unsigned char* pSparseData, NNFloat slope)
+kCalculateIndexedSparseAnalogNonZeroLRELUL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pDataWeight, unsigned char* pSparseData, NNFloat slope)
 {
     uint64_t pos                = ((blockIdx.x * blockDim.x) + threadIdx.x) / cData._warpSize;
     if (pos < batch)
@@ -5819,7 +6023,7 @@ kCalculateIndexedSparseAnalogNonZeroLRELUL2HingeOutputDelta_kernel(uint32_t posi
         uint32_t dpos           = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + pos] : position + pos];
         uint64_t pos1           = pSparseStart[dpos] + (threadIdx.x & cData._warpMask);
         uint64_t end            = pSparseEnd[dpos];
-        NNFloat w               = cData._deltaBoost_one * ((pSparseWeight != NULL) ? pSparseWeight[dpos] : (NNFloat)1.0);
+        NNFloat w               = cData._deltaBoost_one * ((pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0);
         uint64_t offset         = pos * stride;
         while (pos1 < end)
         {
@@ -5837,7 +6041,7 @@ kCalculateIndexedSparseAnalogNonZeroLRELUL2HingeOutputDelta_kernel(uint32_t posi
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateIndexedSparseAnalogNonZeroLRELUL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pSparseWeight, char* pSparseData, NNFloat slope)
+kCalculateIndexedSparseAnalogNonZeroLRELUL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pDataWeight, char* pSparseData, NNFloat slope)
 {
     uint64_t pos                = ((blockIdx.x * blockDim.x) + threadIdx.x) / cData._warpSize;
     if (pos < batch)
@@ -5845,7 +6049,7 @@ kCalculateIndexedSparseAnalogNonZeroLRELUL2HingeOutputDelta_kernel(uint32_t posi
         uint32_t dpos           = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + pos] : position + pos];
         uint64_t pos1           = pSparseStart[dpos] + (threadIdx.x & cData._warpMask);
         uint64_t end            = pSparseEnd[dpos];
-        NNFloat w               = cData._deltaBoost_one * ((pSparseWeight != NULL) ? pSparseWeight[dpos] : (NNFloat)1.0);
+        NNFloat w               = cData._deltaBoost_one * ((pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0);
         uint64_t offset         = pos * stride;
         while (pos1 < end)
         {
@@ -5863,7 +6067,7 @@ kCalculateIndexedSparseAnalogNonZeroLRELUL2HingeOutputDelta_kernel(uint32_t posi
 template<typename T>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateIndexedSparseAnalogNonZeroELUL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pSparseWeight, T* pSparseData, NNFloat alpha)
+kCalculateIndexedSparseAnalogNonZeroELUL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pDataWeight, T* pSparseData, NNFloat alpha)
 {
     uint64_t pos                = ((blockIdx.x * blockDim.x) + threadIdx.x) / cData._warpSize;
     if (pos < batch)
@@ -5871,7 +6075,7 @@ kCalculateIndexedSparseAnalogNonZeroELUL2HingeOutputDelta_kernel(uint32_t positi
         uint32_t dpos           = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + pos] : position + pos];
         uint64_t pos1           = pSparseStart[dpos] + (threadIdx.x & cData._warpMask);
         uint64_t end            = pSparseEnd[dpos];
-        NNFloat w               = cData._deltaBoost_one * ((pSparseWeight != NULL) ? pSparseWeight[dpos] : (NNFloat)1.0);
+        NNFloat w               = cData._deltaBoost_one * ((pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0);
         uint64_t offset         = pos * stride;
         while (pos1 < end)
         {
@@ -5889,7 +6093,7 @@ kCalculateIndexedSparseAnalogNonZeroELUL2HingeOutputDelta_kernel(uint32_t positi
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateIndexedSparseAnalogNonZeroELUL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pSparseWeight, unsigned char* pSparseData, NNFloat alpha)
+kCalculateIndexedSparseAnalogNonZeroELUL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pDataWeight, unsigned char* pSparseData, NNFloat alpha)
 {
     uint64_t pos                = ((blockIdx.x * blockDim.x) + threadIdx.x) / cData._warpSize;
     if (pos < batch)
@@ -5897,7 +6101,7 @@ kCalculateIndexedSparseAnalogNonZeroELUL2HingeOutputDelta_kernel(uint32_t positi
         uint32_t dpos           = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + pos] : position + pos];
         uint64_t pos1           = pSparseStart[dpos] + (threadIdx.x & cData._warpMask);
         uint64_t end            = pSparseEnd[dpos];
-        NNFloat w               = cData._deltaBoost_one * ((pSparseWeight != NULL) ? pSparseWeight[dpos] : (NNFloat)1.0);
+        NNFloat w               = cData._deltaBoost_one * ((pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0);
         uint64_t offset         = pos * stride;
         while (pos1 < end)
         {
@@ -5915,7 +6119,7 @@ kCalculateIndexedSparseAnalogNonZeroELUL2HingeOutputDelta_kernel(uint32_t positi
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateIndexedSparseAnalogNonZeroELUL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pSparseWeight, char* pSparseData, NNFloat alpha)
+kCalculateIndexedSparseAnalogNonZeroELUL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pDataWeight, char* pSparseData, NNFloat alpha)
 {
     uint64_t pos                = ((blockIdx.x * blockDim.x) + threadIdx.x) / cData._warpSize;
     if (pos < batch)
@@ -5923,7 +6127,7 @@ kCalculateIndexedSparseAnalogNonZeroELUL2HingeOutputDelta_kernel(uint32_t positi
         uint32_t dpos           = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + pos] : position + pos];
         uint64_t pos1           = pSparseStart[dpos] + (threadIdx.x & cData._warpMask);
         uint64_t end            = pSparseEnd[dpos];
-        NNFloat w               = cData._deltaBoost_one * ((pSparseWeight != NULL) ? pSparseWeight[dpos] : (NNFloat)1.0);
+        NNFloat w               = cData._deltaBoost_one * ((pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0);
         uint64_t offset         = pos * stride;
         while (pos1 < end)
         {
@@ -5941,7 +6145,7 @@ kCalculateIndexedSparseAnalogNonZeroELUL2HingeOutputDelta_kernel(uint32_t positi
 template<typename T>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateIndexedSparseAnalogNonZeroSELUL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pSparseWeight, T* pSparseData, NNFloat alpha, NNFloat lambda)
+kCalculateIndexedSparseAnalogNonZeroSELUL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pDataWeight, T* pSparseData, NNFloat alpha, NNFloat lambda)
 {
     uint64_t pos                = ((blockIdx.x * blockDim.x) + threadIdx.x) / cData._warpSize;
     if (pos < batch)
@@ -5949,7 +6153,7 @@ kCalculateIndexedSparseAnalogNonZeroSELUL2HingeOutputDelta_kernel(uint32_t posit
         uint32_t dpos           = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + pos] : position + pos];
         uint64_t pos1           = pSparseStart[dpos] + (threadIdx.x & cData._warpMask);
         uint64_t end            = pSparseEnd[dpos];
-        NNFloat w               = cData._deltaBoost_one * ((pSparseWeight != NULL) ? pSparseWeight[dpos] : (NNFloat)1.0);
+        NNFloat w               = cData._deltaBoost_one * ((pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0);
         uint64_t offset         = pos * stride;
         while (pos1 < end)
         {
@@ -5967,7 +6171,7 @@ kCalculateIndexedSparseAnalogNonZeroSELUL2HingeOutputDelta_kernel(uint32_t posit
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateIndexedSparseAnalogNonZeroSELUL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat *pSparseWeight, unsigned char* pSparseData, NNFloat alpha, NNFloat lambda)
+kCalculateIndexedSparseAnalogNonZeroSELUL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat *pDataWeight, unsigned char* pSparseData, NNFloat alpha, NNFloat lambda)
 {
     uint64_t pos                = ((blockIdx.x * blockDim.x) + threadIdx.x) / cData._warpSize;
     if (pos < batch)
@@ -5975,7 +6179,7 @@ kCalculateIndexedSparseAnalogNonZeroSELUL2HingeOutputDelta_kernel(uint32_t posit
         uint32_t dpos           = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + pos] : position + pos];
         uint64_t pos1           = pSparseStart[dpos] + (threadIdx.x & cData._warpMask);
         uint64_t end            = pSparseEnd[dpos];
-        NNFloat w               = cData._deltaBoost_one * ((pSparseWeight != NULL) ? pSparseWeight[dpos] : (NNFloat)1.0);
+        NNFloat w               = cData._deltaBoost_one * ((pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0);
         uint64_t offset         = pos * stride;
         while (pos1 < end)
         {
@@ -5993,7 +6197,7 @@ kCalculateIndexedSparseAnalogNonZeroSELUL2HingeOutputDelta_kernel(uint32_t posit
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateIndexedSparseAnalogNonZeroSELUL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pSparseWeight, char* pSparseData, NNFloat alpha, NNFloat lambda)
+kCalculateIndexedSparseAnalogNonZeroSELUL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pDataWeight, char* pSparseData, NNFloat alpha, NNFloat lambda)
 {
     uint64_t pos                = ((blockIdx.x * blockDim.x) + threadIdx.x) / cData._warpSize;
     if (pos < batch)
@@ -6001,7 +6205,7 @@ kCalculateIndexedSparseAnalogNonZeroSELUL2HingeOutputDelta_kernel(uint32_t posit
         uint32_t dpos           = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + pos] : position + pos];
         uint64_t pos1           = pSparseStart[dpos] + (threadIdx.x & cData._warpMask);
         uint64_t end            = pSparseEnd[dpos];
-        NNFloat w               = cData._deltaBoost_one * ((pSparseWeight != NULL) ? pSparseWeight[dpos] : (NNFloat)1.0);
+        NNFloat w               = cData._deltaBoost_one * ((pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0);
         uint64_t offset         = pos * stride;
         while (pos1 < end)
         {
@@ -6019,7 +6223,7 @@ kCalculateIndexedSparseAnalogNonZeroSELUL2HingeOutputDelta_kernel(uint32_t posit
 template<typename T>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateIndexedSparseAnalogNonZeroSoftMaxL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pSparseWeight, T* pSparseData)
+kCalculateIndexedSparseAnalogNonZeroSoftMaxL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pDataWeight, T* pSparseData)
 {
     uint64_t pos                = ((blockIdx.x * blockDim.x) + threadIdx.x) / cData._warpSize;
     if (pos < batch)
@@ -6027,7 +6231,7 @@ kCalculateIndexedSparseAnalogNonZeroSoftMaxL2HingeOutputDelta_kernel(uint32_t po
         uint32_t dpos           = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + pos] : position + pos];
         uint64_t pos1           = pSparseStart[dpos] + (threadIdx.x & cData._warpMask);
         uint64_t end            = pSparseEnd[dpos];
-        NNFloat w               = cData._deltaBoost_one * ((pSparseWeight != NULL) ? pSparseWeight[dpos] : (NNFloat)1.0);
+        NNFloat w               = cData._deltaBoost_one * ((pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0);
         uint64_t offset         = pos * stride;
         while (pos1 < end)
         {
@@ -6045,7 +6249,7 @@ kCalculateIndexedSparseAnalogNonZeroSoftMaxL2HingeOutputDelta_kernel(uint32_t po
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateIndexedSparseAnalogNonZeroSoftMaxL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pSparseWeight, unsigned char* pSparseData)
+kCalculateIndexedSparseAnalogNonZeroSoftMaxL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pDataWeight, unsigned char* pSparseData)
 {
     uint64_t pos                = ((blockIdx.x * blockDim.x) + threadIdx.x) / cData._warpSize;
     if (pos < batch)
@@ -6053,7 +6257,7 @@ kCalculateIndexedSparseAnalogNonZeroSoftMaxL2HingeOutputDelta_kernel(uint32_t po
         uint32_t dpos           = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + pos] : position + pos];
         uint64_t pos1           = pSparseStart[dpos] + (threadIdx.x & cData._warpMask);
         uint64_t end            = pSparseEnd[dpos];
-        NNFloat w               = cData._deltaBoost_one * ((pSparseWeight != NULL) ? pSparseWeight[dpos] : (NNFloat)1.0);
+        NNFloat w               = cData._deltaBoost_one * ((pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0);
         uint64_t offset         = pos * stride;
         while (pos1 < end)
         {
@@ -6071,7 +6275,7 @@ kCalculateIndexedSparseAnalogNonZeroSoftMaxL2HingeOutputDelta_kernel(uint32_t po
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateIndexedSparseAnalogNonZeroSoftMaxL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat *pSparseWeight, char* pSparseData)
+kCalculateIndexedSparseAnalogNonZeroSoftMaxL2HingeOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat *pDataWeight, char* pSparseData)
 {
     uint64_t pos                = ((blockIdx.x * blockDim.x) + threadIdx.x) / cData._warpSize;
     if (pos < batch)
@@ -6079,7 +6283,7 @@ kCalculateIndexedSparseAnalogNonZeroSoftMaxL2HingeOutputDelta_kernel(uint32_t po
         uint32_t dpos           = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + pos] : position + pos];
         uint64_t pos1           = pSparseStart[dpos] + (threadIdx.x & cData._warpMask);
         uint64_t end            = pSparseEnd[dpos];
-        NNFloat w               = cData._deltaBoost_one * ((pSparseWeight != NULL) ? pSparseWeight[dpos] : (NNFloat)1.0);
+        NNFloat w               = cData._deltaBoost_one * ((pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0);
         uint64_t offset         = pos * stride;
         while (pos1 < end)
         {
@@ -6095,7 +6299,7 @@ kCalculateIndexedSparseAnalogNonZeroSoftMaxL2HingeOutputDelta_kernel(uint32_t po
 }
 
 template<typename T>
-void kCalculateIndexedSparseAnalogL2HingeOutputDelta(Activation activation, uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pSparseWeight, T* pSparseData, bool bSparseIgnoreZero, NNFloat slope, NNFloat alpha, NNFloat lambda)
+void kCalculateIndexedSparseAnalogL2HingeOutputDelta(Activation activation, uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit,  NNFloat* pDelta, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pDataWeight, T* pSparseData, bool bSparseIgnoreZero, NNFloat slope, NNFloat alpha, NNFloat lambda)
 {
     uint64_t size               = (uint64_t)batch * (uint64_t)stride;
     dim3 grid1(CalculateBlocks(size));
@@ -6112,80 +6316,80 @@ void kCalculateIndexedSparseAnalogL2HingeOutputDelta(Activation activation, uint
         case Sigmoid:
             if (!bSparseIgnoreZero)
             {
-                kCalculateSparseRawSigmoidL2HingeOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(position, pSparseWeight, stride, size, pUnit, pDelta);
+                kCalculateSparseRawSigmoidL2HingeOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(position, pDataWeight, stride, size, pUnit, pDelta);
                 LAUNCHERROR("kCalculateSparseRawSigmoidL2HingeOutputDelta_kernel");
             }
-            kCalculateIndexedSparseAnalogNonZeroSigmoidL2HingeOutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pIndex, pSparseStart, pSparseEnd, pSparseIndex, pSparseWeight, pSparseData);
+            kCalculateIndexedSparseAnalogNonZeroSigmoidL2HingeOutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pIndex, pSparseStart, pSparseEnd, pSparseIndex, pDataWeight, pSparseData);
             LAUNCHERROR("kCalculateIndexedSparseAnalogNonZeroSigmoidL2HingeOutputDelta_kernel");
             break;
         
         case Tanh:
             if (!bSparseIgnoreZero)
             {
-                kCalculateSparseRawTanhL2HingeOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(position, pSparseWeight, stride, size, pUnit, pDelta);
+                kCalculateSparseRawTanhL2HingeOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(position, pDataWeight, stride, size, pUnit, pDelta);
                 LAUNCHERROR("kCalculateSparseRawTanhL2HingeOutputDelta_kernel");
             }
-            kCalculateIndexedSparseAnalogNonZeroTanhL2HingeOutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pIndex, pSparseStart, pSparseEnd, pSparseIndex, pSparseWeight, pSparseData);
+            kCalculateIndexedSparseAnalogNonZeroTanhL2HingeOutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pIndex, pSparseStart, pSparseEnd, pSparseIndex, pDataWeight, pSparseData);
             LAUNCHERROR("kCalculateIndexedSparseAnalogNonZeroTanhL2HingeOutputDelta_kernel");
             break;
 
         case Linear:
             if (!bSparseIgnoreZero)
             {
-                kCalculateSparseRawLinearL2HingeOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(position, pSparseWeight, stride, size, pUnit, pDelta);
+                kCalculateSparseRawLinearL2HingeOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(position, pDataWeight, stride, size, pUnit, pDelta);
                 LAUNCHERROR("kCalculateSparseRawLinearL2HingeOutputDelta_kernel");
             }
-            kCalculateIndexedSparseAnalogNonZeroLinearL2HingeOutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pIndex, pSparseStart, pSparseEnd, pSparseIndex, pSparseWeight, pSparseData);
+            kCalculateIndexedSparseAnalogNonZeroLinearL2HingeOutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pIndex, pSparseStart, pSparseEnd, pSparseIndex, pDataWeight, pSparseData);
             LAUNCHERROR("kCalculateIndexedSparseAnalogNonZeroLinearL2HingeOutputDelta_kernel");
             break;
 
         case RectifiedLinear:
             if (!bSparseIgnoreZero)
             {
-                kCalculateSparseRawRELUL2HingeOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(position, pSparseWeight, stride, size, pUnit, pDelta);
+                kCalculateSparseRawRELUL2HingeOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(position, pDataWeight, stride, size, pUnit, pDelta);
                 LAUNCHERROR("kCalculateSparseRawRELUL2HingeOutputDelta_kernel");
             }
-            kCalculateIndexedSparseAnalogNonZeroRELUL2HingeOutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pIndex, pSparseStart, pSparseEnd, pSparseIndex, pSparseWeight, pSparseData);
+            kCalculateIndexedSparseAnalogNonZeroRELUL2HingeOutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pIndex, pSparseStart, pSparseEnd, pSparseIndex, pDataWeight, pSparseData);
             LAUNCHERROR("kCalculateIndexedSparseAnalogNonZeroRELUL2HingeOutputDelta_kernel");
             break;
             
         case LeakyRectifiedLinear:
             if (!bSparseIgnoreZero)
             {
-                kCalculateSparseRawLRELUL2HingeOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(position, pSparseWeight, stride, size, pUnit, pDelta, slope);
+                kCalculateSparseRawLRELUL2HingeOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(position, pDataWeight, stride, size, pUnit, pDelta, slope);
                 LAUNCHERROR("kCalculateSparseRawLRELUL2HingeOutputDelta_kernel");
             }
-            kCalculateIndexedSparseAnalogNonZeroLRELUL2HingeOutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pIndex, pSparseStart, pSparseEnd, pSparseIndex, pSparseWeight, pSparseData, slope);
+            kCalculateIndexedSparseAnalogNonZeroLRELUL2HingeOutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pIndex, pSparseStart, pSparseEnd, pSparseIndex, pDataWeight, pSparseData, slope);
             LAUNCHERROR("kCalculateIndexedSparseAnalogNonZeroLRELUL2HingeOutputDelta_kernel");
             break;
 
         case ExponentialLinear:
             if (!bSparseIgnoreZero)
             {
-                kCalculateSparseRawELUL2HingeOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(position, pSparseWeight, stride, size, pUnit, pDelta, alpha);
+                kCalculateSparseRawELUL2HingeOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(position, pDataWeight, stride, size, pUnit, pDelta, alpha);
                 LAUNCHERROR("kCalculateSparseRawELUL2HingeOutputDelta_kernel");
             }
-            kCalculateIndexedSparseAnalogNonZeroELUL2HingeOutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pIndex, pSparseStart, pSparseEnd, pSparseIndex, pSparseWeight, pSparseData, alpha);
+            kCalculateIndexedSparseAnalogNonZeroELUL2HingeOutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pIndex, pSparseStart, pSparseEnd, pSparseIndex, pDataWeight, pSparseData, alpha);
             LAUNCHERROR("kCalculateIndexedSparseAnalogNonZeroELUL2HingeOutputDelta_kernel");
             break;
 
         case ScaledExponentialLinear:
             if (!bSparseIgnoreZero)
             {
-                kCalculateSparseRawSELUL2HingeOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(position, pSparseWeight, stride, size, pUnit, pDelta, alpha, lambda);
+                kCalculateSparseRawSELUL2HingeOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(position, pDataWeight, stride, size, pUnit, pDelta, alpha, lambda);
                 LAUNCHERROR("kCalculateSparseRawSELUL2HingeOutputDelta_kernel");
             }
-            kCalculateIndexedSparseAnalogNonZeroSELUL2HingeOutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pIndex, pSparseStart, pSparseEnd, pSparseIndex, pSparseWeight, pSparseData, alpha, lambda);
+            kCalculateIndexedSparseAnalogNonZeroSELUL2HingeOutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pIndex, pSparseStart, pSparseEnd, pSparseIndex, pDataWeight, pSparseData, alpha, lambda);
             LAUNCHERROR("kCalculateIndexedSparseAnalogNonZeroSELUL2HingeOutputDelta_kernel");
             break;
 
         case SoftMax:
             if (!bSparseIgnoreZero)
             {
-                kCalculateSparseRawSoftMaxL2HingeOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(position, pSparseWeight, stride, size, pUnit, pDelta);
+                kCalculateSparseRawSoftMaxL2HingeOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(position, pDataWeight, stride, size, pUnit, pDelta);
                 LAUNCHERROR("kCalculateSparseRawSoftMaxL2HingeOutputDelta_kernel");
             }
-            kCalculateIndexedSparseAnalogNonZeroSoftMaxL2HingeOutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pIndex, pSparseStart, pSparseEnd, pSparseIndex, pSparseWeight, pSparseData);
+            kCalculateIndexedSparseAnalogNonZeroSoftMaxL2HingeOutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pIndex, pSparseStart, pSparseEnd, pSparseIndex, pDataWeight, pSparseData);
             LAUNCHERROR("kCalculateIndexedSparseAnalogNonZeroSoftMaxL2HingeOutputDelta_kernel");
             break;         
     }
@@ -6194,59 +6398,65 @@ void kCalculateIndexedSparseAnalogL2HingeOutputDelta(Activation activation, uint
 template<typename T>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateSigmoidCrossEntropyOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, T* pData)
+kCalculateSigmoidCrossEntropyOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, T* pData, NNFloat* pDataWeight)
 {
     uint64_t pos                = (blockIdx.y * blockDim.x) + threadIdx.x;
     if (pos < stride)
     {
         uint64_t uOffset        = blockIdx.x * stride;
-        uint64_t dOffset        = (cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x) * stride;
+        uint64_t dpos           = cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x;
+        uint64_t dOffset        = dpos * stride;
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
         NNFloat a               = pUnit[uOffset + pos];
         NNFloat t               = pData[dOffset + pos];
-        pDelta[uOffset + pos]   = (a - t);      
+        pDelta[uOffset + pos]   = w * (a - t);      
     }
 }
 
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateSigmoidCrossEntropyOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, unsigned char* pData)
+kCalculateSigmoidCrossEntropyOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, unsigned char* pData, NNFloat* pDataWeight)
 {
     uint64_t pos                = (blockIdx.y * blockDim.x) + threadIdx.x;
     if (pos < stride)
     {
         uint64_t uOffset        = blockIdx.x * stride;
-        uint64_t dOffset        = (cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x) * stride;
+        uint64_t dpos           = cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x;
+        uint64_t dOffset        = dpos * stride;
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
         NNFloat a               = pUnit[uOffset + pos];
         NNFloat t               = (NNFloat)pData[dOffset + pos] * (NNFloat)(1.0 / 256.0);
-        pDelta[uOffset + pos]   = (a - t);      
+        pDelta[uOffset + pos]   = w * (a - t);      
     }
 }
 
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateSigmoidCrossEntropyOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, char* pData)
+kCalculateSigmoidCrossEntropyOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, char* pData, NNFloat* pDataWeight)
 {
     uint64_t pos                = (blockIdx.y * blockDim.x) + threadIdx.x;
     if (pos < stride)
     {
         uint64_t uOffset        = blockIdx.x * stride;
-        uint64_t dOffset        = (cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x) * stride;
+        uint64_t dpos           = cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x;
+        uint64_t dOffset        = dpos * stride;
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
         NNFloat a               = pUnit[uOffset + pos];
         NNFloat t               = (NNFloat)pData[dOffset + pos] * (NNFloat)(1.0 / 128.0);
-        pDelta[uOffset + pos]   = (a - t);      
+        pDelta[uOffset + pos]   = w * (a - t);      
     }
 }
 
-template<typename T> void kCalculateCrossEntropyOutputDelta(Activation activation, uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, T* pData)
+template<typename T> void kCalculateCrossEntropyOutputDelta(Activation activation, uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, T* pData, NNFloat* pDataWeight)
 {
     dim3 grid(batch, (stride + getGpu()._threadsPerBlock - 1) / getGpu()._threadsPerBlock);
     switch (activation)
     {
         case Sigmoid:
         case SoftMax:
-            kCalculateSigmoidCrossEntropyOutputDelta_kernel<<<grid, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pData);
+            kCalculateSigmoidCrossEntropyOutputDelta_kernel<<<grid, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pData, pDataWeight);
             LAUNCHERROR("kCalculateSigmoidCrossEntropyOutputDelta_kernel");
             break;
     }
@@ -6255,60 +6465,66 @@ template<typename T> void kCalculateCrossEntropyOutputDelta(Activation activatio
 template<typename T>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateIndexedSigmoidCrossEntropyOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, T* pData)
+kCalculateIndexedSigmoidCrossEntropyOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, T* pData, NNFloat* pDataWeight)
 {
     uint64_t pos                = (blockIdx.y * blockDim.x) + threadIdx.x;
     if (pos < stride)
     {
         uint64_t uOffset        = blockIdx.x * stride;
-        uint64_t dOffset        = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x] * stride;
+        uint64_t dpos           = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x];
+        uint64_t dOffset        = dpos * stride;
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
         NNFloat a               = pUnit[uOffset + pos];
         NNFloat t               = pData[dOffset + pos];
-        pDelta[uOffset + pos]   = (a - t);      
+        pDelta[uOffset + pos]   = w * (a - t);      
     }
 }
 
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateIndexedSigmoidCrossEntropyOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, unsigned char* pData)
+kCalculateIndexedSigmoidCrossEntropyOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, unsigned char* pData, NNFloat* pDataWeight)
 {
     uint64_t pos                = (blockIdx.y * blockDim.x) + threadIdx.x;
     if (pos < stride)
     {
         uint64_t uOffset        = blockIdx.x * stride;
-        uint64_t dOffset        = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x] * stride;
+        uint64_t dpos           = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x];
+        uint64_t dOffset        = dpos * stride;
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
         NNFloat a               = pUnit[uOffset + pos];
         NNFloat t               = (NNFloat)pData[dOffset + pos] * (NNFloat)(1.0 / 256.0);
-        pDelta[uOffset + pos]   = (a - t);      
+        pDelta[uOffset + pos]   = w * (a - t);      
     }
 }
 
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateIndexedSigmoidCrossEntropyOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, char* pData)
+kCalculateIndexedSigmoidCrossEntropyOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, char* pData, NNFloat* pDataWeight)
 {
     uint64_t pos                = (blockIdx.y * blockDim.x) + threadIdx.x;
     if (pos < stride)
     {
         uint64_t uOffset        = blockIdx.x * stride;
-        uint64_t dOffset        = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x] * stride;
+        uint64_t dpos           = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x];
+        uint64_t dOffset        = dpos * stride;
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
         NNFloat a               = pUnit[uOffset + pos];
         NNFloat t               = (NNFloat)pData[dOffset + pos] * (NNFloat)(1.0 / 128.0);
-        pDelta[uOffset + pos]   = (a - t);      
+        pDelta[uOffset + pos]   = w * (a - t);      
     }
 }
 
 template<typename T> 
-void kCalculateIndexedCrossEntropyOutputDelta(Activation activation, uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, T* pData)
+void kCalculateIndexedCrossEntropyOutputDelta(Activation activation, uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, T* pData, NNFloat* pDataWeight)
 {
     dim3 grid(batch, (stride + getGpu()._threadsPerBlock - 1) / getGpu()._threadsPerBlock);
     switch (activation)
     {
         case Sigmoid:
         case SoftMax:
-            kCalculateIndexedSigmoidCrossEntropyOutputDelta_kernel<<<grid, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pIndex, pData);
+            kCalculateIndexedSigmoidCrossEntropyOutputDelta_kernel<<<grid, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pIndex, pData, pDataWeight);
             LAUNCHERROR("kCalculateIndexedSigmoidCrossEntropyOutputDelta_kernel");
             break;
     }
@@ -6316,17 +6532,17 @@ void kCalculateIndexedCrossEntropyOutputDelta(Activation activation, uint32_t po
 
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateSparseRawSigmoidCrossEntropyOutputDelta_kernel(uint32_t position, NNFloat* pSparseWeight, uint32_t stride, uint64_t size, NNFloat* pUnit, NNFloat* pDelta)
+kCalculateSparseRawSigmoidCrossEntropyOutputDelta_kernel(uint32_t position, NNFloat* pDataWeight, uint32_t stride, uint64_t size, NNFloat* pUnit, NNFloat* pDelta)
 {
     uint64_t pos                = (blockIdx.x * blockDim.x) + threadIdx.x;
     if (pos < size)
     {
         NNFloat w               = cData._deltaBoost_zero;
-        if (pSparseWeight != NULL)
+        if (pDataWeight != NULL)
         {
             uint64_t dpos       = (pos / stride) + position;
             dpos                = cData._bShuffleIndices ? cData._pShuffleIndex[dpos] : dpos;
-            w                  *= pSparseWeight[dpos];
+            w                  *= pDataWeight[dpos];
         }
         NNFloat a               = pUnit[pos];
         pDelta[pos]             = w * a;       
@@ -6335,7 +6551,7 @@ kCalculateSparseRawSigmoidCrossEntropyOutputDelta_kernel(uint32_t position, NNFl
 
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateSparseNonZeroSigmoidCrossEntropyOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pSparseWeight)
+kCalculateSparseNonZeroSigmoidCrossEntropyOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pDataWeight)
 {
     uint64_t pos                = ((blockIdx.x * blockDim.x) + threadIdx.x) / cData._warpSize;
     if (pos < batch)
@@ -6343,7 +6559,7 @@ kCalculateSparseNonZeroSigmoidCrossEntropyOutputDelta_kernel(uint32_t position, 
         uint64_t dpos           = cData._bShuffleIndices ? cData._pShuffleIndex[position + pos] : position + pos;
         uint64_t pos1           = pSparseStart[dpos] + (threadIdx.x & cData._warpMask);
         uint64_t end            = pSparseEnd[dpos];
-        NNFloat w               = cData._deltaBoost_one * ((pSparseWeight != NULL) ? pSparseWeight[dpos] : (NNFloat)1.0);
+        NNFloat w               = cData._deltaBoost_one * ((pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0);
         uint64_t offset         = pos * stride;
         while (pos1 < end)
         {
@@ -6355,7 +6571,7 @@ kCalculateSparseNonZeroSigmoidCrossEntropyOutputDelta_kernel(uint32_t position, 
     }
 }
 
-void kCalculateSparseCrossEntropyOutputDelta(Activation activation, uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pSparseWeight, bool bSparseIgnoreZero)
+void kCalculateSparseCrossEntropyOutputDelta(Activation activation, uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pDataWeight, bool bSparseIgnoreZero)
 {
     uint64_t size               = (uint64_t)batch * (uint64_t)stride;
     dim3 grid1(CalculateBlocks(size));
@@ -6372,20 +6588,20 @@ void kCalculateSparseCrossEntropyOutputDelta(Activation activation, uint32_t pos
         case SoftMax:
             if (!bSparseIgnoreZero)
             {
-                kCalculateSparseRawSoftMaxOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(position, pSparseWeight, stride, size, pUnit, pDelta);
+                kCalculateSparseRawSoftMaxOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(position, pDataWeight, stride, size, pUnit, pDelta);
                 LAUNCHERROR("kCalculateSparseRawSoftMaxOutputDelta_kernel");
             }
-            kCalculateSparseNonZeroSoftMaxOutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pSparseStart, pSparseEnd, pSparseIndex, pSparseWeight);
+            kCalculateSparseNonZeroSoftMaxOutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pSparseStart, pSparseEnd, pSparseIndex, pDataWeight);
             LAUNCHERROR("kCalculateSparseNonZeroSoftMaxOutputDelta_kernel");
             break;    
 
         case Sigmoid:
             if (!bSparseIgnoreZero)
             {
-                kCalculateSparseRawSigmoidCrossEntropyOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(position, pSparseWeight, stride, size, pUnit, pDelta);
+                kCalculateSparseRawSigmoidCrossEntropyOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(position, pDataWeight, stride, size, pUnit, pDelta);
                 LAUNCHERROR("kCalculateSparseRawSigmoidCrossEntropyOutputDelta_kernel");
             }
-            kCalculateSparseNonZeroSigmoidCrossEntropyOutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pSparseStart, pSparseEnd, pSparseIndex, pSparseWeight);
+            kCalculateSparseNonZeroSigmoidCrossEntropyOutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pSparseStart, pSparseEnd, pSparseIndex, pDataWeight);
             LAUNCHERROR("kCalculateSparseNonzeroSigmoidCrossEntropyOutputDelta_kernel");
             break;
     }
@@ -6393,7 +6609,7 @@ void kCalculateSparseCrossEntropyOutputDelta(Activation activation, uint32_t pos
 
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateIndexedSparseNonZeroSigmoidCrossEntropyOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pSparseWeight)
+kCalculateIndexedSparseNonZeroSigmoidCrossEntropyOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pDataWeight)
 {
     uint64_t pos                = ((blockIdx.x * blockDim.x) + threadIdx.x) / cData._warpSize;
     if (pos < batch)
@@ -6401,7 +6617,7 @@ kCalculateIndexedSparseNonZeroSigmoidCrossEntropyOutputDelta_kernel(uint32_t pos
         uint64_t dpos           = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + pos] : position + pos];
         uint64_t pos1           = pSparseStart[dpos] + (threadIdx.x & cData._warpMask);
         uint64_t end            = pSparseEnd[dpos];
-        NNFloat w               = cData._deltaBoost_one * ((pSparseWeight != NULL) ? pSparseWeight[dpos] : (NNFloat)1.0);
+        NNFloat w               = cData._deltaBoost_one * ((pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0);
         uint64_t offset         = pos * stride;
         while (pos1 < end)
         {
@@ -6413,7 +6629,7 @@ kCalculateIndexedSparseNonZeroSigmoidCrossEntropyOutputDelta_kernel(uint32_t pos
     }
 }
 
-void kCalculateIndexedSparseCrossEntropyOutputDelta(Activation activation, uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pSparseWeight, bool bSparseIgnoreZero)
+void kCalculateIndexedSparseCrossEntropyOutputDelta(Activation activation, uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pDataWeight, bool bSparseIgnoreZero)
 {
     uint64_t size               = (uint64_t)batch * (uint64_t)stride;
     dim3 grid1(CalculateBlocks(size));
@@ -6430,20 +6646,20 @@ void kCalculateIndexedSparseCrossEntropyOutputDelta(Activation activation, uint3
         case SoftMax:
             if (!bSparseIgnoreZero)
             {
-                kCalculateSparseRawSoftMaxOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(position, pSparseWeight, stride, size, pUnit, pDelta);
+                kCalculateSparseRawSoftMaxOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(position, pDataWeight, stride, size, pUnit, pDelta);
                 LAUNCHERROR("kCalculateSparseRawSoftMaxOutputDelta_kernel");
             }
-            kCalculateIndexedSparseNonZeroSoftMaxOutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pIndex, pSparseStart, pSparseEnd, pSparseIndex, pSparseWeight);
+            kCalculateIndexedSparseNonZeroSoftMaxOutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pIndex, pSparseStart, pSparseEnd, pSparseIndex, pDataWeight);
             LAUNCHERROR("kCalculateIndexedSparseNonZeroSoftMaxOutputDelta_kernel");
             break;    
 
         case Sigmoid:
             if (!bSparseIgnoreZero)
             {
-                kCalculateSparseRawSigmoidCrossEntropyOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(position, pSparseWeight, stride, size, pUnit, pDelta);
+                kCalculateSparseRawSigmoidCrossEntropyOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(position, pDataWeight, stride, size, pUnit, pDelta);
                 LAUNCHERROR("kCalculateSparseRawSigmoidCrossEntropyOutputDelta_kernel");
             }
-            kCalculateIndexedSparseNonZeroSigmoidCrossEntropyOutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pIndex, pSparseStart, pSparseEnd, pSparseIndex, pSparseWeight);
+            kCalculateIndexedSparseNonZeroSigmoidCrossEntropyOutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pIndex, pSparseStart, pSparseEnd, pSparseIndex, pDataWeight);
             LAUNCHERROR("kCalculateIndexedSparseNonzeroSigmoidCrossEntropyOutputDelta_kernel");
             break;
     }
@@ -6452,7 +6668,7 @@ void kCalculateIndexedSparseCrossEntropyOutputDelta(Activation activation, uint3
 template<typename T>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateSparseAnalogNonZeroSigmoidCrossEntropyOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pSparseWeight, T* pSparseData)
+kCalculateSparseAnalogNonZeroSigmoidCrossEntropyOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pDataWeight, T* pSparseData)
 {
     uint64_t pos                = ((blockIdx.x * blockDim.x) + threadIdx.x) / cData._warpSize;
     if (pos < batch)
@@ -6460,7 +6676,7 @@ kCalculateSparseAnalogNonZeroSigmoidCrossEntropyOutputDelta_kernel(uint32_t posi
         uint64_t dpos           = cData._bShuffleIndices ? cData._pShuffleIndex[position + pos] : position + pos;
         uint64_t pos1           = pSparseStart[dpos] + (threadIdx.x & cData._warpMask);
         uint64_t end            = pSparseEnd[dpos];
-        NNFloat w               = cData._deltaBoost_one * ((pSparseWeight != NULL) ? pSparseWeight[dpos] : (NNFloat)1.0);
+        NNFloat w               = cData._deltaBoost_one * ((pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0);
         uint64_t offset         = pos * stride;
         while (pos1 < end)
         {
@@ -6476,7 +6692,7 @@ kCalculateSparseAnalogNonZeroSigmoidCrossEntropyOutputDelta_kernel(uint32_t posi
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateSparseAnalogNonZeroSigmoidCrossEntropyOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pSparseWeight, char* pSparseData)
+kCalculateSparseAnalogNonZeroSigmoidCrossEntropyOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pDataWeight, char* pSparseData)
 {
     uint64_t pos                = ((blockIdx.x * blockDim.x) + threadIdx.x) / cData._warpSize;
     if (pos < batch)
@@ -6484,7 +6700,7 @@ kCalculateSparseAnalogNonZeroSigmoidCrossEntropyOutputDelta_kernel(uint32_t posi
         uint64_t dpos           = cData._bShuffleIndices ? cData._pShuffleIndex[position + pos] : position + pos;
         uint64_t pos1           = pSparseStart[dpos] + (threadIdx.x & cData._warpMask);
         uint64_t end            = pSparseEnd[dpos];
-        NNFloat w               = cData._deltaBoost_one * ((pSparseWeight != NULL) ? pSparseWeight[dpos] : (NNFloat)1.0);
+        NNFloat w               = cData._deltaBoost_one * ((pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0);
         uint64_t offset         = pos * stride;
         while (pos1 < end)
         {
@@ -6500,7 +6716,7 @@ kCalculateSparseAnalogNonZeroSigmoidCrossEntropyOutputDelta_kernel(uint32_t posi
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateSparseAnalogNonZeroSigmoidCrossEntropyOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pSparseWeight, unsigned char* pSparseData)
+kCalculateSparseAnalogNonZeroSigmoidCrossEntropyOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pDataWeight, unsigned char* pSparseData)
 {
     uint64_t pos                = ((blockIdx.x * blockDim.x) + threadIdx.x) / cData._warpSize;
     if (pos < batch)
@@ -6508,7 +6724,7 @@ kCalculateSparseAnalogNonZeroSigmoidCrossEntropyOutputDelta_kernel(uint32_t posi
         uint64_t dpos           = cData._bShuffleIndices ? cData._pShuffleIndex[position + pos] : position + pos;
         uint64_t pos1           = pSparseStart[dpos] + (threadIdx.x & cData._warpMask);
         uint64_t end            = pSparseEnd[dpos];
-        NNFloat w               = cData._deltaBoost_one * ((pSparseWeight != NULL) ? pSparseWeight[dpos] : (NNFloat)1.0);
+        NNFloat w               = cData._deltaBoost_one * ((pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0);
         uint64_t offset         = pos * stride;
         while (pos1 < end)
         {
@@ -6522,7 +6738,7 @@ kCalculateSparseAnalogNonZeroSigmoidCrossEntropyOutputDelta_kernel(uint32_t posi
 }
 
 template<typename T>
-void kCalculateSparseAnalogCrossEntropyOutputDelta(Activation activation, uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pSparseWeight, T* pSparseData, bool bSparseIgnoreZero)
+void kCalculateSparseAnalogCrossEntropyOutputDelta(Activation activation, uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pDataWeight, T* pSparseData, bool bSparseIgnoreZero)
 {
     uint64_t size               = (uint64_t)batch * (uint64_t)stride;
     dim3 grid1(CalculateBlocks(size));
@@ -6540,10 +6756,10 @@ void kCalculateSparseAnalogCrossEntropyOutputDelta(Activation activation, uint32
         case Sigmoid:
             if (!bSparseIgnoreZero)
             {
-                kCalculateSparseRawSigmoidCrossEntropyOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(position, pSparseWeight, stride, size, pUnit, pDelta);
+                kCalculateSparseRawSigmoidCrossEntropyOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(position, pDataWeight, stride, size, pUnit, pDelta);
                 LAUNCHERROR("kCalculateSparseRawSigmoidCrossEntropyOutputDelta_kernel");
             }
-            kCalculateSparseAnalogNonZeroSigmoidCrossEntropyOutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pSparseStart, pSparseEnd, pSparseIndex, pSparseWeight, pSparseData);
+            kCalculateSparseAnalogNonZeroSigmoidCrossEntropyOutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pSparseStart, pSparseEnd, pSparseIndex, pDataWeight, pSparseData);
             LAUNCHERROR("kCalculateSparseAnalogNonzeroSigmoidCrossEntropyOutputDelta_kernel");
             break;
     }
@@ -6552,7 +6768,7 @@ void kCalculateSparseAnalogCrossEntropyOutputDelta(Activation activation, uint32
 template<typename T>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateIndexedSparseAnalogNonZeroSigmoidCrossEntropyOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pSparseWeight, T* pSparseData)
+kCalculateIndexedSparseAnalogNonZeroSigmoidCrossEntropyOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pDataWeight, T* pSparseData)
 {
     uint64_t pos                = ((blockIdx.x * blockDim.x) + threadIdx.x) / cData._warpSize;
     if (pos < batch)
@@ -6560,7 +6776,7 @@ kCalculateIndexedSparseAnalogNonZeroSigmoidCrossEntropyOutputDelta_kernel(uint32
         uint64_t dpos           = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + pos] : position + pos];
         uint64_t pos1           = pSparseStart[dpos] + (threadIdx.x & cData._warpMask);
         uint64_t end            = pSparseEnd[dpos];
-        NNFloat w               = cData._deltaBoost_one * ((pSparseWeight != NULL) ? pSparseWeight[dpos] : (NNFloat)1.0);
+        NNFloat w               = cData._deltaBoost_one * ((pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0);
         uint64_t offset         = pos * stride;
         while (pos1 < end)
         {
@@ -6576,7 +6792,7 @@ kCalculateIndexedSparseAnalogNonZeroSigmoidCrossEntropyOutputDelta_kernel(uint32
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateIndexedSparseAnalogNonZeroSigmoidCrossEntropyOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pSparseWeight, char* pSparseData)
+kCalculateIndexedSparseAnalogNonZeroSigmoidCrossEntropyOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pDataWeight, char* pSparseData)
 {
     uint64_t pos                = ((blockIdx.x * blockDim.x) + threadIdx.x) / cData._warpSize;
     if (pos < batch)
@@ -6585,7 +6801,7 @@ kCalculateIndexedSparseAnalogNonZeroSigmoidCrossEntropyOutputDelta_kernel(uint32
         uint64_t pos1           = pSparseStart[dpos] + (threadIdx.x & cData._warpMask);
         uint64_t end            = pSparseEnd[dpos];
         uint64_t offset         = pos * stride;
-        NNFloat w               = cData._deltaBoost_one * ((pSparseWeight != NULL) ? pSparseWeight[dpos] : (NNFloat)1.0);
+        NNFloat w               = cData._deltaBoost_one * ((pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0);
         while (pos1 < end)
         {
             uint32_t pos2       = offset + pSparseIndex[pos1];
@@ -6600,7 +6816,7 @@ kCalculateIndexedSparseAnalogNonZeroSigmoidCrossEntropyOutputDelta_kernel(uint32
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateIndexedSparseAnalogNonZeroSigmoidCrossEntropyOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pSparseWeight, unsigned char* pSparseData)
+kCalculateIndexedSparseAnalogNonZeroSigmoidCrossEntropyOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pDataWeight, unsigned char* pSparseData)
 {
     uint64_t pos                = ((blockIdx.x * blockDim.x) + threadIdx.x) / cData._warpSize;
     if (pos < batch)
@@ -6608,7 +6824,7 @@ kCalculateIndexedSparseAnalogNonZeroSigmoidCrossEntropyOutputDelta_kernel(uint32
         uint64_t dpos           = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + pos] : position + pos];
         uint64_t pos1           = pSparseStart[dpos] + (threadIdx.x & cData._warpMask);
         uint64_t end            = pSparseEnd[dpos];
-        NNFloat w               = cData._deltaBoost_one * ((pSparseWeight != NULL) ? pSparseWeight[dpos] : (NNFloat)1.0);
+        NNFloat w               = cData._deltaBoost_one * ((pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0);
         uint64_t offset         = pos * stride;
         while (pos1 < end)
         {
@@ -6622,7 +6838,7 @@ kCalculateIndexedSparseAnalogNonZeroSigmoidCrossEntropyOutputDelta_kernel(uint32
 }
 
 template<typename T>
-void kCalculateIndexedSparseAnalogCrossEntropyOutputDelta(Activation activation, uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pSparseWeight, T* pSparseData, bool bSparseIgnoreZero)
+void kCalculateIndexedSparseAnalogCrossEntropyOutputDelta(Activation activation, uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pDataWeight, T* pSparseData, bool bSparseIgnoreZero)
 {
     uint64_t size               = (uint64_t)batch * (uint64_t)stride;
     dim3 grid1(CalculateBlocks(size));
@@ -6640,10 +6856,10 @@ void kCalculateIndexedSparseAnalogCrossEntropyOutputDelta(Activation activation,
         case Sigmoid:
             if (!bSparseIgnoreZero)
             {
-                kCalculateSparseRawSigmoidCrossEntropyOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(position, pSparseWeight, stride, size, pUnit, pDelta);
+                kCalculateSparseRawSigmoidCrossEntropyOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(position, pDataWeight, stride, size, pUnit, pDelta);
                 LAUNCHERROR("kCalculateSparseRawSigmoidCrossEntropyOutputDelta_kernel");
             }
-            kCalculateIndexedSparseAnalogNonZeroSigmoidCrossEntropyOutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pIndex, pSparseStart, pSparseEnd, pSparseIndex, pSparseWeight, pSparseData);
+            kCalculateIndexedSparseAnalogNonZeroSigmoidCrossEntropyOutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pIndex, pSparseStart, pSparseEnd, pSparseIndex, pDataWeight, pSparseData);
             LAUNCHERROR("kCalculateIndexedSparseAnalogNonzeroSigmoidCrossEntropyOutputDelta_kernel");
             break;
     }
@@ -6652,13 +6868,15 @@ void kCalculateIndexedSparseAnalogCrossEntropyOutputDelta(Activation activation,
 template<typename T>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateSigmoidScaledMarginalCrossEntropyOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, T* pData)
+kCalculateSigmoidScaledMarginalCrossEntropyOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, T* pData, NNFloat* pDataWeight)
 {
     uint64_t pos                = (blockIdx.y * blockDim.x) + threadIdx.x;
     if (pos < stride)
     {
         uint64_t uOffset        = blockIdx.x * stride;
-        uint64_t dOffset        = (cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x) * stride;
+        uint64_t dpos           = cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x;
+        uint64_t dOffset        = dpos * stride;
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
         NNFloat a               = pUnit[uOffset + pos];
         NNFloat t               = pData[dOffset + pos];
         NNFloat output          = (NNFloat)0.0;
@@ -6666,20 +6884,22 @@ kCalculateSigmoidScaledMarginalCrossEntropyOutputDelta_kernel(uint32_t position,
             output              = cData._SMCE_oneScale * (a - t);
         else if ((t == (NNFloat)0.0) && (a > cData._SMCE_zeroTarget))
             output              = cData._SMCE_zeroScale * (a - t); 
-        pDelta[uOffset + pos]   = output;
+        pDelta[uOffset + pos]   = w * output;
     }
 }
 
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateSigmoidScaledMarginalCrossEntropyOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, unsigned char* pData)
+kCalculateSigmoidScaledMarginalCrossEntropyOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, unsigned char* pData, NNFloat* pDataWeight)
 {
     uint64_t pos                = (blockIdx.y * blockDim.x) + threadIdx.x;
     if (pos < stride)
     {
         uint64_t uOffset        = blockIdx.x * stride;
-        uint64_t dOffset        = (cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x) * stride;
+        uint64_t dpos           = cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x;
+        uint64_t dOffset        = dpos * stride;
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
         NNFloat a               = pUnit[uOffset + pos];
         NNFloat t               = (NNFloat)pData[dOffset + pos] * (NNFloat)(1.0 / 256.0);
         NNFloat output          = (NNFloat)0.0;
@@ -6687,7 +6907,7 @@ kCalculateSigmoidScaledMarginalCrossEntropyOutputDelta_kernel(uint32_t position,
             output              = cData._SMCE_oneScale * (a - t);
         else if ((t == (NNFloat)0.0) && (a > cData._SMCE_zeroTarget))
             output              = cData._SMCE_zeroScale * (a - t);   
-        pDelta[uOffset + pos]   = output;      
+        pDelta[uOffset + pos]   = w * output;      
     }
 }
 
@@ -6695,13 +6915,15 @@ kCalculateSigmoidScaledMarginalCrossEntropyOutputDelta_kernel(uint32_t position,
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateSigmoidScaledMarginalCrossEntropyOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, char* pData)
+kCalculateSigmoidScaledMarginalCrossEntropyOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, char* pData, NNFloat* pDataWeight)
 {
     uint64_t pos                = (blockIdx.y * blockDim.x) + threadIdx.x;
     if (pos < stride)
     {
         uint64_t uOffset        = blockIdx.x * stride;
-        uint64_t dOffset        = (cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x) * stride;
+        uint64_t dpos           = cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x;
+        uint64_t dOffset        = dpos * stride;
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
         NNFloat a               = pUnit[uOffset + pos];
         NNFloat t               = (NNFloat)pData[dOffset + pos] * (NNFloat)(1.0 / 128.0);
         NNFloat output          = (NNFloat)0.0;
@@ -6709,7 +6931,7 @@ kCalculateSigmoidScaledMarginalCrossEntropyOutputDelta_kernel(uint32_t position,
             output              = cData._SMCE_oneScale * (a - t);
         else if ((t == (NNFloat)0.0) && (a > cData._SMCE_zeroTarget))
             output              = cData._SMCE_zeroScale * (a - t);   
-        pDelta[uOffset + pos]   = output;
+        pDelta[uOffset + pos]   = w * output;
     }
 }
 
@@ -6717,13 +6939,15 @@ kCalculateSigmoidScaledMarginalCrossEntropyOutputDelta_kernel(uint32_t position,
 template<typename T>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateSoftMaxScaledMarginalCrossEntropyOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, T* pData)
+kCalculateSoftMaxScaledMarginalCrossEntropyOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, T* pData, NNFloat* pDataWeight)
 {
     uint64_t pos                = (blockIdx.y * blockDim.x) + threadIdx.x;
     if (pos < stride)
     {
         uint64_t uOffset        = blockIdx.x * stride;
-        uint64_t dOffset        = (cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x) * stride;
+        uint64_t dpos           = cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x;
+        uint64_t dOffset        = dpos * stride;
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
         NNFloat a               = pUnit[uOffset + pos];
         NNFloat t               = pData[dOffset + pos];
         NNFloat output          = (NNFloat)0.0;
@@ -6731,20 +6955,22 @@ kCalculateSoftMaxScaledMarginalCrossEntropyOutputDelta_kernel(uint32_t position,
             output              = cData._SMCE_oneScale * (a - t);
         else if ((t == (NNFloat)0.0) && (a > cData._SMCE_zeroTarget))
             output              = cData._SMCE_zeroScale * (a - t); 
-        pDelta[uOffset + pos]   = output;
+        pDelta[uOffset + pos]   = w * output;
     }
 }
 
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateSoftMaxScaledMarginalCrossEntropyOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, unsigned char* pData)
+kCalculateSoftMaxScaledMarginalCrossEntropyOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, unsigned char* pData, NNFloat* pDataWeight)
 {
     uint64_t pos                = (blockIdx.y * blockDim.x) + threadIdx.x;
     if (pos < stride)
     {
         uint64_t uOffset        = blockIdx.x * stride;
-        uint64_t dOffset        = (cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x) * stride;
+        uint64_t dpos           = cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x;
+        uint64_t dOffset        = dpos * stride;
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
         NNFloat a               = pUnit[uOffset + pos];
         NNFloat t               = (NNFloat)pData[dOffset + pos] * (NNFloat)(1.0 / 256.0);
         NNFloat output          = (NNFloat)0.0;
@@ -6752,7 +6978,7 @@ kCalculateSoftMaxScaledMarginalCrossEntropyOutputDelta_kernel(uint32_t position,
             output              = cData._SMCE_oneScale * (a - t);
         else if ((t == (NNFloat)0.0) && (a > cData._SMCE_zeroTarget))
             output              = cData._SMCE_zeroScale * (a - t);   
-        pDelta[uOffset + pos]   = output;      
+        pDelta[uOffset + pos]   = w * output;      
     }
 }
 
@@ -6760,13 +6986,15 @@ kCalculateSoftMaxScaledMarginalCrossEntropyOutputDelta_kernel(uint32_t position,
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateSoftMaxScaledMarginalCrossEntropyOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, char* pData)
+kCalculateSoftMaxScaledMarginalCrossEntropyOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, char* pData, NNFloat* pDataWeight)
 {
     uint64_t pos                = (blockIdx.y * blockDim.x) + threadIdx.x;
     if (pos < stride)
     {
         uint64_t uOffset        = blockIdx.x * stride;
-        uint64_t dOffset        = (cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x) * stride;
+        uint64_t dpos           = cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x;
+        uint64_t dOffset        = dpos * stride;
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
         NNFloat a               = pUnit[uOffset + pos];
         NNFloat t               = (NNFloat)pData[dOffset + pos] * (NNFloat)(1.0 / 128.0);
         NNFloat output          = (NNFloat)0.0;
@@ -6774,22 +7002,22 @@ kCalculateSoftMaxScaledMarginalCrossEntropyOutputDelta_kernel(uint32_t position,
             output              = cData._SMCE_oneScale * (a - t);
         else if ((t == (NNFloat)0.0) && (a > cData._SMCE_zeroTarget))
             output              = cData._SMCE_zeroScale * (a - t);   
-        pDelta[uOffset + pos]   = output;
+        pDelta[uOffset + pos]   = w * output;
     }
 }
 
-template<typename T> void kCalculateScaledMarginalCrossEntropyOutputDelta(Activation activation, uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, T* pData)
+template<typename T> void kCalculateScaledMarginalCrossEntropyOutputDelta(Activation activation, uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, T* pData, NNFloat* pDataWeight)
 {
     dim3 grid(batch, (stride + getGpu()._threadsPerBlock - 1) / getGpu()._threadsPerBlock);
     switch (activation)
     {
         case Sigmoid:
-            kCalculateSigmoidScaledMarginalCrossEntropyOutputDelta_kernel<<<grid, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pData);
+            kCalculateSigmoidScaledMarginalCrossEntropyOutputDelta_kernel<<<grid, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pData, pDataWeight);
             LAUNCHERROR("kCalculateSigmoidScaledMarginalCrossEntropyOutputDelta_kernel");
             break;
 
         case SoftMax:
-            kCalculateSoftMaxScaledMarginalCrossEntropyOutputDelta_kernel<<<grid, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pData);
+            kCalculateSoftMaxScaledMarginalCrossEntropyOutputDelta_kernel<<<grid, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pData, pDataWeight);
             LAUNCHERROR("kCalculateSoftMaxScaledMarginalCrossEntropyOutputDelta_kernel");
             break;                    
     }
@@ -6798,13 +7026,15 @@ template<typename T> void kCalculateScaledMarginalCrossEntropyOutputDelta(Activa
 template<typename T>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateIndexedSigmoidScaledMarginalCrossEntropyOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, T* pData)
+kCalculateIndexedSigmoidScaledMarginalCrossEntropyOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, T* pData, NNFloat* pDataWeight)
 {
     uint64_t pos                = (blockIdx.y * blockDim.x) + threadIdx.x;
     if (pos < stride)
     {
         uint64_t uOffset        = blockIdx.x * stride;
-        uint64_t dOffset        = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x] * stride;
+        uint64_t dpos           = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x];
+        uint64_t dOffset        = dpos * stride;
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
         NNFloat a               = pUnit[uOffset + pos];
         NNFloat t               = pData[dOffset + pos];
         NNFloat output          = (NNFloat)0.0;
@@ -6812,20 +7042,22 @@ kCalculateIndexedSigmoidScaledMarginalCrossEntropyOutputDelta_kernel(uint32_t po
             output              = cData._SMCE_oneScale * (a - t);
         else if ((t == (NNFloat)0.0) && (a > cData._SMCE_zeroTarget))
             output              = cData._SMCE_zeroScale * (a - t); 
-        pDelta[uOffset + pos]   = output;
+        pDelta[uOffset + pos]   = w * output;
     }
 }
 
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateIndexedSigmoidScaledMarginalCrossEntropyOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, unsigned char* pData)
+kCalculateIndexedSigmoidScaledMarginalCrossEntropyOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, unsigned char* pData, NNFloat* pDataWeight)
 {
     uint64_t pos                = (blockIdx.y * blockDim.x) + threadIdx.x;
     if (pos < stride)
     {
         uint64_t uOffset        = blockIdx.x * stride;
-        uint64_t dOffset        = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x] * stride;
+        uint64_t dpos           = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x];
+        uint64_t dOffset        = dpos * stride;
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
         NNFloat a               = pUnit[uOffset + pos];
         NNFloat t               = (NNFloat)pData[dOffset + pos] * (NNFloat)(1.0 / 256.0);
         NNFloat output          = (NNFloat)0.0;
@@ -6833,7 +7065,7 @@ kCalculateIndexedSigmoidScaledMarginalCrossEntropyOutputDelta_kernel(uint32_t po
             output              = cData._SMCE_oneScale * (a - t);
         else if ((t == (NNFloat)0.0) && (a > cData._SMCE_zeroTarget))
             output              = cData._SMCE_zeroScale * (a - t);   
-        pDelta[uOffset + pos]   = output;      
+        pDelta[uOffset + pos]   = w * output;      
     }
 }
 
@@ -6841,13 +7073,15 @@ kCalculateIndexedSigmoidScaledMarginalCrossEntropyOutputDelta_kernel(uint32_t po
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateIndexedSigmoidScaledMarginalCrossEntropyOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, char* pData)
+kCalculateIndexedSigmoidScaledMarginalCrossEntropyOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, char* pData, NNFloat* pDataWeight)
 {
     uint64_t pos                = (blockIdx.y * blockDim.x) + threadIdx.x;
     if (pos < stride)
     {
         uint64_t uOffset        = blockIdx.x * stride;
-        uint64_t dOffset        = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x] * stride;
+        uint64_t dpos           = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x];
+        uint64_t dOffset        = dpos * stride;
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
         NNFloat a               = pUnit[uOffset + pos];
         NNFloat t               = (NNFloat)pData[dOffset + pos] * (NNFloat)(1.0 / 128.0);
         NNFloat output          = (NNFloat)0.0;
@@ -6855,20 +7089,22 @@ kCalculateIndexedSigmoidScaledMarginalCrossEntropyOutputDelta_kernel(uint32_t po
             output              = cData._SMCE_oneScale * (a - t);
         else if ((t == (NNFloat)0.0) && (a > cData._SMCE_zeroTarget))
             output              = cData._SMCE_zeroScale * (a - t);   
-        pDelta[uOffset + pos]   = output;
+        pDelta[uOffset + pos]   = w * output;
     }
 }
 
 template<typename T>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateIndexedSoftMaxScaledMarginalCrossEntropyOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, T* pData)
+kCalculateIndexedSoftMaxScaledMarginalCrossEntropyOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, T* pData, NNFloat* pDataWeight)
 {
     uint64_t pos                = (blockIdx.y * blockDim.x) + threadIdx.x;
     if (pos < stride)
     {
         uint64_t uOffset        = blockIdx.x * stride;
-        uint64_t dOffset        = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x] * stride;
+        uint64_t dpos           = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x];
+        uint64_t dOffset        = dpos * stride;
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
         NNFloat a               = pUnit[uOffset + pos];
         NNFloat t               = pData[dOffset + pos];
         NNFloat output          = (NNFloat)0.0;
@@ -6876,20 +7112,22 @@ kCalculateIndexedSoftMaxScaledMarginalCrossEntropyOutputDelta_kernel(uint32_t po
             output              = cData._SMCE_oneScale * (a - t);
         else if ((t == (NNFloat)0.0) && (a > cData._SMCE_zeroTarget))
             output              = cData._SMCE_zeroScale * (a - t); 
-        pDelta[uOffset + pos]   = output;
+        pDelta[uOffset + pos]   = w * output;
     }
 }
 
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateIndexedSoftMaxScaledMarginalCrossEntropyOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, unsigned char* pData)
+kCalculateIndexedSoftMaxScaledMarginalCrossEntropyOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, unsigned char* pData, NNFloat* pDataWeight)
 {
     uint64_t pos                = (blockIdx.y * blockDim.x) + threadIdx.x;
     if (pos < stride)
     {
         uint64_t uOffset        = blockIdx.x * stride;
-        uint64_t dOffset        = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x] * stride;
+        uint64_t dpos           = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x];
+        uint64_t dOffset        = dpos * stride;
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
         NNFloat a               = pUnit[uOffset + pos];
         NNFloat t               = (NNFloat)pData[dOffset + pos] * (NNFloat)(1.0 / 256.0);
         NNFloat output          = (NNFloat)0.0;
@@ -6897,20 +7135,22 @@ kCalculateIndexedSoftMaxScaledMarginalCrossEntropyOutputDelta_kernel(uint32_t po
             output              = cData._SMCE_oneScale * (a - t);
         else if ((t == (NNFloat)0.0) && (a > cData._SMCE_zeroTarget))
             output              = cData._SMCE_zeroScale * (a - t);   
-        pDelta[uOffset + pos]   = output;      
+        pDelta[uOffset + pos]   = w * output;      
     }
 }
 
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateIndexedSoftMaxScaledMarginalCrossEntropyOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, char* pData)
+kCalculateIndexedSoftMaxScaledMarginalCrossEntropyOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, char* pData, NNFloat* pDataWeight)
 {
     uint64_t pos                = (blockIdx.y * blockDim.x) + threadIdx.x;
     if (pos < stride)
     {
         uint64_t uOffset        = blockIdx.x * stride;
-        uint64_t dOffset        = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x] * stride;
+        uint64_t dpos           = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x];
+        uint64_t dOffset        = dpos * stride;
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
         NNFloat a               = pUnit[uOffset + pos];
         NNFloat t               = (NNFloat)pData[dOffset + pos] * (NNFloat)(1.0 / 128.0);
         NNFloat output          = (NNFloat)0.0;
@@ -6918,22 +7158,22 @@ kCalculateIndexedSoftMaxScaledMarginalCrossEntropyOutputDelta_kernel(uint32_t po
             output              = cData._SMCE_oneScale * (a - t);
         else if ((t == (NNFloat)0.0) && (a > cData._SMCE_zeroTarget))
             output              = cData._SMCE_zeroScale * (a - t);   
-        pDelta[uOffset + pos]   = output;
+        pDelta[uOffset + pos]   = w * output;
     }
 }
 
-template<typename T> void kCalculateIndexedScaledMarginalCrossEntropyOutputDelta(Activation activation, uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, T* pData)
+template<typename T> void kCalculateIndexedScaledMarginalCrossEntropyOutputDelta(Activation activation, uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, T* pData, NNFloat* pDataWeight)
 {
     dim3 grid(batch, (stride + getGpu()._threadsPerBlock - 1) / getGpu()._threadsPerBlock);
     switch (activation)
     {
         case Sigmoid:
-            kCalculateIndexedSigmoidScaledMarginalCrossEntropyOutputDelta_kernel<<<grid, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pIndex, pData);
+            kCalculateIndexedSigmoidScaledMarginalCrossEntropyOutputDelta_kernel<<<grid, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pIndex, pData, pDataWeight);
             LAUNCHERROR("kCalculateIndexedSigmoidScaledMarginalCrossEntropyOutputDelta_kernel");
             break;
 
         case SoftMax:
-            kCalculateIndexedSoftMaxScaledMarginalCrossEntropyOutputDelta_kernel<<<grid, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pIndex, pData);
+            kCalculateIndexedSoftMaxScaledMarginalCrossEntropyOutputDelta_kernel<<<grid, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pIndex, pData, pDataWeight);
             LAUNCHERROR("kCalculateIndexedSoftMaxScaledMarginalCrossEntropyOutputDelta_kernel");
             break;                    
     }
@@ -6941,17 +7181,17 @@ template<typename T> void kCalculateIndexedScaledMarginalCrossEntropyOutputDelta
 
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateSparseRawSigmoidScaledMarginalCrossEntropyOutputDelta_kernel(uint32_t position, NNFloat* pSparseWeight, uint32_t stride, uint64_t size, NNFloat* pUnit, NNFloat* pDelta)
+kCalculateSparseRawSigmoidScaledMarginalCrossEntropyOutputDelta_kernel(uint32_t position, NNFloat* pDataWeight, uint32_t stride, uint64_t size, NNFloat* pUnit, NNFloat* pDelta)
 {
     uint64_t pos                = (blockIdx.x * blockDim.x) + threadIdx.x;
     if (pos < size)
     {
         NNFloat w               = cData._SMCE_zeroScale;
-        if (pSparseWeight != NULL)
+        if (pDataWeight != NULL)
         {
             uint64_t dpos       = (pos / stride) + position;
             dpos                = cData._bShuffleIndices ? cData._pShuffleIndex[dpos] : dpos;
-            w                  *= pSparseWeight[dpos];
+            w                  *= pDataWeight[dpos];
         }
         NNFloat a               = pUnit[pos];
         NNFloat output          = (NNFloat)0.0;
@@ -6963,7 +7203,7 @@ kCalculateSparseRawSigmoidScaledMarginalCrossEntropyOutputDelta_kernel(uint32_t 
 
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateSparseNonZeroSigmoidScaledMarginalCrossEntropyOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint64_t* pSparseStart, uint64_t *pSparseEnd, uint32_t *pSparseIndex, NNFloat* pSparseWeight)
+kCalculateSparseNonZeroSigmoidScaledMarginalCrossEntropyOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint64_t* pSparseStart, uint64_t *pSparseEnd, uint32_t *pSparseIndex, NNFloat* pDataWeight)
 {
     uint64_t pos                = ((blockIdx.x * blockDim.x) + threadIdx.x) / cData._warpSize;
     if (pos < batch)
@@ -6971,7 +7211,7 @@ kCalculateSparseNonZeroSigmoidScaledMarginalCrossEntropyOutputDelta_kernel(uint3
         uint32_t dpos           = cData._bShuffleIndices ? cData._pShuffleIndex[position + pos] : position + pos;
         uint64_t pos1           = pSparseStart[dpos] + (threadIdx.x & cData._warpMask);
         uint64_t end            = pSparseEnd[dpos];
-        NNFloat w               = cData._SMCE_oneScale * ((pSparseWeight != NULL) ? pSparseWeight[dpos] : (NNFloat)1.0);
+        NNFloat w               = cData._SMCE_oneScale * ((pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0);
         uint64_t offset         = pos * stride;
         while (pos1 < end)
         {
@@ -7003,7 +7243,7 @@ kCalculateSparseRawSoftMaxScaledMarginalCrossEntropyOutputDelta_kernel(uint64_t 
 
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateSparseNonZeroSoftMaxScaledMarginalCrossEntropyOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint64_t* pSparseStart, uint64_t *pSparseEnd, uint32_t *pSparseIndex, NNFloat* pSparseWeight)
+kCalculateSparseNonZeroSoftMaxScaledMarginalCrossEntropyOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint64_t* pSparseStart, uint64_t *pSparseEnd, uint32_t *pSparseIndex, NNFloat* pDataWeight)
 {
     uint64_t pos                = ((blockIdx.x * blockDim.x) + threadIdx.x) / cData._warpSize;
     if (pos < batch)
@@ -7011,7 +7251,7 @@ kCalculateSparseNonZeroSoftMaxScaledMarginalCrossEntropyOutputDelta_kernel(uint3
         uint32_t dpos           = cData._bShuffleIndices ? cData._pShuffleIndex[position + pos] : position + pos;
         uint64_t pos1           = pSparseStart[dpos];
         uint64_t end            = pSparseEnd[dpos];
-        NNFloat w               = cData._SMCE_oneScale * ((pSparseWeight != NULL) ? pSparseWeight[dpos] : (NNFloat)1.0 / (NNFloat)(end - pos1));
+        NNFloat w               = cData._SMCE_oneScale * ((pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0 / (NNFloat)(end - pos1));
         uint64_t offset         = pos * stride;
         pos1                   += threadIdx.x & cData._warpMask;
         while (pos1 < end)
@@ -7027,7 +7267,7 @@ kCalculateSparseNonZeroSoftMaxScaledMarginalCrossEntropyOutputDelta_kernel(uint3
     }
 }
 
-void kCalculateSparseScaledMarginalCrossEntropyOutputDelta(Activation activation, uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint64_t* pSparseStart, uint64_t *pSparseEnd, uint32_t *pSparseIndex, NNFloat* pSparseWeight, bool bSparseIgnoreZero)
+void kCalculateSparseScaledMarginalCrossEntropyOutputDelta(Activation activation, uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint64_t* pSparseStart, uint64_t *pSparseEnd, uint32_t *pSparseIndex, NNFloat* pDataWeight, bool bSparseIgnoreZero)
 {
     uint64_t size               = (uint64_t)batch * (uint64_t)stride;
     dim3 grid1(CalculateBlocks(size));
@@ -7044,10 +7284,10 @@ void kCalculateSparseScaledMarginalCrossEntropyOutputDelta(Activation activation
         case Sigmoid:
             if (!bSparseIgnoreZero)
             {
-                kCalculateSparseRawSigmoidScaledMarginalCrossEntropyOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(position, pSparseWeight, stride, size, pUnit, pDelta);
+                kCalculateSparseRawSigmoidScaledMarginalCrossEntropyOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(position, pDataWeight, stride, size, pUnit, pDelta);
                 LAUNCHERROR("kCalculateSparseRawSigmoidScaledMarginalCrossEntropyOutputDelta_kernel");
             }
-            kCalculateSparseNonZeroSigmoidScaledMarginalCrossEntropyOutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pSparseStart, pSparseEnd, pSparseIndex, pSparseWeight);
+            kCalculateSparseNonZeroSigmoidScaledMarginalCrossEntropyOutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pSparseStart, pSparseEnd, pSparseIndex, pDataWeight);
             LAUNCHERROR("kCalculateSparseNonZeroScaleMarginalCrossEntropyOutputDelta_kernel");
             break;
 
@@ -7057,7 +7297,7 @@ void kCalculateSparseScaledMarginalCrossEntropyOutputDelta(Activation activation
                 kCalculateSparseRawSoftMaxScaledMarginalCrossEntropyOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(size, pUnit, pDelta);
                 LAUNCHERROR("kCalculateSparseRawSoftMaxScaledMarginalCrossEntropyOutputDelta_kernel");
             }
-            kCalculateSparseNonZeroSoftMaxScaledMarginalCrossEntropyOutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pSparseStart, pSparseEnd, pSparseIndex, pSparseWeight);
+            kCalculateSparseNonZeroSoftMaxScaledMarginalCrossEntropyOutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pSparseStart, pSparseEnd, pSparseIndex, pDataWeight);
             LAUNCHERROR("kCalculateSparseNonZeroSoftMaxScaledMarginalCrossEntropyOutputDelta_kernel");
             break;            
             
@@ -7066,7 +7306,7 @@ void kCalculateSparseScaledMarginalCrossEntropyOutputDelta(Activation activation
 
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateIndexedSparseNonZeroSigmoidScaledMarginalCrossEntropyOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t *pSparseEnd, uint32_t *pSparseIndex, NNFloat* pSparseWeight)
+kCalculateIndexedSparseNonZeroSigmoidScaledMarginalCrossEntropyOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t *pSparseEnd, uint32_t *pSparseIndex, NNFloat* pDataWeight)
 {
     uint64_t pos                = ((blockIdx.x * blockDim.x) + threadIdx.x) / cData._warpSize;
     if (pos < batch)
@@ -7074,7 +7314,7 @@ kCalculateIndexedSparseNonZeroSigmoidScaledMarginalCrossEntropyOutputDelta_kerne
         uint32_t dpos           = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + pos] : position + pos];
         uint64_t pos1           = pSparseStart[dpos] + (threadIdx.x & cData._warpMask);
         uint64_t end            = pSparseEnd[dpos];
-        NNFloat w               = cData._SMCE_oneScale * ((pSparseWeight != NULL) ? pSparseWeight[dpos] : (NNFloat)1.0);
+        NNFloat w               = cData._SMCE_oneScale * ((pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0);
         uint64_t offset         = pos * stride;
         while (pos1 < end)
         {
@@ -7091,7 +7331,7 @@ kCalculateIndexedSparseNonZeroSigmoidScaledMarginalCrossEntropyOutputDelta_kerne
 
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateIndexedSparseNonZeroSoftMaxScaledMarginalCrossEntropyOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t *pSparseEnd, uint32_t *pSparseIndex, NNFloat* pSparseWeight)
+kCalculateIndexedSparseNonZeroSoftMaxScaledMarginalCrossEntropyOutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t *pSparseEnd, uint32_t *pSparseIndex, NNFloat* pDataWeight)
 {
     uint64_t pos                = ((blockIdx.x * blockDim.x) + threadIdx.x) / cData._warpSize;
     if (pos < batch)
@@ -7099,7 +7339,7 @@ kCalculateIndexedSparseNonZeroSoftMaxScaledMarginalCrossEntropyOutputDelta_kerne
         uint32_t dpos           = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + pos] : position + pos];
         uint64_t pos1           = pSparseStart[dpos];
         uint64_t end            = pSparseEnd[dpos];
-        NNFloat w               = (pSparseWeight != NULL) ? pSparseWeight[dpos] : (NNFloat)1.0 / (NNFloat)(end - pos1);
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0 / (NNFloat)(end - pos1);
         uint64_t offset         = pos * stride;
         pos1                   += threadIdx.x & cData._warpMask;
         while (pos1 < end)
@@ -7115,7 +7355,7 @@ kCalculateIndexedSparseNonZeroSoftMaxScaledMarginalCrossEntropyOutputDelta_kerne
     }
 }
 
-void kCalculateIndexedSparseScaledMarginalCrossEntropyOutputDelta(Activation activation, uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t *pSparseEnd, uint32_t *pSparseIndex, NNFloat* pSparseWeight, bool bSparseIgnoreZero)
+void kCalculateIndexedSparseScaledMarginalCrossEntropyOutputDelta(Activation activation, uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t *pSparseEnd, uint32_t *pSparseIndex, NNFloat* pDataWeight, bool bSparseIgnoreZero)
 {
     uint64_t size               = (uint64_t)batch * (uint64_t)stride;
     dim3 grid1(CalculateBlocks(size));
@@ -7132,10 +7372,10 @@ void kCalculateIndexedSparseScaledMarginalCrossEntropyOutputDelta(Activation act
         case Sigmoid:
             if (!bSparseIgnoreZero)
             {
-                kCalculateSparseRawSigmoidScaledMarginalCrossEntropyOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(position, pSparseWeight, stride, size, pUnit, pDelta);
+                kCalculateSparseRawSigmoidScaledMarginalCrossEntropyOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(position, pDataWeight, stride, size, pUnit, pDelta);
                 LAUNCHERROR("kCalculateSparseRawSigmoidScaledMarginalCrossEntropyOutputDelta_kernel");
             }
-            kCalculateIndexedSparseNonZeroSigmoidScaledMarginalCrossEntropyOutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pIndex, pSparseStart, pSparseEnd, pSparseIndex, pSparseWeight);
+            kCalculateIndexedSparseNonZeroSigmoidScaledMarginalCrossEntropyOutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pIndex, pSparseStart, pSparseEnd, pSparseIndex, pDataWeight);
             LAUNCHERROR("kCalculateIndexedSparseNonZeroScaleMarginalCrossEntropyOutputDelta_kernel");
             break;
 
@@ -7145,7 +7385,7 @@ void kCalculateIndexedSparseScaledMarginalCrossEntropyOutputDelta(Activation act
                 kCalculateSparseRawSoftMaxScaledMarginalCrossEntropyOutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(size, pUnit, pDelta);
                 LAUNCHERROR("kCalculateSparseRawSoftMaxScaledMarginalCrossEntropyOutputDelta_kernel");
             }
-            kCalculateIndexedSparseNonZeroSoftMaxScaledMarginalCrossEntropyOutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pIndex, pSparseStart, pSparseEnd, pSparseIndex, pSparseWeight);
+            kCalculateIndexedSparseNonZeroSoftMaxScaledMarginalCrossEntropyOutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pIndex, pSparseStart, pSparseEnd, pSparseIndex, pDataWeight);
             LAUNCHERROR("kCalculateIndexedSparseNonZeroSoftMaxScaledMarginalCrossEntropyOutputDelta_kernel");
             break;            
             
@@ -7282,16 +7522,18 @@ void kCalculateIndexedSparseDataScaledMarginalCrossEntropyOutputDelta(Activation
 template<typename T>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateSigmoidL1OutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, T* pData)
+kCalculateSigmoidL1OutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, T* pData, NNFloat* pDataWeight)
 {
     uint64_t pos                = (blockIdx.y * blockDim.x) + threadIdx.x;
     if (pos < stride)
     {
         uint64_t uOffset        = blockIdx.x * stride;
-        uint64_t dOffset        = (cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x) * stride;
+        uint64_t dpos           = cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x;
+        uint64_t dOffset        = dpos * stride;
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
         NNFloat a               = pUnit[uOffset + pos];
         NNFloat t               = pData[dOffset + pos];
-        pDelta[uOffset + pos]   = sgn(a - t) * a * ((NNFloat)1.0 - a);      
+        pDelta[uOffset + pos]   = w * sgn(a - t) * a * ((NNFloat)1.0 - a);      
     }
 }
 
@@ -7299,112 +7541,126 @@ kCalculateSigmoidL1OutputDelta_kernel(uint32_t position, uint32_t batch, uint32_
 template<typename T>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateTanhL1OutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, T* pData)
+kCalculateTanhL1OutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, T* pData, NNFloat* pDataWeight)
 {
     uint64_t pos                = (blockIdx.y * blockDim.x) + threadIdx.x;
     if (pos < stride)
     {
         uint64_t uOffset        = blockIdx.x * stride;
-        uint64_t dOffset        = (cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x) * stride;
+        uint64_t dpos           = cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x;
+        uint64_t dOffset        = dpos * stride;
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
         NNFloat a               = pUnit[uOffset + pos];
         NNFloat t               = pData[dOffset + pos];
-        pDelta[uOffset + pos]   = sgn(a - t) * ((NNFloat)1.0 - a * a);      
+        pDelta[uOffset + pos]   = w * sgn(a - t) * ((NNFloat)1.0 - a * a);      
     }
 }
 
 template<typename T>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateLinearL1OutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, T* pData)
+kCalculateLinearL1OutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, T* pData, NNFloat* pDataWeight)
 {
     uint64_t pos                = (blockIdx.y * blockDim.x) + threadIdx.x;
     if (pos < stride)
     {
         uint64_t uOffset        = blockIdx.x * stride;
-        uint64_t dOffset        = (cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x) * stride;
+        uint64_t dpos           = cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x;
+        uint64_t dOffset        = dpos * stride;
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
         NNFloat a               = pUnit[uOffset + pos];
         NNFloat t               = pData[dOffset + pos];
-        pDelta[uOffset + pos]   = sgn(a - t);  
+        pDelta[uOffset + pos]   = w * sgn(a - t);  
     }
 }
 
 template<typename T>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateRELUL1OutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, T* pData)
+kCalculateRELUL1OutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, T* pData, NNFloat* pDataWeight)
 {
     uint64_t pos                = (blockIdx.y * blockDim.x) + threadIdx.x;
     if (pos < stride)
     {
         uint64_t uOffset        = blockIdx.x * stride;
-        uint64_t dOffset        = (cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x) * stride;
+        uint64_t dpos           = cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x;
+        uint64_t dOffset        = dpos * stride;
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
         NNFloat a               = pUnit[uOffset + pos];
         NNFloat t               = pData[dOffset + pos];
-        pDelta[uOffset + pos]   = sgn(a - t) * (a > (NNFloat)0.0);
+        pDelta[uOffset + pos]   = w * sgn(a - t) * (a > (NNFloat)0.0);
     }
 }
 
 template<typename T>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateLRELUL1OutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, T* pData, NNFloat slope)
+kCalculateLRELUL1OutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, T* pData, NNFloat* pDataWeight, NNFloat slope)
 {
     uint64_t pos                = (blockIdx.y * blockDim.x) + threadIdx.x;
     if (pos < stride)
     {
         uint64_t uOffset        = blockIdx.x * stride;
-        uint64_t dOffset        = (cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x) * stride;
+        uint64_t dpos           = cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x;
+        uint64_t dOffset        = dpos * stride;
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
         NNFloat a               = pUnit[uOffset + pos];
         NNFloat t               = pData[dOffset + pos];
-        pDelta[uOffset + pos]   = sgn(a - t) * ((a > (NNFloat)0.0) + (a <= (NNFloat)0.0) * slope);
+        pDelta[uOffset + pos]   = w * sgn(a - t) * ((a > (NNFloat)0.0) + (a <= (NNFloat)0.0) * slope);
     }
 }
 
 template<typename T>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateELUL1OutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, T* pData, NNFloat alpha)
+kCalculateELUL1OutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, T* pData, NNFloat* pDataWeight, NNFloat alpha)
 {
     uint64_t pos                = (blockIdx.y * blockDim.x) + threadIdx.x;
     if (pos < stride)
     {
         uint64_t uOffset        = blockIdx.x * stride;
-        uint64_t dOffset        = (cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x) * stride;
+        uint64_t dpos           = cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x;
+        uint64_t dOffset        = dpos * stride;
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
         NNFloat a               = pUnit[uOffset + pos];
         NNFloat t               = pData[dOffset + pos];
-        pDelta[uOffset + pos]   = sgn(a - t) * ((a > (NNFloat)0.0) + (a <= (NNFloat)0.0) * (a + alpha));
+        pDelta[uOffset + pos]   = w * sgn(a - t) * ((a > (NNFloat)0.0) + (a <= (NNFloat)0.0) * (a + alpha));
     }
 }
 
 template<typename T>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateSELUL1OutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, T* pData, NNFloat alpha, NNFloat lambda)
+kCalculateSELUL1OutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, T* pData, NNFloat* pDataWeight, NNFloat alpha, NNFloat lambda)
 {
     uint64_t pos                = (blockIdx.y * blockDim.x) + threadIdx.x;
     if (pos < stride)
     {
         uint64_t uOffset        = blockIdx.x * stride;
-        uint64_t dOffset        = (cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x) * stride;
+        uint64_t dpos           = cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x;
+        uint64_t dOffset        = dpos * stride;
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
         NNFloat a               = pUnit[uOffset + pos];
         NNFloat t               = pData[dOffset + pos];
-        pDelta[uOffset + pos]   = sgn(a - t) * ((a > (NNFloat)0.0) * lambda + (a <= (NNFloat)0.0) * lambda * alpha * exp(a));
+        pDelta[uOffset + pos]   = w * sgn(a - t) * ((a > (NNFloat)0.0) * lambda + (a <= (NNFloat)0.0) * lambda * alpha * exp(a));
     }
 }
 
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateSigmoidL1OutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, unsigned char* pData)
+kCalculateSigmoidL1OutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, unsigned char* pData, NNFloat* pDataWeight)
 {
     uint64_t pos                = (blockIdx.y * blockDim.x) + threadIdx.x;
     if (pos < stride)
     {
         uint64_t uOffset        = blockIdx.x * stride;
-        uint64_t dOffset        = (cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x) * stride;
+        uint64_t dpos           = cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x;
+        uint64_t dOffset        = dpos * stride;
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
         NNFloat a               = pUnit[uOffset + pos];
         NNFloat t               = (NNFloat)pData[dOffset + pos] * NNFloat(1.0 / 256.0);
-        pDelta[uOffset + pos]   = sgn(a - t) * a * ((NNFloat)1.0 - a);      
+        pDelta[uOffset + pos]   = w * sgn(a - t) * a * ((NNFloat)1.0 - a);      
     }
 }
 
@@ -7412,248 +7668,274 @@ kCalculateSigmoidL1OutputDelta_kernel(uint32_t position, uint32_t batch, uint32_
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateTanhL1OutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, unsigned char* pData)
+kCalculateTanhL1OutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, unsigned char* pData, NNFloat* pDataWeight)
 {
     uint64_t pos                = (blockIdx.y * blockDim.x) + threadIdx.x;
     if (pos < stride)
     {
         uint64_t uOffset        = blockIdx.x * stride;
-        uint64_t dOffset        = (cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x) * stride;
+        uint64_t dpos           = cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x;
+        uint64_t dOffset        = dpos * stride;
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
         NNFloat a               = pUnit[uOffset + pos];
         NNFloat t               = (NNFloat)pData[dOffset + pos] * NNFloat(1.0 / 256.0);
-        pDelta[uOffset + pos]   = sgn(a- t) * ((NNFloat)1.0 - a * a);      
+        pDelta[uOffset + pos]   = w * sgn(a- t) * ((NNFloat)1.0 - a * a);      
     }
 }
 
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateLinearL1OutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, unsigned char* pData)
+kCalculateLinearL1OutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, unsigned char* pData, NNFloat* pDataWeight)
 {
     uint64_t pos                = (blockIdx.y * blockDim.x) + threadIdx.x;
     if (pos < stride)
     {
         uint64_t uOffset        = blockIdx.x * stride;
-        uint64_t dOffset        = (cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x) * stride;
+        uint64_t dpos           = cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x;
+        uint64_t dOffset        = dpos * stride;
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
         NNFloat a               = pUnit[uOffset + pos];
         NNFloat t               = (NNFloat)pData[dOffset + pos] * NNFloat(1.0 / 256.0);
-        pDelta[uOffset + pos]   = sgn(a - t); 
+        pDelta[uOffset + pos]   = w * sgn(a - t); 
     }
 }
 
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateRELUL1OutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, unsigned char* pData)
+kCalculateRELUL1OutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, unsigned char* pData, NNFloat* pDataWeight)
 {
     uint64_t pos                = (blockIdx.y * blockDim.x) + threadIdx.x;
     if (pos < stride)
     {
         uint64_t uOffset        = blockIdx.x * stride;
-        uint64_t dOffset        = (cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x) * stride;
+        uint64_t dpos           = cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x;
+        uint64_t dOffset        = dpos * stride;
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
         NNFloat a               = pUnit[uOffset + pos];
         NNFloat t               = (NNFloat)pData[dOffset + pos] * NNFloat(1.0 / 256.0);
-        pDelta[uOffset + pos]   = sgn(a - t) * (a > (NNFloat)0.0);   
+        pDelta[uOffset + pos]   = w * sgn(a - t) * (a > (NNFloat)0.0);   
     }
 }
 
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateLRELUL1OutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, unsigned char* pData, NNFloat slope)
+kCalculateLRELUL1OutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, unsigned char* pData, NNFloat* pDataWeight, NNFloat slope)
 {
     uint64_t pos                = (blockIdx.y * blockDim.x) + threadIdx.x;
     if (pos < stride)
     {
         uint64_t uOffset        = blockIdx.x * stride;
-        uint64_t dOffset        = (cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x) * stride;
+        uint64_t dpos           = cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x;
+        uint64_t dOffset        = dpos * stride;
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
         NNFloat a               = pUnit[uOffset + pos];
         NNFloat t               = (NNFloat)pData[dOffset + pos] * NNFloat(1.0 / 256.0);
-        pDelta[uOffset + pos]   = sgn(a - t) * ((a > (NNFloat)0.0) + (a <= (NNFloat)0.0) * slope);      
+        pDelta[uOffset + pos]   = w * sgn(a - t) * ((a > (NNFloat)0.0) + (a <= (NNFloat)0.0) * slope);      
     }
 }
 
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateELUL1OutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, unsigned char* pData, NNFloat alpha)
+kCalculateELUL1OutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, unsigned char* pData, NNFloat* pDataWeight, NNFloat alpha)
 {
     uint64_t pos                = (blockIdx.y * blockDim.x) + threadIdx.x;
     if (pos < stride)
     {
         uint64_t uOffset        = blockIdx.x * stride;
-        uint64_t dOffset        = (cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x) * stride;
+        uint64_t dpos           = cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x;
+        uint64_t dOffset        = dpos * stride;
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
         NNFloat a               = pUnit[uOffset + pos];
         NNFloat t               = (NNFloat)pData[dOffset + pos] * NNFloat(1.0 / 256.0);
-        pDelta[uOffset + pos]   = sgn(a - t) * ((a > (NNFloat)0.0) + (a <= (NNFloat)0.0) * (a + alpha));
+        pDelta[uOffset + pos]   = w * sgn(a - t) * ((a > (NNFloat)0.0) + (a <= (NNFloat)0.0) * (a + alpha));
     }
 }
 
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateSELUL1OutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, unsigned char* pData, NNFloat alpha, NNFloat lambda)
+kCalculateSELUL1OutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, unsigned char* pData, NNFloat* pDataWeight, NNFloat alpha, NNFloat lambda)
 {
     uint64_t pos                = (blockIdx.y * blockDim.x) + threadIdx.x;
     if (pos < stride)
     {
         uint64_t uOffset        = blockIdx.x * stride;
-        uint64_t dOffset        = (cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x) * stride;
+        uint64_t dpos           = cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x;
+        uint64_t dOffset        = dpos * stride;
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
         NNFloat a               = pUnit[uOffset + pos];
         NNFloat t               = (NNFloat)pData[dOffset + pos] * NNFloat(1.0 / 256.0);
-        pDelta[uOffset + pos]   = sgn(a - t) * ((a > (NNFloat)0.0) * lambda + (a <= (NNFloat)0.0) * lambda * alpha * exp(a));
+        pDelta[uOffset + pos]   = w * sgn(a - t) * ((a > (NNFloat)0.0) * lambda + (a <= (NNFloat)0.0) * lambda * alpha * exp(a));
     }
 }
 
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateSigmoidL1OutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, char* pData)
+kCalculateSigmoidL1OutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, char* pData, NNFloat* pDataWeight)
 {
     uint64_t pos                = (blockIdx.y * blockDim.x) + threadIdx.x;
     if (pos < stride)
     {
         uint64_t uOffset        = blockIdx.x * stride;
-        uint64_t dOffset        = (cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x) * stride;
+        uint64_t dpos           = cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x;
+        uint64_t dOffset        = dpos * stride;
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
         NNFloat a               = pUnit[uOffset + pos];
         NNFloat t               = (NNFloat)pData[dOffset + pos] * NNFloat(1.0 / 256.0);
-        pDelta[uOffset + pos]   = sgn(a - t) * a * ((NNFloat)1.0 - a);      
+        pDelta[uOffset + pos]   = w * sgn(a - t) * a * ((NNFloat)1.0 - a);      
     }
 }
 
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateTanhL1OutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, char* pData)
+kCalculateTanhL1OutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, char* pData, NNFloat* pDataWeight)
 {
     uint64_t pos                = (blockIdx.y * blockDim.x) + threadIdx.x;
     if (pos < stride)
     {
         uint64_t uOffset        = blockIdx.x * stride;
-        uint64_t dOffset        = (cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x) * stride;
+        uint64_t dpos           = cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x;
+        uint64_t dOffset        = dpos * stride;
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
         NNFloat a               = pUnit[uOffset + pos];
         NNFloat t               = (NNFloat)pData[dOffset + pos] * NNFloat(1.0 / 128.0);
-        pDelta[uOffset + pos]   = sgn(a - t) * ((NNFloat)1.0 - a * a);      
+        pDelta[uOffset + pos]   = w * sgn(a - t) * ((NNFloat)1.0 - a * a);      
     }
 }
 
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateLinearL1OutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, char* pData)
+kCalculateLinearL1OutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, char* pData, NNFloat* pDataWeight)
 {
     uint64_t pos                = (blockIdx.y * blockDim.x) + threadIdx.x;
     if (pos < stride)
     {
         uint64_t uOffset        = blockIdx.x * stride;
-        uint64_t dOffset        = (cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x) * stride;
+        uint64_t dpos           = cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x;
+        uint64_t dOffset        = dpos * stride;
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
         NNFloat a               = pUnit[uOffset + pos];
         NNFloat t               = (NNFloat)pData[dOffset + pos] * NNFloat(1.0 / 128.0);
-        pDelta[uOffset + pos]   = sgn(a - t);      
+        pDelta[uOffset + pos]   = w * sgn(a - t);      
     }
 }
 
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateRELUL1OutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, char* pData)
+kCalculateRELUL1OutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, char* pData, NNFloat* pDataWeight)
 {
     uint64_t pos                = (blockIdx.y * blockDim.x) + threadIdx.x;
     if (pos < stride)
     {
         uint64_t uOffset        = blockIdx.x * stride;
-        uint64_t dOffset        = (cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x) * stride;
+        uint64_t dpos           = cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x;
+        uint64_t dOffset        = dpos * stride;
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
         NNFloat a               = pUnit[uOffset + pos];
         NNFloat t               = (NNFloat)pData[dOffset + pos] * NNFloat(1.0 / 128.0);
-        pDelta[uOffset + pos]   = sgn(a - t) * (a > (NNFloat)0.0);  
+        pDelta[uOffset + pos]   = w * sgn(a - t) * (a > (NNFloat)0.0);  
     }
 }
 
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateLRELUL1OutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, char* pData, NNFloat slope)
+kCalculateLRELUL1OutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, char* pData, NNFloat* pDataWeight, NNFloat slope)
 {
     uint64_t pos                = (blockIdx.y * blockDim.x) + threadIdx.x;
     if (pos < stride)
     {
         uint64_t uOffset        = blockIdx.x * stride;
-        uint64_t dOffset        = (cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x) * stride;
+        uint64_t dpos           = cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x;
+        uint64_t dOffset        = dpos * stride;
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
         NNFloat a               = pUnit[uOffset + pos];
         NNFloat t               = (NNFloat)pData[dOffset + pos] * NNFloat(1.0 / 128.0);
-        pDelta[uOffset + pos]   = sgn(a - t) * ((a > (NNFloat)0.0) + (a <= (NNFloat)0.0) * slope);
+        pDelta[uOffset + pos]   = w * sgn(a - t) * ((a > (NNFloat)0.0) + (a <= (NNFloat)0.0) * slope);
     }
 }
 
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateELUL1OutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, char* pData, NNFloat alpha)
+kCalculateELUL1OutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, char* pData, NNFloat* pDataWeight, NNFloat alpha)
 {
     uint64_t pos                = (blockIdx.y * blockDim.x) + threadIdx.x;
     if (pos < stride)
     {
         uint64_t uOffset        = blockIdx.x * stride;
-        uint64_t dOffset        = (cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x) * stride;
+        uint64_t dpos           = cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x;
+        uint64_t dOffset        = dpos * stride;
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
         NNFloat a               = pUnit[uOffset + pos];
         NNFloat t               = (NNFloat)pData[dOffset + pos] * NNFloat(1.0 / 128.0);
-        pDelta[uOffset + pos]   = sgn(a - t) * ((a > (NNFloat)0.0) + (a <= (NNFloat)0.0) * (a + alpha));
+        pDelta[uOffset + pos]   = w * sgn(a - t) * ((a > (NNFloat)0.0) + (a <= (NNFloat)0.0) * (a + alpha));
     }
 }
 
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateSELUL1OutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, char* pData, NNFloat alpha, NNFloat lambda)
+kCalculateSELUL1OutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, char* pData, NNFloat* pDataWeight, NNFloat alpha, NNFloat lambda)
 {
     uint64_t pos                = (blockIdx.y * blockDim.x) + threadIdx.x;
     if (pos < stride)
     {
         uint64_t uOffset        = blockIdx.x * stride;
-        uint64_t dOffset        = (cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x) * stride;
+        uint64_t dpos           = cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x;
+        uint64_t dOffset        = dpos * stride;
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
         NNFloat a               = pUnit[uOffset + pos];
         NNFloat t               = (NNFloat)pData[dOffset + pos] * NNFloat(1.0 / 128.0);
-        pDelta[uOffset + pos]   = sgn(a - t) * ((a > (NNFloat)0.0) * lambda + (a <= (NNFloat)0.0) * lambda * alpha * exp(a));
+        pDelta[uOffset + pos]   = w * sgn(a - t) * ((a > (NNFloat)0.0) * lambda + (a <= (NNFloat)0.0) * lambda * alpha * exp(a));
     }
 }
 
-template<typename T> void kCalculateL1OutputDelta(Activation activation, uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, T* pData, NNFloat slope, NNFloat alpha, NNFloat lambda)
+template<typename T> void kCalculateL1OutputDelta(Activation activation, uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, T* pData, NNFloat* pDataWeight, NNFloat slope, NNFloat alpha, NNFloat lambda)
 {
     dim3 grid(batch, (stride + getGpu()._threadsPerBlock - 1) / getGpu()._threadsPerBlock);
     switch (activation)
     {
         case Sigmoid:
-            kCalculateSigmoidL1OutputDelta_kernel<<<grid, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pData);
+            kCalculateSigmoidL1OutputDelta_kernel<<<grid, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pData, pDataWeight);
             LAUNCHERROR("kCalculateSigmoidL1OutputDelta_kernel");
             break;
         
         case Tanh:
-            kCalculateTanhL1OutputDelta_kernel<<<grid, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pData);
+            kCalculateTanhL1OutputDelta_kernel<<<grid, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pData, pDataWeight);
             LAUNCHERROR("kCalculateTanhL1OutputDelta_kernel");
             break;
 
         case Linear:
-            kCalculateLinearL1OutputDelta_kernel<<<grid, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pData);
+            kCalculateLinearL1OutputDelta_kernel<<<grid, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pData, pDataWeight);
             LAUNCHERROR("kCalculateLinearL1OutputDelta_kernel");
             break;
 
         case RectifiedLinear:
-            kCalculateRELUL1OutputDelta_kernel<<<grid, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pData);
+            kCalculateRELUL1OutputDelta_kernel<<<grid, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pData, pDataWeight);
             LAUNCHERROR("kCalculateRELUL1OutputDelta_kernel");
             break;
 
         case LeakyRectifiedLinear:
-            kCalculateLRELUL1OutputDelta_kernel<<<grid, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pData, slope);
+            kCalculateLRELUL1OutputDelta_kernel<<<grid, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pData, pDataWeight, slope);
             LAUNCHERROR("kCalculateLRELUL1OutputDelta_kernel");
             break;
             
         case ExponentialLinear:
-            kCalculateELUL1OutputDelta_kernel<<<grid, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pData, alpha);
+            kCalculateELUL1OutputDelta_kernel<<<grid, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pData, pDataWeight, alpha);
             LAUNCHERROR("kCalculateELUL1OutputDelta_kernel");
             break;            
 
         case ScaledExponentialLinear:
-            kCalculateSELUL1OutputDelta_kernel<<<grid, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pData, alpha, lambda);
+            kCalculateSELUL1OutputDelta_kernel<<<grid, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pData, pDataWeight, alpha, lambda);
             LAUNCHERROR("kCalculateSELUL1OutputDelta_kernel");
             break;   
     }
@@ -7662,16 +7944,18 @@ template<typename T> void kCalculateL1OutputDelta(Activation activation, uint32_
 template<typename T>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateIndexedSigmoidL1OutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, T* pData)
+kCalculateIndexedSigmoidL1OutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, T* pData, NNFloat* pDataWeight)
 {
     uint64_t pos                = (blockIdx.y * blockDim.x) + threadIdx.x;
     if (pos < stride)
     {
         uint64_t uOffset        = blockIdx.x * stride;
-        uint64_t dOffset        = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x] * stride;
+        uint64_t dpos           = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x];
+        uint64_t dOffset        = dpos * stride;
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
         NNFloat a               = pUnit[uOffset + pos];
         NNFloat t               = pData[dOffset + pos];
-        pDelta[uOffset + pos]   = sgn(a - t) * a * ((NNFloat)1.0 - a);      
+        pDelta[uOffset + pos]   = w * sgn(a - t) * a * ((NNFloat)1.0 - a);      
     }
 }
 
@@ -7679,112 +7963,126 @@ kCalculateIndexedSigmoidL1OutputDelta_kernel(uint32_t position, uint32_t batch, 
 template<typename T>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateIndexedTanhL1OutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, T* pData)
+kCalculateIndexedTanhL1OutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, T* pData, NNFloat* pDataWeight)
 {
     uint64_t pos                = (blockIdx.y * blockDim.x) + threadIdx.x;
     if (pos < stride)
     {
         uint64_t uOffset        = blockIdx.x * stride;
-        uint64_t dOffset        = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x] * stride;
+        uint64_t dpos           = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x];
+        uint64_t dOffset        = dpos * stride;
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
         NNFloat a               = pUnit[uOffset + pos];
         NNFloat t               = pData[dOffset + pos];
-        pDelta[uOffset + pos]   = sgn(a - t) * ((NNFloat)1.0 - a * a);      
+        pDelta[uOffset + pos]   = w * sgn(a - t) * ((NNFloat)1.0 - a * a);      
     }
 }
 
 template<typename T>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateIndexedLinearL1OutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, T* pData)
+kCalculateIndexedLinearL1OutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, T* pData, NNFloat* pDataWeight)
 {
     uint64_t pos                = (blockIdx.y * blockDim.x) + threadIdx.x;
     if (pos < stride)
     {
         uint64_t uOffset        = blockIdx.x * stride;
-        uint64_t dOffset        = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x] * stride;
+        uint64_t dpos           = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x];
+        uint64_t dOffset        = dpos * stride;
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
         NNFloat a               = pUnit[uOffset + pos];
         NNFloat t               = pData[dOffset + pos];
-        pDelta[uOffset + pos]   = sgn(a - t);  
+        pDelta[uOffset + pos]   = w * sgn(a - t);  
     }
 }
 
 template<typename T>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateIndexedRELUL1OutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, T* pData)
+kCalculateIndexedRELUL1OutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, T* pData, NNFloat* pDataWeight)
 {
     uint64_t pos                = (blockIdx.y * blockDim.x) + threadIdx.x;
     if (pos < stride)
     {
         uint64_t uOffset        = blockIdx.x * stride;
-        uint64_t dOffset        = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x] * stride;
+        uint64_t dpos           = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x];
+        uint64_t dOffset        = dpos * stride;
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
         NNFloat a               = pUnit[uOffset + pos];
         NNFloat t               = pData[dOffset + pos];
-        pDelta[uOffset + pos]   = sgn(a - t) * (a > (NNFloat)0.0);
+        pDelta[uOffset + pos]   = w * sgn(a - t) * (a > (NNFloat)0.0);
     }
 }
 
 template<typename T>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateIndexedLRELUL1OutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, T* pData, NNFloat slope)
+kCalculateIndexedLRELUL1OutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, T* pData, NNFloat* pDataWeight, NNFloat slope)
 {
     uint64_t pos                = (blockIdx.y * blockDim.x) + threadIdx.x;
     if (pos < stride)
     {
         uint64_t uOffset        = blockIdx.x * stride;
-        uint64_t dOffset        = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x] * stride;
+        uint64_t dpos           = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x];
+        uint64_t dOffset        = dpos * stride;
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
         NNFloat a               = pUnit[uOffset + pos];
         NNFloat t               = pData[dOffset + pos];
-        pDelta[uOffset + pos]   = sgn(a - t) * ((a > (NNFloat)0.0) + (a <= (NNFloat)0.0) * slope);
+        pDelta[uOffset + pos]   = w * sgn(a - t) * ((a > (NNFloat)0.0) + (a <= (NNFloat)0.0) * slope);
     }
 }
 
 template<typename T>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateIndexedELUL1OutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, T* pData, NNFloat alpha)
+kCalculateIndexedELUL1OutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, T* pData, NNFloat* pDataWeight, NNFloat alpha)
 {
     uint64_t pos                = (blockIdx.y * blockDim.x) + threadIdx.x;
     if (pos < stride)
     {
         uint64_t uOffset        = blockIdx.x * stride;
-        uint64_t dOffset        = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x] * stride;
+        uint64_t dpos           = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x];
+        uint64_t dOffset        = dpos * stride;
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
         NNFloat a               = pUnit[uOffset + pos];
         NNFloat t               = pData[dOffset + pos];
-        pDelta[uOffset + pos]   = sgn(a - t) * ((a > (NNFloat)0.0) + (a <= (NNFloat)0.0) * (a + alpha));
+        pDelta[uOffset + pos]   = w * sgn(a - t) * ((a > (NNFloat)0.0) + (a <= (NNFloat)0.0) * (a + alpha));
     }
 }
 
 template<typename T>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateIndexedSELUL1OutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, T* pData, NNFloat alpha, NNFloat lambda)
+kCalculateIndexedSELUL1OutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, T* pData, NNFloat* pDataWeight, NNFloat alpha, NNFloat lambda)
 {
     uint64_t pos                = (blockIdx.y * blockDim.x) + threadIdx.x;
     if (pos < stride)
     {
         uint64_t uOffset        = blockIdx.x * stride;
-        uint64_t dOffset        = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x] * stride;
+        uint64_t dpos           = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x];
+        uint64_t dOffset        = dpos * stride;
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
         NNFloat a               = pUnit[uOffset + pos];
         NNFloat t               = pData[dOffset + pos];
-        pDelta[uOffset + pos]   = sgn(a - t) * ((a > (NNFloat)0.0) * lambda + (a <= (NNFloat)0.0) * lambda * alpha * exp(a));
+        pDelta[uOffset + pos]   = w * sgn(a - t) * ((a > (NNFloat)0.0) * lambda + (a <= (NNFloat)0.0) * lambda * alpha * exp(a));
     }
 }
 
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateIndexedSigmoidL1OutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, unsigned char* pData)
+kCalculateIndexedSigmoidL1OutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, unsigned char* pData, NNFloat* pDataWeight)
 {
     uint64_t pos                = (blockIdx.y * blockDim.x) + threadIdx.x;
     if (pos < stride)
     {
         uint64_t uOffset        = blockIdx.x * stride;
-        uint64_t dOffset        = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x] * stride;
+        uint64_t dpos           = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x];
+        uint64_t dOffset        = dpos * stride;
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
         NNFloat a               = pUnit[uOffset + pos];
         NNFloat t               = (NNFloat)pData[dOffset + pos] * NNFloat(1.0 / 256.0);
-        pDelta[uOffset + pos]   = sgn(a - t) * a * ((NNFloat)1.0 - a);      
+        pDelta[uOffset + pos]   = w * sgn(a - t) * a * ((NNFloat)1.0 - a);      
     }
 }
 
@@ -7792,248 +8090,274 @@ kCalculateIndexedSigmoidL1OutputDelta_kernel(uint32_t position, uint32_t batch, 
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateIndexedTanhL1OutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, unsigned char* pData)
+kCalculateIndexedTanhL1OutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, unsigned char* pData, NNFloat* pDataWeight)
 {
     uint64_t pos                = (blockIdx.y * blockDim.x) + threadIdx.x;
     if (pos < stride)
     {
         uint64_t uOffset        = blockIdx.x * stride;
-        uint64_t dOffset        = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x] * stride;
+        uint64_t dpos           = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x];
+        uint64_t dOffset        = dpos * stride;
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
         NNFloat a               = pUnit[uOffset + pos];
         NNFloat t               = (NNFloat)pData[dOffset + pos] * NNFloat(1.0 / 256.0);
-        pDelta[uOffset + pos]   = sgn(a- t) * ((NNFloat)1.0 - a * a);      
+        pDelta[uOffset + pos]   = w * sgn(a- t) * ((NNFloat)1.0 - a * a);      
     }
 }
 
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateIndexedLinearL1OutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, unsigned char* pData)
+kCalculateIndexedLinearL1OutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, unsigned char* pData, NNFloat* pDataWeight)
 {
     uint64_t pos                = (blockIdx.y * blockDim.x) + threadIdx.x;
     if (pos < stride)
     {
         uint64_t uOffset        = blockIdx.x * stride;
-        uint64_t dOffset        = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x] * stride;
+        uint64_t dpos           = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x];
+        uint64_t dOffset        = dpos * stride;
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
         NNFloat a               = pUnit[uOffset + pos];
         NNFloat t               = (NNFloat)pData[dOffset + pos] * NNFloat(1.0 / 256.0);
-        pDelta[uOffset + pos]   = sgn(a - t); 
+        pDelta[uOffset + pos]   = w * sgn(a - t); 
     }
 }
 
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateIndexedRELUL1OutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, unsigned char* pData)
+kCalculateIndexedRELUL1OutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, unsigned char* pData, NNFloat* pDataWeight)
 {
     uint64_t pos                = (blockIdx.y * blockDim.x) + threadIdx.x;
     if (pos < stride)
     {
         uint64_t uOffset        = blockIdx.x * stride;
-        uint64_t dOffset        = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x] * stride;
+        uint64_t dpos           = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x];
+        uint64_t dOffset        = dpos * stride;
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
         NNFloat a               = pUnit[uOffset + pos];
         NNFloat t               = (NNFloat)pData[dOffset + pos] * NNFloat(1.0 / 256.0);
-        pDelta[uOffset + pos]   = sgn(a - t) * (a > (NNFloat)0.0);   
+        pDelta[uOffset + pos]   = w * sgn(a - t) * (a > (NNFloat)0.0);   
     }
 }
 
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateIndexedLRELUL1OutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, unsigned char* pData, NNFloat slope)
+kCalculateIndexedLRELUL1OutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, unsigned char* pData, NNFloat* pDataWeight, NNFloat slope)
 {
     uint64_t pos                = (blockIdx.y * blockDim.x) + threadIdx.x;
     if (pos < stride)
     {
         uint64_t uOffset        = blockIdx.x * stride;
-        uint64_t dOffset        = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x] * stride;
+        uint64_t dpos           = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x];
+        uint64_t dOffset        = dpos * stride;
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
         NNFloat a               = pUnit[uOffset + pos];
         NNFloat t               = (NNFloat)pData[dOffset + pos] * NNFloat(1.0 / 256.0);
-        pDelta[uOffset + pos]   = sgn(a - t) * ((a > (NNFloat)0.0) + (a <= (NNFloat)0.0) * slope);      
+        pDelta[uOffset + pos]   = w * sgn(a - t) * ((a > (NNFloat)0.0) + (a <= (NNFloat)0.0) * slope);      
     }
 }
 
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateIndexedELUL1OutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, unsigned char* pData, NNFloat alpha)
+kCalculateIndexedELUL1OutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, unsigned char* pData, NNFloat* pDataWeight, NNFloat alpha)
 {
     uint64_t pos                = (blockIdx.y * blockDim.x) + threadIdx.x;
     if (pos < stride)
     {
         uint64_t uOffset        = blockIdx.x * stride;
-        uint64_t dOffset        = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x] * stride;
+        uint64_t dpos           = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x];
+        uint64_t dOffset        = dpos * stride;
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
         NNFloat a               = pUnit[uOffset + pos];
         NNFloat t               = (NNFloat)pData[dOffset + pos] * NNFloat(1.0 / 256.0);
-        pDelta[uOffset + pos]   = sgn(a - t) * ((a > (NNFloat)0.0) + (a <= (NNFloat)0.0) * (a + alpha));
+        pDelta[uOffset + pos]   = w * sgn(a - t) * ((a > (NNFloat)0.0) + (a <= (NNFloat)0.0) * (a + alpha));
     }
 }
 
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateIndexedSELUL1OutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, unsigned char* pData, NNFloat alpha, NNFloat lambda)
+kCalculateIndexedSELUL1OutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, unsigned char* pData, NNFloat* pDataWeight, NNFloat alpha, NNFloat lambda)
 {
     uint64_t pos                = (blockIdx.y * blockDim.x) + threadIdx.x;
     if (pos < stride)
     {
         uint64_t uOffset        = blockIdx.x * stride;
-        uint64_t dOffset        = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x] * stride;
+        uint64_t dpos           = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x];
+        uint64_t dOffset        = dpos * stride;
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
         NNFloat a               = pUnit[uOffset + pos];
         NNFloat t               = (NNFloat)pData[dOffset + pos] * NNFloat(1.0 / 256.0);
-        pDelta[uOffset + pos]   = sgn(a - t) * ((a > (NNFloat)0.0) * lambda + (a <= (NNFloat)0.0) * lambda * alpha * exp(a));
+        pDelta[uOffset + pos]   = w * sgn(a - t) * ((a > (NNFloat)0.0) * lambda + (a <= (NNFloat)0.0) * lambda * alpha * exp(a));
     }
 }
 
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateIndexedSigmoidL1OutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, char* pData)
+kCalculateIndexedSigmoidL1OutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, char* pData, NNFloat* pDataWeight)
 {
     uint64_t pos                = (blockIdx.y * blockDim.x) + threadIdx.x;
     if (pos < stride)
     {
         uint64_t uOffset        = blockIdx.x * stride;
-        uint64_t dOffset        = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x] * stride;
+        uint64_t dpos           = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x];
+        uint64_t dOffset        = dpos * stride;
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
         NNFloat a               = pUnit[uOffset + pos];
         NNFloat t               = (NNFloat)pData[dOffset + pos] * NNFloat(1.0 / 256.0);
-        pDelta[uOffset + pos]   = sgn(a - t) * a * ((NNFloat)1.0 - a);      
+        pDelta[uOffset + pos]   = w * sgn(a - t) * a * ((NNFloat)1.0 - a);      
     }
 }
 
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateIndexedTanhL1OutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, char* pData)
+kCalculateIndexedTanhL1OutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, char* pData, NNFloat* pDataWeight)
 {
     uint64_t pos                = (blockIdx.y * blockDim.x) + threadIdx.x;
     if (pos < stride)
     {
         uint64_t uOffset        = blockIdx.x * stride;
-        uint64_t dOffset        = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x] * stride;
+        uint64_t dpos           = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x];
+        uint64_t dOffset        = dpos * stride;
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
         NNFloat a               = pUnit[uOffset + pos];
         NNFloat t               = (NNFloat)pData[dOffset + pos] * NNFloat(1.0 / 128.0);
-        pDelta[uOffset + pos]   = sgn(a - t) * ((NNFloat)1.0 - a * a);      
+        pDelta[uOffset + pos]   = w * sgn(a - t) * ((NNFloat)1.0 - a * a);      
     }
 }
 
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateIndexedLinearL1OutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, char* pData)
+kCalculateIndexedLinearL1OutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, char* pData, NNFloat* pDataWeight)
 {
     uint64_t pos                = (blockIdx.y * blockDim.x) + threadIdx.x;
     if (pos < stride)
     {
         uint64_t uOffset        = blockIdx.x * stride;
-        uint64_t dOffset        = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x] * stride;
+        uint64_t dpos           = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x];
+        uint64_t dOffset        = dpos * stride;
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
         NNFloat a               = pUnit[uOffset + pos];
         NNFloat t               = (NNFloat)pData[dOffset + pos] * NNFloat(1.0 / 128.0);
-        pDelta[uOffset + pos]   = sgn(a - t);      
+        pDelta[uOffset + pos]   = w * sgn(a - t);      
     }
 }
 
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateIndexedRELUL1OutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, char* pData)
+kCalculateIndexedRELUL1OutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, char* pData, NNFloat* pDataWeight)
 {
     uint64_t pos                = (blockIdx.y * blockDim.x) + threadIdx.x;
     if (pos < stride)
     {
         uint64_t uOffset        = blockIdx.x * stride;
-        uint64_t dOffset        = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x] * stride;
+        uint64_t dpos           = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x];
+        uint64_t dOffset        = dpos * stride;
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
         NNFloat a               = pUnit[uOffset + pos];
         NNFloat t               = (NNFloat)pData[dOffset + pos] * NNFloat(1.0 / 128.0);
-        pDelta[uOffset + pos]   = sgn(a - t) * (a > (NNFloat)0.0);  
+        pDelta[uOffset + pos]   = w * sgn(a - t) * (a > (NNFloat)0.0);  
     }
 }
 
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateIndexedLRELUL1OutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, char* pData, NNFloat slope)
+kCalculateIndexedLRELUL1OutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, char* pData, NNFloat* pDataWeight, NNFloat slope)
 {
     uint64_t pos                = (blockIdx.y * blockDim.x) + threadIdx.x;
     if (pos < stride)
     {
         uint64_t uOffset        = blockIdx.x * stride;
-        uint64_t dOffset        = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x] * stride;
+        uint64_t dpos           = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x];
+        uint64_t dOffset        = dpos * stride;
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
         NNFloat a               = pUnit[uOffset + pos];
         NNFloat t               = (NNFloat)pData[dOffset + pos] * NNFloat(1.0 / 128.0);
-        pDelta[uOffset + pos]   = sgn(a - t) * ((a > (NNFloat)0.0) + (a <= (NNFloat)0.0) * slope);
+        pDelta[uOffset + pos]   = w * sgn(a - t) * ((a > (NNFloat)0.0) + (a <= (NNFloat)0.0) * slope);
     }
 }
 
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateIndexedELUL1OutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, char* pData, NNFloat alpha)
+kCalculateIndexedELUL1OutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, char* pData, NNFloat* pDataWeight, NNFloat alpha)
 {
     uint64_t pos                = (blockIdx.y * blockDim.x) + threadIdx.x;
     if (pos < stride)
     {
         uint64_t uOffset        = blockIdx.x * stride;
-        uint64_t dOffset        = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x] * stride;
+        uint64_t dpos           = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x];
+        uint64_t dOffset        = dpos * stride;
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
         NNFloat a               = pUnit[uOffset + pos];
         NNFloat t               = (NNFloat)pData[dOffset + pos] * NNFloat(1.0 / 128.0);
-        pDelta[uOffset + pos]   = sgn(a - t) * ((a > (NNFloat)0.0) + (a <= (NNFloat)0.0) * (a + alpha));
+        pDelta[uOffset + pos]   = w * sgn(a - t) * ((a > (NNFloat)0.0) + (a <= (NNFloat)0.0) * (a + alpha));
     }
 }
 
 template<>
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateIndexedSELUL1OutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, char* pData, NNFloat alpha, NNFloat lambda)
+kCalculateIndexedSELUL1OutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, char* pData, NNFloat* pDataWeight, NNFloat alpha, NNFloat lambda)
 {
     uint64_t pos                = (blockIdx.y * blockDim.x) + threadIdx.x;
     if (pos < stride)
     {
         uint64_t uOffset        = blockIdx.x * stride;
-        uint64_t dOffset        = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x] * stride;
+        uint64_t dpos           = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + blockIdx.x] : position + blockIdx.x];
+        uint64_t dOffset        = dpos * stride;
+        NNFloat w               = (pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0;
         NNFloat a               = pUnit[uOffset + pos];
         NNFloat t               = (NNFloat)pData[dOffset + pos] * NNFloat(1.0 / 128.0);
-        pDelta[uOffset + pos]   = sgn(a - t) * ((a > (NNFloat)0.0) * lambda + (a <= (NNFloat)0.0) * lambda * alpha * exp(a));
+        pDelta[uOffset + pos]   = w * sgn(a - t) * ((a > (NNFloat)0.0) * lambda + (a <= (NNFloat)0.0) * lambda * alpha * exp(a));
     }
 }
 
-template<typename T> void kCalculateIndexedL1OutputDelta(Activation activation, uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, T* pData, NNFloat slope, NNFloat alpha, NNFloat lambda)
+template<typename T> void kCalculateIndexedL1OutputDelta(Activation activation, uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, T* pData, NNFloat* pDataWeight, NNFloat slope, NNFloat alpha, NNFloat lambda)
 {
     dim3 grid(batch, (stride + getGpu()._threadsPerBlock - 1) / getGpu()._threadsPerBlock);
     switch (activation)
     {
         case Sigmoid:
-            kCalculateIndexedSigmoidL1OutputDelta_kernel<<<grid, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pIndex, pData);
+            kCalculateIndexedSigmoidL1OutputDelta_kernel<<<grid, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pIndex, pData, pDataWeight);
             LAUNCHERROR("kCalculateIndexedSigmoidL1OutputDelta_kernel");
             break;
         
         case Tanh:
-            kCalculateIndexedTanhL1OutputDelta_kernel<<<grid, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pIndex, pData);
+            kCalculateIndexedTanhL1OutputDelta_kernel<<<grid, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pIndex, pData, pDataWeight);
             LAUNCHERROR("kCalculateIndexedTanhL1OutputDelta_kernel");
             break;
 
         case Linear:
-            kCalculateIndexedLinearL1OutputDelta_kernel<<<grid, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pIndex, pData);
+            kCalculateIndexedLinearL1OutputDelta_kernel<<<grid, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pIndex, pData, pDataWeight);
             LAUNCHERROR("kCalculateIndexedLinearL1OutputDelta_kernel");
             break;
 
         case RectifiedLinear:
-            kCalculateIndexedRELUL1OutputDelta_kernel<<<grid, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pIndex, pData);
+            kCalculateIndexedRELUL1OutputDelta_kernel<<<grid, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pIndex, pData, pDataWeight);
             LAUNCHERROR("kCalculateIndexedRELUL1OutputDelta_kernel");
             break;
 
         case LeakyRectifiedLinear:
-            kCalculateIndexedLRELUL1OutputDelta_kernel<<<grid, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pIndex, pData, slope);
+            kCalculateIndexedLRELUL1OutputDelta_kernel<<<grid, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pIndex, pData, pDataWeight, slope);
             LAUNCHERROR("kCalculateIndexedLRELUL1OutputDelta_kernel");
             break;
             
         case ExponentialLinear:
-            kCalculateIndexedELUL1OutputDelta_kernel<<<grid, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pIndex, pData, alpha);
+            kCalculateIndexedELUL1OutputDelta_kernel<<<grid, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pIndex, pData, pDataWeight, alpha);
             LAUNCHERROR("kCalculateIndexedELUL1OutputDelta_kernel");
             break;            
 
         case ScaledExponentialLinear:
-            kCalculateIndexedSELUL1OutputDelta_kernel<<<grid, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pIndex, pData, alpha, lambda);
+            kCalculateIndexedSELUL1OutputDelta_kernel<<<grid, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pIndex, pData, pDataWeight, alpha, lambda);
             LAUNCHERROR("kCalculateIndexedSELUL1OutputDelta_kernel");
             break;   
     }
@@ -8041,17 +8365,17 @@ template<typename T> void kCalculateIndexedL1OutputDelta(Activation activation, 
 
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateSparseRawSigmoidL1OutputDelta_kernel(uint32_t position, NNFloat* pSparseWeight, uint32_t stride, uint64_t size, NNFloat* pUnit,  NNFloat* pDelta)
+kCalculateSparseRawSigmoidL1OutputDelta_kernel(uint32_t position, NNFloat* pDataWeight, uint32_t stride, uint64_t size, NNFloat* pUnit,  NNFloat* pDelta)
 {
     uint64_t pos                = (blockIdx.x * blockDim.x) + threadIdx.x;
     if (pos < size)
     {
         NNFloat w               = cData._deltaBoost_zero;
-        if (pSparseWeight != NULL)
+        if (pDataWeight != NULL)
         {
             uint64_t dpos       = (pos / stride) + position;
             dpos                = cData._bShuffleIndices ? cData._pShuffleIndex[dpos] : dpos;
-            w                  *= pSparseWeight[dpos];
+            w                  *= pDataWeight[dpos];
         }
         NNFloat a               = pUnit[pos];
         pDelta[pos]             = w *  sgn(a) * a * ((NNFloat)1.0 - a);      
@@ -8060,7 +8384,7 @@ kCalculateSparseRawSigmoidL1OutputDelta_kernel(uint32_t position, NNFloat* pSpar
 
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateSparseNonZeroSigmoidL1OutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pSparseWeight)
+kCalculateSparseNonZeroSigmoidL1OutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pDataWeight)
 {
     uint64_t pos                = ((blockIdx.x * blockDim.x) + threadIdx.x) / cData._warpSize;
     if (pos < batch)
@@ -8068,7 +8392,7 @@ kCalculateSparseNonZeroSigmoidL1OutputDelta_kernel(uint32_t position, uint32_t b
         uint32_t dpos           = cData._bShuffleIndices ? cData._pShuffleIndex[position + pos] : position + pos;
         uint64_t pos1           = pSparseStart[dpos] + (threadIdx.x & cData._warpMask);
         uint64_t end            = pSparseEnd[dpos];
-        NNFloat w               = cData._deltaBoost_one * ((pSparseWeight != NULL) ? pSparseWeight[dpos] : (NNFloat)1.0);
+        NNFloat w               = cData._deltaBoost_one * ((pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0);
         uint64_t offset         = pos * stride;
         while (pos1 < end)
         {
@@ -8082,17 +8406,17 @@ kCalculateSparseNonZeroSigmoidL1OutputDelta_kernel(uint32_t position, uint32_t b
 
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateSparseRawTanhL1OutputDelta_kernel(uint32_t position, NNFloat* pSparseWeight, uint32_t stride, uint64_t size, NNFloat* pUnit,  NNFloat* pDelta)
+kCalculateSparseRawTanhL1OutputDelta_kernel(uint32_t position, NNFloat* pDataWeight, uint32_t stride, uint64_t size, NNFloat* pUnit,  NNFloat* pDelta)
 {
     uint64_t pos                = (blockIdx.x * blockDim.x) + threadIdx.x;
     if (pos < size)
     {
         NNFloat w               = cData._deltaBoost_zero;
-        if (pSparseWeight != NULL)
+        if (pDataWeight != NULL)
         {
             uint64_t dpos       = (pos / stride) + position;
             dpos                = cData._bShuffleIndices ? cData._pShuffleIndex[dpos] : dpos;
-            w                  *= pSparseWeight[dpos];
+            w                  *= pDataWeight[dpos];
         }
         NNFloat a               = pUnit[pos];    
         pDelta[pos]             = w * sgn(a) * ((NNFloat)1.0 - a * a);          
@@ -8101,7 +8425,7 @@ kCalculateSparseRawTanhL1OutputDelta_kernel(uint32_t position, NNFloat* pSparseW
 
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateSparseNonZeroTanhL1OutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pSparseWeight)
+kCalculateSparseNonZeroTanhL1OutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pDataWeight)
 {
     uint64_t pos                = ((blockIdx.x * blockDim.x) + threadIdx.x) / cData._warpSize;
     if (pos < batch)
@@ -8109,7 +8433,7 @@ kCalculateSparseNonZeroTanhL1OutputDelta_kernel(uint32_t position, uint32_t batc
         uint32_t dpos           = cData._bShuffleIndices ? cData._pShuffleIndex[position + pos] : position + pos;
         uint64_t pos1           = pSparseStart[dpos] + (threadIdx.x & cData._warpMask);
         uint64_t end            = pSparseEnd[dpos];
-        NNFloat w               = cData._deltaBoost_one * ((pSparseWeight != NULL) ? pSparseWeight[dpos] : (NNFloat)1.0);
+        NNFloat w               = cData._deltaBoost_one * ((pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0);
         uint64_t offset         = pos * stride;
         while (pos1 < end)
         {
@@ -8123,17 +8447,17 @@ kCalculateSparseNonZeroTanhL1OutputDelta_kernel(uint32_t position, uint32_t batc
 
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateSparseRawLinearL1OutputDelta_kernel(uint32_t position, NNFloat* pSparseWeight, uint32_t stride, uint64_t size, NNFloat* pUnit, NNFloat* pDelta)
+kCalculateSparseRawLinearL1OutputDelta_kernel(uint32_t position, NNFloat* pDataWeight, uint32_t stride, uint64_t size, NNFloat* pUnit, NNFloat* pDelta)
 {
     uint64_t pos                = (blockIdx.x * blockDim.x) + threadIdx.x;
     if (pos < size)
     {
         NNFloat w               = cData._deltaBoost_zero;
-        if (pSparseWeight != NULL)
+        if (pDataWeight != NULL)
         {
             uint64_t dpos       = (pos / stride) + position;
             dpos                = cData._bShuffleIndices ? cData._pShuffleIndex[dpos] : dpos;
-            w                  *= pSparseWeight[dpos];
+            w                  *= pDataWeight[dpos];
         }
         NNFloat a               = pUnit[pos];  
         pDelta[pos]             = w * sgn(a);
@@ -8142,7 +8466,7 @@ kCalculateSparseRawLinearL1OutputDelta_kernel(uint32_t position, NNFloat* pSpars
 
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateSparseNonZeroLinearL1OutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint64_t* pSparseStart, uint64_t *pSparseEnd, uint32_t *pSparseIndex, NNFloat* pSparseWeight)
+kCalculateSparseNonZeroLinearL1OutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint64_t* pSparseStart, uint64_t *pSparseEnd, uint32_t *pSparseIndex, NNFloat* pDataWeight)
 {
     uint64_t pos                = ((blockIdx.x * blockDim.x) + threadIdx.x) / cData._warpSize;
     if (pos < batch)
@@ -8150,7 +8474,7 @@ kCalculateSparseNonZeroLinearL1OutputDelta_kernel(uint32_t position, uint32_t ba
         uint32_t dpos           = cData._bShuffleIndices ? cData._pShuffleIndex[position + pos] : position + pos;
         uint64_t pos1           = pSparseStart[dpos] + (threadIdx.x & cData._warpMask);
         uint64_t end            = pSparseEnd[dpos];
-        NNFloat w               = cData._deltaBoost_one * ((pSparseWeight != NULL) ? pSparseWeight[dpos] : (NNFloat)1.0);
+        NNFloat w               = cData._deltaBoost_one * ((pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0);
         uint64_t offset         = pos * stride;
         while (pos1 < end)
         {
@@ -8164,17 +8488,17 @@ kCalculateSparseNonZeroLinearL1OutputDelta_kernel(uint32_t position, uint32_t ba
 
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateSparseRawRELUL1OutputDelta_kernel(uint32_t position, NNFloat* pSparseWeight, uint32_t stride, uint64_t size, NNFloat* pUnit, NNFloat* pDelta)
+kCalculateSparseRawRELUL1OutputDelta_kernel(uint32_t position, NNFloat* pDataWeight, uint32_t stride, uint64_t size, NNFloat* pUnit, NNFloat* pDelta)
 {
     uint64_t pos                = (blockIdx.x * blockDim.x) + threadIdx.x;
     if (pos < size)
     {
         NNFloat w               = cData._deltaBoost_zero;
-        if (pSparseWeight != NULL)
+        if (pDataWeight != NULL)
         {
             uint64_t dpos       = (pos / stride) + position;
             dpos                = cData._bShuffleIndices ? cData._pShuffleIndex[dpos] : dpos;
-            w                  *= pSparseWeight[dpos];
+            w                  *= pDataWeight[dpos];
         }
         NNFloat a               = pUnit[pos];
         pDelta[pos]             = w * (a > (NNFloat)0.0);          
@@ -8183,7 +8507,7 @@ kCalculateSparseRawRELUL1OutputDelta_kernel(uint32_t position, NNFloat* pSparseW
 
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateSparseNonZeroRELUL1OutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint64_t* pSparseStart, uint64_t *pSparseEnd, uint32_t *pSparseIndex, NNFloat* pSparseWeight)
+kCalculateSparseNonZeroRELUL1OutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint64_t* pSparseStart, uint64_t *pSparseEnd, uint32_t *pSparseIndex, NNFloat* pDataWeight)
 {
     uint64_t pos                = ((blockIdx.x * blockDim.x) + threadIdx.x) / cData._warpSize;
     if (pos < batch)
@@ -8191,7 +8515,7 @@ kCalculateSparseNonZeroRELUL1OutputDelta_kernel(uint32_t position, uint32_t batc
         uint32_t dpos           = cData._bShuffleIndices ? cData._pShuffleIndex[position + pos] : position + pos;
         uint64_t pos1           = pSparseStart[dpos] + (threadIdx.x & cData._warpMask);
         uint64_t end            = pSparseEnd[dpos];
-        NNFloat w               = cData._deltaBoost_one * ((pSparseWeight != NULL) ? pSparseWeight[dpos] : (NNFloat)1.0);
+        NNFloat w               = cData._deltaBoost_one * ((pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0);
         uint64_t offset         = pos * stride;
         while (pos1 < end)
         {
@@ -8205,17 +8529,17 @@ kCalculateSparseNonZeroRELUL1OutputDelta_kernel(uint32_t position, uint32_t batc
 
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateSparseRawELUL1OutputDelta_kernel(uint32_t position, NNFloat* pSparseWeight, uint32_t stride, uint64_t size, NNFloat* pUnit, NNFloat* pDelta, NNFloat alpha)
+kCalculateSparseRawELUL1OutputDelta_kernel(uint32_t position, NNFloat* pDataWeight, uint32_t stride, uint64_t size, NNFloat* pUnit, NNFloat* pDelta, NNFloat alpha)
 {
     uint64_t pos                = (blockIdx.x * blockDim.x) + threadIdx.x;
     if (pos < size)
     {
         NNFloat w               = cData._deltaBoost_zero;
-        if (pSparseWeight != NULL)
+        if (pDataWeight != NULL)
         {
             uint64_t dpos       = (pos / stride) + position;
             dpos                = cData._bShuffleIndices ? cData._pShuffleIndex[dpos] : dpos;
-            w                  *= pSparseWeight[dpos];
+            w                  *= pDataWeight[dpos];
         }
         NNFloat a               = pUnit[pos];
         pDelta[pos]             = w * sgn(a) * ((a > (NNFloat)0.0) + (a <= (NNFloat)0.0) * (a + alpha));    
@@ -8224,7 +8548,7 @@ kCalculateSparseRawELUL1OutputDelta_kernel(uint32_t position, NNFloat* pSparseWe
 
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateSparseNonZeroELUL1OutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint64_t* pSparseStart, uint64_t *pSparseEnd, uint32_t *pSparseIndex, NNFloat* pSparseWeight, NNFloat alpha)
+kCalculateSparseNonZeroELUL1OutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint64_t* pSparseStart, uint64_t *pSparseEnd, uint32_t *pSparseIndex, NNFloat* pDataWeight, NNFloat alpha)
 {
     uint64_t pos                = ((blockIdx.x * blockDim.x) + threadIdx.x) / cData._warpSize;
     if (pos < batch)
@@ -8232,7 +8556,7 @@ kCalculateSparseNonZeroELUL1OutputDelta_kernel(uint32_t position, uint32_t batch
         uint32_t dpos           = cData._bShuffleIndices ? cData._pShuffleIndex[position + pos] : position + pos;
         uint64_t pos1           = pSparseStart[dpos] + (threadIdx.x & cData._warpMask);
         uint64_t end            = pSparseEnd[dpos];
-        NNFloat w               = cData._deltaBoost_one * ((pSparseWeight != NULL) ? pSparseWeight[dpos] : (NNFloat)1.0);
+        NNFloat w               = cData._deltaBoost_one * ((pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0);
         uint64_t offset         = pos * stride;
         while (pos1 < end)
         {
@@ -8246,17 +8570,17 @@ kCalculateSparseNonZeroELUL1OutputDelta_kernel(uint32_t position, uint32_t batch
 
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateSparseRawSELUL1OutputDelta_kernel(uint32_t position, NNFloat* pSparseWeight, uint32_t stride, uint64_t size, NNFloat* pUnit, NNFloat* pDelta, NNFloat alpha, NNFloat lambda)
+kCalculateSparseRawSELUL1OutputDelta_kernel(uint32_t position, NNFloat* pDataWeight, uint32_t stride, uint64_t size, NNFloat* pUnit, NNFloat* pDelta, NNFloat alpha, NNFloat lambda)
 {
     uint64_t pos                = (blockIdx.x * blockDim.x) + threadIdx.x;
     if (pos < size)
     {
         NNFloat w               = cData._deltaBoost_zero;
-        if (pSparseWeight != NULL)
+        if (pDataWeight != NULL)
         {
             uint64_t dpos       = (pos / stride) + position;
             dpos                = cData._bShuffleIndices ? cData._pShuffleIndex[dpos] : dpos;
-            w                  *= pSparseWeight[dpos];
+            w                  *= pDataWeight[dpos];
         }
         NNFloat a               = pUnit[pos];
         pDelta[pos]             = w * sgn(a) * ((a > (NNFloat)0.0) * lambda + (a <= (NNFloat)0.0) * lambda * alpha * exp(a));
@@ -8265,7 +8589,7 @@ kCalculateSparseRawSELUL1OutputDelta_kernel(uint32_t position, NNFloat* pSparseW
 
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateSparseNonZeroSELUL1OutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint64_t* pSparseStart, uint64_t *pSparseEnd, uint32_t *pSparseIndex, NNFloat* pSparseWeight, NNFloat alpha, NNFloat lambda)
+kCalculateSparseNonZeroSELUL1OutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint64_t* pSparseStart, uint64_t *pSparseEnd, uint32_t *pSparseIndex, NNFloat* pDataWeight, NNFloat alpha, NNFloat lambda)
 {
     uint64_t pos                = ((blockIdx.x * blockDim.x) + threadIdx.x) / cData._warpSize;
     if (pos < batch)
@@ -8273,7 +8597,7 @@ kCalculateSparseNonZeroSELUL1OutputDelta_kernel(uint32_t position, uint32_t batc
         uint32_t dpos           = cData._bShuffleIndices ? cData._pShuffleIndex[position + pos] : position + pos;
         uint64_t pos1           = pSparseStart[dpos] + (threadIdx.x & cData._warpMask);
         uint64_t end            = pSparseEnd[dpos];
-        NNFloat w               = cData._deltaBoost_one * ((pSparseWeight != NULL) ? pSparseWeight[dpos] : (NNFloat)1.0);
+        NNFloat w               = cData._deltaBoost_one * ((pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0);
         uint64_t offset         = pos * stride;
         while (pos1 < end)
         {
@@ -8287,17 +8611,17 @@ kCalculateSparseNonZeroSELUL1OutputDelta_kernel(uint32_t position, uint32_t batc
 
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateSparseRawLRELUL1OutputDelta_kernel(uint32_t position, NNFloat* pSparseWeight, uint32_t stride, uint64_t size, NNFloat* pUnit, NNFloat* pDelta, NNFloat slope)
+kCalculateSparseRawLRELUL1OutputDelta_kernel(uint32_t position, NNFloat* pDataWeight, uint32_t stride, uint64_t size, NNFloat* pUnit, NNFloat* pDelta, NNFloat slope)
 {
     uint64_t pos                = (blockIdx.x * blockDim.x) + threadIdx.x;
     if (pos < size)
     {
         NNFloat w               = cData._deltaBoost_zero;
-        if (pSparseWeight != NULL)
+        if (pDataWeight != NULL)
         {
             uint64_t dpos       = (pos / stride) + position;
             dpos                = cData._bShuffleIndices ? cData._pShuffleIndex[dpos] : dpos;
-            w                  *= pSparseWeight[dpos];
+            w                  *= pDataWeight[dpos];
         }
         NNFloat a               = pUnit[pos];
         pDelta[pos]             = w * sgn(a) * ((a > (NNFloat)0.0) + (a <= (NNFloat)0.0) * slope);
@@ -8306,7 +8630,7 @@ kCalculateSparseRawLRELUL1OutputDelta_kernel(uint32_t position, NNFloat* pSparse
 
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateSparseNonZeroRawLRELUL1OutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint64_t* pSparseStart, uint64_t *pSparseEnd, uint32_t *pSparseIndex, NNFloat* pSparseWeight, NNFloat slope)
+kCalculateSparseNonZeroRawLRELUL1OutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint64_t* pSparseStart, uint64_t *pSparseEnd, uint32_t *pSparseIndex, NNFloat* pDataWeight, NNFloat slope)
 {
     uint64_t pos                = ((blockIdx.x * blockDim.x) + threadIdx.x) / cData._warpSize;
     if (pos < batch)
@@ -8314,7 +8638,7 @@ kCalculateSparseNonZeroRawLRELUL1OutputDelta_kernel(uint32_t position, uint32_t 
         uint32_t dpos           = cData._bShuffleIndices ? cData._pShuffleIndex[position + pos] : position + pos;
         uint64_t pos1           = pSparseStart[dpos] + (threadIdx.x & cData._warpMask);
         uint64_t end            = pSparseEnd[dpos];
-        NNFloat w               = cData._deltaBoost_one * ((pSparseWeight != NULL) ? pSparseWeight[dpos] : (NNFloat)1.0);
+        NNFloat w               = cData._deltaBoost_one * ((pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0);
         uint64_t offset         = pos * stride;
         while (pos1 < end)
         {
@@ -8326,7 +8650,7 @@ kCalculateSparseNonZeroRawLRELUL1OutputDelta_kernel(uint32_t position, uint32_t 
     }
 }
 
-void kCalculateSparseL1OutputDelta(Activation activation, uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint64_t* pSparseStart, uint64_t *pSparseEnd, uint32_t *pSparseIndex, NNFloat* pSparseWeight, bool bSparseIgnoreZero, NNFloat slope, NNFloat alpha, NNFloat lambda)
+void kCalculateSparseL1OutputDelta(Activation activation, uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint64_t* pSparseStart, uint64_t *pSparseEnd, uint32_t *pSparseIndex, NNFloat* pDataWeight, bool bSparseIgnoreZero, NNFloat slope, NNFloat alpha, NNFloat lambda)
 {
     uint64_t size               = (uint64_t)batch * (uint64_t)stride;
     dim3 grid1(CalculateBlocks(size));
@@ -8343,70 +8667,70 @@ void kCalculateSparseL1OutputDelta(Activation activation, uint32_t position, uin
         case Sigmoid:
             if (!bSparseIgnoreZero)
             {
-                kCalculateSparseRawSigmoidL1OutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(position, pSparseWeight, stride, size, pUnit, pDelta);
+                kCalculateSparseRawSigmoidL1OutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(position, pDataWeight, stride, size, pUnit, pDelta);
                 LAUNCHERROR("kCalculateSparseRawSigmoidL1OutputDelta_kernel");
             }
-            kCalculateSparseNonZeroSigmoidL1OutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pSparseStart, pSparseEnd, pSparseIndex, pSparseWeight);
+            kCalculateSparseNonZeroSigmoidL1OutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pSparseStart, pSparseEnd, pSparseIndex, pDataWeight);
             LAUNCHERROR("kCalculateSparseNonZeroSigmoidL1OutputDelta_kernel");
             break;
         
         case Tanh:
             if (!bSparseIgnoreZero)
             {
-                kCalculateSparseRawTanhL1OutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(position, pSparseWeight, stride, size, pUnit, pDelta);
+                kCalculateSparseRawTanhL1OutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(position, pDataWeight, stride, size, pUnit, pDelta);
                 LAUNCHERROR("kCalculateSparseRawTanhL1OutputDelta_kernel");
             }
-            kCalculateSparseNonZeroTanhL1OutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pSparseStart, pSparseEnd, pSparseIndex, pSparseWeight);
+            kCalculateSparseNonZeroTanhL1OutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pSparseStart, pSparseEnd, pSparseIndex, pDataWeight);
             LAUNCHERROR("kCalculateSparseNonZeroTanhL1OutputDelta_kernel");
             break;
 
         case Linear:
             if (!bSparseIgnoreZero)
             {
-                kCalculateSparseRawLinearL1OutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(position, pSparseWeight, stride, size, pUnit, pDelta);
+                kCalculateSparseRawLinearL1OutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(position, pDataWeight, stride, size, pUnit, pDelta);
                 LAUNCHERROR("kCalculateSparseRawLinearL1OutputDelta_kernel");
             }
-            kCalculateSparseNonZeroLinearL1OutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pSparseStart, pSparseEnd, pSparseIndex, pSparseWeight);
+            kCalculateSparseNonZeroLinearL1OutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pSparseStart, pSparseEnd, pSparseIndex, pDataWeight);
             LAUNCHERROR("kCalculateSparseNonZeroLinearL1OutputDelta_kernel");
             break;
 
         case RectifiedLinear:
             if (!bSparseIgnoreZero)
             {
-                kCalculateSparseRawRELUL1OutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(position, pSparseWeight, stride, size, pUnit, pDelta);
+                kCalculateSparseRawRELUL1OutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(position, pDataWeight, stride, size, pUnit, pDelta);
                 LAUNCHERROR("kCalculateSparseRawRELUL1OutputDelta_kernel");
             }
-            kCalculateSparseNonZeroRELUL1OutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pSparseStart, pSparseEnd, pSparseIndex, pSparseWeight);
+            kCalculateSparseNonZeroRELUL1OutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pSparseStart, pSparseEnd, pSparseIndex, pDataWeight);
             LAUNCHERROR("kCalculateSparseNonZeroRELUL1OutputDelta_kernel");
             break;
 
         case LeakyRectifiedLinear:
             if (!bSparseIgnoreZero)
             {
-                kCalculateSparseRawLRELUL1OutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(position, pSparseWeight, stride, size, pUnit, pDelta, slope);
+                kCalculateSparseRawLRELUL1OutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(position, pDataWeight, stride, size, pUnit, pDelta, slope);
                 LAUNCHERROR("kCalculateSparseRawLRELUL1OutputDelta_kernel");
             }
-            kCalculateSparseNonZeroRawLRELUL1OutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pSparseStart, pSparseEnd, pSparseIndex, pSparseWeight, slope);
+            kCalculateSparseNonZeroRawLRELUL1OutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pSparseStart, pSparseEnd, pSparseIndex, pDataWeight, slope);
             LAUNCHERROR("kCalculateSparseNonZeroRawLRELUL1OutputDelta_kernel");
             break;
             
         case ExponentialLinear:
             if (!bSparseIgnoreZero)
             {
-                kCalculateSparseRawELUL1OutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(position, pSparseWeight, stride, size, pUnit, pDelta, alpha);
+                kCalculateSparseRawELUL1OutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(position, pDataWeight, stride, size, pUnit, pDelta, alpha);
                 LAUNCHERROR("kCalculateSparseRawELUL1OutputDelta_kernel");
             }
-            kCalculateSparseNonZeroELUL1OutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pSparseStart, pSparseEnd, pSparseIndex, pSparseWeight, alpha);
+            kCalculateSparseNonZeroELUL1OutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pSparseStart, pSparseEnd, pSparseIndex, pDataWeight, alpha);
             LAUNCHERROR("kCalculateSparseNonZeroELUL1OutputDelta_kernel");
             break;
             
         case ScaledExponentialLinear:
             if (!bSparseIgnoreZero)
             {
-                kCalculateSparseRawSELUL1OutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(position, pSparseWeight, stride, size, pUnit, pDelta, alpha, lambda);
+                kCalculateSparseRawSELUL1OutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(position, pDataWeight, stride, size, pUnit, pDelta, alpha, lambda);
                 LAUNCHERROR("kCalculateSparseRawSELUL1OutputDelta_kernel");
             }
-            kCalculateSparseNonZeroSELUL1OutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pSparseStart, pSparseEnd, pSparseIndex, pSparseWeight, alpha, lambda);
+            kCalculateSparseNonZeroSELUL1OutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pSparseStart, pSparseEnd, pSparseIndex, pDataWeight, alpha, lambda);
             LAUNCHERROR("kCalculateSparseNonZeroSELUL1OutputDelta_kernel");
             break;            
     }
@@ -8414,7 +8738,7 @@ void kCalculateSparseL1OutputDelta(Activation activation, uint32_t position, uin
 
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateIndexedSparseNonZeroSigmoidL1OutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pSparseWeight)
+kCalculateIndexedSparseNonZeroSigmoidL1OutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pDataWeight)
 {
     uint64_t pos                = ((blockIdx.x * blockDim.x) + threadIdx.x) / cData._warpSize;
     if (pos < batch)
@@ -8422,7 +8746,7 @@ kCalculateIndexedSparseNonZeroSigmoidL1OutputDelta_kernel(uint32_t position, uin
         uint32_t dpos           = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + pos] : position + pos];
         uint64_t pos1           = pSparseStart[dpos] + (threadIdx.x & cData._warpMask);
         uint64_t end            = pSparseEnd[dpos];
-        NNFloat w               = cData._deltaBoost_one * ((pSparseWeight != NULL) ? pSparseWeight[dpos] : (NNFloat)1.0);
+        NNFloat w               = cData._deltaBoost_one * ((pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0);
         uint64_t offset         = pos * stride;
         while (pos1 < end)
         {
@@ -8436,7 +8760,7 @@ kCalculateIndexedSparseNonZeroSigmoidL1OutputDelta_kernel(uint32_t position, uin
 
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateIndexedSparseNonZeroTanhL1OutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pSparseWeight)
+kCalculateIndexedSparseNonZeroTanhL1OutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t* pSparseEnd, uint32_t *pSparseIndex, NNFloat* pDataWeight)
 {
     uint64_t pos                = ((blockIdx.x * blockDim.x) + threadIdx.x) / cData._warpSize;
     if (pos < batch)
@@ -8444,7 +8768,7 @@ kCalculateIndexedSparseNonZeroTanhL1OutputDelta_kernel(uint32_t position, uint32
         uint32_t dpos           = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + pos] : position + pos];
         uint64_t pos1           = pSparseStart[dpos] + (threadIdx.x & cData._warpMask);
         uint64_t end            = pSparseEnd[dpos];
-        NNFloat w               = cData._deltaBoost_one * ((pSparseWeight != NULL) ? pSparseWeight[dpos] : (NNFloat)1.0);
+        NNFloat w               = cData._deltaBoost_one * ((pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0);
         uint64_t offset         = pos * stride;
         while (pos1 < end)
         {
@@ -8458,7 +8782,7 @@ kCalculateIndexedSparseNonZeroTanhL1OutputDelta_kernel(uint32_t position, uint32
 
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateIndexedSparseNonZeroLinearL1OutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t *pSparseEnd, uint32_t *pSparseIndex, NNFloat* pSparseWeight)
+kCalculateIndexedSparseNonZeroLinearL1OutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t *pSparseEnd, uint32_t *pSparseIndex, NNFloat* pDataWeight)
 {
     uint64_t pos                = ((blockIdx.x * blockDim.x) + threadIdx.x) / cData._warpSize;
     if (pos < batch)
@@ -8466,7 +8790,7 @@ kCalculateIndexedSparseNonZeroLinearL1OutputDelta_kernel(uint32_t position, uint
         uint32_t dpos           = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + pos] : position + pos];
         uint64_t pos1           = pSparseStart[dpos] + (threadIdx.x & cData._warpMask);
         uint64_t end            = pSparseEnd[dpos];
-        NNFloat w               = cData._deltaBoost_one * ((pSparseWeight != NULL) ? pSparseWeight[dpos] : (NNFloat)1.0);
+        NNFloat w               = cData._deltaBoost_one * ((pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0);
         uint64_t offset         = pos * stride;
         while (pos1 < end)
         {
@@ -8480,7 +8804,7 @@ kCalculateIndexedSparseNonZeroLinearL1OutputDelta_kernel(uint32_t position, uint
 
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateIndexedSparseNonZeroRELUL1OutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t *pSparseEnd, uint32_t *pSparseIndex, NNFloat* pSparseWeight)
+kCalculateIndexedSparseNonZeroRELUL1OutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t *pSparseEnd, uint32_t *pSparseIndex, NNFloat* pDataWeight)
 {
     uint64_t pos                = ((blockIdx.x * blockDim.x) + threadIdx.x) / cData._warpSize;
     if (pos < batch)
@@ -8488,7 +8812,7 @@ kCalculateIndexedSparseNonZeroRELUL1OutputDelta_kernel(uint32_t position, uint32
         uint32_t dpos           = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + pos] : position + pos];
         uint64_t pos1           = pSparseStart[dpos] + (threadIdx.x & cData._warpMask);
         uint64_t end            = pSparseEnd[dpos];
-        NNFloat w               = cData._deltaBoost_one * ((pSparseWeight != NULL) ? pSparseWeight[dpos] : (NNFloat)1.0);
+        NNFloat w               = cData._deltaBoost_one * ((pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0);
         uint64_t offset         = pos * stride;
         while (pos1 < end)
         {
@@ -8502,7 +8826,7 @@ kCalculateIndexedSparseNonZeroRELUL1OutputDelta_kernel(uint32_t position, uint32
 
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateIndexedSparseNonZeroELUL1OutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t *pSparseEnd, uint32_t *pSparseIndex, NNFloat* pSparseWeight, NNFloat alpha)
+kCalculateIndexedSparseNonZeroELUL1OutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t *pSparseEnd, uint32_t *pSparseIndex, NNFloat* pDataWeight, NNFloat alpha)
 {
     uint64_t pos                = ((blockIdx.x * blockDim.x) + threadIdx.x) / cData._warpSize;
     if (pos < batch)
@@ -8510,7 +8834,7 @@ kCalculateIndexedSparseNonZeroELUL1OutputDelta_kernel(uint32_t position, uint32_
         uint32_t dpos           = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + pos] : position + pos];
         uint64_t pos1           = pSparseStart[dpos] + (threadIdx.x & cData._warpMask);
         uint64_t end            = pSparseEnd[dpos];
-        NNFloat w               = cData._deltaBoost_one * ((pSparseWeight != NULL) ? pSparseWeight[dpos] : (NNFloat)1.0);
+        NNFloat w               = cData._deltaBoost_one * ((pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0);
         uint64_t offset         = pos * stride;
         while (pos1 < end)
         {
@@ -8524,7 +8848,7 @@ kCalculateIndexedSparseNonZeroELUL1OutputDelta_kernel(uint32_t position, uint32_
 
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateIndexedSparseNonZeroSELUL1OutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t *pSparseEnd, uint32_t *pSparseIndex, NNFloat* pSparseWeight, NNFloat alpha, NNFloat lambda)
+kCalculateIndexedSparseNonZeroSELUL1OutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t *pSparseEnd, uint32_t *pSparseIndex, NNFloat* pDataWeight, NNFloat alpha, NNFloat lambda)
 {
     uint64_t pos                = ((blockIdx.x * blockDim.x) + threadIdx.x) / cData._warpSize;
     if (pos < batch)
@@ -8532,7 +8856,7 @@ kCalculateIndexedSparseNonZeroSELUL1OutputDelta_kernel(uint32_t position, uint32
         uint32_t dpos           = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + pos] : position + pos];
         uint64_t pos1           = pSparseStart[dpos] + (threadIdx.x & cData._warpMask);
         uint64_t end            = pSparseEnd[dpos];
-        NNFloat w               = cData._deltaBoost_one * ((pSparseWeight != NULL) ? pSparseWeight[dpos] : (NNFloat)1.0);
+        NNFloat w               = cData._deltaBoost_one * ((pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0);
         uint64_t offset         = pos * stride;
         while (pos1 < end)
         {
@@ -8546,7 +8870,7 @@ kCalculateIndexedSparseNonZeroSELUL1OutputDelta_kernel(uint32_t position, uint32
 
 __global__ void
 LAUNCH_BOUNDS()
-kCalculateIndexedSparseNonZeroRawLRELUL1OutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t *pSparseEnd, uint32_t *pSparseIndex, NNFloat* pSparseWeight, NNFloat slope)
+kCalculateIndexedSparseNonZeroRawLRELUL1OutputDelta_kernel(uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t *pSparseEnd, uint32_t *pSparseIndex, NNFloat* pDataWeight, NNFloat slope)
 {
     uint64_t pos                = ((blockIdx.x * blockDim.x) + threadIdx.x) / cData._warpSize;
     if (pos < batch)
@@ -8554,7 +8878,7 @@ kCalculateIndexedSparseNonZeroRawLRELUL1OutputDelta_kernel(uint32_t position, ui
         uint32_t dpos           = pIndex[cData._bShuffleIndices ? cData._pShuffleIndex[position + pos] : position + pos];
         uint64_t pos1           = pSparseStart[dpos] + (threadIdx.x & cData._warpMask);
         uint64_t end            = pSparseEnd[dpos];
-        NNFloat w               = cData._deltaBoost_one * ((pSparseWeight != NULL) ? pSparseWeight[dpos] : (NNFloat)1.0);
+        NNFloat w               = cData._deltaBoost_one * ((pDataWeight != NULL) ? pDataWeight[dpos] : (NNFloat)1.0);
         uint64_t offset         = pos * stride;
         while (pos1 < end)
         {
@@ -8566,7 +8890,7 @@ kCalculateIndexedSparseNonZeroRawLRELUL1OutputDelta_kernel(uint32_t position, ui
     }
 }
 
-void kCalculateIndexedSparseL1OutputDelta(Activation activation, uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t *pSparseEnd, uint32_t *pSparseIndex, NNFloat* pSparseWeight, bool bSparseIgnoreZero, NNFloat slope, NNFloat alpha, NNFloat lambda)
+void kCalculateIndexedSparseL1OutputDelta(Activation activation, uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta, uint32_t* pIndex, uint64_t* pSparseStart, uint64_t *pSparseEnd, uint32_t *pSparseIndex, NNFloat* pDataWeight, bool bSparseIgnoreZero, NNFloat slope, NNFloat alpha, NNFloat lambda)
 {
     uint64_t size               = (uint64_t)batch * (uint64_t)stride;
     dim3 grid1(CalculateBlocks(size));
@@ -8583,70 +8907,70 @@ void kCalculateIndexedSparseL1OutputDelta(Activation activation, uint32_t positi
         case Sigmoid:
             if (!bSparseIgnoreZero)
             {
-                kCalculateSparseRawSigmoidL1OutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(position, pSparseWeight, stride, size, pUnit, pDelta);
+                kCalculateSparseRawSigmoidL1OutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(position, pDataWeight, stride, size, pUnit, pDelta);
                 LAUNCHERROR("kCalculateSparseRawSigmoidL1OutputDelta_kernel");
             }
-            kCalculateIndexedSparseNonZeroSigmoidL1OutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pIndex, pSparseStart, pSparseEnd, pSparseIndex, pSparseWeight);
+            kCalculateIndexedSparseNonZeroSigmoidL1OutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pIndex, pSparseStart, pSparseEnd, pSparseIndex, pDataWeight);
             LAUNCHERROR("kCalculateIndexedSparseNonZeroSigmoidL1OutputDelta_kernel");
             break;
         
         case Tanh:
             if (!bSparseIgnoreZero)
             {
-                kCalculateSparseRawTanhL1OutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(position, pSparseWeight, stride, size, pUnit, pDelta);
+                kCalculateSparseRawTanhL1OutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(position, pDataWeight, stride, size, pUnit, pDelta);
                 LAUNCHERROR("kCalculateSparseRawTanhL1OutputDelta_kernel");
             }
-            kCalculateIndexedSparseNonZeroTanhL1OutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pIndex, pSparseStart, pSparseEnd, pSparseIndex, pSparseWeight);
+            kCalculateIndexedSparseNonZeroTanhL1OutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pIndex, pSparseStart, pSparseEnd, pSparseIndex, pDataWeight);
             LAUNCHERROR("kCalculateIndexedSparseNonZeroTanhL1OutputDelta_kernel");
             break;
 
         case Linear:
             if (!bSparseIgnoreZero)
             {
-                kCalculateSparseRawLinearL1OutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(position, pSparseWeight, stride, size, pUnit, pDelta);
+                kCalculateSparseRawLinearL1OutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(position, pDataWeight, stride, size, pUnit, pDelta);
                 LAUNCHERROR("kCalculateSparseRawLinearL1OutputDelta_kernel");
             }
-            kCalculateIndexedSparseNonZeroLinearL1OutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pIndex, pSparseStart, pSparseEnd, pSparseIndex, pSparseWeight);
+            kCalculateIndexedSparseNonZeroLinearL1OutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pIndex, pSparseStart, pSparseEnd, pSparseIndex, pDataWeight);
             LAUNCHERROR("kCalculateIndexedSparseNonZeroLinearL1OutputDelta_kernel");
             break;
 
         case RectifiedLinear:
             if (!bSparseIgnoreZero)
             {
-                kCalculateSparseRawRELUL1OutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(position, pSparseWeight, stride, size, pUnit, pDelta);
+                kCalculateSparseRawRELUL1OutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(position, pDataWeight, stride, size, pUnit, pDelta);
                 LAUNCHERROR("kCalculateSparseRawRELUL1OutputDelta_kernel");
             }
-            kCalculateIndexedSparseNonZeroRELUL1OutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pIndex, pSparseStart, pSparseEnd, pSparseIndex, pSparseWeight);
+            kCalculateIndexedSparseNonZeroRELUL1OutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pIndex, pSparseStart, pSparseEnd, pSparseIndex, pDataWeight);
             LAUNCHERROR("kCalculateIndexedSparseNonZeroRELUL1OutputDelta_kernel");
             break;
 
         case LeakyRectifiedLinear:
             if (!bSparseIgnoreZero)
             {
-                kCalculateSparseRawLRELUL1OutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(position, pSparseWeight, stride, size, pUnit, pDelta, slope);
+                kCalculateSparseRawLRELUL1OutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(position, pDataWeight, stride, size, pUnit, pDelta, slope);
                 LAUNCHERROR("kCalculateSparseRawLRELUL1OutputDelta_kernel");
             }
-            kCalculateIndexedSparseNonZeroRawLRELUL1OutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pIndex, pSparseStart, pSparseEnd, pSparseIndex, pSparseWeight, slope);
+            kCalculateIndexedSparseNonZeroRawLRELUL1OutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pIndex, pSparseStart, pSparseEnd, pSparseIndex, pDataWeight, slope);
             LAUNCHERROR("kCalculateIndexedSparseNonZeroRawLRELUL1OutputDelta_kernel");
             break;
             
         case ExponentialLinear:
             if (!bSparseIgnoreZero)
             {
-                kCalculateSparseRawELUL1OutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(position, pSparseWeight, stride, size, pUnit, pDelta, alpha);
+                kCalculateSparseRawELUL1OutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(position, pDataWeight, stride, size, pUnit, pDelta, alpha);
                 LAUNCHERROR("kCalculateSparseRawELUL1OutputDelta_kernel");
             }
-            kCalculateIndexedSparseNonZeroELUL1OutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pIndex, pSparseStart, pSparseEnd, pSparseIndex, pSparseWeight, alpha);
+            kCalculateIndexedSparseNonZeroELUL1OutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pIndex, pSparseStart, pSparseEnd, pSparseIndex, pDataWeight, alpha);
             LAUNCHERROR("kCalculateIndexedSparseNonZeroELUL1OutputDelta_kernel");
             break;
             
         case ScaledExponentialLinear:
             if (!bSparseIgnoreZero)
             {
-                kCalculateSparseRawSELUL1OutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(position, pSparseWeight, stride, size, pUnit, pDelta, alpha, lambda);
+                kCalculateSparseRawSELUL1OutputDelta_kernel<<<grid1, getGpu()._threadsPerBlock>>>(position, pDataWeight, stride, size, pUnit, pDelta, alpha, lambda);
                 LAUNCHERROR("kCalculateSparseRawSELUL1OutputDelta_kernel");
             }
-            kCalculateIndexedSparseNonZeroSELUL1OutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pIndex, pSparseStart, pSparseEnd, pSparseIndex, pSparseWeight, alpha, lambda);
+            kCalculateIndexedSparseNonZeroSELUL1OutputDelta_kernel<<<grid2, getGpu()._threadsPerBlock>>>(position, batch, stride, pUnit, pDelta, pIndex, pSparseStart, pSparseEnd, pSparseIndex, pDataWeight, alpha, lambda);
             LAUNCHERROR("kCalculateIndexedSparseNonZeroSELUL1OutputDelta_kernel");
             break;            
     }
@@ -9071,18 +9395,18 @@ void kCalculateDotProductDelta(NNFloat* pDPDelta, NNFloat* p0Vector, NNFloat* pV
 // a migraine headache in the making otherwise.
 
 #define EXPLICITLY_INSTANTIATE_KERNELS(T)                                                                                                                                                                                   \
-template void kCalculateL1OutputDelta<T>(Activation, uint32_t, uint32_t, uint32_t, NNFloat*, NNFloat*, T*, NNFloat, NNFloat, NNFloat);                                                                                      \
-template void kCalculateIndexedL1OutputDelta<T>(Activation, uint32_t, uint32_t, uint32_t, NNFloat*, NNFloat*, uint32_t*, T*, NNFloat, NNFloat, NNFloat);                                                                    \
-template void kCalculateL2HingeOutputDelta<T>(Activation, uint32_t, uint32_t, uint32_t, NNFloat*, NNFloat*, T*, NNFloat, NNFloat, NNFloat);                                                                                 \
-template void kCalculateIndexedL2HingeOutputDelta<T>(Activation, uint32_t, uint32_t, uint32_t, NNFloat*, NNFloat*, uint32_t*, T*, NNFloat, NNFloat, NNFloat);                                                               \
-template void kCalculateCrossEntropyOutputDelta<T>(Activation, uint32_t, uint32_t, uint32_t, NNFloat*, NNFloat*, T*);                                                                                                       \
-template void kCalculateIndexedCrossEntropyOutputDelta<T>(Activation, uint32_t, uint32_t, uint32_t, NNFloat*, NNFloat*, uint32_t*, T*);                                                                                     \
-template void kCalculateScaledMarginalCrossEntropyOutputDelta<T>(Activation, uint32_t, uint32_t, uint32_t, NNFloat*, NNFloat*, T*);                                                                                         \
-template void kCalculateIndexedScaledMarginalCrossEntropyOutputDelta<T>(Activation, uint32_t, uint32_t, uint32_t, NNFloat*, NNFloat*, uint32_t*, T*);                                                                       \
-template void kCalculateOutputDelta<T>(Activation, uint32_t, uint32_t, uint32_t, NNFloat*, NNFloat*, T*, NNFloat, NNFloat, NNFloat);                                                                                        \
-template void kCalculateIndexedOutputDelta<T>(Activation, uint32_t, uint32_t, uint32_t, NNFloat*, NNFloat*, uint32_t*, T*, NNFloat, NNFloat, NNFloat);                                                                      \
-template void kCalculateHingeOutputDelta<T>(Activation, uint32_t, uint32_t, uint32_t, NNFloat*, NNFloat*, T*);                                                                                                              \
-template void kCalculateIndexedHingeOutputDelta<T>(Activation, uint32_t, uint32_t, uint32_t, NNFloat*, NNFloat*, uint32_t*, T*);                                                                                            \
+template void kCalculateL1OutputDelta<T>(Activation, uint32_t, uint32_t, uint32_t, NNFloat*, NNFloat*, T*, NNFloat*, NNFloat, NNFloat, NNFloat);                                                                            \
+template void kCalculateIndexedL1OutputDelta<T>(Activation, uint32_t, uint32_t, uint32_t, NNFloat*, NNFloat*, uint32_t*, T*, NNFloat*, NNFloat, NNFloat, NNFloat);                                                          \
+template void kCalculateL2HingeOutputDelta<T>(Activation, uint32_t, uint32_t, uint32_t, NNFloat*, NNFloat*, T*, NNFloat*, NNFloat, NNFloat, NNFloat);                                                                       \
+template void kCalculateIndexedL2HingeOutputDelta<T>(Activation, uint32_t, uint32_t, uint32_t, NNFloat*, NNFloat*, uint32_t*, T*, NNFloat*, NNFloat, NNFloat, NNFloat);                                                     \
+template void kCalculateCrossEntropyOutputDelta<T>(Activation, uint32_t, uint32_t, uint32_t, NNFloat*, NNFloat*, T*, NNFloat*);                                                                                             \
+template void kCalculateIndexedCrossEntropyOutputDelta<T>(Activation, uint32_t, uint32_t, uint32_t, NNFloat*, NNFloat*, uint32_t*, T*, NNFloat*);                                                                           \
+template void kCalculateScaledMarginalCrossEntropyOutputDelta<T>(Activation, uint32_t, uint32_t, uint32_t, NNFloat*, NNFloat*, T*, NNFloat*);                                                                               \
+template void kCalculateIndexedScaledMarginalCrossEntropyOutputDelta<T>(Activation, uint32_t, uint32_t, uint32_t, NNFloat*, NNFloat*, uint32_t*, T*, NNFloat*);                                                             \
+template void kCalculateOutputDelta<T>(Activation, uint32_t, uint32_t, uint32_t, NNFloat*, NNFloat*, T*, NNFloat*, NNFloat, NNFloat, NNFloat);                                                                              \
+template void kCalculateIndexedOutputDelta<T>(Activation, uint32_t, uint32_t, uint32_t, NNFloat*, NNFloat*, uint32_t*, T*, NNFloat*, NNFloat, NNFloat, NNFloat);                                                            \
+template void kCalculateHingeOutputDelta<T>(Activation, uint32_t, uint32_t, uint32_t, NNFloat*, NNFloat*, T*, NNFloat*);                                                                                                    \
+template void kCalculateIndexedHingeOutputDelta<T>(Activation, uint32_t, uint32_t, uint32_t, NNFloat*, NNFloat*, uint32_t*, T*, NNFloat*);                                                                                  \
 template void kCalculateSparseDataScaledMarginalCrossEntropyOutputDelta<T>(Activation, uint32_t, uint32_t, uint32_t, NNFloat*, NNFloat*, uint64_t*, uint64_t*, uint32_t*, T*, bool);                                        \
 template void kCalculateIndexedSparseDataScaledMarginalCrossEntropyOutputDelta<T>(Activation, uint32_t, uint32_t, uint32_t, NNFloat*, NNFloat*, uint32_t*, uint64_t*, uint64_t*, uint32_t*, T*, bool);                      \
 template void kCalculateSparseAnalogOutputDelta<T>(Activation, uint32_t, uint32_t, uint32_t, NNFloat*,  NNFloat*, uint64_t*, uint64_t*, uint32_t*, NNFloat*, T*, bool, NNFloat, NNFloat, NNFloat);                          \

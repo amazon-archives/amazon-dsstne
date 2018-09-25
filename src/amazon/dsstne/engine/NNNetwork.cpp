@@ -29,6 +29,7 @@ _kind(NNNetwork::Kind::FeedForward),
 _errorFunction(ErrorFunction::CrossEntropy),
 _bShuffleIndices(true),
 _maxout_k(2),
+_decay((NNFloat)0.0),
 _LRN_k(2),
 _LRN_n(5),
 _LRN_alpha((NNFloat)0.0001),
@@ -107,6 +108,11 @@ tuple<NNFloat, uint32_t, NNFloat, NNFloat> NNNetwork::GetLRN() const
     return make_tuple(_LRN_k, _LRN_n, _LRN_alpha, _LRN_beta);
 }
 
+tuple<NNFloat> NNNetwork::GetDecay() const
+{
+    return make_tuple(_decay);
+}
+
 tuple<uint32_t> NNNetwork::GetMaxout() const
 {
     return make_tuple(_maxout_k);
@@ -142,9 +148,9 @@ tuple<string, int32_t> NNNetwork::GetCheckPoint() const
     return make_tuple(_checkpoint_name, _checkpoint_interval);
 }
 
-const NNLayer* NNNetwork::GetLayer(const string& layer) const
+NNLayer* NNNetwork::GetLayer(const string& layer) const
 {
-    const auto itr = _mLayer.find(layer);
+    auto itr = _mLayer.find(layer);
     if (itr == _mLayer.end())
     {
         if (getGpu()._id == 0)
@@ -231,6 +237,25 @@ bool NNNetwork::SetLRN(uint32_t k, uint32_t n, NNFloat alpha, NNFloat beta)
         printf("NNNetwork::SetLRN: k set to %u, n set to %u, alpha set to %f, beta set to %f.\n", k, n, alpha, beta);
 
     return true;
+}
+
+bool NNNetwork::SetDecay(NNFloat decay)
+{
+    if (decay >= (NNFloat)0.0)
+    {
+        _decay = decay;
+        // Report new settings
+        if (getGpu()._id == 0)
+            printf("NNNetwork::SetDecay: decay set to %f\n.", decay);    
+        return true;
+    }
+    else
+    {
+        // Report failure
+        if (getGpu()._id == 0)
+            printf("NNNetwork::SetDecay: invalid decay rate (<0.0) %f\n.", decay);
+        return false;
+    }
 }
 
 bool NNNetwork::SetMaxout(uint32_t k)
@@ -393,6 +418,7 @@ _bExamplesFound(false),
 _bAllDataLoaded(true),
 _examples(0),
 _errorFunction(d._errorFunction),
+_decay(d._decay),
 _LRN_k(d._LRN_k),
 _LRN_n(d._LRN_n),
 _LRN_alpha(d._LRN_alpha),
@@ -1584,7 +1610,8 @@ NNFloat NNNetwork::Train(uint32_t epochs, NNFloat alpha, NNFloat lambda, NNFloat
 
             // Adjust step size if network is diverging (you should probably reduce the step size instead but let's
             // assume you're pretty much asleep at the wheel and the network has to fend for itself).
-            NNFloat step_alpha                              = alpha;
+            NNFloat step_alpha                              = (_decay <= 0.0) ? alpha : alpha * ((NNFloat)1.0 / ((NNFloat)1.0 + _decay * ((NNFloat)_batches)));
+            // Modify training mode if using Adam
             moving_average                                  = 0.9 * moving_average + 0.1 * error_training;
             if (init_steps == 0)
             {
@@ -1608,7 +1635,11 @@ NNFloat NNNetwork::Train(uint32_t epochs, NNFloat alpha, NNFloat lambda, NNFloat
             // Calculate Gradients then update weights
             if (brake_steps < 24)
             {
-                BackPropagate(alpha);
+                BackPropagate();
+                
+                // Increment batch count (do this before weight update in case using Adam optimizer)
+                _batches++;     
+                           
                 UpdateWeights(step_alpha, lambda, lambda1, mu, mu1);
             }
 
@@ -1707,7 +1738,7 @@ tuple<NNFloat, NNFloat> NNNetwork::CalculateError(NNFloat lambda, NNFloat lambda
 }
 
 // Calculates deltas and gradients working backwards (output deltas are always 100% local)
-void NNNetwork::BackPropagate(NNFloat alpha)
+void NNNetwork::BackPropagate()
 {
     // Calculate batch size
     uint32_t batch                          = _batch;
@@ -1720,11 +1751,11 @@ void NNNetwork::BackPropagate(NNFloat alpha)
         {
             case NNLayer::Kind::Output:
                 l->CalculateOutputDelta(_position, batch, _errorFunction);
-                l->BackPropagate(_position, batch, alpha);
+                l->BackPropagate(_position, batch);
                 break;
 
             case NNLayer::Kind::Hidden:
-                l->BackPropagate(_position, batch, alpha);
+                l->BackPropagate(_position, batch);
                 break;
         }
     }
@@ -1735,10 +1766,7 @@ void NNNetwork::UpdateWeights(NNFloat alpha, NNFloat lambda, NNFloat lambda1, NN
     // Calculate batch size
     uint32_t batch                          = _batch;
     if (_position + batch > _examples)
-        batch                               = _examples - _position;
-        
-    // Increment batch count (do this before weight update in case using Adam optimizer)
-    _batches++;        
+        batch                               = _examples - _position;    
 
     for (int64_t i = _vWeight.size() - 1; i >= 0; i--)
     {
@@ -1898,6 +1926,7 @@ bool NNNetwork::SaveNetCDF(const string& fname)
             nc.putAtt("kind", ncUint, _kind);
             nc.putAtt("errorFunction", ncUint, _errorFunction);
             nc.putAtt("maxout_k", ncInt, _maxout_k);
+            nc.putAtt("decay", ncFloat, _decay);
             nc.putAtt("LRN_k", ncFloat, _LRN_k);
             nc.putAtt("LRN_n", ncInt, _LRN_n);
             nc.putAtt("LRN_alpha", ncFloat, _LRN_alpha);
@@ -1958,7 +1987,7 @@ vector<string> NNNetwork::GetLayers() const
 }
 
 
-NNFloat* NNNetwork::GetUnitBuffer(const string& layer) const
+NNFloat* NNNetwork::GetUnitBuffer(const string& layer)
 {
     const auto itr = _mLayer.find(layer);
     if (itr == _mLayer.end())
@@ -1974,7 +2003,7 @@ NNFloat* NNNetwork::GetUnitBuffer(const string& layer) const
     return itr->second->GetUnitBuffer();
 }
 
-NNFloat* NNNetwork::GetDeltaBuffer(const string& layer) const
+NNFloat* NNNetwork::GetDeltaBuffer(const string& layer)
 {
     const auto itr = _mLayer.find(layer);
     if (itr == _mLayer.end())
@@ -2006,9 +2035,9 @@ uint64_t NNNetwork::GetBufferSize(const string& layer) const
     return itr->second->GetBufferSize();
 }
 
-const NNWeight* NNNetwork::GetWeight(const string& inputLayer, const string& outputLayer) const
+NNWeight* NNNetwork::GetWeight(const string& inputLayer, const string& outputLayer) const
 {
-    const auto inputLayerItr = _mLayer.find(inputLayer);
+    auto inputLayerItr = _mLayer.find(inputLayer);
     if (inputLayerItr == _mLayer.end())
     {
         if (getGpu()._id == 0)
@@ -2051,7 +2080,7 @@ const NNWeight* NNNetwork::GetWeight(const string& inputLayer, const string& out
     return NULL;
 }
 
-NNFloat* NNNetwork::GetWeightBuffer(const string& inputLayer, const string& outputLayer) const
+NNFloat* NNNetwork::GetWeightBuffer(const string& inputLayer, const string& outputLayer)
 {
     const auto inputLayerItr = _mLayer.find(inputLayer);
     if (inputLayerItr == _mLayer.end())
@@ -2487,7 +2516,7 @@ bool NNNetwork::Validate()
     cout << "initialErrorTraining " << initialErrorTraining << "; initialErrorRegularization " << initialErrorRegularization << endl;
 
     // Calculate initial gradients
-    BackPropagate(alpha);
+    BackPropagate();
 
     // Save initial weights bias and weights gradients
     vector< vector<NNFloat>> vWeightGradient;
@@ -2984,6 +3013,10 @@ NNNetwork* LoadNeuralNetworkJSON(const string& fname, const uint32_t batch, cons
                 else if (name.compare("selulambda") == 0)
                 {
                     nd._SELULambda                  = value.asFloat();
+                }
+                else if (name.compare("decay") == 0)
+                {
+                    nd._decay                       = value.asFloat();
                 }
                 
                 // Read error function
@@ -3762,7 +3795,13 @@ NNNetwork* LoadNeuralNetworkNetCDF(const string& fname, const uint32_t batch)
                 throw NcException("NcException", "NNetwork::NNetwork: No error function supplied in NetCDF input file " + fname, __FILE__, __LINE__);
             }
             errorFunctionAtt.getValues(&(nd._errorFunction));
-
+            
+            NcGroupAtt decayAtt              = nc.getAtt("decay");
+            if (decayAtt.isNull())
+            {
+                nd._decay = (NNFloat)0.0;
+            }
+            decayAtt.getValues(&(nd._decay));            
 
             NcGroupAtt maxout_kAtt              = nc.getAtt("maxout_k");
             if (maxout_kAtt.isNull())

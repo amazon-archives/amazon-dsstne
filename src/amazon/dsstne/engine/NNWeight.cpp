@@ -894,32 +894,141 @@ bool NNWeight::WriteNetCDF(netCDF::NcFile& nc, uint32_t index, NNFloat* pWeight,
     return bResult;
 }
 
-bool NNWeight::CopyWeights(NNWeight* pWeight)
+bool NNWeight::CopyWeights(const NNWeight* pSrcWeight)
 {
     bool bValid                 = true;
+    NNWeight* pDstWeight = _bShared ? _pSharedWeight : this;
 
     // Check for valid weight pointer
-    if (!pWeight)
+    if (!pSrcWeight)
     {
         if (getGpu()._id == 0)
             printf("NNWeight::CopyWeights: Invalid weight pointer.\n");
-        bValid                  = false;
+        return false;
     }
-    else if ((pWeight->_width != _width) || (pWeight->_height != _height) || (pWeight->_length != _length))
+    
+    // Map to source weights if shared (biases are never shared)
+    pSrcWeight = _bShared ? pSrcWeight->_pSharedWeight : pSrcWeight;
+    if ((pSrcWeight->_width != pDstWeight->_width) || (pSrcWeight->_height != pDstWeight->_height) || (pSrcWeight->_length != pDstWeight->_length))
     {
         if (getGpu()._id == 0)
         {
-            printf("NNWeight::CopyWeights: Mismatched weight dimensions (%" PRIu64 " x %" PRIu64 " x %" PRIu64") versus (%" PRIu64 " x %" PRIu64 " x %" PRIu64 ").\n", _width, _height, _length,
-            pWeight->_width, pWeight->_height, pWeight->_length);
+            printf("NNWeight::CopyWeights: Mismatched weight dimensions (%" PRIu64 " x %" PRIu64 " x %" PRIu64") versus (%" PRIu64 " x %" PRIu64 " x %" PRIu64 ").\n", pDstWeight->_width, pDstWeight->_height, pDstWeight->_length,
+            pSrcWeight->_width, pSrcWeight->_height, pSrcWeight->_length);
         }
         bValid                  = false;        
     }
     else
     {
-        _vWeight                = pWeight->_vWeight;
-        _vBias                  = pWeight->_vBias;
-        _pbWeight->Upload(&_vWeight[0]);
-        _pbBias->Upload(&_vBias[0]);
+        pDstWeight->_vWeight    = pSrcWeight->_vWeight;
+        _vBias                  = pSrcWeight->_vBias;
+        if (pDstWeight->_pbWeight != NULL)
+            pDstWeight->_pbWeight->Upload(pDstWeight->_vWeight.data());
+        if (_pbBias != NULL)
+            _pbBias->Upload(_vBias.data());
+    }
+    return bValid;
+}
+
+bool NNWeight::SetWeights(const vector<NNFloat>& vWeight)
+{
+    bool bValid                 = true;
+    NNWeight* pWeight = _bShared ? _pSharedWeight : this;
+    
+    // Special case single and multi-GPU because we are copying from process 0
+    if (getGpu()._numprocs == 1)
+    {
+        if (vWeight.size() < pWeight->_vWeight.size())
+        {
+            cout << vWeight.size() << " " << pWeight->_vWeight.size() << endl;
+            if (getGpu()._id == 0)
+            {
+                printf("NNWeight::SetWeights: Input vector smaller than weight vector.\n");
+            }
+            bValid                  = false;        
+        }
+        else
+        {
+
+            pWeight->_vWeight       = vWeight;
+            if (pWeight->_pbWeight != NULL)
+                pWeight->_pbWeight->Upload(_vWeight.data());
+        }
+    }
+    else
+    {
+        
+    }
+    return bValid;
+}
+
+bool NNWeight::SetBiases(const vector<NNFloat>& vBias)
+{
+    bool bValid                 = true;
+
+    // Check for valid weight pointer
+    if (vBias.size() < _vBias.size())
+    {
+        if (getGpu()._id == 0)
+        {
+            printf("NNWeight::SetBiases: Input vector smaller than bias vector.\n");
+        }
+        bValid                  = false;        
+    }
+    else
+    {
+        _vBias                  = vBias;
+        if (_pbBias != NULL)
+            _pbBias->Upload(_vBias.data());
+    }
+    return bValid;
+}
+
+bool NNWeight::GetWeights(vector<NNFloat>& vWeight)
+{
+    bool bValid                 = true;
+
+    if (vWeight.size() < _vWeight.size())
+    {
+        vWeight.resize(_vWeight.size());
+    }
+
+    if (_pbWeight != NULL)
+    {
+        _pbWeight->Download(vWeight.data());
+    }
+    else
+    {
+        vWeight = _vWeight;
+    }
+    return bValid;
+}
+
+bool NNWeight::GetBiases(vector<NNFloat>& vBias)
+{
+    bool bValid                 = true;
+
+    // Special case single-GPU
+    if (getGpu()._numprocs == 1)
+    {
+
+        if (vBias.size() < _vBias.size())
+        {
+            vBias.resize(_vBias.size());
+        }
+
+        if (_pbBias != NULL)
+        {
+            _pbBias->Download(vBias.data());
+        }
+        else
+        {
+            vBias = _vBias;
+        }
+    }
+    else
+    {
+        
     }
     return bValid;
 }

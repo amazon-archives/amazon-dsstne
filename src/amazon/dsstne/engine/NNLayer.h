@@ -173,10 +173,10 @@ private:
     void CalculateActivation(uint32_t batch);
     void CalculateDropout(uint32_t batch);
     NNFloat CalculateError(uint32_t position, uint32_t batch, ErrorFunction ef);
-    void BackPropagate(uint32_t position, uint32_t batch, NNFloat alpha);
-    void BackPropagateFullyConnected(uint32_t position, uint32_t batch, NNFloat alpha);    
-    void BackPropagateConvolutional(uint32_t position, uint32_t batch, NNFloat alpha);
-    void BackPropagatePooling(uint32_t position, uint32_t batch, NNFloat alpha);        
+    void BackPropagate(uint32_t position, uint32_t batch);
+    void BackPropagateFullyConnected(uint32_t position, uint32_t batch);    
+    void BackPropagateConvolutional(uint32_t position, uint32_t batch);
+    void BackPropagatePooling(uint32_t position, uint32_t batch);        
     void CalculateOutputDelta(uint32_t position, uint32_t batch, ErrorFunction ef);
     void GenerateDenoisingData();
     void Reduce(uint32_t batch, uint32_t stride, NNFloat* pBuffer, uint32_t localStride, uint32_t updateCount);
@@ -224,6 +224,13 @@ public:
     tuple<uint32_t, uint32_t, uint32_t, uint32_t> GetLocalDimensions() const;
     tuple<uint32_t, uint32_t, uint32_t> GetKernelDimensions() const;
     tuple<uint32_t, uint32_t, uint32_t> GetKernelStride() const;
+    bool GetUnits(vector<NNFloat>& vUnit);
+    bool GetUnits(NNFloat* pUnit);
+    bool SetUnits(const vector<NNFloat>& vUnit);
+    bool GetDeltas(vector<NNFloat>& vUnit);
+    bool GetDeltas(NNFloat *pUnit);    
+    bool SetDeltas(const vector<NNFloat>& vUnit);    
+    
     //NNFloat GetPDropout();
     //NNFloat GetWeightNorm();
     //NNFloat GetDeltaNorm();
