@@ -33,6 +33,7 @@ import lombok.Singular;
 @Builder(builderMethodName = "with")
 public class NetworkConfig {
     private static final char EXTENSION_SEPARATOR = '.';
+    public static final int ALL = -1;
 
     /**
      * Location of the network netcdf file.
@@ -54,10 +55,11 @@ public class NetworkConfig {
 
     /**
      * Number of predictions to generate per input.
-     * Default: 100
+     * If negative, returns the entire output layer.
+     * Default: {@link NetworkConfig#ALL}
      */
     @Builder.Default
-    private int k = 100;
+    private int k = ALL;
 
     /**
      * Specifications of input data mapped to each input layer by layer name.
