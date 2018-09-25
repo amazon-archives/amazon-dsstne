@@ -33,7 +33,7 @@ public class SparseNNDataSet extends NNDataSet {
 
     @Getter
     private final double sparseDensity;
-    @Getter
+
     private final int stride;
 
     private final long[] sparseStart;
