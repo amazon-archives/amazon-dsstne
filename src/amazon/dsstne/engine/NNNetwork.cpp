@@ -3800,8 +3800,9 @@ NNNetwork* LoadNeuralNetworkNetCDF(const string& fname, const uint32_t batch)
             if (decayAtt.isNull())
             {
                 nd._decay = (NNFloat)0.0;
+            } else {
+                decayAtt.getValues(&(nd._decay));
             }
-            decayAtt.getValues(&(nd._decay));            
 
             NcGroupAtt maxout_kAtt              = nc.getAtt("maxout_k");
             if (maxout_kAtt.isNull())
