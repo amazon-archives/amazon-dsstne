@@ -71,28 +71,10 @@ public class NNNetwork implements Closeable {
         OutputNNDataSet[] outputs = new OutputNNDataSet[outputLayers.length];
         for (int i = 0; i < outputLayers.length; i++) {
             NNLayer outputLayer = outputLayers[i];
-            outputs[i] = new OutputNNDataSet(
-                new Dim(outputLayer.getDim(), config.getBatchSize()));
-            outputs[i].setName(outputLayer.getDatasetName());
+            outputs[i] = OutputNNDataSet.create(config, outputLayer);
         }
         predict(inputs, outputs);
         return outputs;
-    }
-
-    OutputNNDataSet createOutputDataSet(final NNLayer outputLayer) {
-        int k = config.getK();
-        int batchSize = config.getBatchSize();
-        Dim outputLayerDim = outputLayer.getDim();
-
-        OutputNNDataSet outputDataset;
-        if (config.getK() == NetworkConfig.ALL) {
-            outputDataset = new OutputNNDataSet(new Dim(outputLayerDim, batchSize));
-        } else {
-            // TODO what does it mean to do topK for output layer dim > 1
-            outputDataset = new OutputNNDataSet(
-                new Dim(outputLayerDim.dimensions, k, outputLayerDim.y, outputLayerDim.z, batchSize));
-        }
-        return outputDataset;
     }
 
     public void predict(final NNDataSet[] inputs, final OutputNNDataSet[] outputs) {

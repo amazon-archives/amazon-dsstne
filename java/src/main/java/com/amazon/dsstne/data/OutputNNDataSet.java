@@ -18,6 +18,8 @@
 package com.amazon.dsstne.data;
 
 import com.amazon.dsstne.Dim;
+import com.amazon.dsstne.NNLayer;
+import com.amazon.dsstne.NetworkConfig;
 
 import lombok.Getter;
 import lombok.Setter;
@@ -36,13 +38,38 @@ public class OutputNNDataSet {
     @Setter
     private String name = "";
 
-    private final long[] indexes;
-    private final float[] scores;
+    /**
+     * Name of the output layer this dataset is for.
+     */
+    @Setter
+    private String layerName = "";
 
-    public OutputNNDataSet(final Dim dim) {
+    private final float[] scores;
+    private final long[] indexes;
+
+    /* package private */ OutputNNDataSet(final Dim dim) {
         this.dim = dim;
-        this.indexes = new long[dim.x * dim.y * dim.z * dim.examples];
         this.scores = new float[dim.x * dim.y * dim.z * dim.examples];
+        this.indexes = new long[dim.x * dim.y * dim.z * dim.examples];
+    }
+
+    public static OutputNNDataSet create(final NetworkConfig config, final NNLayer outputLayer) {
+        int k = config.getK();
+        int batchSize = config.getBatchSize();
+        Dim outputLayerDim = outputLayer.getDim();
+
+        OutputNNDataSet outputDataset;
+        if (config.getK() == NetworkConfig.ALL) {
+            outputDataset = new OutputNNDataSet(new Dim(outputLayerDim, batchSize));
+        } else {
+            if(outputLayerDim.dimensions > 1) {
+                throw new IllegalArgumentException("Top k outputs only supported on 1-D outputs");
+            }
+            outputDataset = new OutputNNDataSet(Dim._1d(k, batchSize));
+        }
+        outputDataset.setName(outputLayer.getDatasetName());
+        outputDataset.setLayerName(outputLayer.getName());
+        return outputDataset;
     }
 }
 
