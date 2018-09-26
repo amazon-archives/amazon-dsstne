@@ -314,7 +314,7 @@ CPPUNIT_TEST_SUITE(TestNNDataSet);
 
         for(uint32_t i = 0; i < examples; ++i)
         {
-            CPPUNIT_ASSERT_EQUAL((NNFloat) i, dataset._vSparseWeight[i]);
+            CPPUNIT_ASSERT_EQUAL((NNFloat) i, dataset._vDataWeight[i]);
         }
     }
 

@@ -518,7 +518,7 @@ template<typename T> NNDataSet<T>::NNDataSet(uint32_t examples, NNFloat sparseDe
     if (isWeighted)
     {
         _attributes |= NNDataSetEnums::Attributes::Weighted;
-        _vSparseWeight.resize(_uniqueExamples);
+        _vDataWeight.resize(_uniqueExamples);
     }
 }
 
@@ -549,7 +549,7 @@ template<typename T> NNDataSet<T>::NNDataSet(uint32_t examples, uint32_t uniqueE
     if (isWeighted)
     {
         _attributes |= NNDataSetEnums::Attributes::Weighted;
-        _vSparseWeight.resize(_uniqueExamples);
+        _vDataWeight.resize(_uniqueExamples);
     }
 }
 
@@ -614,11 +614,11 @@ template<typename T> void NNDataSet<T>::SetDataWeight(const NNFloat *srcWeightDa
 {
     if (_attributes & NNDataSetEnums::Attributes::Weighted)
     {
-        if (offset + length > _vSparseWeight.size())
+        if (offset + length > _vDataWeight.size())
         {
             throw std::length_error("Not enough space to store weight data");
         }
-        copy(srcWeightData, srcWeightData + length, _vSparseWeight.data() + offset);
+        copy(srcWeightData, srcWeightData + length, _vDataWeight.data() + offset);
     } else
     {
         throw std::runtime_error("Cannot set weight data on a non weighted NNDataSet");
