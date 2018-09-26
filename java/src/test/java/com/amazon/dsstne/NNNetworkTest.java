@@ -31,11 +31,11 @@ public class NNNetworkTest {
     @Ignore
     @Test
     public void test() throws IOException {
-        int k = 10;
-        int batchSize = 4;
+        int k = 4;
+        int batchSize = 32;
 
         NetworkConfig config =
-            NetworkConfig.with().networkFilePath("/home/kiuk/tmp/gl.nc").batchSize(batchSize).build();
+            NetworkConfig.with().networkFilePath("/home/kiuk/tmp/gl.nc").batchSize(batchSize).k(k).build();
 
         System.out.println("Loading " + config);
 
@@ -55,6 +55,17 @@ public class NNNetworkTest {
 
         network.load(inputDatasets);
         OutputNNDataSet[] outputDatasets = network.predict(inputDatasets);
+        OutputNNDataSet output = outputDatasets[0];
+        float[] scores = output.getScores();
+        long[] indexes = output.getIndexes();
+
+        int K = (k == -1) ? 10 : k;
+        for(int i=0; i<batchSize; ++i) {
+            for(int j=0; j< K; ++j) {
+                System.out.print(String.format("%d:%5.4f,", indexes[i * K + j], scores[i * K + j]));
+            }
+            System.out.println();
+        }
 //        for (int i = 0; i < outputDatasets.length; ++i) {
 //            outputDatasets[i].getIndexes()
 //        }
