@@ -63,6 +63,7 @@ jmethodID NNDataSet_getSparseIndex;
 jmethodID NNDataSet_getData;
 
 jmethodID OutputNNDataSet_getName;
+jmethodID OutputNNDataSet_getLayerName;
 jmethodID OutputNNDataSet_getIndexes;
 jmethodID OutputNNDataSet_getScores;
 
@@ -110,6 +111,7 @@ jint JNI_OnLoad(JavaVM *vm, void *reserved)
         NNDataSet_getData = findMethodId(env, REFS, _NNDataSet, "getData", "()Ljava/nio/ByteBuffer;");
 
         OutputNNDataSet_getName = findMethodId(env, REFS, _OutputNNDataSet, "getName", "()Ljava/lang/String;");
+        OutputNNDataSet_getLayerName = findMethodId(env, REFS, _OutputNNDataSet, "getLayerName", "()Ljava/lang/String;");
         OutputNNDataSet_getIndexes = findMethodId(env, REFS, _OutputNNDataSet, "getIndexes", "()[J");
         OutputNNDataSet_getScores = findMethodId(env, REFS, _OutputNNDataSet, "getScores", "()[F");
 
@@ -234,12 +236,37 @@ JNIEXPORT jobject JNICALL Java_com_amazon_dsstne_Dsstne_get_1layers(JNIEnv *env,
     return jLayers;
 }
 
-bool checkDataset(NNDataSetBase *dstDataset, uint32_t attribute, DataType dataType, const NNDataSetDimensions &dim,
-                  uint32_t examples)
+void checkDataset(JNIEnv *env, NNDataSetBase *dstDataset, uint32_t attribute, DataType dataType,
+                  const NNDataSetDimensions &dim, uint32_t examples)
 {
-    return dstDataset->_attributes == attribute && dstDataset->_dataType == dataType
-        && dstDataset->_dimensions == dim._dimensions && dstDataset->_width == dim._width
-        && dstDataset->_width == dim._length && dstDataset->_width == dim._height && dstDataset->_examples == examples;
+    if(dstDataset->_attributes != attribute)
+    {
+        throwJavaException(env, IllegalArgumentException, "Attribute mismatch in dataset %s", dstDataset->_name.c_str());
+    }
+    if(dstDataset->_dataType != dataType)
+    {
+        throwJavaException(env, IllegalArgumentException, "Data type mismatch in dataset %s", dstDataset->_name.c_str());
+    }
+    if(dstDataset->_dimensions != dim._dimensions)
+    {
+        throwJavaException(env, IllegalArgumentException, "Dimension mismatch in dataset %s", dstDataset->_name.c_str());
+    }
+    if (dstDataset->_width != dim._width)
+    {
+        throwJavaException(env, IllegalArgumentException, "Width mismatch in dataset %s", dstDataset->_name.c_str());
+    }
+    if (dstDataset->_length != dim._length)
+    {
+        throwJavaException(env, IllegalArgumentException, "Length mismatch in dataset %s", dstDataset->_name.c_str());
+    }
+    if (dstDataset->_height != dim._height)
+    {
+        throwJavaException(env, IllegalArgumentException, "Height mismatch in dataset %s", dstDataset->_name.c_str());
+    }
+    if(dstDataset->_examples != examples)
+    {
+        throwJavaException(env, IllegalArgumentException, "Examples mismatch in dataset %s", dstDataset->_name.c_str());
+    }
 }
 
 JNIEXPORT void JNICALL Java_com_amazon_dsstne_Dsstne_predict(JNIEnv *env, jclass clazz, jlong ptr, jint k,
@@ -277,11 +304,7 @@ JNIEXPORT void JNICALL Java_com_amazon_dsstne_Dsstne_predict(JNIEnv *env, jclass
         }
 
         NNDataSetBase *dstDataset = layer->GetDataSet();
-        if (!checkDataset(dstDataset, attribute, dataType, dim, examples))
-        {
-            throwJavaException(env, IllegalArgumentException, "Input dataset %s does not match the layer %s dataset",
-                               datasetName, layer->GetName());
-        }
+        checkDataset(env, dstDataset, attribute, dataType, dim, examples);
 
         // java data direct buffer may contain sparse or dense data depending on the type of the dataset
         jobject srcByteBuffer = env->CallObjectMethod(jInputDataset, NNDataSet_getData);
@@ -323,30 +346,51 @@ JNIEXPORT void JNICALL Java_com_amazon_dsstne_Dsstne_predict(JNIEnv *env, jclass
         jobject jOutputDataset = env->GetObjectArrayElement(jOutputDatasets, i);
 
         // output dataset name is set to output layer name
-        jstring jDatasetName = (jstring) env->CallObjectMethod(jOutputDataset, OutputNNDataSet_getName);
-        const char *datasetName = env->GetStringUTFChars(jDatasetName, NULL);
+        jstring jLayerName = (jstring) env->CallObjectMethod(jOutputDataset, OutputNNDataSet_getLayerName);
+        const char *layerName = env->GetStringUTFChars(jLayerName, NULL);
 
         jfloatArray jScores = (jfloatArray) env->CallObjectMethod(jOutputDataset, OutputNNDataSet_getScores);
         jlongArray jIndexes = (jlongArray) env->CallObjectMethod(jOutputDataset, OutputNNDataSet_getIndexes);
 
-        float *scores = (float*) env->GetPrimitiveArrayCritical(jScores, NULL);
-        uint32_t *indexes = (uint32_t*) env->GetPrimitiveArrayCritical(jIndexes, NULL);
+        NNLayer *outputLayer = network->GetLayer(layerName);
 
-        NNFloat *outputUnitBuffer = network->GetUnitBuffer(datasetName);
-        uint32_t stride = network->GetBufferSize(datasetName) / batchSize;
+        uint32_t x, y, z, w;
+        tie(x, y, z, w) = outputLayer->GetDimensions();
+        uint32_t stride = x * y * z;
+
+        float *scores = (float*) env->GetPrimitiveArrayCritical(jScores, NULL);
 
         if (k > 0)
         {
-            kCalculateTopK(outputUnitBuffer, scores, indexes, batchSize, stride, k);
+            NNFloat *outputUnitBuffer = network->GetUnitBuffer(layerName);
+            long *indexes = (long*) env->GetPrimitiveArrayCritical(jIndexes, NULL);
+            NNFloat *dScores;
+            uint32_t *dIndexes;
+            uint32_t *hIndexes = (uint32_t*) calloc(k * batchSize, sizeof(uint32_t));
+            cudaMalloc(&dScores, k * batchSize * sizeof(NNFloat));
+            cudaMalloc(&dIndexes, k * batchSize * sizeof(uint32_t));
+
+            kCalculateTopK(outputUnitBuffer, dScores, dIndexes, batchSize, stride, k);
+
+            cudaMemcpy(scores, dScores, k * batchSize * sizeof(NNFloat), cudaMemcpyDeviceToHost);
+            cudaMemcpy(hIndexes, dIndexes, k * batchSize * sizeof(uint32_t), cudaMemcpyDeviceToHost);
+            cudaFree(dScores);
+            cudaFree(dIndexes);
+
+            for (size_t i = 0; i < k * batchSize; ++i)
+            {
+                indexes[i] = (long) hIndexes[i];
+            }
+            free(hIndexes);
+
+            env->ReleasePrimitiveArrayCritical(jIndexes, indexes, 0);
         } else
         {
-            // return the entire output layer
-
+            // return the entire output layer, no need to set indexes since we are returning the whole thing
+            outputLayer->GetUnits((NNFloat*) scores);
         }
-
         env->ReleasePrimitiveArrayCritical(jScores, scores, 0);
-        env->ReleasePrimitiveArrayCritical(jIndexes, indexes, 0);
-        env->ReleaseStringUTFChars(jDatasetName, datasetName);
+        env->ReleaseStringUTFChars(jLayerName, layerName);
     }
 }
 
