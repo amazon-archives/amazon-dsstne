@@ -55,7 +55,7 @@ NNRecsGenerator::NNRecsGenerator(unsigned int xBatchSize,
 {
 }
 
-void NNRecsGenerator::generateRecs(const NNNetwork *xNetwork,
+void NNRecsGenerator::generateRecs(NNNetwork *xNetwork,
                                    unsigned int xK,
                                    const FilterConfig *xFilterSet,
                                    const vector<string> &xCustomerIndex,
