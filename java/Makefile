@@ -51,7 +51,7 @@ SOURCES=$(shell find '$(SOURCES_DIR)' -type f -name '*.cpp')
 OBJECTS=$(SOURCES:$(SOURCES_DIR)/%.cpp=$(OBJECTS_DIR)/%.o)
 
 CC = g++
-CFLAGS ?=-Wall -fPIC -std=c++11 -pthread
+CFLAGS ?=-Wall -fPIC -std=c++11 -pthread -O3
 LDFLAGS ?= -fPIC -Wl,--whole-archive $(LIB_DSSTNE) -Wl,--no-whole-archive
 
 all: $(LIBRARY)
@@ -64,7 +64,7 @@ $(LIB_DSSTNE):
 main:
 	$(info ========== Building main =============)
 	mkdir -p $(BIN_DIR)
-	$(CC) $(CFLAGS) $(INCLUDES) $(LIBS) src/test/native/main.cpp $(LIB_DSSTNE) -o $(BIN_DIR)/main.o $(LOAD_LIBS)
+	$(CC) -g $(CFLAGS) -Wl,-rpath=/usr/local/cuda/lib64 $(INCLUDES) $(LIBS) src/test/native/main.cpp $(LIB_DSSTNE) -o $(BIN_DIR)/main.o $(LOAD_LIBS)
 
 $(LIBRARY): $(OBJECTS) $(LIB_DSSTNE)
 	$(info ==========  Building JNI Libs ==========)
