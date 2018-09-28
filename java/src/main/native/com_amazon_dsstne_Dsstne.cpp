@@ -321,7 +321,7 @@ JNIEXPORT void JNICALL Java_com_amazon_dsstne_Dsstne_predict(JNIEnv *env, jclass
             jlong *sparseEnd = env->GetLongArrayElements(jSparseEnd, NULL);
             jlong *sparseIndex = env->GetLongArrayElements(jSparseIndex, NULL);
 
-            dstDataset->SetSparseData((uint64_t*) sparseStart, (uint64_t*) sparseEnd, srcDataNative,
+            dstDataset->LoadSparseData((uint64_t*) sparseStart, (uint64_t*) sparseEnd, srcDataNative,
                                       (uint32_t*) sparseIndex);
             env->ReleaseLongArrayElements(jSparseStart, sparseStart, JNI_ABORT);
             env->ReleaseLongArrayElements(jSparseEnd, sparseEnd, JNI_ABORT);
@@ -329,7 +329,7 @@ JNIEXPORT void JNICALL Java_com_amazon_dsstne_Dsstne_predict(JNIEnv *env, jclass
         } else
         {
             /* copy dense data */
-            dstDataset->SetData(srcDataNative);
+            dstDataset->LoadDenseData(srcDataNative);
         }
 
         env->ReleaseStringUTFChars(jDatasetName, datasetName);
