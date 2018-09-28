@@ -16,21 +16,19 @@ CPPUNIT_TEST_SUITE(TestNNDataSet);
     CPPUNIT_TEST(testCreateSparseIndexedDataset);
     CPPUNIT_TEST(testCreateSparseWeightedIndexedDataset);
 
-    CPPUNIT_TEST(testSetDenseData);
-    CPPUNIT_TEST_EXCEPTION(testSetDenseData_Overflow, std::length_error);
+    CPPUNIT_TEST(testLoadDenseData);
     CPPUNIT_TEST_EXCEPTION(testSetDenseData_OnSparseDataset, std::runtime_error);
 
-    CPPUNIT_TEST(testSetSparseData);
-    CPPUNIT_TEST_EXCEPTION(testSetSparseData_Overflow, std::length_error);
-    CPPUNIT_TEST_EXCEPTION(testSetSparseData_OnDenseDataset, std::runtime_error);
+    CPPUNIT_TEST(testLoadSparseData);
+    CPPUNIT_TEST_EXCEPTION(testLoadSparseData_Overflow, std::length_error);
+    CPPUNIT_TEST_EXCEPTION(testLoadSparseData_SparseStartNotZeroIndexed, std::runtime_error);
+    CPPUNIT_TEST_EXCEPTION(testLoadSparseData_OnDenseDataset, std::runtime_error);
 
-    CPPUNIT_TEST(testSetIndexedData);
-    CPPUNIT_TEST_EXCEPTION(testSetIndexedData_Overflow, std::length_error);
-    CPPUNIT_TEST_EXCEPTION(testSetIndexedData_OnNotIndexedDataset, std::runtime_error);
+    CPPUNIT_TEST(testLoadIndexedData);
+    CPPUNIT_TEST_EXCEPTION(testLoadIndexedData_OnNotIndexedDataset, std::runtime_error);
 
-    CPPUNIT_TEST(testSetDataWeights);
-    CPPUNIT_TEST_EXCEPTION(testSetDataWeights_Overflow, std::length_error);
-    CPPUNIT_TEST_EXCEPTION(testSetDataWeights_OnNotWeightedDataset, std::runtime_error);
+    CPPUNIT_TEST(testLoadDataWeights);
+    CPPUNIT_TEST_EXCEPTION(testLoadDataWeights_OnNotWeightedDataset, std::runtime_error);
 
     CPPUNIT_TEST(testNNDataSetTypes);
 
@@ -41,6 +39,8 @@ CPPUNIT_TEST_SUITE(TestNNDataSet);
     uint32_t examples = 32;
     uint32_t uniqueExamples = 16;
     double sparseDensity = 0.1;
+    size_t stride = datasetDim._height * datasetDim._width * datasetDim._length;
+    size_t dataLength = stride * examples;
 
  public:
 
@@ -169,39 +169,35 @@ CPPUNIT_TEST_SUITE(TestNNDataSet);
         CPPUNIT_ASSERT(dataset._sparseDataSize == (uint64_t ) (128.0 * 0.1 * 16.0));
     }
 
-    void testSetDenseData()
+    void testLoadDenseData()
     {
         NNDataSet<uint32_t> dataset(examples, datasetDim);
 
-        uint32_t srcData[128];
-        for (int i = 0; i < 128; ++i)
+        uint32_t srcData[dataLength];
+        for (size_t i = 0; i < dataLength; ++i)
         {
             srcData[i] = i;
         }
 
-        dataset.SetData(srcData, 0, 128);
-        for (int i = 0; i < 128; ++i)
+        dataset.LoadDenseData(srcData);
+
+        for (size_t i = 0; i < examples; ++i)
         {
-            CPPUNIT_ASSERT(dataset.GetDataPoint(0, i, 0, 0) == (uint32_t ) i);
+            for(size_t j = 0; j < stride; ++j)
+            {
+                CPPUNIT_ASSERT_EQUAL((uint32_t) (i * stride + j), dataset.GetDataPoint(i, j));
+            }
         }
-    }
-
-    void testSetDenseData_Overflow()
-    {
-        NNDataSet<uint32_t> dataset(examples, datasetDim);
-
-        uint32_t srcData[128];
-        dataset.SetData(srcData, 32 * 128, 128);
     }
 
     void testSetDenseData_OnSparseDataset()
     {
         NNDataSet<uint32_t> dataset(examples, sparseDensity, datasetDim, false);
-        uint32_t srcData[128];
-        dataset.SetData(srcData, 31 * 128, 128);
+        uint32_t srcData[dataLength];
+        dataset.LoadDenseData(srcData);
     }
 
-    void testSetSparseData()
+    void testLoadSparseData()
     {
         NNDataSet<NNFloat> dataset(examples, sparseDensity, datasetDim, false);
 
@@ -234,7 +230,7 @@ CPPUNIT_TEST_SUITE(TestNNDataSet);
             sparseIndex[i] = i;
         }
 
-        dataset.SetSparseData(sparseStart, sparseEnd, sparseData, sparseIndex);
+        dataset.LoadSparseData(sparseStart, sparseEnd, sparseData, sparseIndex);
 
         CPPUNIT_ASSERT_EQUAL(sparseEnd[0], dataset.GetSparseDataPoints(0));
         for (uint32_t i = 0; i < sparseEnd[0]; ++i)
@@ -244,31 +240,47 @@ CPPUNIT_TEST_SUITE(TestNNDataSet);
         }
     }
 
-    void testSetSparseData_Overflow()
+    void testLoadSparseData_Overflow()
     {
         NNDataSet<NNFloat> dataset(examples, sparseDensity, datasetDim, false);
 
         NNDataSetDimensions dim = dataset.GetDimensions();
         size_t sparseDataSize = (size_t) (((double) dim._height * dim._width * dim._length) * examples * sparseDensity);
         uint64_t sparseStart[examples];
+        sparseStart[0] = 0;
         uint64_t sparseEnd[examples];
         NNFloat sparseData[1];
         uint32_t sparseIndex[1];
         sparseEnd[examples - 1] = sparseDataSize + 1;
-        dataset.SetSparseData(sparseStart, sparseEnd, sparseData, sparseIndex);
+        dataset.LoadSparseData(sparseStart, sparseEnd, sparseData, sparseIndex);
     }
 
-    void testSetSparseData_OnDenseDataset()
+    void testLoadSparseData_SparseStartNotZeroIndexed()
+    {
+        NNDataSet<NNFloat> dataset(examples, sparseDensity, datasetDim, false);
+
+        NNDataSetDimensions dim = dataset.GetDimensions();
+        size_t sparseDataSize = (size_t) (((double) dim._height * dim._width * dim._length) * examples * sparseDensity);
+        uint64_t sparseStart[examples];
+        sparseStart[0] = 1;
+        uint64_t sparseEnd[examples];
+        NNFloat sparseData[1];
+        uint32_t sparseIndex[1];
+        sparseEnd[examples - 1] = sparseDataSize + 1;
+        dataset.LoadSparseData(sparseStart, sparseEnd, sparseData, sparseIndex);
+    }
+
+    void testLoadSparseData_OnDenseDataset()
     {
         NNDataSet<NNFloat> dataset(examples, datasetDim);
         uint64_t sparseStart[examples];
         uint64_t sparseEnd[examples];
         NNFloat sparseData[1];
         uint32_t sparseIndex[1];
-        dataset.SetSparseData(sparseStart, sparseEnd, sparseData, sparseIndex);
+        dataset.LoadSparseData(sparseStart, sparseEnd, sparseData, sparseIndex);
     }
 
-    void testSetIndexedData()
+    void testLoadIndexedData()
     {
         NNDataSet<NNFloat> dataset(examples, uniqueExamples, datasetDim);
         uint32_t indexedData[uniqueExamples];
@@ -277,30 +289,22 @@ CPPUNIT_TEST_SUITE(TestNNDataSet);
             indexedData[i] = i;
         }
 
-        dataset.SetIndexedData(indexedData, 0, 16);
-        dataset.SetIndexedData(indexedData, 16, 16);
+        dataset.LoadIndexedData(indexedData);
 
-        for (uint32_t i = 0; i < examples; ++i)
+        for (uint32_t i = 0; i < uniqueExamples; ++i)
         {
-            CPPUNIT_ASSERT_EQUAL(i % uniqueExamples, dataset._vIndex[i]);
+            CPPUNIT_ASSERT_EQUAL(i, dataset._vIndex[i]);
         }
     }
 
-    void testSetIndexedData_Overflow()
-    {
-        NNDataSet<NNFloat> dataset(examples, uniqueExamples, datasetDim);
-        uint32_t indexedData[examples + 1];
-        dataset.SetIndexedData(indexedData, 0, examples + 1);
-    }
-
-    void testSetIndexedData_OnNotIndexedDataset()
+    void testLoadIndexedData_OnNotIndexedDataset()
     {
         NNDataSet<NNFloat> dataset(examples, datasetDim);
         uint32_t indexedData[examples];
-        dataset.SetIndexedData(indexedData, 0, examples + 1);
+        dataset.LoadIndexedData(indexedData);
     }
 
-    void testSetDataWeights()
+    void testLoadDataWeights()
     {
         NNDataSet<uint32_t> dataset(examples, sparseDensity, datasetDim, true);
 
@@ -310,7 +314,7 @@ CPPUNIT_TEST_SUITE(TestNNDataSet);
             dataWeights[i] = (NNFloat) i;
         }
 
-        dataset.SetDataWeight(dataWeights, 0, examples);
+        dataset.LoadDataWeight(dataWeights);
 
         for(uint32_t i = 0; i < examples; ++i)
         {
@@ -318,20 +322,12 @@ CPPUNIT_TEST_SUITE(TestNNDataSet);
         }
     }
 
-    void testSetDataWeights_Overflow()
-    {
-        NNDataSet<uint32_t> dataset(examples, sparseDensity, datasetDim, true);
-
-        NNFloat dataWeights[examples * 2];
-        dataset.SetDataWeight(dataWeights, 0, examples * 2);
-    }
-
-    void testSetDataWeights_OnNotWeightedDataset()
+    void testLoadDataWeights_OnNotWeightedDataset()
     {
         NNDataSet<uint32_t> dataset(examples, sparseDensity, datasetDim, false);
 
         NNFloat dataWeights[examples];
-        dataset.SetDataWeight(dataWeights, 0, examples);
+        dataset.LoadDataWeight(dataWeights);
     }
 
     void testNNDataSetTypes()

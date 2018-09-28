@@ -151,7 +151,7 @@ static std::map<NNDataSetEnums::Attributes, string> sAttributesMap = {
     {NNDataSetEnums::Mutable,                      "Mutable"},
     {NNDataSetEnums::Attributes::SparseIgnoreZero, "SparseIgnoreZero"},
     {NNDataSetEnums::Attributes::Indexed,          "Indexed"},
-    {NNDataSetEnums::Attributes::Weighted,         "Weighted"},    
+    {NNDataSetEnums::Attributes::Weighted,         "Weighted"},
 };
 
 ostream& operator<< (ostream& out, NNDataSetEnums::Attributes& a)
@@ -200,23 +200,23 @@ static MPI_Datatype getMPIDataType(NNDataSetEnums::DataType datatype)
         case NNDataSetEnums::UInt:
             mpiType             = MPI_UINT32_T;
             break;
-            
+
         case NNDataSetEnums::Int:
             mpiType             = MPI_INT32_T;
             break;
-            
+
         case NNDataSetEnums::ULLInt:
             mpiType             = MPI_UINT64_T;
             break;
-            
+
         case NNDataSetEnums::LLInt:
             mpiType             = MPI_INT64_T;
             break;
-            
+
         case NNDataSetEnums::Float:
             mpiType             = MPI_FLOAT;
             break;
-            
+
         case NNDataSetEnums::Double:
             mpiType             = MPI_DOUBLE;
             break;
@@ -229,20 +229,20 @@ static NcType getNetCDFDataType(NNDataSetEnums::DataType datatype)
     switch (datatype)
     {
         case NNDataSetEnums::UInt:
-            return ncUint;            
-            
+            return ncUint;
+
         case NNDataSetEnums::Int:
             return ncInt;
-            
+
         case NNDataSetEnums::ULLInt:
             return ncUint64;
-            
+
         case NNDataSetEnums::LLInt:
             return ncInt64;
-            
+
         case NNDataSetEnums::Float:
             return ncFloat;
-            
+
         case NNDataSetEnums::Double:
             return ncDouble;
     }
@@ -257,12 +257,12 @@ static inline bool has_suffix(const std::string &str, const std::string &suffix)
 int MPI_Bcast_string(string& s)
 {
     int length                          = s.size();
-    MPI_Bcast(&length, 1, MPI_INT, 0, MPI_COMM_WORLD); 
+    MPI_Bcast(&length, 1, MPI_INT, 0, MPI_COMM_WORLD);
     char buff[length + 1];
     strcpy(buff, s.c_str());
-    int result                          = MPI_Bcast(&buff, length, MPI_CHAR, 0, MPI_COMM_WORLD); 
-    buff[length]                        = '\0';  
-    s                                   = buff;    
+    int result                          = MPI_Bcast(&buff, length, MPI_CHAR, 0, MPI_COMM_WORLD);
+    buff[length]                        = '\0';
+    s                                   = buff;
     return result;
 }
 
@@ -441,27 +441,27 @@ template<typename T> vector<tuple<uint64_t, uint64_t> > NNDataSet<T>::getMemoryU
         if (!(_attributes & NNDataSetEnums::Boolean))
         {
             cpuMemory                          += _vSparseData.size() * sizeof(T);
-            gpuMemory                          += _vSparseData.size() * sizeof(T);            
+            gpuMemory                          += _vSparseData.size() * sizeof(T);
         }
     }
     else
     {
         cpuMemory                              += _vData.size() * sizeof(T);
-        gpuMemory                              += _vData.size() * sizeof(T);   
+        gpuMemory                              += _vData.size() * sizeof(T);
     }
-    
+
     // Add local index structure
     if (_bIndexed)
     {
         cpuMemory                              += _examples * sizeof(uint32_t);
         gpuMemory                              += _examples * sizeof(uint32_t);
     }
-    
+
     // Gather and return memory usage per process
     vector<tuple<uint64_t, uint64_t> > vResult(getGpu()._numprocs);
-    vResult[getGpu()._id]                       = make_tuple(cpuMemory, gpuMemory);   
+    vResult[getGpu()._id]                       = make_tuple(cpuMemory, gpuMemory);
     MPI_Allgather(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL, vResult.data(), sizeof(tuple<uint64_t, uint64_t>), MPI_BYTE, MPI_COMM_WORLD);
-    return vResult;  
+    return vResult;
 }
 
 /* dense data */
@@ -472,6 +472,7 @@ template<typename T> NNDataSet<T>::NNDataSet(uint32_t examples, const NNDataSetD
     _sparseDensity = 1.0f;
      _stride = _width * _height * _length;
     _vData.resize(_stride * _examples);
+    _pbData.reset(new GpuBuffer<T>(_vData.size(), false, _bStreaming));
 }
 
 /* dense indexed data */
@@ -491,6 +492,8 @@ template<typename T> NNDataSet<T>::NNDataSet(uint32_t examples, uint32_t uniqueE
      */
     _vData.resize(_stride * _uniqueExamples);
     _vIndex.resize(_examples);
+    _pbData.reset(new GpuBuffer<T>(_vData.size(), false, _bStreaming));
+    _pbIndex.reset(new GpuBuffer<uint32_t>(_vIndex.size(), false, _bStreaming));
 }
 
 /* sparse and sparse weighted data */
@@ -515,16 +518,23 @@ template<typename T> NNDataSet<T>::NNDataSet(uint32_t examples, NNFloat sparseDe
     _vSparseData.resize(_sparseDataSize);
     _vSparseIndex.resize(_sparseDataSize);
 
+    // initialize gpu buffers
+    _pbSparseStart.reset(new GpuBuffer<uint64_t>(_vSparseStart.size(), false, _bStreaming));
+    _pbSparseEnd.reset(new GpuBuffer<uint64_t>(_vSparseEnd.size(), false, _bStreaming));
+    _pbSparseData.reset(new GpuBuffer<T>(_vSparseData.size(), false, _bStreaming));
+    _pbSparseIndex.reset(new GpuBuffer<uint32_t>(_vSparseIndex.size(), false, _bStreaming));
+
     if (isWeighted)
     {
         _attributes |= NNDataSetEnums::Attributes::Weighted;
-        _vDataWeight.resize(_uniqueExamples);
+        _vDataWeight.resize(_examples);
+        _pbDataWeight.reset(new GpuBuffer<NNFloat>(_vDataWeight.size(), false, _bStreaming));
     }
 }
 
 /* sparse indexed and sparse indexed weighted data */
-template<typename T> NNDataSet<T>::NNDataSet(uint32_t examples, uint32_t uniqueExamples, size_t sparseDataSize, const NNDataSetDimensions &dim,
-                                             bool isWeighted, const string &name):
+template<typename T> NNDataSet<T>::NNDataSet(uint32_t examples, uint32_t uniqueExamples, size_t sparseDataSize,
+                                             const NNDataSetDimensions &dim, bool isWeighted, const string &name) :
     NNDataSetBase(name, NNDataSetEnums::getDataType<T>(), examples, uniqueExamples, dim)
 {
     _attributes = NNDataSetEnums::Attributes::Sparse | NNDataSetEnums::Attributes::Indexed;
@@ -546,43 +556,50 @@ template<typename T> NNDataSet<T>::NNDataSet(uint32_t examples, uint32_t uniqueE
     _vSparseIndex.resize(_sparseDataSize);
     _vIndex.resize(_examples);
 
+    // initialize gpu buffers
+    _pbSparseStart.reset(new GpuBuffer<uint64_t>(_vSparseStart.size(), false, _bStreaming));
+    _pbSparseEnd.reset(new GpuBuffer<uint64_t>(_vSparseEnd.size(), false, _bStreaming));
+    _pbSparseData.reset(new GpuBuffer<T>(_vSparseData.size(), false, _bStreaming));
+    _pbSparseIndex.reset(new GpuBuffer<uint32_t>(_vSparseIndex.size(), false, _bStreaming));
+    _pbIndex.reset(new GpuBuffer<uint32_t>(_vIndex.size(), false, _bStreaming));
+
     if (isWeighted)
     {
         _attributes |= NNDataSetEnums::Attributes::Weighted;
-        _vDataWeight.resize(_uniqueExamples);
+        _vDataWeight.resize(_examples);
+        _pbDataWeight.reset(new GpuBuffer<NNFloat>(_vDataWeight.size(), false, _bStreaming));
     }
 }
 
-template<typename T> void NNDataSet<T>::SetData(const T *srcData, size_t offset, size_t length)
+template<typename T> void NNDataSet<T>::LoadDenseData(const T *srcData)
 {
     if (_attributes & NNDataSetEnums::Attributes::Sparse)
     {
         throw std::runtime_error("Cannot set dense data on a sparse NNDataSet");
     } else
     {
-        // size check
-        if(offset + length > _vData.size()) {
-            throw std::length_error("Not enough space store dense data");
-        }
-
-        copy(srcData, srcData + length, _vData.data() + offset);
+         copy(srcData, srcData + _vData.size(), _vData.data());
+         _pbData->Upload(_vData.data());
     }
 }
 
-template<typename T> void NNDataSet<T>::SetSparseData(const uint64_t *srcSparseStart, const uint64_t *srcSparseEnd,
-                                                      const T *srcSparseData, const uint32_t *srcSparseIndex)
+template<typename T> void NNDataSet<T>::LoadSparseData(const uint64_t *srcSparseStart, const uint64_t *srcSparseEnd,
+                                                       const T *srcSparseData, const uint32_t *srcSparseIndex)
 {
     if (_attributes & NNDataSetEnums::Attributes::Sparse)
     {
-        if(srcSparseStart[0] != 0) {
+        if (srcSparseStart[0] != 0)
+        {
             throw std::runtime_error("Sparse data should be zero indexed; srcSparseStart[0] != 0");
         }
 
-        uint64_t dataLength = srcSparseEnd[_uniqueExamples -1];
-        if(dataLength > _vSparseData.size()) {
+        uint64_t dataLength = srcSparseEnd[_uniqueExamples - 1];
+        if (dataLength > _vSparseData.size())
+        {
             throw std::length_error("Not enough space to store sparse data");
         }
-        if(dataLength > _vSparseIndex.size()) {
+        if (dataLength > _vSparseIndex.size())
+        {
             throw std::length_error("Not enough space to store sparse index");
         }
 
@@ -590,35 +607,35 @@ template<typename T> void NNDataSet<T>::SetSparseData(const uint64_t *srcSparseS
         copy(srcSparseEnd, srcSparseEnd + _uniqueExamples, _vSparseEnd.data());
         copy(srcSparseData, srcSparseData + dataLength, _vSparseData.data());
         copy(srcSparseIndex, srcSparseIndex + dataLength, _vSparseIndex.data());
+
+        _pbSparseStart->Upload(_vSparseStart.data());
+        _pbSparseEnd->Upload(_vSparseEnd.data());
+        _pbSparseIndex->Upload(_vSparseIndex.data());
+        _pbSparseData->Upload(_vSparseData.data());
     } else
     {
         throw std::runtime_error("Cannot set sparse data on a non sparse NNDataSet");
     }
 }
 
-template<typename T> void NNDataSet<T>::SetIndexedData(const uint32_t *srcIndexedData, size_t offset, size_t length)
+template<typename T> void NNDataSet<T>::LoadIndexedData(const uint32_t *srcIndexedData)
 {
     if (_attributes & NNDataSetEnums::Attributes::Indexed)
     {
-        if(offset + length > _vIndex.size()) {
-            throw std::length_error("Not enough space to store indexed data");
-        }
-        copy(srcIndexedData, srcIndexedData + length, _vIndex.data() + offset);
+        copy(srcIndexedData, srcIndexedData + _vIndex.size(), _vIndex.data());
+        _pbIndex->Upload(_vIndex.data());
     } else
     {
         throw std::runtime_error("Cannot set indexed data on a non indexed NNDataSet");
     }
 }
 
-template<typename T> void NNDataSet<T>::SetDataWeight(const NNFloat *srcWeightData, size_t offset, size_t length)
+template<typename T> void NNDataSet<T>::LoadDataWeight(const NNFloat *srcWeightData)
 {
     if (_attributes & NNDataSetEnums::Attributes::Weighted)
     {
-        if (offset + length > _vDataWeight.size())
-        {
-            throw std::length_error("Not enough space to store weight data");
-        }
-        copy(srcWeightData, srcWeightData + length, _vDataWeight.data() + offset);
+        copy(srcWeightData, srcWeightData + _vDataWeight.size(), _vDataWeight.data());
+        _pbDataWeight->Upload(_vDataWeight.data());
     } else
     {
         throw std::runtime_error("Cannot set weight data on a non weighted NNDataSet");
@@ -940,7 +957,7 @@ _pbSparseData()
             // Work around poor exception throwing design here
             NcFile nfc(fname.c_str(), NcFile::read);
             bOpened                             = true;
-            
+
             string nstring                      = to_string(n);
             string vname                        = "name" + nstring;
             NcGroupAtt nameAtt                  = nfc.getAtt(vname);
@@ -951,7 +968,7 @@ _pbSparseData()
             nameAtt.getValues(_name);
             cout << "NNDataSet<T>::NNDataSet: Name of data set: " << _name << endl;
 
-            
+
             vname                               = "dataType" + nstring;
             NcGroupAtt dataTypeAtt              = nfc.getAtt(vname);
             if (dataTypeAtt.isNull())
@@ -961,7 +978,7 @@ _pbSparseData()
             int dataType;
             dataTypeAtt.getValues(&dataType);
             _dataType                           = (NNDataSetEnums::DataType)dataType;
-                 
+
             vname                               = "attributes" + nstring;
             NcGroupAtt attributesAtt            = nfc.getAtt(vname);
             if (attributesAtt.isNull())
@@ -981,7 +998,7 @@ _pbSparseData()
                 }
                 cout << endl;
             }
-            
+
             vname                               = "examplesDim" + nstring;
             NcDim examplesDim                   = nfc.getDim(vname);
             if (examplesDim.isNull())
@@ -989,13 +1006,13 @@ _pbSparseData()
                 throw NcException("NcException", "NNDataSet::NNDataSet: No examples count supplied in NetCDF input file " + fname, __FILE__, __LINE__);
             }
             _examples                           = examplesDim.getSize();
-            
+
             // Check for nonzero examples count
             if (_examples == 0)
             {
                 throw NcException("NcException", "NNDataSet::NNDataSet: Zero-valued Examples count in NetCDF input file " + fname, __FILE__, __LINE__);
             }
-            
+
             // Grab unique examples count if present
             vname                               = "uniqueExamplesDim" + nstring;
             NcDim uniqueExamplesDim                   = nfc.getDim(vname);
@@ -1005,9 +1022,9 @@ _pbSparseData()
             }
             else
             {
-                _uniqueExamples                 = uniqueExamplesDim.getSize();              
+                _uniqueExamples                 = uniqueExamplesDim.getSize();
             }
-                
+
             vname                               = "dimensions" + nstring;
             NcGroupAtt dimensionsAtt            = nfc.getAtt(vname);
             if (dimensionsAtt.isNull())
@@ -1015,7 +1032,7 @@ _pbSparseData()
                 throw NcException("NcException", "NNDataSet::NNDataSet: No dimension count supplied in NetCDF input file " + fname, __FILE__, __LINE__);
             }
             dimensionsAtt.getValues(&_dimensions);
-            
+
             // Check for valid dimensions count
             if ((_dimensions < 1) || (_dimensions > 3))
             {
@@ -1056,32 +1073,32 @@ _pbSparseData()
             else
                 _length                         = 1;
             cout << "NNDataSet<T>::NNDataSet: " << _dimensions << "-dimensional data comprised of (" << _width << ", " << _height << ", " << _length << ") datapoints." << endl;
-            
+
             // Make sure all dimensions are at least 1
             if ((_width == 0) || (_height == 0) || (_length == 0))
             {
-                throw NcException("NcException", "NNDataSet::NNDataSet: Invalid dataset dimensions in NetCDF input file " + fname, __FILE__, __LINE__);            
+                throw NcException("NcException", "NNDataSet::NNDataSet: Invalid dataset dimensions in NetCDF input file " + fname, __FILE__, __LINE__);
             }
-                        
+
             // Read sparse data (type is irrelevant here)
             if (_attributes & NNDataSetEnums::Sparse)
             {
                 _vSparseStart.resize(_uniqueExamples);
                 _vSparseEnd.resize(_uniqueExamples);
                 vname                           = "sparseDataDim" + nstring;
-                NcDim sparseDataDim             = nfc.getDim(vname); 
+                NcDim sparseDataDim             = nfc.getDim(vname);
                 if (sparseDataDim.isNull())
                 {
-                    throw NcException("NcException", "NNDataSet::NNDataSet: No sparse data dimensions supplied in NetCDF input file " + fname, __FILE__, __LINE__);          
+                    throw NcException("NcException", "NNDataSet::NNDataSet: No sparse data dimensions supplied in NetCDF input file " + fname, __FILE__, __LINE__);
                 }
-                _sparseDataSize                 = sparseDataDim.getSize();           
-                
+                _sparseDataSize                 = sparseDataDim.getSize();
+
                 // Check for at least one datapoint
                 if (_sparseDataSize == 0)
                 {
-                    throw NcException("NcException", "NNDataSet::NNDataSet: Sparse data set with no actual data in NetCDF input file " + fname, __FILE__, __LINE__);    
+                    throw NcException("NcException", "NNDataSet::NNDataSet: Sparse data set with no actual data in NetCDF input file " + fname, __FILE__, __LINE__);
                 }
-                
+
                 _vSparseIndex.resize(_sparseDataSize);
                 cout << "NNDataSet<T>::NNDataSet: " << _sparseDataSize << " total datapoints." << endl;
                 vname                           = "sparseStart" + nstring;
@@ -1113,29 +1130,29 @@ _pbSparseData()
                 }
                 else
                     sparseStartVar.getVar((uint64_t*)_vSparseStart.data());
-                    
-                NcType vEndType                 = sparseEndVar.getType();    
+
+                NcType vEndType                 = sparseEndVar.getType();
                 if (vEndType == ncUint)
                 {
                     vector<uint32_t> vTempSparseEnd(_uniqueExamples);
                     sparseEndVar.getVar((uint32_t*)vTempSparseEnd.data());
                     copy(vTempSparseEnd.begin(), vTempSparseEnd.end(), _vSparseEnd.begin());
                 }
-                else                    
+                else
                     sparseEndVar.getVar((uint64_t*)_vSparseEnd.data());
                 sparseIndexVar.getVar((uint32_t*)_vSparseIndex.data());
-                              
+
                 // If not Boolean, then read templated point values
                 if (!(_attributes & NNDataSetEnums::Boolean))
-                {                     
+                {
                     vname                       = "sparseData" + nstring;
                     NcVar sparseDataVar         = nfc.getVar(vname);
                     if (sparseDataVar.isNull())
                     {
                         throw NcException("NcException", "NNDataSet::NNDataSet: No sparse data located in NetCDF input file " + fname, __FILE__, __LINE__);
-                    }  
+                    }
                     _vSparseData.resize(sparseDataDim.getSize());
-                    sparseDataVar.getVar(_vSparseData.data());                     
+                    sparseDataVar.getVar(_vSparseData.data());
                 }
             }
             else
@@ -1143,14 +1160,14 @@ _pbSparseData()
                 // Non-sparse data
                 _stride                         = _width * _height * _length;
                 vname                           = "dataDim" + nstring;
-                NcDim dataDim                   = nfc.getDim(vname); 
+                NcDim dataDim                   = nfc.getDim(vname);
                 if (dataDim.isNull())
                 {
                         throw NcException("NcException", "NNDataSet::NNDataSet: No data dimensions located in NetCDF input file " + fname, __FILE__, __LINE__);
-                }  
+                }
                 vname                           = "data" + nstring;
                 NcVar dataVar                   = nfc.getVar(vname);
-                
+
                 if (_attributes & NNDataSetEnums::Boolean)
                 {
 
@@ -1165,24 +1182,24 @@ _pbSparseData()
                 }
                 else
                 {
-                    _vData.resize(dataDim.getSize());   
+                    _vData.resize(dataDim.getSize());
                     dataVar.getVar(_vData.data());
-                }   
+                }
             }
-            
+
             // Read data weights if present
             if (_attributes & NNDataSetEnums::Weighted)
             {
                 vname                       = "dataWeight" + nstring;
-                NcVar DataWeightVar         = nfc.getVar(vname);                    
+                NcVar DataWeightVar         = nfc.getVar(vname);
                 if (DataWeightVar.isNull())
                 {
                     throw NcException("NcException", "NNDataSet::NNDataSet: No data weights located in NetCDF input file " + fname, __FILE__, __LINE__);
-                }  
+                }
                 _vDataWeight.resize(_examples);
-                DataWeightVar.getVar(_vDataWeight.data());                      
-            }            
-            
+                DataWeightVar.getVar(_vDataWeight.data());
+            }
+
             // Read index if indexed
             if (_attributes & NNDataSetEnums::Indexed)
             {
@@ -1191,13 +1208,13 @@ _pbSparseData()
                 if (indexVar.isNull())
                 {
                     throw NcException("NcException", "NNDataSet::NNDataSet: No indexed data located in NetCDF input file " + fname, __FILE__, __LINE__);
-                }                  
+                }
                _vIndex.resize(_examples);
                indexVar.getVar(_vIndex.data());
             }
-            
+
             cout << "NNDataSet<T>::NNDataSet: " << _examples << " examples." << endl;
-            cout << "NNDataSet<T>::NNDataSet: " << _uniqueExamples << " unique examples." << endl;            
+            cout << "NNDataSet<T>::NNDataSet: " << _uniqueExamples << " unique examples." << endl;
         }
         catch (NcException& e)
         {
@@ -1210,10 +1227,10 @@ _pbSparseData()
             {
                 cout << "Exception: " << e.what() << endl;
             }
-            bResult                             = false;                             
+            bResult                             = false;
         }
     }
-    
+
     // Gather and test on result
     MPI_Bcast(&bResult, 1, MPI_C_BOOL, 0, MPI_COMM_WORLD);
     if (!bResult)
@@ -1242,22 +1259,22 @@ _pbSparseData()
         _vSparseEnd.resize(_uniqueExamples, 0);
         _vSparseIndex.resize(0);
         _vSparseData.resize(0);
-    }   
-    
+    }
+
     // Broadcast indices if indexed
     if (_attributes & NNDataSetEnums::Indexed)
     {
         _vIndex.resize(_examples);
         MPI_Bcast(_vIndex.data(), _examples, MPI_UINT32_T, 0, MPI_COMM_WORLD);
     }
-    
+
     // Broadcast sparse weights if presented
     if (_attributes & NNDataSetEnums::Weighted)
     {
         _vDataWeight.resize(_examples);
         MPI_Bcast(_vDataWeight.data(), _examples, MPI_FLOAT, 0, MPI_COMM_WORLD);
-    }    
-    
+    }
+
     // Generate sparse data lookup tables if data is sparse
     if (_attributes & NNDataSetEnums::Sparse)
     {
@@ -1281,28 +1298,28 @@ template<typename T> bool NNDataSet<T>::CalculateSparseDatapointCounts()
         _vSparseDatapointCount.resize(N);
         _vSparseMaxDatapointCount.resize(N);
         _vSparseMultiDatapointCount.resize(N);
-        std::fill(_vSparseDatapointCount.begin(), _vSparseDatapointCount.end(), 0);        
-        std::fill(_vSparseMaxDatapointCount.begin(), _vSparseMaxDatapointCount.end(), 0); 
-        std::fill(_vSparseMultiDatapointCount.begin(), _vSparseMultiDatapointCount.end(), 0);         
-        
-        // Count max sparse datapoints, accounting for duplicates      
+        std::fill(_vSparseDatapointCount.begin(), _vSparseDatapointCount.end(), 0);
+        std::fill(_vSparseMaxDatapointCount.begin(), _vSparseMaxDatapointCount.end(), 0);
+        std::fill(_vSparseMultiDatapointCount.begin(), _vSparseMultiDatapointCount.end(), 0);
+
+        // Count max sparse datapoints, accounting for duplicates
         vector<uint32_t> vCount(N, 0);
         vector<uint32_t> vExampleCount(_uniqueExamples, 0);
         if (_attributes & NNDataSetEnums::Indexed)
         {
             for (size_t i = 0; i < _examples; i++)
-            {            
+            {
                 vExampleCount[_vIndex[i]]++;
             }
         }
         else
         {
             std::fill(vExampleCount.begin(), vExampleCount.end(), 1);
-        }            
-        
+        }
+
         for (size_t i = 0; i < _uniqueExamples; i++)
         {
-            uint64_t count                      = _vSparseEnd[i] - _vSparseStart[i];            
+            uint64_t count                      = _vSparseEnd[i] - _vSparseStart[i];
             for (size_t j = _vSparseStart[i]; j < _vSparseEnd[i]; j++)
             {
                 vCount[_vSparseIndex[j]]++;
@@ -1321,10 +1338,10 @@ template<typename T> bool NNDataSet<T>::CalculateSparseDatapointCounts()
                     _vSparseDatapointCount[x]  += vExampleCount[i] * vCount[x];
                     vCount[x]                   = 0;
                 }
-                
+
             }
         }
-        
+
         // Scale up maximum points
         size_t sz = 0;
         size_t batch = 2048;
@@ -1342,7 +1359,7 @@ template<typename T> bool NNDataSet<T>::CalculateSparseDatapointCounts()
             }
             sz += size1;
         }
-        
+
         // Calculate sparse density
         _sparseDensity = (double_t)_sparseDataSize / (double_t)(_uniqueExamples * N);
         return true;
@@ -1365,7 +1382,7 @@ template<typename T> bool NNDataSet<T>::GenerateSparseTransposedMatrix(uint32_t 
         CalculateSparseDatapointCounts();
         _bDirty                             = false;
     }
-    
+
     uint64_t NData                          = _width * _height * _length;
     uint32_t Nx, Ny, Nz, Nw;
     tie(Nx, Ny, Nz, Nw)                     = pLayer->GetLocalDimensions();
@@ -1376,33 +1393,33 @@ template<typename T> bool NNDataSet<T>::GenerateSparseTransposedMatrix(uint32_t 
         _pbSparseTransposedStart.reset(new GpuBuffer<uint32_t>(N));
     if (!_pbSparseTransposedEnd)
         _pbSparseTransposedEnd.reset(new GpuBuffer<uint32_t>(N));
-  
+
     // Set batch and calculate new sparse matrix data
     _batch                                  = batch;
     uint32_t offset                         = 0;
     for (size_t i = 0; i < _vSparseDatapointCount.size(); i++)
     {
-        _vSparseTransposedStart[i]          = offset;                
+        _vSparseTransposedStart[i]          = offset;
         size_t size1 = _vSparseDatapointCount[i];
         size1 = std::min((size_t)batch, size1);
         if (_vSparseMaxDatapointCount[i] > 1)
         {
             size_t size2 = std::min(_vSparseMaxDatapointCount[i] * batch, batch + (_vSparseMaxDatapointCount[i] - 1) * _vSparseMultiDatapointCount[i]);
             size1 = std::max(size1, size2);
-        }                          
+        }
         offset                             += size1;
         offset                              = ((offset + 31) >> 5) << 5;
     }
     _pbSparseTransposedStart->Upload(_vSparseTransposedStart.data());
-        
+
     if (offset > _sparseTransposedIndices)
     {
         _sparseTransposedIndices            = offset;
-        printf("NNDataSet::GenerateSparseTransposedMatrix: Allocating %lu bytes for sparse transposed weight gradient index matrix %s.\n", _sparseTransposedIndices * sizeof(uint32_t), _name.c_str());        
+        printf("NNDataSet::GenerateSparseTransposedMatrix: Allocating %lu bytes for sparse transposed weight gradient index matrix %s.\n", _sparseTransposedIndices * sizeof(uint32_t), _name.c_str());
         _pbSparseTransposedIndex.reset(new GpuBuffer<uint32_t>(_sparseTransposedIndices));
         if (!(_attributes & NNDataSetEnums::Boolean) || (_attributes & NNDataSetEnums::Weighted))
         {
-            printf("NNDataSet::GenerateSparseTransposedMatrix: Allocating %lu bytes for sparse transposed weight gradient value matrix %s.\n", _sparseTransposedIndices * sizeof(NNFloat), _name.c_str());        
+            printf("NNDataSet::GenerateSparseTransposedMatrix: Allocating %lu bytes for sparse transposed weight gradient value matrix %s.\n", _sparseTransposedIndices * sizeof(NNFloat), _name.c_str());
             _pbSparseTransposedData.reset(new GpuBuffer<NNFloat>(_sparseTransposedIndices));
         }
     }
@@ -1438,14 +1455,14 @@ template<typename T> bool NNDataSet<T>::SetStreaming(bool flag)
     {
         printf("NNDataSet::SetStreaming: Streaming datasets not supported on GPU %d\n", getGpu()._id);
     }
-    
+
     // Set dirty if streaming state has changed
     if (flag != _bStreaming)
     {
         _bStreaming = flag & getGpu()._bUnifiedMemory;
         _bDirty     = true;
     }
-    
+
     return true;
 }
 
@@ -1486,13 +1503,13 @@ template<typename T> bool NNDataSet<T>::UnShard()
                 _pbSparseData->Download(_vSparseData.data());
                 _pbSparseData.reset();
             }
-            
+
             // Subtract local index offset
             int32_t xmin                        = ((size_t)_width * (size_t)getGpu()._id) / (size_t)getGpu()._numprocs;
             int32_t xmax                        = ((size_t)_width * ((size_t)getGpu()._id + 1)) / (size_t)getGpu()._numprocs;
             for (auto& index : _vSparseIndex)
                 index                          -= xmin;
-            
+
             // Gather total sparse counts
             vector<uint32_t> vSparseCount(_uniqueExamples);
             for (uint32_t i = 0; i < _uniqueExamples; i++)
@@ -1502,7 +1519,7 @@ template<typename T> bool NNDataSet<T>::UnShard()
             uint64_t datapoints                 = _vSparseIndex.size();
             MPI_Reduce((getGpu()._id == 0) ? MPI_IN_PLACE : &datapoints, &datapoints, 1, MPI_UINT64_T, MPI_SUM, 0, MPI_COMM_WORLD);
             MPI_Reduce((getGpu()._id == 0) ? MPI_IN_PLACE : vSparseCount.data(), vSparseCount.data(), _uniqueExamples, MPI_UINT32_T, MPI_SUM, 0, MPI_COMM_WORLD);
-            
+
             // Unshard
             if (getGpu()._id == 0)
             {
@@ -1514,7 +1531,7 @@ template<typename T> bool NNDataSet<T>::UnShard()
                     vTempSparseData.resize(datapoints);
                 vTempSparseStart[0]             = 0;
                 uint64_t start                  = 0;
-                
+
                 // Initialize counts and generate local shard
                 for (int i = 0; i < _uniqueExamples; i++)
                 {
@@ -1522,18 +1539,18 @@ template<typename T> bool NNDataSet<T>::UnShard()
                     vTempSparseEnd[i]           = start;
                     for (uint64_t j = _vSparseStart[i]; j < _vSparseEnd[i]; j++)
                     {
-                        vTempSparseIndex[vTempSparseEnd[i]] 
+                        vTempSparseIndex[vTempSparseEnd[i]]
                                                 = _vSparseIndex[vTempSparseEnd[i]];
                         if (!(_attributes & NNDataSetEnums::Boolean))
                         {
-                            vTempSparseData[vTempSparseEnd[i]]  
+                            vTempSparseData[vTempSparseEnd[i]]
                                                 = _vSparseData[vTempSparseEnd[i]];
                         }
                         vTempSparseEnd[i]++;
                     }
                     start                      += vSparseCount[i];
                 }
-                
+
                 // Gather remaining shards
                 for (uint32_t i = 1; i < getGpu()._numprocs; i++)
                 {
@@ -1549,31 +1566,31 @@ template<typename T> bool NNDataSet<T>::UnShard()
                         vPeerSparseData.resize(size);
                         MPI_Recv(vPeerSparseData.data(), size, getMPIDataType(_dataType), i, 0, MPI_COMM_WORLD, &status);
                     }
-                    
-                    // Merge local data                
+
+                    // Merge local data
                     for (uint32_t i = 0; i < _uniqueExamples; i++)
                     {
                         uint64_t start          = 0;
                         for (int j = 0; j < vSparseCount[i]; j++)
                         {
-                            vTempSparseIndex[vTempSparseEnd[i]] 
+                            vTempSparseIndex[vTempSparseEnd[i]]
                                                 = vPeerSparseIndex[start];
                             if (!(_attributes & NNDataSetEnums::Boolean))
                             {
-                                vTempSparseData[vTempSparseEnd[i]]  
+                                vTempSparseData[vTempSparseEnd[i]]
                                                 = vPeerSparseData[start];
                             }
                             vTempSparseEnd[i]++;
                             start++;
                         }
-                    }                
+                    }
                 }
                 _vSparseStart                   = vTempSparseStart;
                 _vSparseEnd                     = vTempSparseEnd;
                 _vSparseIndex                   = vTempSparseIndex;
                 if (!(_attributes & NNDataSetEnums::Boolean))
                     _vSparseData                = vTempSparseData;
-                    
+
                 // Reallocate GPU data
                 _pbSparseStart.reset(new GpuBuffer<uint64_t>(_uniqueExamples, false, _bStreaming));
                 _pbSparseEnd.reset(new GpuBuffer<uint64_t>(_uniqueExamples, false, _bStreaming));
@@ -1584,8 +1601,8 @@ template<typename T> bool NNDataSet<T>::UnShard()
                 if (!(_attributes & NNDataSetEnums::Boolean))
                 {
                     _pbSparseData.reset(new GpuBuffer<T>((uint64_t)_vSparseData.size(), false, _bStreaming));
-                    _pbSparseData->Upload(_vSparseData.data());           
-                }                    
+                    _pbSparseData->Upload(_vSparseData.data());
+                }
             }
             else
             {
@@ -1597,7 +1614,7 @@ template<typename T> bool NNDataSet<T>::UnShard()
                 if (!(_attributes & NNDataSetEnums::Boolean))
                 {
                     MPI_Send(_vSparseData.data(), size, getMPIDataType(_dataType), 0, 0, MPI_COMM_WORLD);
-                }              
+                }
             }
         }
         else
@@ -1605,14 +1622,14 @@ template<typename T> bool NNDataSet<T>::UnShard()
             // Download all current data from all GPUs
             _pbData->Download(_vData.data());
             _pbData.reset();
-            
+
             // Unshard
             if (getGpu()._id == 0)
             {
                 vector<T> vTempData(_vData);
                 _vData.resize(_uniqueExamples * _width);
-                
-                // Copy Local Shard                
+
+                // Copy Local Shard
                 uint32_t xmax                   = _width / getGpu()._numprocs;
                 for (uint64_t i = 0; i < _uniqueExamples; i++)
                     for (uint64_t j = 0; j < xmax; j++)
@@ -1631,26 +1648,26 @@ template<typename T> bool NNDataSet<T>::UnShard()
                     MPI_Recv(vTempData.data(), size, getMPIDataType(_dataType), i, 0, MPI_COMM_WORLD, &status);
                     for (int j = 0; j < _uniqueExamples; j++)
                         for (int k = 0; k < slice; k++)
-                            _vData[j * _width + xmin + k]  
+                            _vData[j * _width + xmin + k]
                                                 = vTempData[j * slice + k];
                 }
 
                 // Reallocate GPU data
                 _pbData.reset(new GpuBuffer<T>((uint64_t)_vData.size(), false, _bStreaming));
-                _pbData->Upload(_vData.data()); 
-          
+                _pbData->Upload(_vData.data());
+
             }
             else
             {
                 // Send all data to master
                 MPI_Send(_vData.data(), _vData.size(), getMPIDataType(_dataType), 0, 0, MPI_COMM_WORLD);
-            }       
-            
+            }
+
         }
     }
     else if (_sharding == NNDataSetEnums::Data)
     {
-    
+
     }
     _sharding = NNDataSetEnums::Sharding::None;
 
@@ -1660,17 +1677,16 @@ template<typename T> bool NNDataSet<T>::UnShard()
         _pbIndex.reset(new GpuBuffer<uint32_t>((uint64_t)_vIndex.size(), false, _bStreaming));
         _pbIndex->Upload(_vIndex.data());
     }
-    
+
     // Allocate/Reallocate Sparse Weights
     if (_attributes & NNDataSetEnums::Weighted)
     {
         _pbDataWeight.reset(new GpuBuffer<NNFloat>((uint64_t)_vDataWeight.size(), false, _bStreaming));
-        _pbDataWeight->Upload(_vDataWeight.data()); 
+        _pbDataWeight->Upload(_vDataWeight.data());
     }
 
     return true;
 }
-
 
 template<typename T> bool NNDataSet<T>::Shard(NNDataSetEnums::Sharding sharding)
 {
@@ -1686,7 +1702,7 @@ template<typename T> bool NNDataSet<T>::Shard(NNDataSetEnums::Sharding sharding)
     {
         _sharding                                       = NNDataSetEnums::Model;
         _minX                                           = ((size_t)_width * (size_t)getGpu()._id) / (size_t)getGpu()._numprocs;
-        _maxX                                           = ((size_t)_width * (size_t)(getGpu()._id + 1)) / (size_t)getGpu()._numprocs;    
+        _maxX                                           = ((size_t)_width * (size_t)(getGpu()._id + 1)) / (size_t)getGpu()._numprocs;
         if (_attributes & NNDataSetEnums::Sparse)
         {
             if (getGpu()._id == 0)
@@ -1706,7 +1722,7 @@ template<typename T> bool NNDataSet<T>::Shard(NNDataSetEnums::Sharding sharding)
                         vLocalSparseStart[j]            = vLocalSparseIndex.size();
                         for (uint64_t k = _vSparseStart[j]; k < _vSparseEnd[j]; k++)
                         {
-                            if ((_vSparseIndex[k] >= xmin) && (_vSparseIndex[k] < xmax)) 
+                            if ((_vSparseIndex[k] >= xmin) && (_vSparseIndex[k] < xmax))
                             {
                                 vLocalSparseIndex.push_back(_vSparseIndex[k] - xmin);
                                 if (!(_attributes & NNDataSetEnums::Boolean))
@@ -1714,8 +1730,8 @@ template<typename T> bool NNDataSet<T>::Shard(NNDataSetEnums::Sharding sharding)
                                     vLocalSparseData.push_back(_vSparseData[k]);
                                 }
                             }
-                        }               
-                        vLocalSparseEnd[j]              = vLocalSparseIndex.size(); 
+                        }
+                        vLocalSparseEnd[j]              = vLocalSparseIndex.size();
                     }
 
                     // Broadcast index data to appropriate process
@@ -1753,8 +1769,8 @@ template<typename T> bool NNDataSet<T>::Shard(NNDataSetEnums::Sharding sharding)
                                 _vSparseData.push_back(vTempSparseData[k]);
                             }
                         }
-                    }               
-                    _vSparseEnd[j]                      = _vSparseIndex.size(); 
+                    }
+                    _vSparseEnd[j]                      = _vSparseIndex.size();
                 }
             }
             else
@@ -1768,7 +1784,7 @@ template<typename T> bool NNDataSet<T>::Shard(NNDataSetEnums::Sharding sharding)
                 _vSparseIndex.resize(size);
                 MPI_Recv(_vSparseStart.data(), _uniqueExamples, MPI_UINT64_T, 0, 0, MPI_COMM_WORLD, &status);
                 MPI_Recv(_vSparseEnd.data(), _uniqueExamples, MPI_UINT64_T, 0, 0, MPI_COMM_WORLD, &status);
-                MPI_Recv(_vSparseIndex.data(), size, MPI_UINT32_T, 0, 0, MPI_COMM_WORLD, &status); 
+                MPI_Recv(_vSparseIndex.data(), size, MPI_UINT32_T, 0, 0, MPI_COMM_WORLD, &status);
                 if (!(_attributes & NNDataSetEnums::Boolean))
                 {
                     MPI_Datatype mpiType                = getMPIDataType(_dataType);
@@ -1790,10 +1806,10 @@ template<typename T> bool NNDataSet<T>::Shard(NNDataSetEnums::Sharding sharding)
             if (!(_attributes & NNDataSetEnums::Boolean))
             {
                 _pbSparseData.reset(new GpuBuffer<T>((uint64_t)_vSparseData.size(), false, _bStreaming));
-                _pbSparseData->Upload(_vSparseData.data());            
+                _pbSparseData->Upload(_vSparseData.data());
             }
         }
-        else 
+        else
         {
             // Non-sparse data
             if (getGpu()._id == 0)
@@ -1809,7 +1825,7 @@ template<typename T> bool NNDataSet<T>::Shard(NNDataSetEnums::Sharding sharding)
                     for (size_t j = 0; j < _uniqueExamples; j++)
                     {
                         for (size_t k = 0; k < slice; k++)
-                            vLocalData[j * slice + k]   
+                            vLocalData[j * slice + k]
                                                         = _vData[j * _width + xmin + k];
                     }
 
@@ -1847,7 +1863,7 @@ template<typename T> bool NNDataSet<T>::Shard(NNDataSetEnums::Sharding sharding)
 
             // Allocate space then upload data to GPU memory
             _pbData.reset(new GpuBuffer<T>((uint64_t)_vData.size(), false, _bStreaming));
-            _pbData->Upload(_vData.data()); 
+            _pbData->Upload(_vData.data());
         }
     }
     else if (sharding == NNDataSetEnums::Data)
@@ -1855,7 +1871,7 @@ template<typename T> bool NNDataSet<T>::Shard(NNDataSetEnums::Sharding sharding)
         // Interleave examples
         _sharding                                       = NNDataSetEnums::Data;
         size_t segment                                  = _uniqueExamples / getGpu()._numprocs;
-        size_t remainder                                = _uniqueExamples % getGpu()._numprocs;  
+        size_t remainder                                = _uniqueExamples % getGpu()._numprocs;
         _localExamples                                  = segment + (remainder > getGpu()._id);
 
         if (_attributes & NNDataSetEnums::Sparse)
@@ -1873,7 +1889,7 @@ template<typename T> bool NNDataSet<T>::Shard(NNDataSetEnums::Sharding sharding)
                     vector<T> vLocalSparseData;
                     size_t position                     = i;
                     for (size_t j = position; j < _uniqueExamples; j+= getGpu()._numprocs)
-                    {                                    
+                    {
                         vLocalSparseStart[j]            = vLocalSparseIndex.size();
                         for (size_t k = _vSparseStart[j]; k < _vSparseEnd[j]; k++)
                         {
@@ -1882,8 +1898,8 @@ template<typename T> bool NNDataSet<T>::Shard(NNDataSetEnums::Sharding sharding)
                             {
                                 vLocalSparseData.push_back(_vSparseData[k]);
                             }
-                        }               
-                        vLocalSparseEnd[j]              = vLocalSparseIndex.size(); 
+                        }
+                        vLocalSparseEnd[j]              = vLocalSparseIndex.size();
                     }
 
                     // Broadcast index data to appropriate process
@@ -1896,7 +1912,7 @@ template<typename T> bool NNDataSet<T>::Shard(NNDataSetEnums::Sharding sharding)
                     {
                         MPI_Datatype mpiType        = getMPIDataType(_dataType);
                         MPI_Send(vLocalSparseData.data(), size, mpiType, i, 0, MPI_COMM_WORLD);
-                    }                    
+                    }
                 }
 
                 // Finally derive local shard
@@ -1921,8 +1937,8 @@ template<typename T> bool NNDataSet<T>::Shard(NNDataSetEnums::Sharding sharding)
                                 _vSparseData.push_back(vTempSparseData[k]);
                             }
                         }
-                    }               
-                    _vSparseEnd[j]                      = _vSparseIndex.size(); 
+                    }
+                    _vSparseEnd[j]                      = _vSparseIndex.size();
                 }
 
 
@@ -1951,14 +1967,14 @@ template<typename T> bool NNDataSet<T>::Shard(NNDataSetEnums::Sharding sharding)
                         memcpy(pData, &_vData[j * _stride], _stride * sizeof(T));
                         pData                          += _stride;
                     }
-                    
+
                     // Broadcast index data to appropriate process
                     size_t size                         = vLocalData.size();
                     MPI_Send(&size, 1, MPI_UINT64_T, i, 0, MPI_COMM_WORLD);
                     MPI_Datatype mpiType                = getMPIDataType(_dataType);
                     MPI_Send(vLocalData.data(), localExamples * _stride, mpiType, i, 0, MPI_COMM_WORLD);
                 }
-                
+
                 // Finally, derive local segment
                 vector<T> vLocalData(_localExamples * _stride);
                 T* pData                                = vLocalData.data();
@@ -1981,13 +1997,13 @@ template<typename T> bool NNDataSet<T>::Shard(NNDataSetEnums::Sharding sharding)
                 MPI_Datatype mpiType                = getMPIDataType(_dataType);
                 MPI_Recv(_vData.data(), size, mpiType, 0, 0, MPI_COMM_WORLD, &status);
             }
-            
+
             // Allocate space then upload data to GPU memory
             _pbData.reset(new GpuBuffer<T>(_vData.size(), false, _bStreaming));
             _pbData->Upload(_vData.data());
         }
     }
-    
+
     // Allocate/Reallocate indices
     if (_attributes & NNDataSetEnums::Indexed)
     {
@@ -2058,7 +2074,7 @@ template<typename T> bool NNDataSet<T>::SaveNetCDF(const string& fname)
 template<typename T> bool NNDataSet<T>::WriteNetCDF(NcFile& nfc, const string& fname, const uint32_t n)
 {
     bool bResult                            = true;
-    try {     
+    try {
         if (getGpu()._id == 0)
         {
             string nstring                  = to_string(n);
@@ -2068,7 +2084,7 @@ template<typename T> bool NNDataSet<T>::WriteNetCDF(NcFile& nfc, const string& f
             {
                 throw NcException("NcException", "NNDataSet::WriteNetCDF: Failed to write dataset name to NetCDF file " + fname, __FILE__, __LINE__);
             }
-            
+
             vname                           = "attributes" + nstring;
             NcGroupAtt attributesAtt        = nfc.putAtt(vname, ncUint, _attributes);
             if (attributesAtt.isNull())
@@ -2083,7 +2099,7 @@ template<typename T> bool NNDataSet<T>::WriteNetCDF(NcFile& nfc, const string& f
             {
                 throw NcException("NcException", "NNDataSet::WriteNetCDF: Failed to write dataset kind to NetCDF file " + fname, __FILE__, __LINE__);
             }
-            
+
             vname                           = "datatype" + nstring;
             NcGroupAtt datatypeAtt          = nfc.putAtt(vname, ncUint, _dataType);
             if (datatypeAtt.isNull())
@@ -2097,14 +2113,14 @@ template<typename T> bool NNDataSet<T>::WriteNetCDF(NcFile& nfc, const string& f
             {
                 throw NcException("NcException", "NNDataSet::WriteNetCDF: Failed to write dataset dimensions to NetCDF file " + fname, __FILE__, __LINE__);
             }
-            
+
             vname                           = "width" + nstring;
             NcGroupAtt widthAtt             = nfc.putAtt(vname, ncUint, _width);
             if (widthAtt.isNull())
             {
                 throw NcException("NcException", "NNDataSet::WriteNetCDF: Failed to write dataset width to NetCDF file " + fname, __FILE__, __LINE__);
-            }            
-            
+            }
+
             if (_dimensions > 1)
             {
                 vname                       = "height" + nstring;
@@ -2112,8 +2128,8 @@ template<typename T> bool NNDataSet<T>::WriteNetCDF(NcFile& nfc, const string& f
                 if (heightAtt.isNull())
                 {
                     throw NcException("NcException", "NNDataSet::WriteNetCDF: Failed to write dataset height to NetCDF file " + fname, __FILE__, __LINE__);
-                } 
-                
+                }
+
                 if (_dimensions > 2)
                 {
                     vname                   = "length" + nstring;
@@ -2121,25 +2137,25 @@ template<typename T> bool NNDataSet<T>::WriteNetCDF(NcFile& nfc, const string& f
                     if (lengthAtt.isNull())
                     {
                         throw NcException("NcException", "NNDataSet::WriteNetCDF: Failed to write dataset length to NetCDF file " + fname, __FILE__, __LINE__);
-                    }                 
-                }                
+                    }
+                }
             }
-            
+
             vname                           = "uniqueExamplesDim" + nstring;
             NcDim uniqueExamplesDim         = nfc.addDim(vname, (size_t)_uniqueExamples);
             if (uniqueExamplesDim.isNull())
             {
                 throw NcException("NcException", "NNDataSet::WriteNetCDF: Failed to write dataset unique example count to NetCDF file " + fname, __FILE__, __LINE__);
-            } 
-            
+            }
+
             vname                           = "examplesDim" + nstring;
             NcDim examplesDim               = nfc.addDim(vname, (size_t)_examples);
             if (examplesDim.isNull())
             {
                 throw NcException("NcException", "NNDataSet::WriteNetCDF: Failed to write dataset example count to NetCDF file " + fname, __FILE__, __LINE__);
-            } 
+            }
 
-            
+
             if (_attributes & NNDataSetEnums::Sparse)
             {
                 vname                       = "sparseDataDim" + nstring;
@@ -2147,8 +2163,8 @@ template<typename T> bool NNDataSet<T>::WriteNetCDF(NcFile& nfc, const string& f
                 if (sparseDataDim.isNull())
                 {
                     throw NcException("NcException", "NNDataSet::WriteNetCDF: Failed to write dataset sparse datapoint count to NetCDF file " + fname, __FILE__, __LINE__);
-                } 
-                
+                }
+
                 vname                       = "sparseStart" + nstring;
                 NcVar sparseStartVar        = nfc.addVar(vname, "uint", uniqueExamplesDim.getName());
                 if (sparseStartVar.isNull())
@@ -2156,7 +2172,7 @@ template<typename T> bool NNDataSet<T>::WriteNetCDF(NcFile& nfc, const string& f
                     throw NcException("NcException", "NNDataSet::WriteNetCDF: Failed to write dataset sparse start variable to NetCDF file " + fname, __FILE__, __LINE__);
                 }
                 sparseStartVar.putVar(_vSparseStart.data());
-                
+
                 vname                       = "sparseEnd" + nstring;
                 NcVar sparseEndVar          = nfc.addVar(vname, "uint", uniqueExamplesDim.getName());
                 if (sparseEndVar.isNull())
@@ -2164,55 +2180,55 @@ template<typename T> bool NNDataSet<T>::WriteNetCDF(NcFile& nfc, const string& f
                     throw NcException("NcException", "NNDataSet::WriteNetCDF: Failed to write dataset sparse end variable to NetCDF file " + fname, __FILE__, __LINE__);
                 }
                 sparseEndVar.putVar(_vSparseEnd.data());
- 
+
                 vname                       = "sparseIndex" + nstring;
                 NcVar sparseIndexVar        = nfc.addVar(vname, "uint64", sparseDataDim.getName());
                 if (sparseIndexVar.isNull())
                 {
                     throw NcException("NcException", "NNDataSet::WriteNetCDF: Failed to write dataset sparse index variable to NetCDF file " + fname, __FILE__, __LINE__);
-                }               
-                sparseIndexVar.putVar(_vSparseIndex.data());   
-                
+                }
+                sparseIndexVar.putVar(_vSparseIndex.data());
+
                 // Write analog sparse values if present
                 if (!(_attributes & NNDataSetEnums::Boolean))
                 {
-                    vname                       = "sparseData" + nstring;    
+                    vname                       = "sparseData" + nstring;
                     NcType sparseType           = getNetCDFDataType(_dataType);
                     NcVar sparseDataVar         = nfc.addVar(vname, sparseType.getName(), sparseDataDim.getName());
                     if (sparseDataVar.isNull())
                     {
                         throw NcException("NcException", "NNDataSet::WriteNetCDF: Failed to write dataset sparse data variable to NetCDF file " + fname, __FILE__, __LINE__);
-                    }               
-                    sparseDataVar.putVar(_vSparseData.data());              
-                }         
+                    }
+                    sparseDataVar.putVar(_vSparseData.data());
+                }
             }
             else
             {
-            
+
             }
-            
+
             // Writes weights if present
             if (_attributes & NNDataSetEnums::Weighted)
             {
                 vname                       = "dataWeight" + nstring;
-                NcVar DataWeightVar         = nfc.addVar(vname, "float", uniqueExamplesDim.getName());                    
+                NcVar DataWeightVar         = nfc.addVar(vname, "float", uniqueExamplesDim.getName());
                 if (DataWeightVar.isNull())
                 {
                     throw NcException("NcException", "NNDataSet::NNDataSet: Failed to write data weights to NetCDF file " + fname, __FILE__, __LINE__);
-                }  
-                DataWeightVar.putVar(_vDataWeight.data());                     
-            }            
-            
+                }
+                DataWeightVar.putVar(_vDataWeight.data());
+            }
+
             // Save indices if indexed
             if (_attributes & NNDataSetEnums::Indexed)
             {
-                vname                       = "index" + nstring;    
+                vname                       = "index" + nstring;
                 NcVar indexVar              = nfc.addVar(vname, "uint32", examplesDim.getName());
                 if (indexVar.isNull())
                 {
                     throw NcException("NcException", "NNDataSet::WriteNetCDF: Failed to create dataset index variable to NetCDF file " + fname, __FILE__, __LINE__);
-                }               
-                indexVar.putVar(_vIndex.data());                     
+                }
+                indexVar.putVar(_vIndex.data());
             }
         }
     }
@@ -2293,7 +2309,7 @@ bool SaveNetCDF(const string& fname, vector<NNDataSetBase*> vDataSet)
     return bResult;
 }
 
-vector<NNDataSetBase*> LoadNetCDF(const string& fname) 
+vector<NNDataSetBase*> LoadNetCDF(const string& fname)
 {
     vector<NNDataSetBase*> vDataSet;
     vector<NNDataSetEnums::DataType> vDataType;
@@ -2315,7 +2331,7 @@ vector<NNDataSetBase*> LoadNetCDF(const string& fname)
             }
             uint32_t datasets;
             dataSetsAtt.getValues(&datasets);
-            
+
             for (uint32_t i = 0; i < datasets; i++)
             {
                 string nstring                  = std::to_string(i);
@@ -2323,10 +2339,10 @@ vector<NNDataSetBase*> LoadNetCDF(const string& fname)
                 NcGroupAtt dataTypeAtt          = rnc.getAtt(vname);
                 if (dataTypeAtt.isNull())
                 {
-                      throw NcException("NcException", "LoadNetCDF: No " + vname + " attribute located in NetCDF input file " + fname, __FILE__, __LINE__); 
+                      throw NcException("NcException", "LoadNetCDF: No " + vname + " attribute located in NetCDF input file " + fname, __FILE__, __LINE__);
                 }
                 uint32_t dataType;
-                dataTypeAtt.getValues(&dataType);   
+                dataTypeAtt.getValues(&dataType);
                 switch (dataType)
                 {
                     case NNDataSetEnums::UInt:
@@ -2341,11 +2357,11 @@ vector<NNDataSetBase*> LoadNetCDF(const string& fname)
                     case NNDataSetEnums::Char:
                         vDataType.push_back((NNDataSetEnums::DataType)dataType);
                         break;
-                        
+
                     default:
-                        printf("LoadNetCDF: Invalid data type in binary input file %s.\n", fname.c_str());                       
-                }     
-            }        
+                        printf("LoadNetCDF: Invalid data type in binary input file %s.\n", fname.c_str());
+                }
+            }
         }
         catch (NcException& e)
         {
@@ -2374,13 +2390,13 @@ vector<NNDataSetBase*> LoadNetCDF(const string& fname)
     vDataType.resize(size);
     MPI_Bcast(vDataType.data(), size, MPI_UINT32_T, 0, MPI_COMM_WORLD);
 
-    
+
     // Read data sets into vDataSet
     for (int i = 0; i < vDataType.size(); i++)
     {
         NNDataSetBase* pDataSet             = NULL;
         if (getGpu()._id == 0)
-            cout << "LoadNetCDF: Loading " << vDataType[i] << " data set" << endl; 
+            cout << "LoadNetCDF: Loading " << vDataType[i] << " data set" << endl;
         switch (vDataType[i])
         {
             case NNDataSetEnums::UInt:

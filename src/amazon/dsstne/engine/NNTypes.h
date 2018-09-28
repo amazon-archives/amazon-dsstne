@@ -286,27 +286,39 @@ struct NNDataSetBase {
     virtual bool CalculateHingeOutputDelta(Activation activation, uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta) = 0;
 
     /**
-     * Copies length number of elements (not number of bytes) from the srcData to (this + offset).
-     * Only valid for dense and dense indexed datasets. If the dataset is indexed this
-     * sets the unique data and NNDataSet::SetIndexedData sets the actual examples.
+     * Copies data from srcData to this dataset.
+     * The length to copy is determined by the example size and stride
+     * of this dataset. Only valid for dense and dense indexed datasets.
+     * If the dataset is indexed this sets the unique data
+     * and NNDataSet::SetIndexedData sets the actual examples.
      * An exception is thrown if this dataset is not dense.
      */
-    virtual void SetData(const void *srcData, size_t offset, size_t length) = 0;
-
-    void SetData(const void *srcData) {
-        SetData(srcData, 0, _stride * _examples);
-    }
+    virtual void LoadDenseData(const void *srcData) = 0;
 
     /**
-     * Copies uniqueExamples number of sparse data points from the specified src to this NNDataSet.
+     * Copies sparse data points from the specified src to this NNDataSet.
      * Any existing data is overwritten.
+     * An exception is thrown if this dataset is not sparse.
      */
-    virtual void SetSparseData(const uint64_t *srcSparseStart, const uint64_t *srcSparseEnd, const void *srcSparseData,
+    virtual void LoadSparseData(const uint64_t *srcSparseStart, const uint64_t *srcSparseEnd, const void *srcSparseData,
                        const uint32_t *srcSparseIndex) = 0;
+
+    /**
+     * If this dataset is indexed, then sets the actual (unique) examples.
+     * An exception is thrown if this dataset is not indexed.
+     */
+    virtual void LoadIndexedData(const uint32_t *srcIndexedData) = 0;
+
+    /**
+     * If this dataset is weighted, then sets the weights for each example.
+     * An exception is thrown if this dataset is not weighted.
+     */
+    virtual void LoadDataWeight(const NNFloat *srcWeightData) = 0;
 
  protected:
     NNDataSetBase(const string &name, NNDataSetEnums::DataType dataType, uint32_t examples, uint32_t uniqueExamples,
                   const NNDataSetDimensions &datasetDim);
+
 };
 
 ostream& operator<< (ostream& out, NNDataSetEnums::Attributes& a);
@@ -400,35 +412,23 @@ public:
     NNDataSet(uint32_t examples, uint32_t uniqueExamples, size_t sparseDataSize, const NNDataSetDimensions &dim,
               bool isWeighted = false, const string &name = "");
 
-    void SetData(const T *srcData, size_t offset, size_t length);
+    void LoadDenseData(const T *srcData);
 
-    void SetData(const void *srcData, size_t offset, size_t length) {
-        SetData((T*) srcData, offset, length);
+    void LoadDenseData(const void *srcData) override {
+        LoadDenseData((T*) srcData);
     }
 
-    using NNDataSetBase::SetData;
-
-    void SetSparseData(const uint64_t *srcSparseStart, const uint64_t *srcSparseEnd, const T *srcSparseData,
+    void LoadSparseData(const uint64_t *srcSparseStart, const uint64_t *srcSparseEnd, const T *srcSparseData,
                        const uint32_t *srcSparseIndex);
 
-    void SetSparseData(const uint64_t *srcSparseStart, const uint64_t *srcSparseEnd, const void *srcSparseData,
-                       const uint32_t *srcSparseIndex) {
-        SetSparseData(srcSparseStart, srcSparseEnd, (T*) srcSparseData, srcSparseIndex);
+    void LoadSparseData(const uint64_t *srcSparseStart, const uint64_t *srcSparseEnd, const void *srcSparseData,
+                       const uint32_t *srcSparseIndex) override {
+        LoadSparseData(srcSparseStart, srcSparseEnd, (T*) srcSparseData, srcSparseIndex);
     }
 
-    /**
-     * If this dataset is indexed, then sets the actual examples starting from (this + offset)
-     * and copying length number of elements from srcIndexedData.
-     * An exception is thrown if this dataset is not indexed.
-     */
-    void SetIndexedData(const uint32_t *srcIndexedData, size_t offset, size_t length);
+    void LoadIndexedData(const uint32_t *srcIndexedData) override;
 
-    /**
-     * If this dataset is weighted, then sets the weights of each example starting from
-     * (this + offset) and copying length number of elements from srcWeightData.
-     * An exception is thrown if this dataset is not weighted.
-     */
-    void SetDataWeight(const NNFloat *srcWeightData, size_t offset, size_t length);
+    void LoadDataWeight(const NNFloat *srcWeightData) override;
 
     ~NNDataSet();
     void Shuffle();
