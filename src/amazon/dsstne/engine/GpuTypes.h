@@ -392,7 +392,7 @@ extern struct GpuContext& getGpu();
 template <typename T>
 struct GpuBuffer
 {
-    unsigned long long int  _length;
+    size_t                  _length;
     bool                    _bSysMem;
     bool                    _bManaged;
     T*                      _pSysData;
@@ -402,11 +402,50 @@ struct GpuBuffer
     GpuBuffer(unsigned long long int length, bool bSysMem = false, bool bManaged = false);
     GpuBuffer(size_t length, bool bSysMem = false, bool bManaged = false);
     virtual ~GpuBuffer();
+
+    /**
+     * Allocates GPU memory.
+     */
     void Allocate();
+
+    /**
+     * If the current length is different from the new length,
+     * frees existing GPU memory, then allocates new memory
+     * with the given length. Can force reallocation by setting
+     * force = true. Once reallocated, the contents of the
+     * buffer is undefined (no data is preserved)`.
+     */
+    void Reallocate(size_t length, bool force = false);
+
+    /**
+     * Frees GPU memory held by this buffer.
+     */
     void Deallocate();
+
+    /**
+     * Uploads the data from host to device.
+     */
     void Upload(const T* pBuff = NULL) const;
+
+    /**
+     * Downloads the data from device to host.
+     */
     void Download(T * pBuff = NULL);
+
+    /**
+     * Copies the data from device to device.
+     */
     void Copy(T* pBuff);
+
+    /**
+     * Returns the length (number of elements) of this GPU buffer.
+     */
+    size_t GetLength();
+
+    /**
+     * Returns the size (in bytes) of this GPU buffer.
+     */
+    size_t GetSize();
 };
 
 template <typename T>
@@ -493,6 +532,15 @@ void GpuBuffer<T>::Allocate()
 #endif
 }
 
+template<typename T> void GpuBuffer<T>::Reallocate(size_t length, bool force)
+{
+    if(_length != length || force) {
+        Deallocate();
+        _length = length;
+        Allocate();
+    }
+}
+
 template <typename T>
 void GpuBuffer<T>::Deallocate()
 {
@@ -557,6 +605,16 @@ void GpuBuffer<T>::Download(T* pBuff)
         status = cudaMemcpy(_pSysData, _pDevData, _length * sizeof(T), cudaMemcpyDeviceToHost);
         RTERROR(status, "cudaMemcpy GpuBuffer::Download failed");
     }
+}
+
+template<typename T> size_t GpuBuffer<T>::GetLength()
+{
+    return _length;
+}
+
+template<typename T> size_t GpuBuffer<T>::GetSize()
+{
+    return _length * sizeof(T);
 }
 
 void verifySGEMM(GpuBuffer<NNFloat>* pbA, GpuBuffer<NNFloat>* pbB, GpuBuffer<NNFloat>* pbC, uint32_t m, uint32_t k, uint32_t n);
