@@ -53,6 +53,10 @@ class DsstneContext
      */
     void initInputLayerDataSets(const std::vector<NNDataSetDescriptor> datasetDescriptors);
 
+    GpuBuffer<NNFloat>* getOutputScoresBuffer(const std::string &layerName);
+
+    GpuBuffer<uint32_t>* getOutputIndexesBuffer(const std::string &layerName);
+
     static DsstneContext* fromPtr(long ptr)
     {
         DsstneContext * dc = (DsstneContext *) ptr;

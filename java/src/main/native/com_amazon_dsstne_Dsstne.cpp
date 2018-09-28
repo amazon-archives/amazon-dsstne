@@ -134,10 +134,10 @@ void JNI_OnUnload(JavaVM *vm, void *reserved)
 }
 
 JNIEXPORT jlong JNICALL Java_com_amazon_dsstne_Dsstne_load(JNIEnv *env, jclass clazz, jstring jNetworkFileName,
-                                                           jint batchSize)
+                                                           jint batchSize, jint maxK)
 {
     const char *networkFileName = env->GetStringUTFChars(jNetworkFileName, 0);
-    DsstneContext *dc = new DsstneContext(networkFileName, batchSize);
+    DsstneContext *dc = new DsstneContext(networkFileName, batchSize, maxK);
     env->ReleaseStringUTFChars(jNetworkFileName, networkFileName);
     return (jlong) dc;
 }
@@ -364,19 +364,19 @@ JNIEXPORT void JNICALL Java_com_amazon_dsstne_Dsstne_predict(JNIEnv *env, jclass
         {
             NNFloat *outputUnitBuffer = network->GetUnitBuffer(layerName);
             long *indexes = (long*) env->GetPrimitiveArrayCritical(jIndexes, NULL);
-            NNFloat *dScores;
-            uint32_t *dIndexes;
+            NNFloat *dScores = dc->getOutputScoresBuffer(layerName)->_pDevData;
+            uint32_t *dIndexes = dc->getOutputIndexesBuffer(layerName)->_pDevData;
             uint32_t *hIndexes = (uint32_t*) calloc(k * batchSize, sizeof(uint32_t));
-            cudaMalloc(&dScores, k * batchSize * sizeof(NNFloat));
-            cudaMalloc(&dIndexes, k * batchSize * sizeof(uint32_t));
 
             kCalculateTopK(outputUnitBuffer, dScores, dIndexes, batchSize, stride, k);
 
             cudaMemcpy(scores, dScores, k * batchSize * sizeof(NNFloat), cudaMemcpyDeviceToHost);
             cudaMemcpy(hIndexes, dIndexes, k * batchSize * sizeof(uint32_t), cudaMemcpyDeviceToHost);
-            cudaFree(dScores);
-            cudaFree(dIndexes);
 
+            /*
+             *  this is less than ideal, but we need to cast uint32_t indexes
+             *  into long b/c there are no unsigned primitives in java
+             */
             for (size_t i = 0; i < k * batchSize; ++i)
             {
                 indexes[i] = (long) hIndexes[i];

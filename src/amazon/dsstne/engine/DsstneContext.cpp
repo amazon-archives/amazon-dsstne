@@ -26,7 +26,7 @@ const unsigned long SEED = 12134ULL;
 
 using namespace std;
 
-DsstneContext::DsstneContext(const string &networkFilename, uint32_t batchSize, int maxK):
+DsstneContext::DsstneContext(const string &networkFilename, uint32_t batchSize, int maxK) :
     networkFilename(networkFilename),
     batchSize(batchSize),
     maxK(maxK)
@@ -39,38 +39,51 @@ DsstneContext::DsstneContext(const string &networkFilename, uint32_t batchSize, 
     vector<const NNLayer*> outputLayers;
     vector<const NNLayer*>::iterator it = network->GetLayers(NNLayer::Kind::Output, outputLayers);
 
-    for(; it != outputLayers.end(); ++it) {
+    for (; it != outputLayers.end(); ++it)
+    {
         const string &layerName = (*it)->GetName();
 
-        size_t outputBufferLength;
-
-        if(maxK == ALL) {
-            // no topK, return all output layer
-            uint32_t x,y,z,w;
-            tie(x,y,z,w) = (*it)->GetDimensions();
-            outputBufferLength = x * y * z * batchSize;
-        } else {
+        if(maxK != ALL)
+        {
             // FIXME this only works for 1-D outputs
-            if((*it)->GetNumDimensions() > 1) {
+            if ((*it)->GetNumDimensions() > 1)
+            {
                 std::runtime_error("topK only supported on 1-D output layers");
             }
-            outputBufferLength = maxK * batchSize;
-        }
+            size_t outputBufferLength = maxK * batchSize;
+            printf(
+                "DsstneContext::DsstneContext: Allocating output score and index buffers, each of size %zu for output layer %s\n",
 
-        printf("DsstneContext::DsstneContext: Allocating buffer of size %zu for output layer %s\n", outputBufferLength, layerName.c_str());
+                outputBufferLength, layerName.c_str());
+            GpuBuffer<NNFloat> *outputScores = new GpuBuffer<NNFloat>(outputBufferLength, false, false);
+            GpuBuffer<uint32_t> *outputIndexes = new GpuBuffer<uint32_t>(outputBufferLength, false, false);
+
+            dOutputScores[layerName] = outputScores;
+            dOutputIndexes[layerName] = outputIndexes;
+        }
     }
+}
+
+GpuBuffer<NNFloat>* DsstneContext::getOutputScoresBuffer(const std::string &layerName)
+{
+    return dOutputScores.at(layerName);
+}
+
+GpuBuffer<uint32_t>* DsstneContext::getOutputIndexesBuffer(const std::string &layerName)
+{
+    return dOutputIndexes.at(layerName);
 }
 
 DsstneContext::~DsstneContext()
 {
     const string networkName = getNetwork()->GetName();
-    for(const auto &kv: dOutputScores)
+    for (const auto &kv : dOutputScores)
     {
-        delete(kv.second);
+        delete (kv.second);
     }
-    for(const auto &kv: dOutputIndexes)
+    for (const auto &kv : dOutputIndexes)
     {
-        delete(kv.second);
+        delete (kv.second);
     }
 
     dOutputScores.clear();
@@ -89,7 +102,8 @@ NNNetwork* DsstneContext::getNetwork() const
 void DsstneContext::initInputLayerDataSets(const vector<NNDataSetDescriptor> datasetDescriptors)
 {
     vector<NNDataSetBase*> datasets;
-    for(const auto &descriptor : datasetDescriptors) {
+    for (const auto &descriptor : datasetDescriptors)
+    {
         NNDataSetBase *dataset = createNNDataSet(descriptor);
         datasets.push_back(dataset);
     }

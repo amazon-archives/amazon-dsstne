@@ -33,7 +33,7 @@ public class Dsstne {
     }
 
     public static NNNetwork load(final NetworkConfig config) {
-        long ptr = load(config.getNetworkFilePath(), config.getBatchSize());
+        long ptr = load(config.getNetworkFilePath(), config.getBatchSize(), config.getK());
         if (ptr == NULLPTR) {
             throw new RuntimeException("Failed to load network from config: " + config);
         }
@@ -55,7 +55,7 @@ public class Dsstne {
      * Loads the network from the netcdf file. Returns a pointer to a context data structure
      * that is used to access the network.
      */
-    private static native long load(final String networkFilePath, final int batchSize);
+    private static native long load(final String networkFilePath, final int batchSize, final int maxK);
 
     public static native void loadDatasets(final long ptr, NNDataSet[] datasets);
 
