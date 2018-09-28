@@ -12,10 +12,10 @@ extern "C" {
 /*
  * Class:     com_amazon_dsstne_Dsstne
  * Method:    load
- * Signature: (Ljava/lang/String;I)J
+ * Signature: (Ljava/lang/String;II)J
  */
 JNIEXPORT jlong JNICALL Java_com_amazon_dsstne_Dsstne_load
-  (JNIEnv *, jclass, jstring, jint);
+  (JNIEnv *, jclass, jstring, jint, jint);
 
 /*
  * Class:     com_amazon_dsstne_Dsstne
