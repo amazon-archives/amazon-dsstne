@@ -65,7 +65,7 @@ $(BIN_DIR)/unittests: $(LIB_DSSTNE) $(LIB_DSSTNE_UTILS) $(OBJECTS)
 
 run-tests: $(BIN_DIR)/unittests 
 	$(info ========== Running unittests =============)
-	$(BIN_DIR)/unittests
+	LD_LIBRARY_PATH=$(BUILD_DIR)/lib $(BIN_DIR)/unittests
 
 clean:
 	rm -rf $(BIN_DIR)	
