@@ -18,6 +18,7 @@
 package com.amazon.dsstne.data;
 
 import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 
 import com.amazon.dsstne.Dim;
 import com.amazon.dsstne.NNDataSet;
@@ -54,6 +55,7 @@ public class SparseNNDataSet extends NNDataSet {
 
         this.sparseIndex = new long[stride * dim.examples];
         this.data = ByteBuffer.allocateDirect(stride * dim.examples * DataType.sizeof(dataType));
+        this.data.order(ByteOrder.nativeOrder());
     }
 
     @Override
