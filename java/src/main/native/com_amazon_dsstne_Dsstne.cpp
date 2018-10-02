@@ -315,38 +315,17 @@ JNIEXPORT void JNICALL Java_com_amazon_dsstne_Dsstne_predict(JNIEnv *env, jclass
             /* copy sparse data */
             jlongArray jSparseStart = (jlongArray) env->CallObjectMethod(jInputDataset, NNDataSet_getSparseStart);
             jlongArray jSparseEnd = (jlongArray) env->CallObjectMethod(jInputDataset, NNDataSet_getSparseEnd);
-            // TODO measure performance diff if we use GetPrimitiveArrayCritical
             jlongArray jSparseIndex = (jlongArray) env->CallObjectMethod(jInputDataset, NNDataSet_getSparseIndex);
-            jlong *sparseStart = env->GetLongArrayElements(jSparseStart, NULL);
-            jlong *sparseEnd = env->GetLongArrayElements(jSparseEnd, NULL);
-            jlong *sparseIndex = env->GetLongArrayElements(jSparseIndex, NULL);
 
-            jsize sparseStartLength = env->GetArrayLength(jSparseStart);
-            jsize sparseEndLength = env->GetArrayLength(jSparseEnd);
-            jsize sparseIndexLength= env->GetArrayLength(jSparseIndex);
+            long *sparseStart = (long*) env->GetPrimitiveArrayCritical(jSparseStart, NULL);
+            long *sparseEnd = (long*) env->GetPrimitiveArrayCritical(jSparseEnd, NULL);
+            long *sparseIndex = (long*) env->GetPrimitiveArrayCritical(jSparseIndex, NULL);
 
-            uint64_t *ss = (uint64_t*) calloc(sparseStartLength, sizeof(uint64_t));
-            uint64_t *se = (uint64_t*) calloc(sparseEndLength, sizeof(uint64_t));
-            uint32_t *sidx = (uint32_t*) calloc(sparseStartLength, sizeof(uint32_t));
+            dstDataset->LoadSparseData(sparseStart, sparseEnd, srcDataNative, sparseIndex);
 
-            for (jsize j = 0; j < sparseStartLength; ++j)
-            {
-                ss[j] = (uint64_t) sparseStart[j];
-                se[j] = (uint64_t) sparseEnd[j];
-            }
-            for (jsize j = 0; j < sparseIndexLength; ++j)
-            {
-                sidx[j] = (uint32_t) sparseIndex[j];
-            }
-
-            dstDataset->LoadSparseData(ss, se, srcDataNative, sidx);
-
-            free(ss);
-            free(se);
-            free(sidx);
-            env->ReleaseLongArrayElements(jSparseStart, sparseStart, JNI_ABORT);
-            env->ReleaseLongArrayElements(jSparseEnd, sparseEnd, JNI_ABORT);
-            env->ReleaseLongArrayElements(jSparseIndex, sparseIndex, JNI_ABORT);
+            env->ReleasePrimitiveArrayCritical(jSparseStart, sparseStart, JNI_ABORT);
+            env->ReleasePrimitiveArrayCritical(jSparseEnd, sparseEnd, JNI_ABORT);
+            env->ReleasePrimitiveArrayCritical(jSparseIndex, sparseIndex, JNI_ABORT);
         } else
         {
             /* copy dense data */
@@ -355,17 +334,6 @@ JNIEXPORT void JNICALL Java_com_amazon_dsstne_Dsstne_predict(JNIEnv *env, jclass
 
         env->ReleaseStringUTFChars(jDatasetName, datasetName);
         env->ReleaseStringUTFChars(jLayerName, layerName);
-
-        cout << "======" << endl;
-        for(uint32_t i=0; i<batchSize; i++) {
-            uint64_t start = dstDataset->_vSparseStart[i];
-            uint64_t end = dstDataset->_vSparseEnd[i];
-            for(uint64_t j=start; j<end; j++){
-                cout << dstDataset->_vSparseIndex[j] << ", ";
-            }
-            cout << "==========" << endl;
-        }
-
     }
 
     // there is only one batch in the dataset; always start from position 0
