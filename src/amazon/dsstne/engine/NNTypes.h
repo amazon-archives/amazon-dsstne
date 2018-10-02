@@ -304,6 +304,15 @@ struct NNDataSetBase {
                        const uint32_t *srcSparseIndex) = 0;
 
     /**
+     * Same as LoadSparseData(const uint64_t*, const uint64_t*, const void*, const uint32_t*) except that
+     * it takes long* for the sparse start, end and indexes and casts them into
+     * uint64_t and uint32_t during load. It is up to the caller to ensure that the cast is bounds safe
+     * (e.g. no negative indexes). This method is useful when writing language extensions for those languages
+     * that do not have unsigned primitive types (e.g. Java).
+     */
+    virtual void LoadSparseData(const long *srcSparseStart, const long *srcSparseEnd, const void *srcSparseData,
+                                const long *srcSparseIndex) = 0;
+    /**
      * If this dataset is indexed, then sets the actual (unique) examples.
      * An exception is thrown if this dataset is not indexed.
      */
@@ -402,30 +411,22 @@ public:
     NNDataSet(uint32_t examples, NNFloat sparseDensity, const NNDataSetDimensions &dim, bool isWeighted = false, const string &name = "");
 
     /**
-     * Creates a sparse indexed dataset with the specified dimensions
+     * Creates a sparse dataset with the specified dimensions
      * and name with space allocated for the specified number of
-     * examples and index (sparse) data space allocated for the specified
-     * number of uniqueExamples and sparseDataSize (length of sparseData).
-     * The isWeighted parameter can be set to true to create a
-     * sparse indexed weighted dataset.
+     * examples and index data (if isIndexed).
+     * The isIndexed and isWeighted parameters can be set to
+     * create a sparse indexed, weighted dataset.
      */
     NNDataSet(uint32_t examples, uint32_t uniqueExamples, size_t sparseDataSize, const NNDataSetDimensions &dim,
-              bool isWeighted = false, const string &name = "");
+              bool isIndexed = false, bool isWeighted = false, const string &name = "");
 
-    void LoadDenseData(const T *srcData);
-
-    void LoadDenseData(const void *srcData) override {
-        LoadDenseData((T*) srcData);
-    }
-
-    void LoadSparseData(const uint64_t *srcSparseStart, const uint64_t *srcSparseEnd, const T *srcSparseData,
-                       const uint32_t *srcSparseIndex);
+    void LoadDenseData(const void *srcData) override;
 
     void LoadSparseData(const uint64_t *srcSparseStart, const uint64_t *srcSparseEnd, const void *srcSparseData,
-                       const uint32_t *srcSparseIndex) override {
-        LoadSparseData(srcSparseStart, srcSparseEnd, (T*) srcSparseData, srcSparseIndex);
-    }
+                       const uint32_t *srcSparseIndex) override;
 
+    void LoadSparseData(const long *srcSparseStart, const long *srcSparseEnd, const void *srcSparseData,
+                                    const long *srcSparseIndex) override;
     void LoadIndexedData(const uint32_t *srcIndexedData) override;
 
     void LoadDataWeight(const NNFloat *srcWeightData) override;
