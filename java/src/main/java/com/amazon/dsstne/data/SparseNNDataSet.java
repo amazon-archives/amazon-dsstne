@@ -128,37 +128,55 @@ public class SparseNNDataSet extends NNDataSet {
 
     @Override
     public void addSparse(final int index, final long[] sparseIndex, final char[] data) {
+        checkLength(sparseIndex.length, data.length);
         setPosition(index);
         this.data.asCharBuffer().put(data);
-        putSparseInfo(index, sparseIndex, data.length);
+        putSparseInfo(index, sparseIndex);
     }
 
-    protected void putSparseInfo(final int index, final long[] sparseIndex, final int dataLength) {
-        int offset = index * getStride();
-        System.arraycopy(sparseIndex, 0, this.sparseIndex, offset, getStride());
+    private void checkLength(final int sparseIndexLength, final int sparseDataLength) {
+        if (sparseDataLength != sparseDataLength) {
+            throw new IllegalArgumentException(
+                "sparseIndex length (" + sparseIndexLength + ") != sparseDataLength (" + sparseDataLength + ")");
+        }
+    }
+
+    protected void putSparseInfo(final int index, final long[] sparseIndex) {
+        int offset;
+        if(index == 0) {
+            offset = 0;
+        } else {
+            //FIXME change sparseStart[] and sparseEnd[] to int[] since java only allows int addressing
+            offset = (int) this.sparseEnd[index - 1];
+        }
+
+        System.arraycopy(sparseIndex, 0, this.sparseIndex, offset, sparseIndex.length);
         this.sparseStart[index] = offset;
-        this.sparseEnd[index] = offset + dataLength;
+        this.sparseEnd[index] = offset + sparseIndex.length;
     }
 
     @Override
     public void addSparse(final int index, final long[] sparseIndex, final int[] data) {
+        checkLength(sparseIndex.length, data.length);
         setPosition(index);
         this.data.asIntBuffer().put(data);
-        putSparseInfo(index, sparseIndex, data.length);
+        putSparseInfo(index, sparseIndex);
     }
 
     @Override
     public void addSparse(final int index, final long[] sparseIndex, final float[] data) {
+        checkLength(sparseIndex.length, data.length);
         setPosition(index);
         this.data.asFloatBuffer().put(data);
-        putSparseInfo(index, sparseIndex, data.length);
+        putSparseInfo(index, sparseIndex);
     }
 
     @Override
     public void addSparse(final int index, final long[] sparseIndex, final double[] data) {
+        checkLength(sparseIndex.length, data.length);
         setPosition(index);
         this.data.asDoubleBuffer().put(data);
-        putSparseInfo(index, sparseIndex, data.length);
+        putSparseInfo(index, sparseIndex);
     }
 
     @Override

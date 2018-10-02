@@ -491,7 +491,7 @@ template<typename T> NNDataSet<T>::NNDataSet(uint32_t examples, uint32_t uniqueE
      * _vIndex holds the index numbers to the data in _vData of each example
      */
     _vData.resize(_stride * _uniqueExamples);
-    _vIndex.resize(_examples);
+    _vIndex.resize(_examples, 0);
     _pbData.reset(new GpuBuffer<T>(_vData.size(), false, _bStreaming));
     _pbIndex.reset(new GpuBuffer<uint32_t>(_vIndex.size(), false, _bStreaming));
 }
@@ -499,10 +499,6 @@ template<typename T> NNDataSet<T>::NNDataSet(uint32_t examples, uint32_t uniqueE
 /* sparse and sparse weighted data */
 template<typename T> NNDataSet<T>::NNDataSet(uint32_t examples, NNFloat sparseDensity, const NNDataSetDimensions &dim,
                                              bool isWeighted, const string &name) :
-    NNDataSetBase(name, NNDataSetEnums::getDataType<T>(), examples, examples, dim)
-{
-    _attributes = NNDataSetEnums::Attributes::Sparse;
-
     /**
      * 1. stride for sparse data needs to be calculated per example,
      * stride = (sparseEnd - sparseStart), hence no need to set _stride
@@ -511,25 +507,15 @@ template<typename T> NNDataSet<T>::NNDataSet(uint32_t examples, NNFloat sparseDe
      * we need to allocate enough space for each sparse example, take sparseDensity
      * as the maximum number of non-zero coordinates for any example in this dataset.
      */
-    _sparseDataSize = (uint64_t)((double_t) (_width * _height * _length * examples) * sparseDensity);
-
-    _vSparseStart.resize(examples);
-    _vSparseEnd.resize(examples);
-    _vSparseData.resize(_sparseDataSize);
-    _vSparseIndex.resize(_sparseDataSize);
-
-    // initialize gpu buffers
-    _pbSparseStart.reset(new GpuBuffer<uint64_t>(_vSparseStart.size(), false, _bStreaming));
-    _pbSparseEnd.reset(new GpuBuffer<uint64_t>(_vSparseEnd.size(), false, _bStreaming));
-    _pbSparseData.reset(new GpuBuffer<T>(_vSparseData.size(), false, _bStreaming));
-    _pbSparseIndex.reset(new GpuBuffer<uint32_t>(_vSparseIndex.size(), false, _bStreaming));
-
-    if (isWeighted)
-    {
-        _attributes |= NNDataSetEnums::Attributes::Weighted;
-        _vDataWeight.resize(_examples);
-        _pbDataWeight.reset(new GpuBuffer<NNFloat>(_vDataWeight.size(), false, _bStreaming));
-    }
+    NNDataSet(examples, examples,
+              (size_t) (((double) (dim._width * dim._height * dim._length * examples)) * sparseDensity), dim,
+              isWeighted, name)
+{
+    /*
+     *  reset the attribute to be sparse only since we call
+     *  the constructor for sparse + indexed NNDataSet
+     */
+    _attributes = NNDataSetEnums::Attributes::Sparse;
 }
 
 /* sparse indexed and sparse indexed weighted data */
@@ -550,11 +536,26 @@ template<typename T> NNDataSet<T>::NNDataSet(uint32_t examples, uint32_t uniqueE
      * sparseDensity = sparseDataSize / (uniqueExamples * x * y * z)
      * this is done in NNDataSet::CalculateSparseDatapointCounts()
      */
-    _vSparseStart.resize(_uniqueExamples);
-    _vSparseEnd.resize(_uniqueExamples);
+    _vSparseStart.resize(_uniqueExamples, 0);
+    _vSparseEnd.resize(_uniqueExamples, 0);
     _vSparseData.resize(_sparseDataSize);
-    _vSparseIndex.resize(_sparseDataSize);
-    _vIndex.resize(_examples);
+    _vSparseIndex.resize(_sparseDataSize, 0);
+    _vIndex.resize(_examples, 0);
+
+    /**
+     * Need to initialize sparse start and end so that NNDataSet::Shard works properly.
+     * Otherwise, NNDataSet::Shard will resize the dataset to zero, since it'll iterates
+     * through the sparse data and shards each example by features modulo numProcs.
+     */
+    size_t sparseStride = (_sparseDataSize + _uniqueExamples - 1) / _uniqueExamples;
+
+    _vSparseStart[0] = 0;
+    _vSparseEnd[0] = sparseStride;
+    for(uint32_t i =1; i < _uniqueExamples; ++i)
+    {
+        _vSparseStart[i] = _vSparseEnd[i-1];
+        _vSparseEnd[i] = _vSparseStart[i] + sparseStride;
+    }
 
     // initialize gpu buffers
     _pbSparseStart.reset(new GpuBuffer<uint64_t>(_vSparseStart.size(), false, _bStreaming));
@@ -594,13 +595,12 @@ template<typename T> void NNDataSet<T>::LoadSparseData(const uint64_t *srcSparse
         }
 
         uint64_t dataLength = srcSparseEnd[_uniqueExamples - 1];
-        if (dataLength > _vSparseData.size())
+        if (dataLength > _vSparseData.size() || dataLength > _vSparseIndex.size())
         {
-            throw std::length_error("Not enough space to store sparse data");
-        }
-        if (dataLength > _vSparseIndex.size())
-        {
-            throw std::length_error("Not enough space to store sparse index");
+            stringstream msg;
+            msg << "Not enough space to store sparse data. Allocated: " << _vSparseData.size() << " Required: "
+                << dataLength;
+            throw std::length_error(msg.str());
         }
 
         copy(srcSparseStart, srcSparseStart + _uniqueExamples, _vSparseStart.data());
@@ -608,9 +608,14 @@ template<typename T> void NNDataSet<T>::LoadSparseData(const uint64_t *srcSparse
         copy(srcSparseData, srcSparseData + dataLength, _vSparseData.data());
         copy(srcSparseIndex, srcSparseIndex + dataLength, _vSparseIndex.data());
 
+        cout << "sparseStart upload"<<endl;
         _pbSparseStart->Upload(_vSparseStart.data());
+        cout << "sparseEnd upload"<<endl;
         _pbSparseEnd->Upload(_vSparseEnd.data());
+        cout << "sparseIndex upload"<<endl;
         _pbSparseIndex->Upload(_vSparseIndex.data());
+        cout << "sparseIndex done"<<endl;
+        cout << "sparseData upload"<<endl;
         _pbSparseData->Upload(_vSparseData.data());
     } else
     {
