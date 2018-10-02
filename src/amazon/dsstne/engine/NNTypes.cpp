@@ -508,7 +508,7 @@ template<typename T> NNDataSet<T>::NNDataSet(uint32_t examples, NNFloat sparseDe
      * as the maximum number of non-zero coordinates for any example in this dataset.
      */
     NNDataSet(examples, examples,
-              (size_t) (((double) (dim._width * dim._height * dim._length * examples)) * sparseDensity), dim,
+              (size_t) (((double) (dim._width * dim._height * dim._length * examples)) * sparseDensity), dim, false,
               isWeighted, name)
 {
     /*
@@ -516,15 +516,17 @@ template<typename T> NNDataSet<T>::NNDataSet(uint32_t examples, NNFloat sparseDe
      *  the constructor for sparse + indexed NNDataSet
      */
     _attributes = NNDataSetEnums::Attributes::Sparse;
+    if(isWeighted) {
+        _attributes |= NNDataSetEnums::Attributes::Weighted;
+    }
 }
 
 /* sparse indexed and sparse indexed weighted data */
 template<typename T> NNDataSet<T>::NNDataSet(uint32_t examples, uint32_t uniqueExamples, size_t sparseDataSize,
-                                             const NNDataSetDimensions &dim, bool isWeighted, const string &name) :
+                                             const NNDataSetDimensions &dim, bool isIndexed, bool isWeighted, const string &name) :
     NNDataSetBase(name, NNDataSetEnums::getDataType<T>(), examples, uniqueExamples, dim)
 {
-    _attributes = NNDataSetEnums::Attributes::Sparse | NNDataSetEnums::Attributes::Indexed;
-    _bIndexed = true;
+    _attributes = NNDataSetEnums::Attributes::Sparse;
     _sparseDataSize = sparseDataSize;
 
     /**
@@ -540,7 +542,6 @@ template<typename T> NNDataSet<T>::NNDataSet(uint32_t examples, uint32_t uniqueE
     _vSparseEnd.resize(_uniqueExamples, 0);
     _vSparseData.resize(_sparseDataSize);
     _vSparseIndex.resize(_sparseDataSize, 0);
-    _vIndex.resize(_examples, 0);
 
     /**
      * Need to initialize sparse start and end so that NNDataSet::Shard works properly.
@@ -562,7 +563,13 @@ template<typename T> NNDataSet<T>::NNDataSet(uint32_t examples, uint32_t uniqueE
     _pbSparseEnd.reset(new GpuBuffer<uint64_t>(_vSparseEnd.size(), false, _bStreaming));
     _pbSparseData.reset(new GpuBuffer<T>(_vSparseData.size(), false, _bStreaming));
     _pbSparseIndex.reset(new GpuBuffer<uint32_t>(_vSparseIndex.size(), false, _bStreaming));
-    _pbIndex.reset(new GpuBuffer<uint32_t>(_vIndex.size(), false, _bStreaming));
+
+    if(isIndexed) {
+        _attributes |=  NNDataSetEnums::Attributes::Indexed;
+        _bIndexed = true;
+        _vIndex.resize(_examples, 0);
+        _pbIndex.reset(new GpuBuffer<uint32_t>(_vIndex.size(), false, _bStreaming));
+    }
 
     if (isWeighted)
     {
@@ -572,21 +579,25 @@ template<typename T> NNDataSet<T>::NNDataSet(uint32_t examples, uint32_t uniqueE
     }
 }
 
-template<typename T> void NNDataSet<T>::LoadDenseData(const T *srcData)
+template<typename T> void NNDataSet<T>::LoadDenseData(const void *srcData)
 {
+    const T* srcDataTyped = static_cast<const T*>(srcData);
+
     if (_attributes & NNDataSetEnums::Attributes::Sparse)
     {
         throw std::runtime_error("Cannot set dense data on a sparse NNDataSet");
     } else
     {
-         copy(srcData, srcData + _vData.size(), _vData.data());
+         copy(srcDataTyped, srcDataTyped + _vData.size(), _vData.data());
          _pbData->Upload(_vData.data());
     }
 }
 
 template<typename T> void NNDataSet<T>::LoadSparseData(const uint64_t *srcSparseStart, const uint64_t *srcSparseEnd,
-                                                       const T *srcSparseData, const uint32_t *srcSparseIndex)
+                                                       const void *srcSparseData, const uint32_t *srcSparseIndex)
 {
+    const T* srcSparseDataTyped = static_cast<const T*>(srcSparseData);
+
     if (_attributes & NNDataSetEnums::Attributes::Sparse)
     {
         if (srcSparseStart[0] != 0)
@@ -605,17 +616,54 @@ template<typename T> void NNDataSet<T>::LoadSparseData(const uint64_t *srcSparse
 
         copy(srcSparseStart, srcSparseStart + _uniqueExamples, _vSparseStart.data());
         copy(srcSparseEnd, srcSparseEnd + _uniqueExamples, _vSparseEnd.data());
-        copy(srcSparseData, srcSparseData + dataLength, _vSparseData.data());
+        copy(srcSparseDataTyped, srcSparseDataTyped + dataLength, _vSparseData.data());
         copy(srcSparseIndex, srcSparseIndex + dataLength, _vSparseIndex.data());
 
-        cout << "sparseStart upload"<<endl;
         _pbSparseStart->Upload(_vSparseStart.data());
-        cout << "sparseEnd upload"<<endl;
         _pbSparseEnd->Upload(_vSparseEnd.data());
-        cout << "sparseIndex upload"<<endl;
         _pbSparseIndex->Upload(_vSparseIndex.data());
-        cout << "sparseIndex done"<<endl;
-        cout << "sparseData upload"<<endl;
+        _pbSparseData->Upload(_vSparseData.data());
+    } else
+    {
+        throw std::runtime_error("Cannot set sparse data on a non sparse NNDataSet");
+    }
+}
+
+template<typename T> void NNDataSet<T>::LoadSparseData(const long *srcSparseStart, const long *srcSparseEnd,
+                                                       const void *srcSparseData, const long *srcSparseIndex)
+{
+    const T* srcSparseDataTyped = static_cast<const T*>(srcSparseData);
+
+    if (_attributes & NNDataSetEnums::Attributes::Sparse)
+    {
+        if (srcSparseStart[0] != 0)
+        {
+            throw std::runtime_error("Sparse data should be zero indexed; srcSparseStart[0] != 0");
+        }
+
+        uint64_t dataLength = srcSparseEnd[_uniqueExamples - 1];
+        if (dataLength > _vSparseData.size() || dataLength > _vSparseIndex.size())
+        {
+            stringstream msg;
+            msg << "Not enough space to store sparse data. Allocated: " << _vSparseData.size() << " Required: "
+                << dataLength;
+            throw std::length_error(msg.str());
+        }
+
+        for (uint32_t i = 0; i < _uniqueExamples; ++i)
+        {
+            _vSparseStart[i] = (uint64_t) srcSparseStart[i];
+            _vSparseEnd[i] = (uint64_t) srcSparseEnd[i];
+        }
+        for (uint64_t i = 0; i < dataLength; ++i)
+        {
+            _vSparseData[i] = srcSparseDataTyped[i];
+            _vSparseIndex[i] = (uint32_t) srcSparseIndex[i];
+        }
+
+        _pbSparseStart->Upload(_vSparseStart.data());
+        _pbSparseEnd->Upload(_vSparseEnd.data());
+        _pbSparseIndex->Upload(_vSparseIndex.data());
         _pbSparseData->Upload(_vSparseData.data());
     } else
     {
