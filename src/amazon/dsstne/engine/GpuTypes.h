@@ -108,7 +108,7 @@ static const MPI_Datatype MPI_NNFLOAT           = MPI_FLOAT;
 static const MPI_Datatype MPI_NNACCUMULATOR     = MPI_LONG_LONG_INT;
 #endif
 
-// Kernel dimensions - we only support SM 3.0 or better due to double-precision, 
+// Kernel dimensions - we only support SM 3.0 or better due to double-precision,
 // atomic operations, and a 32-bit blockDim.x
 static const int SM_3X_THREADS_PER_BLOCK                        = 128;
 static const int SM_5X_THREADS_PER_BLOCK                        = 128;
@@ -197,7 +197,7 @@ static const bool bShadowedOutputBuffers                        = false;    // T
             exit(-1); \
         } \
     }
-    
+
 #else   // GVERBOSE
 
 #ifdef SYNCHRONOUS
@@ -241,8 +241,8 @@ static const bool bShadowedOutputBuffers                        = false;    // T
             getGpu().Shutdown(); \
             exit(-1); \
         } \
-    }    
-    
+    }
+
 #endif  // GVERBOSE
 
 #define RTERROR(status, s) \
@@ -252,14 +252,14 @@ static const bool bShadowedOutputBuffers                        = false;    // T
         cudaThreadExit(); \
         exit(-1); \
     }
-    
+
 #define CUDNNERROR(status, s) \
     if (status != CUDNN_STATUS_SUCCESS) { \
         printf("%s %s\n", s, cudnnGetErrorString(status)); \
         assert(0); \
         cudaThreadExit(); \
         exit(-1); \
-    }    
+    }
 
 // Contains information that needs to be accessible for GPU kernels and most static hyperparameters
 struct GpuData {
@@ -300,14 +300,14 @@ struct GpuData {
     // Example shuffling parameters
     bool                    _bShuffleIndices;           // Determines whether to directly look up examples or not
     unsigned int*           _pShuffleIndex;             // Index to shuffled training examples
-    
+
     // Numeric limits
     uint32_t                _maxUint32_t;               // Language-constrained maximum 32-bit unsigned int value
     int32_t                 _maxInt32_t;                // Language-constrained maximum 32-bit int value
     uint64_t                _maxUint64_t;               // Language-constrained maximum 64-bit unsigned int value
     int64_t                 _maxInt64_t;                // Language-constrained maximum 64-bit int value
-    float                   _maxFloat;                  // Language-constrained maximum 32-bit floating point value 
-    float                   _minFloat;                  // Language-constrained minimum 32-bit floating point value     
+    float                   _maxFloat;                  // Language-constrained maximum 32-bit floating point value
+    float                   _minFloat;                  // Language-constrained minimum 32-bit floating point value
 };
 
 template <typename T> struct GpuBuffer;
@@ -327,7 +327,7 @@ struct GpuContext {
         PADDINGBITS                 = 5,
         PADDINGMASK                 = 0xffffffff - (PADDING - 1),
     };
-   
+
     // Memory parameters
     GpuData                             _data;                      // All GPU data accessible from kernels (mostly device memory pointers)
     bool                                _bECCSupport;               // Flag for ECC support to detect Tesla versus consumer GPU
@@ -336,7 +336,7 @@ struct GpuContext {
     aligned_lli                         _totalCPUMemory;            // Approximate total allocated CPU memory
     aligned_lli                         _totalGPUMemory;            // Approximate total allocated CPU memory
     bool                                _bUnifiedMemory;            // Unified memory flag
-    
+
     // SM/SMX parameters
     SM_VERSION                          _sm_version;                // SM revision for thread blocks
     unsigned int                        _sm_major;                  // Major SM revision by HW
@@ -357,16 +357,16 @@ struct GpuContext {
 
     // cuRand parameters
     curandGenerator_t                   _RNG;                       // Handle for random number generator
-    
+
     // cuDNN parameters
-    cudnnHandle_t                       _cuDNNHandle;               // handle for cuDNN library   
+    cudnnHandle_t                       _cuDNNHandle;               // handle for cuDNN library
 
     // Neural network parameters
     NNNetwork*                          _pNetwork;                  // Pointer to current neural network
     unique_ptr<GpuBuffer<unsigned long long int>> _pbAccumulator;   // Pointer to per-kernel fix point accumulator
     bool                                _bCPUValidate;              // Should CPU validate GPU calculations?
     float                               _acceptableError;           // Acceptable error between CPU and GPU
-        
+
     // Single-node multi-gpu parameters
     bool                                _bSingleNode;               // Flag to indicate MPI run is all on one node
     bool                                _bP2P;                      // Flag to indicate P2P connectivity between all processes
@@ -384,7 +384,7 @@ struct GpuContext {
     void SetCPUValidate(bool bCPUValidate);
 
     // Static methods
-    static unsigned int Pad(unsigned int x) { return (x + PADDING - 1) & PADDINGMASK; } 
+    static unsigned int Pad(unsigned int x) { return (x + PADDING - 1) & PADDINGMASK; }
 };
 
 extern struct GpuContext& getGpu();
@@ -451,25 +451,25 @@ struct GpuBuffer
 template <typename T>
 GpuBuffer<T>::GpuBuffer(int length, bool bSysMem, bool bManaged) : _length(length), _bSysMem(bSysMem), _bManaged(bManaged), _pSysData(NULL), _pDevData(NULL)
 {
-    Allocate();   
+    Allocate();
 }
 
 template <typename T>
 GpuBuffer<T>::GpuBuffer(unsigned int length, bool bSysMem, bool bManaged) : _length(length), _bSysMem(bSysMem), _bManaged(bManaged), _pSysData(NULL), _pDevData(NULL)
 {
-    Allocate();   
+    Allocate();
 }
 
 template <typename T>
 GpuBuffer<T>::GpuBuffer(unsigned long long int length, bool bSysMem, bool bManaged) : _length(length), _bSysMem(bSysMem), _bManaged(bManaged), _pSysData(NULL), _pDevData(NULL)
 {
-    Allocate();   
+    Allocate();
 }
 
 template <typename T>
 GpuBuffer<T>::GpuBuffer(size_t length, bool bSysMem, bool bManaged) : _length(length), _bSysMem(bSysMem), _bManaged(bManaged), _pSysData(NULL), _pDevData(NULL)
 {
-    Allocate();   
+    Allocate();
 }
 
 template <typename T>
@@ -486,7 +486,7 @@ void GpuBuffer<T>::Allocate()
     // Force system memory shadowing on for managed buffers
     if (_bManaged)
         _bSysMem    = true;
-         
+
 #ifdef MEMTRACKING
     printf("Allocating %llu bytes of GPU memory", _length * sizeof(T));
     if (!_bSysMem)
@@ -497,9 +497,9 @@ void GpuBuffer<T>::Allocate()
     {
         printf(", managed");
     }
-    printf("\n");   
+    printf("\n");
 #endif
-    
+
     // Allocate managed if managed
     if (_bManaged)
     {
@@ -528,7 +528,7 @@ void GpuBuffer<T>::Allocate()
     }
 
 #ifdef MEMTRACKING
-    printf("Mem++: %llu %llu\n", getGpu()._totalGPUMemory, getGpu()._totalCPUMemory);     
+    printf("Mem++: %llu %llu\n", getGpu()._totalGPUMemory, getGpu()._totalCPUMemory);
 #endif
 }
 
@@ -545,23 +545,24 @@ template <typename T>
 void GpuBuffer<T>::Deallocate()
 {
     cudaError_t status;
-    
-    // Deallocate GPU memory    
+
+    // Deallocate GPU memory
     status = cudaFree(_pDevData);
-    RTERROR(status, "GpuBuffer::Deallocate failed (cudaFree)");        
+    RTERROR(status, "GpuBuffer::Deallocate failed (cudaFree)");
     getGpu()._totalGPUMemory           -=  _length * sizeof(T);
-    
+
     // Delete system memory if present
     if (_bSysMem && !_bManaged)
     {
         delete[] _pSysData;
-        getGpu()._totalCPUMemory           -=  _length * sizeof(T);   
+        getGpu()._totalCPUMemory           -=  _length * sizeof(T);
     }
-    
+
     _pSysData = NULL;
     _pDevData = NULL;
-#ifdef MEMTRACKING    
-    printf("Mem--: %lld %lld\n", getGpu()._totalGPUMemory, getGpu()._totalCPUMemory);     
+    _length = 0;
+#ifdef MEMTRACKING
+    printf("Mem--: %lld %lld\n", getGpu()._totalGPUMemory, getGpu()._totalCPUMemory);
 #endif
 }
 
@@ -622,7 +623,7 @@ void verifySGEMMNT(GpuBuffer<NNFloat>* pbA, GpuBuffer<NNFloat>* pbB, GpuBuffer<N
 void verifySGEMMTN(GpuBuffer<NNFloat>* pbA, GpuBuffer<NNFloat>* pbB, GpuBuffer<NNFloat>* pbC, uint32_t m, uint32_t k, uint32_t n);
 
 #define SGEMM(A,B,C,m,n,k,alpha,beta,transf_A,transf_B) \
-        cublasSgemm(getGpu()._cuBLASHandle, transf_B, transf_A, n, m, k, alpha, B, n, A, k, beta, C, n) 
+        cublasSgemm(getGpu()._cuBLASHandle, transf_B, transf_A, n, m, k, alpha, B, n, A, k, beta, C, n)
 
 #if defined(__CUDA_ARCH__) && (__CUDA_ARCH__ < 200)
 #define printf(f,...)
