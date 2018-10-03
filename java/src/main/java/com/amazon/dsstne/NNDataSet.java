@@ -17,6 +17,7 @@
 
 package com.amazon.dsstne;
 
+import java.nio.Buffer;
 import java.nio.ByteBuffer;
 
 import com.amazon.dsstne.NNDataSetEnums.Attribute;
@@ -95,7 +96,7 @@ public abstract class NNDataSet {
     }
 
     public ByteBuffer getData() {
-        setPosition(0);
+        setPosition(data, 0);
         return data;
     }
 
@@ -111,8 +112,8 @@ public abstract class NNDataSet {
         return getDataType().ordinal();
     }
 
-    protected void setPosition(int index) {
-        this.data.position(index * getStride() * DataType.sizeof(getDataType()));
+    protected void setPosition(final Buffer buff, int index) {
+        buff.position(index * getStride());
     }
 
     public boolean isSparse() {

@@ -19,6 +19,9 @@ package com.amazon.dsstne.data;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.nio.DoubleBuffer;
+import java.nio.FloatBuffer;
+import java.nio.IntBuffer;
 
 import com.amazon.dsstne.Dim;
 import com.amazon.dsstne.NNDataSet;
@@ -68,20 +71,23 @@ public class DenseNNDataSet extends NNDataSet {
 
     @Override
     public void add(final int index, final int[] data) {
-        setPosition(index);
-        this.data.asIntBuffer().put(data, 0, getStride());
+        IntBuffer buffView = this.data.asIntBuffer();
+        setPosition(buffView, index);
+        buffView.put(data, 0, getStride());
     }
 
     @Override
     public void add(final int index, final float[] data) {
-        setPosition(index);
-        this.data.asFloatBuffer().put(data, 0, getStride());
+        FloatBuffer buffView = this.data.asFloatBuffer();
+        setPosition(buffView, index);
+        buffView.put(data, 0, getStride());
     }
 
     @Override
     public void add(final int index, final double[] data) {
-        setPosition(index);
-        this.data.asDoubleBuffer().put(data, 0, getStride());
+        DoubleBuffer buffView = this.data.asDoubleBuffer();
+        setPosition(buffView, index);
+        buffView.put(data, 0, getStride());
     }
 
     @Override
