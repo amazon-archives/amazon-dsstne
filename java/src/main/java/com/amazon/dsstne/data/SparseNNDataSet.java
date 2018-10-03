@@ -17,8 +17,14 @@
 
 package com.amazon.dsstne.data;
 
+import static com.amazon.dsstne.NNDataSetEnums.DataType.sizeof;
+
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.nio.CharBuffer;
+import java.nio.DoubleBuffer;
+import java.nio.FloatBuffer;
+import java.nio.IntBuffer;
 
 import com.amazon.dsstne.Dim;
 import com.amazon.dsstne.NNDataSet;
@@ -54,7 +60,7 @@ public class SparseNNDataSet extends NNDataSet {
         this.sparseEnd = new long[dim.examples];
 
         this.sparseIndex = new long[stride * dim.examples];
-        this.data = ByteBuffer.allocateDirect(stride * dim.examples * DataType.sizeof(dataType));
+        this.data = ByteBuffer.allocateDirect(stride * dim.examples * sizeof(dataType));
         this.data.order(ByteOrder.nativeOrder());
     }
 
@@ -131,27 +137,25 @@ public class SparseNNDataSet extends NNDataSet {
     @Override
     public void addSparse(final int index, final long[] sparseIndex, final char[] data) {
         checkLength(sparseIndex.length, data.length);
-        setPosition(index);
-        this.data.asCharBuffer().put(data);
+        CharBuffer buffView = this.data.asCharBuffer();
+        setPosition(buffView, index);
+        buffView.put(data);
         putSparseInfo(index, sparseIndex);
     }
 
     private void checkLength(final int sparseIndexLength, final int sparseDataLength) {
-        if (sparseDataLength != sparseDataLength) {
+        if (sparseIndexLength != sparseDataLength) {
             throw new IllegalArgumentException(
                 "sparseIndex length (" + sparseIndexLength + ") != sparseDataLength (" + sparseDataLength + ")");
+        }
+        if(sparseIndexLength > getStride()) {
+            throw new IllegalArgumentException(
+                "Cannot add example larger than stride. Data length: " + sparseIndexLength + " Stride: " + getStride());
         }
     }
 
     protected void putSparseInfo(final int index, final long[] sparseIndex) {
-        int offset;
-        if(index == 0) {
-            offset = 0;
-        } else {
-            //FIXME change sparseStart[] and sparseEnd[] to int[] since java only allows int addressing
-            offset = (int) this.sparseEnd[index - 1];
-        }
-
+        int offset = index * getStride();
         System.arraycopy(sparseIndex, 0, this.sparseIndex, offset, sparseIndex.length);
         this.sparseStart[index] = offset;
         this.sparseEnd[index] = offset + sparseIndex.length;
@@ -160,24 +164,27 @@ public class SparseNNDataSet extends NNDataSet {
     @Override
     public void addSparse(final int index, final long[] sparseIndex, final int[] data) {
         checkLength(sparseIndex.length, data.length);
-        setPosition(index);
-        this.data.asIntBuffer().put(data);
+        IntBuffer buffView = this.data.asIntBuffer();
+        setPosition(buffView, index);
+        buffView.put(data);
         putSparseInfo(index, sparseIndex);
     }
 
     @Override
     public void addSparse(final int index, final long[] sparseIndex, final float[] data) {
         checkLength(sparseIndex.length, data.length);
-        setPosition(index);
-        this.data.asFloatBuffer().put(data);
+        FloatBuffer buffView = this.data.asFloatBuffer();
+        setPosition(buffView, index);
+        buffView.put(data);
         putSparseInfo(index, sparseIndex);
     }
 
     @Override
     public void addSparse(final int index, final long[] sparseIndex, final double[] data) {
         checkLength(sparseIndex.length, data.length);
-        setPosition(index);
-        this.data.asDoubleBuffer().put(data);
+        DoubleBuffer buffView = this.data.asDoubleBuffer();
+        buffView.put(data);
+        setPosition(buffView, index);
         putSparseInfo(index, sparseIndex);
     }
 
