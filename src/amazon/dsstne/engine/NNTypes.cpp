@@ -1373,7 +1373,7 @@ template<typename T> bool NNDataSet<T>::UnShard()
     if (_attributes & NNDataSetEnums::Weighted)
     {
         _pbDataWeight.reset(new GpuBuffer<NNFloat>((uint64_t)_vDataWeight.size(), false, _bStreaming));
-        _pbDataWeight->Upload(_vDataWeight.data());     
+        _pbDataWeight->Upload(_vDataWeight.data()); 
     }
 
     return true;
