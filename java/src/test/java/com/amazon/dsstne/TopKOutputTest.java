@@ -20,11 +20,8 @@ package com.amazon.dsstne;
 import org.junit.Assert;
 import org.junit.Test;
 
-import com.amazon.dsstne.NNLayer;
 import com.amazon.dsstne.NNLayer.Attribute;
 import com.amazon.dsstne.NNLayer.Kind;
-import com.amazon.dsstne.NetworkConfig;
-import com.amazon.dsstne.TopKOutput;
 
 public class TopKOutputTest {
 
@@ -39,32 +36,32 @@ public class TopKOutputTest {
     @Test
     public void testNamesAreSet() {
         NetworkConfig config = NetworkConfig.with().batchSize(batchSize).build();
-        TopKOutput outputDataset = TopKOutput.create(config, layer);
-        Assert.assertEquals(datasetName, outputDataset.getName());
-        Assert.assertEquals(layerName, outputDataset.getLayerName());
+        TopKOutput output = TopKOutput.create(config, layer);
+        Assert.assertEquals(datasetName, output.getName());
+        Assert.assertEquals(layerName, output.getLayerName());
     }
 
     @Test
     public void testOutputAllUnitBuffer() {
         NetworkConfig config = NetworkConfig.with().batchSize(batchSize).build();
-        TopKOutput outputDataset = TopKOutput.create(config, layer);
-        Assert.assertEquals(x, outputDataset.getDim().x);
-        Assert.assertEquals(y, outputDataset.getDim().y);
-        Assert.assertEquals(z, outputDataset.getDim().z);
-        Assert.assertEquals(1, outputDataset.getDim().dimensions);
-        Assert.assertEquals(batchSize, outputDataset.getDim().examples);
+        TopKOutput output = TopKOutput.create(config, layer);
+        Assert.assertEquals(x, output.getDim().x);
+        Assert.assertEquals(y, output.getDim().y);
+        Assert.assertEquals(z, output.getDim().z);
+        Assert.assertEquals(1, output.getDim().dimensions);
+        Assert.assertEquals(batchSize, output.getDim().examples);
     }
 
     @Test
     public void testOutputTopK() {
         int k = 100;
         NetworkConfig config = NetworkConfig.with().batchSize(batchSize).k(100).build();
-        TopKOutput outputDataset = TopKOutput.create(config, layer);
-        Assert.assertEquals(k, outputDataset.getDim().x);
-        Assert.assertEquals(y, outputDataset.getDim().y);
-        Assert.assertEquals(z, outputDataset.getDim().z);
-        Assert.assertEquals(1, outputDataset.getDim().dimensions);
-        Assert.assertEquals(batchSize, outputDataset.getDim().examples);
+        TopKOutput output = TopKOutput.create(config, layer);
+        Assert.assertEquals(k, output.getDim().x);
+        Assert.assertEquals(y, output.getDim().y);
+        Assert.assertEquals(z, output.getDim().z);
+        Assert.assertEquals(1, output.getDim().dimensions);
+        Assert.assertEquals(batchSize, output.getDim().examples);
     }
 
 }
