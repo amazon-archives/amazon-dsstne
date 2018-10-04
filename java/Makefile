@@ -3,7 +3,6 @@ MODULE_ROOT = $(shell pwd)
 BUILD_DIR ?= ../build
 
 DSSTNE_SRC_DIR = ../src/amazon/dsstne
-LIB_DSSTNE = $(BUILD_DIR)/lib/libdsstne.a
 
 SOURCES_DIR = src/main/native
 TEST_DIR = src/test/native
@@ -25,7 +24,7 @@ INC = \
 INCLUDES ?= $(INC:%=-I%)
 
 LIB = \
-	$(DSSTNE_PREFIX)/lib \
+	$(BUILD_DIR)/lib \
 	/usr/local/cuda/lib64 \
 	/usr/lib/openmpi/lib
 
@@ -43,7 +42,9 @@ LLIB = \
 	dl \
 	stdc++ \
 	mpi_cxx \
-	mpi
+	mpi \
+	dsstne_engine \
+	dsstne_runtime
 
 LOAD_LIBS = $(LLIB:%=-l%)
 
@@ -52,19 +53,16 @@ OBJECTS=$(SOURCES:$(SOURCES_DIR)/%.cpp=$(OBJECTS_DIR)/%.o)
 
 CC = g++
 CFLAGS ?=-Wall -fPIC -std=c++11 -pthread -O3
-LDFLAGS ?= -fPIC -Wl,--whole-archive $(LIB_DSSTNE) -Wl,--no-whole-archive
+LDFLAGS ?= -fPIC
 
 all: $(LIBRARY)
 	mkdir -p $(BUILD_DIR)/lib
 	cp -fp $(LIBRARY) $(BUILD_DIR)/lib
 
-$(LIB_DSSTNE):
-	cd $(DSSTNE_SRC_DIR)/engine && make
-
 main:
 	$(info ========== Building main =============)
 	mkdir -p $(BIN_DIR)
-	$(CC) -g $(CFLAGS) -Wl,-rpath=/usr/local/cuda/lib64 $(INCLUDES) $(LIBS) src/test/native/main.cpp $(LIB_DSSTNE) -o $(BIN_DIR)/main.o $(LOAD_LIBS)
+	$(CC) -g $(CFLAGS) -Wl,-rpath=/usr/local/cuda/lib64 $(INCLUDES) $(LIBS) src/test/native/main.cpp -o $(BIN_DIR)/main.o $(LOAD_LIBS)
 
 $(LIBRARY): $(OBJECTS) $(LIB_DSSTNE)
 	$(info ==========  Building JNI Libs ==========)

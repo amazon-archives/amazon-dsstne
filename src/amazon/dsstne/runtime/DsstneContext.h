@@ -18,9 +18,9 @@
 #ifndef DSSTNECONTEXT_H_
 #define DSSTNECONTEXT_H_
 
-#include "GpuTypes.h"
-#include "NNTypes.h"
-#include "NNLayer.h"
+#include "amazon/dsstne/engine/GpuTypes.h"
+#include "amazon/dsstne/engine/NNTypes.h"
+#include "amazon/dsstne/engine/NNLayer.h"
 
 /**
  * Holds the context for an instance of NNNetwork,

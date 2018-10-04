@@ -17,10 +17,10 @@
 #include <dlfcn.h>
 #include <sstream>
 
-#include "amazon/dsstne/engine/DsstneContext.h"
-
 #include "jni_util.h"
 #include "com_amazon_dsstne_Dsstne.h"
+
+#include "amazon/dsstne/runtime/DsstneContext.h"
 
 using namespace std;
 using namespace dsstne;

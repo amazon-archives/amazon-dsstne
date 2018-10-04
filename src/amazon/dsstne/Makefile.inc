@@ -79,7 +79,8 @@ CU_INCLUDES ?= \
     -isystem /usr/lib/openmpi/include \
     -isystem /usr/include/jsoncpp \
     -IB40C \
-    -IB40C/KernelCommon
+    -IB40C/KernelCommon \
+    -I$(BUILD_DIR)/include
 
 CU_LIBS ?= \
     -L/usr/lib/atlas-base \
