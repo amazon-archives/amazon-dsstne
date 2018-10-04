@@ -9,7 +9,7 @@ TEST_DIR = src/test/native
 OBJECTS_DIR = target/native/build
 LIBRARY_DIR = target/lib
 BIN_DIR = target/bin
-LIBRARY = $(LIBRARY_DIR)/libdsstneJava.so
+LIBRARY = $(LIBRARY_DIR)/libdsstne_java.so
 MAIN = main.o
 
 INC = \

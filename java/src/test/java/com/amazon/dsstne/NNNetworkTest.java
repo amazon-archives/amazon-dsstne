@@ -37,7 +37,6 @@ import org.junit.Test;
 
 import com.amazon.dsstne.NNDataSetEnums.DataType;
 import com.amazon.dsstne.data.DenseNNDataSet;
-import com.amazon.dsstne.data.OutputNNDataSet;
 import com.amazon.dsstne.data.SparseNNDataSet;
 
 public class NNNetworkTest {
@@ -103,10 +102,10 @@ public class NNNetworkTest {
     private void assertPredictions(final NNDataSet[] inputDatasets, final DataProvider dp) throws IOException {
         for (int batch = 0; dp.getBatch(inputDatasets[0]); ++batch) {
             long start = System.currentTimeMillis();
-            OutputNNDataSet[] outputDatasets = network.predict(inputDatasets);
+            TopKOutput[] outputDatasets = network.predict(inputDatasets);
             long end = System.currentTimeMillis();
             System.out.println("==== Batch # " + (batch + 1) + " Predict. Took " + (end - start) + " ms ====");
-            OutputNNDataSet output = outputDatasets[0];
+            TopKOutput output = outputDatasets[0];
             float[] scores = output.getScores();
             long[] indexes = output.getIndexes();
 

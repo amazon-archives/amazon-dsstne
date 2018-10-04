@@ -15,11 +15,7 @@
  *
  */
 
-package com.amazon.dsstne.data;
-
-import com.amazon.dsstne.Dim;
-import com.amazon.dsstne.NNLayer;
-import com.amazon.dsstne.NetworkConfig;
+package com.amazon.dsstne;
 
 import lombok.Getter;
 import lombok.Setter;
@@ -31,7 +27,7 @@ import lombok.Setter;
  * The scores hold the output values of the top-k results.
  */
 @Getter
-public class OutputNNDataSet {
+public class TopKOutput {
 
     private final Dim dim;
 
@@ -47,25 +43,25 @@ public class OutputNNDataSet {
     private final float[] scores;
     private final long[] indexes;
 
-    /* package private */ OutputNNDataSet(final Dim dim) {
+    /* package private */ TopKOutput(final Dim dim) {
         this.dim = dim;
         this.scores = new float[dim.x * dim.y * dim.z * dim.examples];
         this.indexes = new long[dim.x * dim.y * dim.z * dim.examples];
     }
 
-    public static OutputNNDataSet create(final NetworkConfig config, final NNLayer outputLayer) {
+    public static TopKOutput create(final NetworkConfig config, final NNLayer outputLayer) {
         int k = config.getK();
         int batchSize = config.getBatchSize();
         Dim outputLayerDim = outputLayer.getDim();
 
-        OutputNNDataSet outputDataset;
+        TopKOutput outputDataset;
         if (config.getK() == NetworkConfig.ALL) {
-            outputDataset = new OutputNNDataSet(new Dim(outputLayerDim, batchSize));
+            outputDataset = new TopKOutput(new Dim(outputLayerDim, batchSize));
         } else {
             if(outputLayerDim.dimensions > 1) {
                 throw new IllegalArgumentException("Top k outputs only supported on 1-D outputs");
             }
-            outputDataset = new OutputNNDataSet(Dim._1d(k, batchSize));
+            outputDataset = new TopKOutput(Dim._1d(k, batchSize));
         }
         outputDataset.setName(outputLayer.getDatasetName());
         outputDataset.setLayerName(outputLayer.getName());
