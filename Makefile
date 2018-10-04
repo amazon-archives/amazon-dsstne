@@ -9,6 +9,7 @@ export BUILD_DIR ?= $(shell pwd)/build
 
 all:
 	cd src/amazon/dsstne/engine && make
+	cd src/amazon/dsstne/runtime && make
 	cd src/amazon/dsstne/utils && make
 	cd tst && make
 	cd java && make
