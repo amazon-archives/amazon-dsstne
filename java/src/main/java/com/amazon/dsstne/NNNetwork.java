@@ -53,7 +53,7 @@ public class NNNetwork implements Closeable {
     }
 
     public void load(NNDataSet[] datasets) {
-        Dsstne.loadDatasets(ptr, datasets);
+        Dsstne.load_datasets(ptr, datasets);
     }
 
     public void predict(final NNDataSet input, final TopKOutput output) {

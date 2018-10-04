@@ -56,7 +56,7 @@ public class Dsstne {
      */
     private static native long load(final String networkFilePath, final int batchSize, final int maxK);
 
-    public static native void loadDatasets(final long ptr, NNDataSet[] datasets);
+    public static native void load_datasets(final long ptr, NNDataSet[] datasets);
 
     /**
      * Shuts down this model and GPU context and releases all resources. Once shutdown, the init method

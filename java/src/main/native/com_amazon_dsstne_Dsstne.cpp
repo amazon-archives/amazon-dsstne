@@ -152,7 +152,7 @@ NNDataSetDimensions getDataDimensions(JNIEnv *env, jobject jDataset)
     return dim;
 }
 
-JNIEXPORT void JNICALL Java_com_amazon_dsstne_Dsstne_loadDatasets(JNIEnv *env, jclass clazz, jlong ptr,
+JNIEXPORT void JNICALL Java_com_amazon_dsstne_Dsstne_load_1datasets(JNIEnv *env, jclass clazz, jlong ptr,
                                                                   jobjectArray jDatasets)
 {
     using NNDataSetEnums::DataType;

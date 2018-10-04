@@ -19,10 +19,10 @@ JNIEXPORT jlong JNICALL Java_com_amazon_dsstne_Dsstne_load
 
 /*
  * Class:     com_amazon_dsstne_Dsstne
- * Method:    loadDatasets
+ * Method:    load_datasets
  * Signature: (J[Lcom/amazon/dsstne/NNDataSet;)V
  */
-JNIEXPORT void JNICALL Java_com_amazon_dsstne_Dsstne_loadDatasets
+JNIEXPORT void JNICALL Java_com_amazon_dsstne_Dsstne_load_1datasets
   (JNIEnv *, jclass, jlong, jobjectArray);
 
 /*
