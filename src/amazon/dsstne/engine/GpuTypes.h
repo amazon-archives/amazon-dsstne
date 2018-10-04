@@ -409,13 +409,18 @@ struct GpuBuffer
     void Allocate();
 
     /**
-     * If the current length is different from the new length,
-     * frees existing GPU memory, then allocates new memory
-     * with the given length. Can force reallocation by setting
-     * force = true. Once reallocated, the contents of the
-     * buffer is undefined (no data is preserved)`.
+     * Resizes this GpuBuffer to the new length only if
+     * the new length is greater than the current length.
+     * If the new length is less than or equal to  the
+     * current length this method does nothing. If the
+     * buffer is resized, the underlying GPU (and CPU memory
+     * if any) are freed and malloc'ed again. All data in the
+     * previous buffers is lost. Regardless of whether
+     * the resizing happens or not, one should only call this
+     * method under the assumption that all data in the current
+     * buffer can be lost.
      */
-    void Reallocate(size_t length, bool force = false);
+    void Resize(size_t length);
 
     /**
      * Frees GPU memory held by this buffer.
@@ -532,9 +537,10 @@ void GpuBuffer<T>::Allocate()
 #endif
 }
 
-template<typename T> void GpuBuffer<T>::Reallocate(size_t length, bool force)
+template<typename T> void GpuBuffer<T>::Resize(size_t length)
 {
-    if(_length != length || force) {
+    if(length > _length)
+    {
         Deallocate();
         _length = length;
         Allocate();
