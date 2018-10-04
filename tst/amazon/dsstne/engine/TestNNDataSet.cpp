@@ -129,8 +129,9 @@ CPPUNIT_TEST_SUITE(TestNNDataSet);
     void testCreateSparseIndexedDataset()
     {
         size_t sparseDataSize = 128 * uniqueExamples / 10;
+        bool isIndexed = true;
         bool isWeighted = false;
-        NNDataSet<long> dataset(examples, uniqueExamples, sparseDataSize, datasetDim, isWeighted);
+        NNDataSet<long> dataset(examples, uniqueExamples, sparseDataSize, datasetDim, isIndexed, isWeighted);
 
         CPPUNIT_ASSERT(dataset._stride == 0);
         CPPUNIT_ASSERT(dataset._bIndexed == true);
@@ -150,8 +151,9 @@ CPPUNIT_TEST_SUITE(TestNNDataSet);
     void testCreateSparseWeightedIndexedDataset()
     {
         size_t sparseDataSize = 128 * uniqueExamples / 10;
+        bool isIndexed = true;
         bool isWeighted = true;
-        NNDataSet<long> dataset(examples, uniqueExamples, sparseDataSize, datasetDim, isWeighted);
+        NNDataSet<long> dataset(examples, uniqueExamples, sparseDataSize, datasetDim, isIndexed, isWeighted);
 
         CPPUNIT_ASSERT(dataset._stride == 0);
         CPPUNIT_ASSERT(dataset._bIndexed == true);
