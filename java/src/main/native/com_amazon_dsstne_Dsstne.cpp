@@ -38,7 +38,7 @@ References REFS;
 
 const std::string _NNLayer = "com/amazon/dsstne/NNLayer";
 const std::string _NNDataSet = "com/amazon/dsstne/NNDataSet";
-const std::string _OutputNNDataSet = "com/amazon/dsstne/data/OutputNNDataSet";
+const std::string _TopKOutput = "com/amazon/dsstne/TopKOutput";
 
 jmethodID java_ArrayList_;
 jmethodID java_ArrayList_add;
@@ -62,10 +62,10 @@ jmethodID NNDataSet_getSparseEnd;
 jmethodID NNDataSet_getSparseIndex;
 jmethodID NNDataSet_getData;
 
-jmethodID OutputNNDataSet_getName;
-jmethodID OutputNNDataSet_getLayerName;
-jmethodID OutputNNDataSet_getIndexes;
-jmethodID OutputNNDataSet_getScores;
+jmethodID TopKOutput_getName;
+jmethodID TopKOutput_getLayerName;
+jmethodID TopKOutput_getIndexes;
+jmethodID TopKOutput_getScores;
 
 }  //namespace
 
@@ -110,10 +110,10 @@ jint JNI_OnLoad(JavaVM *vm, void *reserved)
         NNDataSet_getSparseIndex = findMethodId(env, REFS, _NNDataSet, "getSparseIndex", "()[J");
         NNDataSet_getData = findMethodId(env, REFS, _NNDataSet, "getData", "()Ljava/nio/ByteBuffer;");
 
-        OutputNNDataSet_getName = findMethodId(env, REFS, _OutputNNDataSet, "getName", "()Ljava/lang/String;");
-        OutputNNDataSet_getLayerName = findMethodId(env, REFS, _OutputNNDataSet, "getLayerName", "()Ljava/lang/String;");
-        OutputNNDataSet_getIndexes = findMethodId(env, REFS, _OutputNNDataSet, "getIndexes", "()[J");
-        OutputNNDataSet_getScores = findMethodId(env, REFS, _OutputNNDataSet, "getScores", "()[F");
+        TopKOutput_getName = findMethodId(env, REFS, _TopKOutput, "getName", "()Ljava/lang/String;");
+        TopKOutput_getLayerName = findMethodId(env, REFS, _TopKOutput, "getLayerName", "()Ljava/lang/String;");
+        TopKOutput_getIndexes = findMethodId(env, REFS, _TopKOutput, "getIndexes", "()[J");
+        TopKOutput_getScores = findMethodId(env, REFS, _TopKOutput, "getScores", "()[F");
 
         return JNI_VERSION_1_6;
     }
@@ -347,11 +347,11 @@ JNIEXPORT void JNICALL Java_com_amazon_dsstne_Dsstne_predict(JNIEnv *env, jclass
         jobject jOutputDataset = env->GetObjectArrayElement(jOutputDatasets, i);
 
         // output dataset name is set to output layer name
-        jstring jLayerName = (jstring) env->CallObjectMethod(jOutputDataset, OutputNNDataSet_getLayerName);
+        jstring jLayerName = (jstring) env->CallObjectMethod(jOutputDataset, TopKOutput_getLayerName);
         const char *layerName = env->GetStringUTFChars(jLayerName, NULL);
 
-        jfloatArray jScores = (jfloatArray) env->CallObjectMethod(jOutputDataset, OutputNNDataSet_getScores);
-        jlongArray jIndexes = (jlongArray) env->CallObjectMethod(jOutputDataset, OutputNNDataSet_getIndexes);
+        jfloatArray jScores = (jfloatArray) env->CallObjectMethod(jOutputDataset, TopKOutput_getScores);
+        jlongArray jIndexes = (jlongArray) env->CallObjectMethod(jOutputDataset, TopKOutput_getIndexes);
 
         NNLayer *outputLayer = network->GetLayer(layerName);
 

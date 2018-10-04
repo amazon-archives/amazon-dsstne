@@ -44,7 +44,7 @@ JNIEXPORT jobject JNICALL Java_com_amazon_dsstne_Dsstne_get_1layers
 /*
  * Class:     com_amazon_dsstne_Dsstne
  * Method:    predict
- * Signature: (JI[Lcom/amazon/dsstne/NNDataSet;[Lcom/amazon/dsstne/data/OutputNNDataSet;)V
+ * Signature: (JI[Lcom/amazon/dsstne/NNDataSet;[Lcom/amazon/dsstne/TopKOutput;)V
  */
 JNIEXPORT void JNICALL Java_com_amazon_dsstne_Dsstne_predict
   (JNIEnv *, jclass, jlong, jint, jobjectArray, jobjectArray);

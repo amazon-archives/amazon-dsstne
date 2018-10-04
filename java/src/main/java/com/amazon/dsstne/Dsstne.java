@@ -20,7 +20,6 @@ package com.amazon.dsstne;
 import java.util.List;
 
 import com.amazon.dsstne.NNLayer.Kind;
-import com.amazon.dsstne.data.OutputNNDataSet;
 
 /**
  * Entry point to obtaining {@link NNNetwork}. Defines all the native methods.
@@ -29,7 +28,7 @@ public class Dsstne {
     public static final long NULLPTR = 0x0;
 
     static {
-        System.loadLibrary("dsstneJava");
+        System.loadLibrary("dsstne_java");
     }
 
     public static NNNetwork load(final NetworkConfig config) {
@@ -71,5 +70,5 @@ public class Dsstne {
      */
     private static native List<NNLayer> get_layers(final long ptr, final int kind);
 
-    static native void predict(final long ptr, final int k, final NNDataSet[] inputs, final OutputNNDataSet[] outputs);
+    static native void predict(final long ptr, final int k, final NNDataSet[] inputs, final TopKOutput[] outputs);
 }

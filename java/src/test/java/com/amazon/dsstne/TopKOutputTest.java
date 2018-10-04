@@ -15,7 +15,7 @@
  *
  */
 
-package com.amazon.dsstne.data;
+package com.amazon.dsstne;
 
 import org.junit.Assert;
 import org.junit.Test;
@@ -24,8 +24,9 @@ import com.amazon.dsstne.NNLayer;
 import com.amazon.dsstne.NNLayer.Attribute;
 import com.amazon.dsstne.NNLayer.Kind;
 import com.amazon.dsstne.NetworkConfig;
+import com.amazon.dsstne.TopKOutput;
 
-public class OutputNNDataSetTest {
+public class TopKOutputTest {
 
     private String layerName = "test-layer";
     private String datasetName = "test-dataset";
@@ -38,7 +39,7 @@ public class OutputNNDataSetTest {
     @Test
     public void testNamesAreSet() {
         NetworkConfig config = NetworkConfig.with().batchSize(batchSize).build();
-        OutputNNDataSet outputDataset = OutputNNDataSet.create(config, layer);
+        TopKOutput outputDataset = TopKOutput.create(config, layer);
         Assert.assertEquals(datasetName, outputDataset.getName());
         Assert.assertEquals(layerName, outputDataset.getLayerName());
     }
@@ -46,7 +47,7 @@ public class OutputNNDataSetTest {
     @Test
     public void testOutputAllUnitBuffer() {
         NetworkConfig config = NetworkConfig.with().batchSize(batchSize).build();
-        OutputNNDataSet outputDataset = OutputNNDataSet.create(config, layer);
+        TopKOutput outputDataset = TopKOutput.create(config, layer);
         Assert.assertEquals(x, outputDataset.getDim().x);
         Assert.assertEquals(y, outputDataset.getDim().y);
         Assert.assertEquals(z, outputDataset.getDim().z);
@@ -58,7 +59,7 @@ public class OutputNNDataSetTest {
     public void testOutputTopK() {
         int k = 100;
         NetworkConfig config = NetworkConfig.with().batchSize(batchSize).k(100).build();
-        OutputNNDataSet outputDataset = OutputNNDataSet.create(config, layer);
+        TopKOutput outputDataset = TopKOutput.create(config, layer);
         Assert.assertEquals(k, outputDataset.getDim().x);
         Assert.assertEquals(y, outputDataset.getDim().y);
         Assert.assertEquals(z, outputDataset.getDim().z);

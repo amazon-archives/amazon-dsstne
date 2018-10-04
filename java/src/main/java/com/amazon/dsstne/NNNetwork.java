@@ -20,8 +20,6 @@ package com.amazon.dsstne;
 import java.io.Closeable;
 import java.util.List;
 
-import com.amazon.dsstne.data.OutputNNDataSet;
-
 import lombok.Getter;
 import lombok.ToString;
 
@@ -58,26 +56,26 @@ public class NNNetwork implements Closeable {
         Dsstne.loadDatasets(ptr, datasets);
     }
 
-    public void predict(final NNDataSet input, final OutputNNDataSet output) {
+    public void predict(final NNDataSet input, final TopKOutput output) {
         if (inputLayers.length != 1 || outputLayers.length != 1) {
             throw new UnsupportedOperationException(
                 "method can only valid with networks with single input/output layer");
         }
 
-        predict(new NNDataSet[] {input}, new OutputNNDataSet[] {output});
+        predict(new NNDataSet[] {input}, new TopKOutput[] {output});
     }
 
-    public OutputNNDataSet[] predict(final NNDataSet[] inputs) {
-        OutputNNDataSet[] outputs = new OutputNNDataSet[outputLayers.length];
+    public TopKOutput[] predict(final NNDataSet[] inputs) {
+        TopKOutput[] outputs = new TopKOutput[outputLayers.length];
         for (int i = 0; i < outputLayers.length; i++) {
             NNLayer outputLayer = outputLayers[i];
-            outputs[i] = OutputNNDataSet.create(config, outputLayer);
+            outputs[i] = TopKOutput.create(config, outputLayer);
         }
         predict(inputs, outputs);
         return outputs;
     }
 
-    public void predict(final NNDataSet[] inputs, final OutputNNDataSet[] outputs) {
+    public void predict(final NNDataSet[] inputs, final TopKOutput[] outputs) {
         checkArguments(inputs, outputs);
         Dsstne.predict(ptr, config.getK(), inputs, outputs);
     }
@@ -86,7 +84,7 @@ public class NNNetwork implements Closeable {
      * Checks that the number of data matches the number of layers and that the dimensions match.
      * Data and layers are matched in index order.
      */
-    private void checkArguments(final NNDataSet[] inputs, final OutputNNDataSet[] outputs) {
+    private void checkArguments(final NNDataSet[] inputs, final TopKOutput[] outputs) {
         if (inputs.length != inputLayers.length) {
             throw new IllegalArgumentException("Number of input data and input layers do not match");
         }
