@@ -140,10 +140,9 @@ public:
      * the matching layer. Datasets are processed in order and match
      * is performed on input layers before output layers. Match is
      * determined by the name of the dataset. The dimensions between
-     * the layer and dataset must equal otherwise an error is thrown.
+     * the layer and dataset must be equal otherwise an error is thrown.
      */
     void LoadDataSets(vector<NNDataSetBase*>& vData);
-
     void Randomize();
     bool Validate();
     float Train(uint32_t epochs = 1, NNFloat alpha = (NNFloat)0.1, NNFloat lambda = (NNFloat)0.001, NNFloat lambda1 = (NNFloat)0.0, NNFloat mu = (NNFloat)0.1,  NNFloat mu1 = 0.0);
@@ -188,7 +187,6 @@ public:
      *    }
      */
     vector<const NNLayer*>::iterator GetLayers(NNLayer::Kind layerKind, vector<const NNLayer*> &layers) const;
-
     vector<string> GetLayers() const;
     const string& GetName() const;
     tuple<NNFloat, uint32_t, NNFloat, NNFloat> GetLRN() const;                          // Returns k, n, alpha, beta

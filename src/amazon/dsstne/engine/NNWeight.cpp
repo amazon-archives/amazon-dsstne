@@ -940,7 +940,6 @@ bool NNWeight::SetWeights(const vector<NNFloat>& vWeight)
     {
         if (vWeight.size() < pWeight->_vWeight.size())
         {
-            cout << vWeight.size() << " " << pWeight->_vWeight.size() << endl;
             if (getGpu()._id == 0)
             {
                 printf("NNWeight::SetWeights: Input vector smaller than weight vector.\n");
@@ -949,8 +948,10 @@ bool NNWeight::SetWeights(const vector<NNFloat>& vWeight)
         }
         else
         {
-
-            pWeight->_vWeight       = vWeight;
+            if (vWeight.size() > pWeight->_vWeight.size())
+                std::copy(vWeight.data(), vWeight.data() + pWeight->_vWeight.size(), pWeight->_vWeight.data());
+            else
+                pWeight->_vWeight       = vWeight;
             if (pWeight->_pbWeight != NULL)
                 pWeight->_pbWeight->Upload(_vWeight.data());
         }
@@ -977,7 +978,10 @@ bool NNWeight::SetBiases(const vector<NNFloat>& vBias)
     }
     else
     {
-        _vBias                  = vBias;
+        if (vBias.size() > _vBias.size())
+            std::copy(vBias.data(), vBias.data() + _vBias.size(), _vBias.data());
+        else
+            _vBias       = vBias;
         if (_pbBias != NULL)
             _pbBias->Upload(_vBias.data());
     }
