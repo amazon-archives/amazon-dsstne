@@ -45,9 +45,11 @@ _vSkip(d._vSkip),
 _pbUnit(),
 _pbDelta(),
 _pbDropout(),
-_pbDxBN(),
-_pbScaleDiffBN(),
-_pbBiasDiffBN(),
+_pbDeltaBN(),
+_pbScaleGradientBN(),
+_pbScaleGradientVelocityBN(),
+_pbBiasGradientBN(),
+_pbBiasGradientVelocityBN(),
 _pbUnitBN(),
 _pbScaleBN(),
 _pbBiasBN(),
@@ -86,7 +88,6 @@ _bDenoising(d._attributes & NNLayer::Attributes::Denoising),
 _bFastSparse(false),
 _bDirty(true),
 _bnCalls(0),
-_bnLearningRate(-0.001),
 _priority(-1),
 _deltaUpdateCount(0),
 _unitUpdateCount(0),
@@ -121,8 +122,6 @@ _bBatchNormalization(d._attributes & NNLayer::Attributes::BatchNormalization)
     if (_bBatchNormalization)
     {
         cudaError_t status;
-        uint64_t size   = (uint64_t)_maxLocalStride * (uint64_t)_localBatch; 
-
         cudnnStatus_t cudnnStatus   = cudnnCreateTensorDescriptor(&_scaleBiasMeanVarDescBN);
         CUDNNERROR(cudnnStatus, "NNLayer::NNLayer: unable to create _scaleBiasMeanVarDescBN");
         cudnnStatus                 = cudnnCreateTensorDescriptor(&_tensorDescriptorBN);
@@ -136,11 +135,8 @@ _bBatchNormalization(d._attributes & NNLayer::Attributes::BatchNormalization)
         // Allocate all of the device memory for Batch Normalization
         // need to have this here rather than Allocate(), because that memory gets wiped on Refresh and other paths
         // but this Bn needs to stay, since it can be filled in via Load
-        _pbUnitBN.reset(new GpuBuffer<NNFloat>(size));
-        _pbDxBN.reset(new GpuBuffer<NNFloat>(size));
-
-        _pbScaleDiffBN.reset(new GpuBuffer<NNFloat>(_strideBN));
-        _pbBiasDiffBN.reset(new GpuBuffer<NNFloat>(_strideBN));
+        _pbScaleGradientBN.reset(new GpuBuffer<NNFloat>(_strideBN));
+        _pbBiasGradientBN.reset(new GpuBuffer<NNFloat>(_strideBN));
         _pbScaleBN.reset(new GpuBuffer<NNFloat>(_strideBN));
         _pbBiasBN.reset(new GpuBuffer<NNFloat>(_strideBN));
         _pbRunningMeanBN.reset(new GpuBuffer<NNFloat>(_strideBN));
@@ -151,9 +147,6 @@ _bBatchNormalization(d._attributes & NNLayer::Attributes::BatchNormalization)
 
         if (getGpu()._id == 0)
         {
-            printf("NNLayer::NNLayer: Allocating %" PRIu64 " bytes (%u, %u) of unit data for BN input layer %s\n", size * sizeof(NNFloat), _maxLocalStride, _localBatch, _name.c_str());
-            printf("NNLayer::NNLayer: Allocating %" PRIu64 " bytes (%u, %u) of dx data for BN input layer %s\n", size * sizeof(NNFloat), _maxLocalStride, _localBatch, _name.c_str());
-
             printf("NNLayer::NNLayer: Allocating %" PRIu64 " bytes of BN scale diff for layer %s\n", _strideBN * sizeof(NNFloat), _name.c_str());        
             printf("NNLayer::NNLayer: Allocating %" PRIu64 " bytes of BN bias diff for layer %s\n", _strideBN * sizeof(NNFloat), _name.c_str());        
             printf("NNLayer::NNLayer: Allocating %" PRIu64 " bytes of BN scale for layer %s\n", _strideBN * sizeof(NNFloat), _name.c_str());        
@@ -197,10 +190,10 @@ _bBatchNormalization(d._attributes & NNLayer::Attributes::BatchNormalization)
         RTERROR(status, "NNLayer::NNLayer: cudaMemcpy failed on  _pbRunningVarianceBN");        
 
         // clear the others that are used by cuDNN
-        status = cudaMemset(_pbScaleDiffBN->_pDevData, 0, _strideBN * sizeof(NNFloat));
-        RTERROR(status, "NNLayer::NNLayer: cudaMemset failed on  _pbScaleDiffBN");        
-        status = cudaMemset(_pbBiasDiffBN->_pDevData, 0, _strideBN * sizeof(NNFloat));
-        RTERROR(status, "NNLayer::NNLayer: cudaMemset failed on  _pbBiasDiffBN");        
+        status = cudaMemset(_pbScaleGradientBN->_pDevData, 0, _strideBN * sizeof(NNFloat));
+        RTERROR(status, "NNLayer::NNLayer: cudaMemset failed on  _pbScaleGradientBN");        
+        status = cudaMemset(_pbBiasGradientBN->_pDevData, 0, _strideBN * sizeof(NNFloat));
+        RTERROR(status, "NNLayer::NNLayer: cudaMemset failed on  _pbBiasGradientBN");        
         status = cudaMemset(_pbSaveMeanBN->_pDevData, 0, _strideBN * sizeof(NNFloat));
         RTERROR(status, "NNLayer::NNLayer: cudaMemset failed on  _pbSaveMeanBN");        
         status = cudaMemset(_pbSaveInvVarianceBN->_pDevData, 0, _strideBN * sizeof(NNFloat));
@@ -278,11 +271,6 @@ NNLayer::~NNLayer()
         CUDNNERROR(cudnnStatus, "NNLayer::~NNLayer: unable to delete _scaleBiasMeanVarDescBN");        
         cudnnStatus                     = cudnnDestroyTensorDescriptor(_tensorDescriptorBN);
         CUDNNERROR(cudnnStatus, "NNLayer::~NNLayer: unable to delete _tensorDescriptorBN");        
-
-        _pbDxBN.reset();
-        _pbScaleDiffBN.reset();
-        _pbBiasDiffBN.reset();
-        _pbUnitBN.reset();
         _pbScaleBN.reset();
         _pbBiasBN.reset();
         _pbRunningMeanBN.reset();
@@ -312,7 +300,9 @@ void NNLayer::Deallocate()
         printf("NNLayer::Deallocate: Deallocating all data for layer %s\n", _name.c_str());
 
     _pbUnit.reset();
+    _pbUnitBN.reset();
     _pbDelta.reset();
+    _pbDeltaBN.reset();
     _pbDropout.reset();
     _pbBuffer1.reset();
     _pbBuffer2.reset();
@@ -658,7 +648,14 @@ void NNLayer::Allocate(bool validate)
         _vDelta.resize(size);
         _pbDelta.reset(new GpuBuffer<NNFloat>(size));
         if (getGpu()._id == 0)       
-            printf("NNLayer::Allocate: Allocating %" PRIu64 " bytes (%u, %u) of delta data for layer %s\n", size * sizeof(NNFloat), _maxLocalStride, _localBatch, _name.c_str());        
+            printf("NNLayer::Allocate: Allocating %" PRIu64 " bytes (%u, %u) of delta data for layer %s\n", size * sizeof(NNFloat), _maxLocalStride, _localBatch, _name.c_str());
+        
+        if (_bBatchNormalization)
+        {
+            _pbUnitBN.reset(new GpuBuffer<NNFloat>(size));
+            _pbDeltaBN.reset(new GpuBuffer<NNFloat>(size));            
+        }        
+        
     }
     
     // Allocate dropout data if active
@@ -788,7 +785,7 @@ void NNLayer::RefreshParallelization()
     }
 }
 
-void NNLayer::RefreshState(NNNetwork* pNetwork, bool validate)
+void NNLayer::RefreshState(NNNetwork* pNetwork, TrainingMode trainingMode, bool validate)
 {
     if (_bDirty)
     {
@@ -812,6 +809,38 @@ void NNLayer::RefreshState(NNNetwork* pNetwork, bool validate)
             RefreshParallelization();
 
         Allocate(validate);
+        
+        if (_bBatchNormalization)
+        {
+            if (trainingMode != TrainingMode::SGD)
+            {
+                if (!_pbScaleVelocityBN)
+                    _pbScaleVelocityBN.reset(new GpuBuffer<NNFloat>(_localStride));
+                if (!_pbBiasVelocityBN)
+                    _pbBiasVelocityBN.reset(new GpuBuffer<NNFloat>(_localStride));
+
+                // Add additional buffers for AdaDelta and Adam
+                if ((trainingMode == TrainingMode::AdaDelta) || (trainingMode == TrainingMode::Adam))
+                {
+                    if (!_pbScaleGradientVelocityBN)
+                        _pbScaleGradientVelocityBN.reset(new GpuBuffer<NNFloat>(_localStride));
+                    if (!_pbBiasGradientVelocityBN)
+                        _pbBiasGradientVelocityBN.reset(new GpuBuffer<NNFloat>(_localStride));
+                }
+                else
+                {
+                    _pbScaleGradientVelocityBN.reset();
+                    _pbScaleGradientVelocityBN.reset();
+                }
+            }
+            else
+            {
+                _pbScaleVelocityBN.reset();
+                _pbBiasVelocityBN.reset();
+                _pbScaleGradientVelocityBN.reset();
+                _pbBiasGradientVelocityBN.reset();
+            }
+        } 
 
         // Shard data set if necessary
         if ((_kind != Hidden) && (_pDataSet != NULL))
@@ -962,31 +991,31 @@ void NNLayer::ForwardPropagateFullyConnected(uint32_t position, uint32_t batch, 
             switch (_vIncomingLayer.size())
             {
                 case 0: // Only skip layers
-                    cudaMemset(_pbUnit->_pDevData, 0, _stride * batch * sizeof(NNFloat));
+                    cudaMemset(GetIncomingUnitBuffer(), 0, _stride * batch * sizeof(NNFloat));
                     break;
                     
                 case 1:
-                    kClearUnit(_pbUnit->_pDevData, _vIncomingWeight[0]->_pbBias->_pDevData, _stride, batch);
+                    kClearUnit(GetIncomingUnitBuffer(), _vIncomingWeight[0]->_pbBias->_pDevData, _stride, batch);
                     break; 
                     
                 case 2:
-                    kClearDualSourceUnit(_pbUnit->_pDevData, _vIncomingWeight[0]->_pbBias->_pDevData, 
-                                                             _vIncomingWeight[1]->_pbBias->_pDevData, 
+                    kClearDualSourceUnit(GetIncomingUnitBuffer(), _vIncomingWeight[0]->_pbBias->_pDevData, 
+                                                                  _vIncomingWeight[1]->_pbBias->_pDevData, 
                                         _stride, batch);
                     break;                   
                     
                 case 3:
-                    kClearTripleSourceUnit(_pbUnit->_pDevData, _vIncomingWeight[0]->_pbBias->_pDevData, 
-                                                               _vIncomingWeight[1]->_pbBias->_pDevData, 
-                                                               _vIncomingWeight[2]->_pbBias->_pDevData, 
+                    kClearTripleSourceUnit(GetIncomingUnitBuffer(), _vIncomingWeight[0]->_pbBias->_pDevData, 
+                                                                    _vIncomingWeight[1]->_pbBias->_pDevData, 
+                                                                    _vIncomingWeight[2]->_pbBias->_pDevData, 
                                         _stride, batch);
                     break;      
 
                 case 4:
-                    kClearQuadSourceUnit(_pbUnit->_pDevData, _vIncomingWeight[0]->_pbBias->_pDevData, 
-                                                             _vIncomingWeight[1]->_pbBias->_pDevData, 
-                                                             _vIncomingWeight[2]->_pbBias->_pDevData, 
-                                                             _vIncomingWeight[3]->_pbBias->_pDevData, 
+                    kClearQuadSourceUnit(GetIncomingUnitBuffer(), _vIncomingWeight[0]->_pbBias->_pDevData, 
+                                                                  _vIncomingWeight[1]->_pbBias->_pDevData, 
+                                                                  _vIncomingWeight[2]->_pbBias->_pDevData, 
+                                                                  _vIncomingWeight[3]->_pbBias->_pDevData, 
                                         _stride, batch);
                     break;                  
                     
@@ -1009,19 +1038,19 @@ void NNLayer::ForwardPropagateFullyConnected(uint32_t position, uint32_t batch, 
                                                       _vIncomingWeight[i]->_pSharedWeight->_pbWeight->_pDevData : 
                                                       _vIncomingWeight[i]->_pbWeight->_pDevData;
                     if (bTraining && _vIncomingLayer[i]->_bDenoising)
-                        _vIncomingLayer[i]->_pDataSet->CalculateSparseDenoisedZ(position, batch, _stride, pWeight, _pbUnit->_pDevData, sgemm_beta);  
+                        _vIncomingLayer[i]->_pDataSet->CalculateSparseDenoisedZ(position, batch, _stride, pWeight, GetIncomingUnitBuffer(), sgemm_beta);  
                     else
-                        _vIncomingLayer[i]->_pDataSet->CalculateSparseZ(position, batch, _stride, pWeight, _pbUnit->_pDevData, sgemm_beta);
+                        _vIncomingLayer[i]->_pDataSet->CalculateSparseZ(position, batch, _stride, pWeight, GetIncomingUnitBuffer(), sgemm_beta);
                 }
                 else      
                 {
                     const NNFloat sgemm_alpha       = (NNFloat)1.0;
                     cublasStatus_t cstatus;
-                    NNFloat* pA                     = _vIncomingLayer[i]->_pbUnit->_pDevData;
+                    NNFloat* pA                     = _vIncomingLayer[i]->GetUnitBuffer();
                     NNFloat* pB                     = _vIncomingWeight[i]->_bShared ? 
                                                       _vIncomingWeight[i]->_pSharedWeight->_pbWeight->_pDevData : 
                                                       _vIncomingWeight[i]->_pbWeight->_pDevData;
-                    NNFloat* pC                     = _pbUnit->_pDevData;
+                    NNFloat* pC                     = GetIncomingUnitBuffer();
                     int m                           = batch;
                     int n                           = _localStride;
                     int k                           = _vIncomingLayer[i]->_stride;
@@ -1059,7 +1088,7 @@ void NNLayer::ForwardPropagateFullyConnected(uint32_t position, uint32_t batch, 
             // Copy data from incoming skip layers
             for (auto l : _vIncomingSkip)
             {
-                kAddBuffers(_pbUnit->_pDevData, l->_pbUnit->_pDevData, batch * _stride);
+                kAddBuffers(GetIncomingUnitBuffer(), l->GetUnitBuffer(), batch * _stride);
             }
             
             // Perform batch normalization if active
@@ -1068,9 +1097,9 @@ void NNLayer::ForwardPropagateFullyConnected(uint32_t position, uint32_t batch, 
                 float alpha = 1;
                 float beta = 0;
                 cudnnStatus_t cudnnStatus;
-                cudnnStatus = cudnnSetTensor4dDescriptor(_tensorDescriptorBN, CUDNN_TENSOR_NCHW, CUDNN_DATA_FLOAT, batch, _Nz, _Ny, _Nx);
+                cudnnStatus = cudnnSetTensor4dDescriptor(_tensorDescriptorBN, CUDNN_TENSOR_NCHW, CUDNN_DATA_FLOAT, batch, _Nz, _Ny, _localStride);
                 CUDNNERROR(cudnnStatus, "NNLayer::ForwardPropagateFullyConnected: unable to create _tensorDescriptorBN");        
-                cudnnStatus = cudnnSetTensor4dDescriptor(_scaleBiasMeanVarDescBN, CUDNN_TENSOR_NCHW, CUDNN_DATA_FLOAT, 1, _Nz, _Ny, _Nx);
+                cudnnStatus = cudnnSetTensor4dDescriptor(_scaleBiasMeanVarDescBN, CUDNN_TENSOR_NCHW, CUDNN_DATA_FLOAT, 1, _Nz, _Ny, _localStride);
                 CUDNNERROR(cudnnStatus, "NNLayer::ForwardPropagateFullyConnected: unable to create _scaleBiasMeanVarDescBN");        
                 if (bTraining) {
                     cudnnStatus = cudnnBatchNormalizationForwardTraining(
@@ -1079,9 +1108,9 @@ void NNLayer::ForwardPropagateFullyConnected(uint32_t position, uint32_t batch, 
                             &alpha,
                             &beta,
                             _tensorDescriptorBN,
-                            _pbUnit->_pDevData,
+                            GetIncomingUnitBuffer(),
                             _tensorDescriptorBN,
-                            _pbUnitBN->_pDevData,   // output
+                            GetUnitBuffer(),   // output
                             _scaleBiasMeanVarDescBN,
                             _pbScaleBN->_pDevData,
                             _pbBiasBN->_pDevData,
@@ -1092,7 +1121,6 @@ void NNLayer::ForwardPropagateFullyConnected(uint32_t position, uint32_t batch, 
                             _pbSaveMeanBN->_pDevData,
                             _pbSaveInvVarianceBN->_pDevData);
                     CUDNNERROR(cudnnStatus, "NNLayer::ForwardPropagateFullyConnected: cudnnBatchNormalizationForwardTraining Failed");
-                    _pbUnit.swap(_pbUnitBN);
                     ++_bnCalls;
                 } else {
                     cudnnStatus = cudnnBatchNormalizationForwardInference(
@@ -1101,9 +1129,9 @@ void NNLayer::ForwardPropagateFullyConnected(uint32_t position, uint32_t batch, 
                             &alpha,
                             &beta,
                             _tensorDescriptorBN,
-                            _pbUnit->_pDevData,
+                            GetIncomingUnitBuffer(),
                             _tensorDescriptorBN,
-                            _pbUnitBN->_pDevData,   // output
+                            GetUnitBuffer(),   // output
                             _scaleBiasMeanVarDescBN,
                             _pbScaleBN->_pDevData,
                             _pbBiasBN->_pDevData,
@@ -1111,7 +1139,6 @@ void NNLayer::ForwardPropagateFullyConnected(uint32_t position, uint32_t batch, 
                             _pbRunningVarianceBN->_pDevData,
                             CUDNN_BN_MIN_EPSILON);
                     CUDNNERROR(cudnnStatus, "NNLayer::ForwardPropagateFullyConnected: cudnnBatchNormalizationForwardInference Failed");
-                    _pbUnit.swap(_pbUnitBN);
                 }
             }
            
@@ -1158,7 +1185,7 @@ void NNLayer::ForwardPropagateFullyConnected(uint32_t position, uint32_t batch, 
                         const NNFloat sgemm_alpha   = (NNFloat)1.0;
 
                         NNFloat* pA                 = pWeight;
-                        NNFloat* pB                 = _vIncomingLargerLayer[i]->_pbUnit->_pDevData;
+                        NNFloat* pB                 = pInputLayer->GetUnitBuffer();
                         NNFloat* pC                 = getGpu()._pNetwork->GetP2PSendBuffer();
                         int m                       = _stride;
                         int n                       = batch;
@@ -1199,14 +1226,14 @@ void NNLayer::ForwardPropagateFullyConnected(uint32_t position, uint32_t batch, 
                 //printf("FP %s IL UC %d\n", _name.c_str(), _unitUpdateCount);
 
                 // Reduce output
-                Reduce(batch, _stride, _pbUnit->_pDevData, _localStride, _unitUpdateCount);
+                Reduce(batch, _stride, GetIncomingUnitBuffer(), _localStride, _unitUpdateCount);
                 _unitUpdateCount++;
             }
             
             // Copy data from incoming skip layers
             for (auto l : _vIncomingSkip)
             {
-                kAddBuffers(_pbUnit->_pDevData, l->_pbUnit->_pDevData, batch * _localStride);
+                kAddBuffers(GetIncomingUnitBuffer(), l->GetUnitBuffer(), batch * _localStride);
             }            
                    
             // Add biases and calculate activations
@@ -1216,25 +1243,25 @@ void NNLayer::ForwardPropagateFullyConnected(uint32_t position, uint32_t batch, 
                     break;
                 
                 case 1:
-                    kAddBias(_pbUnit->_pDevData, _vIncomingWeight[0]->_pbBias->_pDevData, _localStride, batch);
+                    kAddBias(GetIncomingUnitBuffer(), _vIncomingWeight[0]->_pbBias->_pDevData, _localStride, batch);
                     break; 
                         
                 case 2:
-                    kAddDualBias(_pbUnit->_pDevData, _vIncomingWeight[0]->_pbBias->_pDevData, 
-                                                     _vIncomingWeight[1]->_pbBias->_pDevData, _localStride, batch);
+                    kAddDualBias(GetIncomingUnitBuffer(), _vIncomingWeight[0]->_pbBias->_pDevData, 
+                                                          _vIncomingWeight[1]->_pbBias->_pDevData, _localStride, batch);
                     break;                   
                         
                 case 3:
-                    kAddTripleBias(_pbUnit->_pDevData, _vIncomingWeight[0]->_pbBias->_pDevData, 
-                                                       _vIncomingWeight[1]->_pbBias->_pDevData, 
-                                                       _vIncomingWeight[2]->_pbBias->_pDevData, _localStride, batch);
+                    kAddTripleBias(GetIncomingUnitBuffer(), _vIncomingWeight[0]->_pbBias->_pDevData, 
+                                                            _vIncomingWeight[1]->_pbBias->_pDevData, 
+                                                            _vIncomingWeight[2]->_pbBias->_pDevData, _localStride, batch);
                     break;      
 
                 case 4:
-                    kAddQuadBias(_pbUnit->_pDevData, _vIncomingWeight[0]->_pbBias->_pDevData, 
-                                                     _vIncomingWeight[1]->_pbBias->_pDevData, 
-                                                     _vIncomingWeight[2]->_pbBias->_pDevData, 
-                                                     _vIncomingWeight[3]->_pbBias->_pDevData, _localStride, batch);
+                    kAddQuadBias(GetIncomingUnitBuffer(), _vIncomingWeight[0]->_pbBias->_pDevData, 
+                                                          _vIncomingWeight[1]->_pbBias->_pDevData, 
+                                                          _vIncomingWeight[2]->_pbBias->_pDevData, 
+                                                          _vIncomingWeight[3]->_pbBias->_pDevData, _localStride, batch);
                     break;                  
                         
                 default:
@@ -1248,7 +1275,51 @@ void NNLayer::ForwardPropagateFullyConnected(uint32_t position, uint32_t batch, 
             // Perform batch normalization if active
             if (_bBatchNormalization)
             {
-                printf("**** doing batch norm 1\n");
+                float alpha = 1;
+                float beta = 0;
+                cudnnStatus_t cudnnStatus;
+                cudnnStatus = cudnnSetTensor4dDescriptor(_tensorDescriptorBN, CUDNN_TENSOR_NCHW, CUDNN_DATA_FLOAT, batch, _Nz, _Ny, _localStride);
+                CUDNNERROR(cudnnStatus, "NNLayer::ForwardPropagateFullyConnected: unable to create _tensorDescriptorBN");        
+                cudnnStatus = cudnnSetTensor4dDescriptor(_scaleBiasMeanVarDescBN, CUDNN_TENSOR_NCHW, CUDNN_DATA_FLOAT, 1, _Nz, _Ny, _localStride);
+                CUDNNERROR(cudnnStatus, "NNLayer::ForwardPropagateFullyConnected: unable to create _scaleBiasMeanVarDescBN");        
+                if (bTraining) {
+                    cudnnStatus = cudnnBatchNormalizationForwardTraining(
+                            getGpu()._cuDNNHandle,
+                            CUDNN_BATCHNORM_PER_ACTIVATION,
+                            &alpha,
+                            &beta,
+                            _tensorDescriptorBN,
+                            GetIncomingUnitBuffer(),
+                            _tensorDescriptorBN,
+                            GetUnitBuffer(),   // output
+                            _scaleBiasMeanVarDescBN,
+                            _pbScaleBN->_pDevData,
+                            _pbBiasBN->_pDevData,
+                            1.0/(_bnCalls + 1), 
+                            _pbRunningMeanBN->_pDevData,
+                            _pbRunningVarianceBN->_pDevData,
+                            CUDNN_BN_MIN_EPSILON,
+                            _pbSaveMeanBN->_pDevData,
+                            _pbSaveInvVarianceBN->_pDevData);
+                    CUDNNERROR(cudnnStatus, "NNLayer::ForwardPropagateFullyConnected: cudnnBatchNormalizationForwardTraining Failed");
+                } else {
+                    cudnnStatus = cudnnBatchNormalizationForwardInference(
+                            getGpu()._cuDNNHandle,
+                            CUDNN_BATCHNORM_PER_ACTIVATION,
+                            &alpha,
+                            &beta,
+                            _tensorDescriptorBN,
+                            GetIncomingUnitBuffer(),
+                            _tensorDescriptorBN,
+                            GetUnitBuffer(),   // output
+                            _scaleBiasMeanVarDescBN,
+                            _pbScaleBN->_pDevData,
+                            _pbBiasBN->_pDevData,
+                            _pbRunningMeanBN->_pDevData,
+                            _pbRunningVarianceBN->_pDevData,
+                            CUDNN_BN_MIN_EPSILON);
+                    CUDNNERROR(cudnnStatus, "NNLayer::ForwardPropagateFullyConnected: cudnnBatchNormalizationForwardInference Failed");
+                }
             }
                                       
             // Calculate activation
@@ -1278,16 +1349,16 @@ void NNLayer::ForwardPropagateFullyConnected(uint32_t position, uint32_t batch, 
                     const NNFloat sgemm_beta    = (pOutputLayer->_unitUpdateCount == 0) ? (NNFloat)0.0 : (NNFloat)1.0;
                     
                     if (bTraining && _bDenoising)
-                        _pDataSet->CalculateSparseDenoisedZ(position, batch, pOutputLayer->_localStride, pWeight, pOutputLayer->_pbUnit->_pDevData, sgemm_beta);  
+                        _pDataSet->CalculateSparseDenoisedZ(position, batch, pOutputLayer->_localStride, pWeight, pOutputLayer->GetIncomingUnitBuffer(), sgemm_beta);  
                     else
-                        _pDataSet->CalculateSparseZ(position, batch, pOutputLayer->_localStride, pWeight, pOutputLayer->_pbUnit->_pDevData, sgemm_beta);
+                        _pDataSet->CalculateSparseZ(position, batch, pOutputLayer->_localStride, pWeight, pOutputLayer->GetIncomingUnitBuffer(), sgemm_beta);
                 }
             }
             else
             {
         
                 // Gather inputs to this layer
-                Gather(batch, _stride, _pbUnit->_pDevData, _localStride);
+                Gather(batch, _stride, GetUnitBuffer(), _localStride);
 
                 // Calculate contributions to all outgoing X(L)
                 for (uint32_t i = 0; i < _vOutgoingLargerLayer.size(); i++)
@@ -1297,7 +1368,7 @@ void NNLayer::ForwardPropagateFullyConnected(uint32_t position, uint32_t batch, 
                     NNWeight* pSrcWeight        = pWeight->_bShared ? pWeight->_pSharedWeight : pWeight;
                     NNFloat* pA                 = pSrcWeight->_pbWeight->_pDevData;
                     NNFloat* pB                 = getGpu()._pNetwork->GetP2PSendBuffer();
-                    NNFloat* pC                 = pOutputLayer->_pbUnit->_pDevData;
+                    NNFloat* pC                 = pOutputLayer->GetIncomingUnitBuffer();
                     
                     int m                       = pOutputLayer->_localStride;
                     int n                       = batch;
@@ -1382,7 +1453,7 @@ void NNLayer::ForwardPropagateConvolutional(uint32_t position, uint32_t batch, b
                 cudnnStatus_t cudnnStatus   = cudnnConvolutionForward(getGpu()._cuDNNHandle,
                                                                       &alpha,
                                                                       pLayer->getTensorDescriptor(batch),
-                                                                      pLayer->_pbUnit->_pDevData,
+                                                                      pLayer->GetUnitBuffer(),
                                                                       pWeight->_convFilterDesc,
                                                                       pWeight->_pbWeight->_pDevData,
                                                                       pWeight->_convDesc,
@@ -1391,7 +1462,7 @@ void NNLayer::ForwardPropagateConvolutional(uint32_t position, uint32_t batch, b
                                                                       getGpu()._pNetwork->_CUDNNWorkspaceSize,
                                                                       &beta,
                                                                       getTensorDescriptor(batch),
-                                                                      _pbUnit->_pDevData);
+                                                                      GetIncomingUnitBuffer());
                 CUDNNERROR(cudnnStatus, "NNLayer::ForwardPropagateConvolutional: cudnnConvolutionForward Failed");
                                                                                  
                 // All weights have their own biases, so don't used those from shared weight if so
@@ -1401,7 +1472,7 @@ void NNLayer::ForwardPropagateConvolutional(uint32_t position, uint32_t batch, b
                                                              _vIncomingWeight[i]->_pbBias->_pDevData,
                                                              &alpha,
                                                              getTensorDescriptor(batch),
-                                                             _pbUnit->_pDevData);
+                                                             GetIncomingUnitBuffer());
                 CUDNNERROR(cudnnStatus, "NNLayer::ForwardPropagateConvolutional: cudnnAddTensor Failed");
                 beta                        = 1.0f;            
             }
@@ -1409,7 +1480,7 @@ void NNLayer::ForwardPropagateConvolutional(uint32_t position, uint32_t batch, b
             // Copy data from incoming skip layers
             for (auto l : _vIncomingSkip)
             {
-                kAddBuffers(_pbUnit->_pDevData, l->_pbUnit->_pDevData, batch * _stride);
+                kAddBuffers(GetIncomingUnitBuffer(), l->GetUnitBuffer(), batch * _stride);
             }
             
             // Perform batch normalization if active
@@ -1430,9 +1501,9 @@ void NNLayer::ForwardPropagateConvolutional(uint32_t position, uint32_t batch, b
                             &alpha,
                             &beta,
                             _tensorDescriptorBN,
-                            _pbUnit->_pDevData,
+                            GetIncomingUnitBuffer(),
                             _tensorDescriptorBN,
-                            _pbUnitBN->_pDevData,   // output
+                            GetUnitBuffer(),   // output
                             _scaleBiasMeanVarDescBN,
                             _pbScaleBN->_pDevData,
                             _pbBiasBN->_pDevData,
@@ -1443,7 +1514,6 @@ void NNLayer::ForwardPropagateConvolutional(uint32_t position, uint32_t batch, b
                             _pbSaveMeanBN->_pDevData,
                             _pbSaveInvVarianceBN->_pDevData);
                     CUDNNERROR(cudnnStatus, "NNLayer::ForwardPropagateConvolutional: cudnnBatchNormalizationForwardTraining Failed");
-                    _pbUnit.swap(_pbUnitBN);
                     ++_bnCalls;
                 } else {
                     cudnnStatus = cudnnBatchNormalizationForwardInference(
@@ -1452,9 +1522,9 @@ void NNLayer::ForwardPropagateConvolutional(uint32_t position, uint32_t batch, b
                             &alpha,
                             &beta,
                             _tensorDescriptorBN,
-                            _pbUnit->_pDevData,
+                            GetIncomingUnitBuffer(),
                             _tensorDescriptorBN,
-                            _pbUnitBN->_pDevData,   // output
+                            GetUnitBuffer(),   // output
                             _scaleBiasMeanVarDescBN,
                             _pbScaleBN->_pDevData,
                             _pbBiasBN->_pDevData,
@@ -1462,7 +1532,6 @@ void NNLayer::ForwardPropagateConvolutional(uint32_t position, uint32_t batch, b
                             _pbRunningVarianceBN->_pDevData,
                             CUDNN_BN_MIN_EPSILON);
                     CUDNNERROR(cudnnStatus, "NNLayer::ForwardPropagateConvolutional: cudnnBatchNormalizationForwardInference Failed");
-                    _pbUnit.swap(_pbUnitBN);
                 }
             }
            
@@ -1494,10 +1563,10 @@ void NNLayer::ForwardPropagatePooling(uint32_t position, uint32_t batch, bool bT
                                                                   _poolingDescriptor,
                                                                   &alpha,
                                                                   pLayer->getTensorDescriptor(batch),
-                                                                  pLayer->_pbUnit->_pDevData,
+                                                                  pLayer->GetUnitBuffer(),
                                                                   &beta,
                                                                   getTensorDescriptor(batch),
-                                                                  _pbUnit->_pDevData);
+                                                                  GetIncomingUnitBuffer());
                     CUDNNERROR(cudnnStatus, "NNLayer::ForwardPropagatePooling: cudnnPoolingForward Failed");
                     break;
 
@@ -1507,10 +1576,10 @@ void NNLayer::ForwardPropagatePooling(uint32_t position, uint32_t batch, bool bT
                                                                           CUDNN_LRN_CROSS_CHANNEL_DIM1,
                                                                           &alpha,
                                                                           pLayer->getTensorDescriptor(batch),
-                                                                          pLayer->_pbUnit->_pDevData,
+                                                                          pLayer->GetUnitBuffer(),
                                                                           &beta,
                                                                           getTensorDescriptor(batch),
-                                                                          _pbUnit->_pDevData);
+                                                                          GetIncomingUnitBuffer());
                     CUDNNERROR(cudnnStatus, "NNLayer::ForwardPropagatePooling: cudnnLRNCrossChannelForward Failed");                                                                              
                     break;
 
@@ -1519,8 +1588,8 @@ void NNLayer::ForwardPropagatePooling(uint32_t position, uint32_t batch, bool bT
                     {
                         NNLayer* p0Layer        = _vIncomingLayer[0];
                         uint32_t offset         = i - 1;
-                        kCalculateCosine(p0Layer->_pbUnit->_pDevData, pLayer->_pbUnit->_pDevData, batch, pLayer->_localStride, 
-                                    _pbUnit->_pDevData + offset, 
+                        kCalculateCosine(p0Layer->GetUnitBuffer(), pLayer->GetUnitBuffer(), batch, pLayer->_localStride, 
+                                    GetIncomingUnitBuffer() + offset, 
                                     _pbBuffer1->_pDevData + offset, 
                                     _pbBuffer2->_pDevData + offset, 
                                     _localStride);
@@ -1532,8 +1601,8 @@ void NNLayer::ForwardPropagatePooling(uint32_t position, uint32_t batch, bool bT
                     {
                         NNLayer* p0Layer        = _vIncomingLayer[0];
                         uint32_t offset         = i - 1;
-                        kCalculateDotProduct(p0Layer->_pbUnit->_pDevData, pLayer->_pbUnit->_pDevData, batch, pLayer->_localStride, 
-                                    _pbUnit->_pDevData + offset, 
+                        kCalculateDotProduct(p0Layer->GetUnitBuffer(), pLayer->GetUnitBuffer(), batch, pLayer->_localStride, 
+                                    GetIncomingUnitBuffer() + offset, 
                                     _localStride);
                     }
                     break;
@@ -1542,11 +1611,11 @@ void NNLayer::ForwardPropagatePooling(uint32_t position, uint32_t batch, bool bT
                     // Will special case 4 or fewer sources into one pass, this will be for remainder of >4 sources
                     if (beta != (NNFloat)0.0)
                     {
-                        kCalculateMaxout(pLayer->_pbUnit->_pDevData, batch * _localStride, _pbUnit->_pDevData);
+                        kCalculateMaxout(pLayer->GetUnitBuffer(), batch * _localStride, GetIncomingUnitBuffer());
                     }
                     else
                     {
-                        cudaError_t status     = cudaMemcpy(_pbUnit->_pDevData, pLayer->_pbUnit->_pDevData, batch * _localStride * sizeof(NNFloat), cudaMemcpyDefault);
+                        cudaError_t status     = cudaMemcpy(GetIncomingUnitBuffer(), pLayer->GetUnitBuffer(), batch * _localStride * sizeof(NNFloat), cudaMemcpyDefault);
                         RTERROR(status, "NNLayer::ForwardPropagate: Error calling cudaMemcpy for maxout pooling.");
                     }
                     break;
@@ -1558,7 +1627,7 @@ void NNLayer::ForwardPropagatePooling(uint32_t position, uint32_t batch, bool bT
         // Copy data from incoming skip layers
         for (auto l : _vIncomingSkip)
         {
-            kAddBuffers(_pbUnit->_pDevData, l->_pbUnit->_pDevData, batch * _stride);
+            kAddBuffers(GetIncomingUnitBuffer(), l->GetUnitBuffer(), batch * _stride);
         }        
     }
 }
@@ -1569,31 +1638,31 @@ void NNLayer::CalculateActivation(uint32_t batch)
     switch (_activation)
     {
         case Sigmoid:
-            kCalculateSigmoidActivation(_pbUnit->_pDevData, size);
+            kCalculateSigmoidActivation(GetUnitBuffer(), size);
             break;
 
         case Tanh:
-            kCalculateTanhActivation(_pbUnit->_pDevData, size);
+            kCalculateTanhActivation(GetUnitBuffer(), size);
             break;
 
         case RectifiedLinear:
-            kCalculateRELUActivation(_pbUnit->_pDevData, size);
+            kCalculateRELUActivation(GetUnitBuffer(), size);
             break;
 
         case LeakyRectifiedLinear:
-            kCalculateLRELUActivation(_pbUnit->_pDevData, size, _RELUSlope);
+            kCalculateLRELUActivation(GetUnitBuffer(), size, _RELUSlope);
             break;
             
         case ExponentialLinear:
-            kCalculateELUActivation(_pbUnit->_pDevData, size, _ELUAlpha);        
+            kCalculateELUActivation(GetUnitBuffer(), size, _ELUAlpha);        
             break;
             
         case ScaledExponentialLinear:
-            kCalculateSELUActivation(_pbUnit->_pDevData, size, _ELUAlpha, _SELULambda);        
+            kCalculateSELUActivation(GetUnitBuffer(), size, _ELUAlpha, _SELULambda);        
             break;            
 
         case SoftMax:
-            kCalculateSoftMaxActivation(_pbUnit->_pDevData, batch, _localStride);
+            kCalculateSoftMaxActivation(GetUnitBuffer(), batch, _localStride);
             break;
 
         // Stub for no activation needed
@@ -1618,11 +1687,11 @@ void NNLayer::CalculateDropout(uint32_t batch)
     {
         case ExponentialLinear:
         case ScaledExponentialLinear:
-            kCalculateScaledBiasedDropout(_pbUnit->_pDevData, _pbDropout->_pDevData, batch, _localStride, _pDropout, alpha, a, b);
+            kCalculateScaledBiasedDropout(GetUnitBuffer(), _pbDropout->_pDevData, batch, _localStride, _pDropout, alpha, a, b);
             break;
             
         default:
-            kCalculateDropout(_pbUnit->_pDevData, _pbDropout->_pDevData, batch, _localStride, _pDropout, target);
+            kCalculateDropout(GetUnitBuffer(), _pbDropout->_pDevData, batch, _localStride, _pDropout, target);
             break;
     }
 }
@@ -1640,28 +1709,28 @@ NNFloat NNLayer::CalculateError(uint32_t position, uint32_t batch, ErrorFunction
     switch (ef)
     {
         case L1:
-            return _pDataSet->CalculateL1Error(position, batch, _localStride, _pbUnit->_pDevData);
+            return _pDataSet->CalculateL1Error(position, batch, _localStride, GetUnitBuffer());
 
         case L2:
-            return _pDataSet->CalculateL2Error(position, batch, _localStride, _pbUnit->_pDevData);
+            return _pDataSet->CalculateL2Error(position, batch, _localStride, GetUnitBuffer());
             
         case L2Hinge:
-            return _pDataSet->CalculateL2HingeError(position, batch, _localStride, _pbUnit->_pDevData);            
+            return _pDataSet->CalculateL2HingeError(position, batch, _localStride, GetUnitBuffer());            
 
         case Hinge:
-            return _pDataSet->CalculateHingeError(position, batch, _localStride, _pbUnit->_pDevData);              
+            return _pDataSet->CalculateHingeError(position, batch, _localStride, GetUnitBuffer());              
 
         case CrossEntropy:
             if (_activation == SoftMax)
-                return _pDataSet->CalculateMultinomialCrossEntropyError(position, batch, _localStride, _pbUnit->_pDevData);
+                return _pDataSet->CalculateMultinomialCrossEntropyError(position, batch, _localStride, GetUnitBuffer());
             else
-                return _pDataSet->CalculateCrossEntropyError(position, batch, _localStride, _pbUnit->_pDevData);
+                return _pDataSet->CalculateCrossEntropyError(position, batch, _localStride, GetUnitBuffer());
 
         case ScaledMarginalCrossEntropy:
             if (_activation == SoftMax)
-                return _pDataSet->CalculateMultinomialScaledMarginalCrossEntropyError(position, batch, _localStride, _pbUnit->_pDevData);
+                return _pDataSet->CalculateMultinomialScaledMarginalCrossEntropyError(position, batch, _localStride, GetUnitBuffer());
             else        
-                return _pDataSet->CalculateScaledMarginalCrossEntropyError(position, batch, _localStride, _pbUnit->_pDevData);
+                return _pDataSet->CalculateScaledMarginalCrossEntropyError(position, batch, _localStride, GetUnitBuffer());
 
         case DataScaledMarginalCrossEntropy:
             if (_activation == SoftMax)
@@ -1672,7 +1741,7 @@ NNFloat NNLayer::CalculateError(uint32_t position, uint32_t batch, ErrorFunction
             }
             else
             {
-                return _pDataSet->CalculateDataScaledMarginalCrossEntropyError(position, batch, _localStride, _pbUnit->_pDevData);
+                return _pDataSet->CalculateDataScaledMarginalCrossEntropyError(position, batch, _localStride, GetUnitBuffer());
             }
     }
     
@@ -1692,31 +1761,31 @@ void NNLayer::CalculateOutputDelta(uint32_t position, uint32_t batch, ErrorFunct
     switch (ef)
     {
         case L1:
-            _pDataSet->CalculateL1OutputDelta(_activation, position, batch, _localStride, _pbUnit->_pDevData, _pbDelta->_pDevData, _RELUSlope, _ELUAlpha, _SELULambda);
+            _pDataSet->CalculateL1OutputDelta(_activation, position, batch, _localStride, GetUnitBuffer(), GetIncomingDeltaBuffer(), _RELUSlope, _ELUAlpha, _SELULambda);
             break;
 
         case CrossEntropy:
-            _pDataSet->CalculateCrossEntropyOutputDelta(_activation, position, batch, _localStride, _pbUnit->_pDevData, _pbDelta->_pDevData);
+            _pDataSet->CalculateCrossEntropyOutputDelta(_activation, position, batch, _localStride, GetUnitBuffer(), GetIncomingDeltaBuffer());
             break;
 
         case ScaledMarginalCrossEntropy:
-            _pDataSet->CalculateScaledMarginalCrossEntropyOutputDelta(_activation, position, batch, _localStride, _pbUnit->_pDevData, _pbDelta->_pDevData);
+            _pDataSet->CalculateScaledMarginalCrossEntropyOutputDelta(_activation, position, batch, _localStride, GetUnitBuffer(), GetIncomingDeltaBuffer());
             break;
 
         case L2:
-            _pDataSet->CalculateOutputDelta(_activation, position, batch, _localStride, _pbUnit->_pDevData, _pbDelta->_pDevData, _RELUSlope, _ELUAlpha, _SELULambda);
+            _pDataSet->CalculateOutputDelta(_activation, position, batch, _localStride, GetUnitBuffer(), GetIncomingDeltaBuffer(), _RELUSlope, _ELUAlpha, _SELULambda);
             break;
             
         case L2Hinge:
-            _pDataSet->CalculateL2HingeOutputDelta(_activation, position, batch, _localStride, _pbUnit->_pDevData, _pbDelta->_pDevData, _RELUSlope, _ELUAlpha, _SELULambda);
+            _pDataSet->CalculateL2HingeOutputDelta(_activation, position, batch, _localStride, GetUnitBuffer(), GetIncomingDeltaBuffer(), _RELUSlope, _ELUAlpha, _SELULambda);
             break;            
 
         case Hinge:
-            _pDataSet->CalculateHingeOutputDelta(_activation, position, batch, _localStride, _pbUnit->_pDevData, _pbDelta->_pDevData);
+            _pDataSet->CalculateHingeOutputDelta(_activation, position, batch, _localStride, GetUnitBuffer(), GetIncomingDeltaBuffer());
             break;            
 
         case DataScaledMarginalCrossEntropy:
-            _pDataSet->CalculateDataScaledMarginalCrossEntropyOutputDelta(_activation, position, batch, _localStride, _pbUnit->_pDevData, _pbDelta->_pDevData);
+            _pDataSet->CalculateDataScaledMarginalCrossEntropyOutputDelta(_activation, position, batch, _localStride, GetUnitBuffer(), GetIncomingDeltaBuffer());
             break;
 
         default:
@@ -1724,18 +1793,20 @@ void NNLayer::CalculateOutputDelta(uint32_t position, uint32_t batch, ErrorFunct
             exit(2);
     }
     
+    // Batch Norm?
+    
     
     // Normalize deltas if desired
     if (_deltaNorm > (NNFloat)0.0)
     {
         if (getGpu()._numprocs == 1)
-            kNormalizeDeltas(_deltaNorm, batch, _localStride, _pbDelta->_pDevData);
+            kNormalizeDeltas(_deltaNorm, batch, _localStride, GetDeltaBuffer());
         else
         {
             NNFloat* pMagnitude                 = getGpu()._pNetwork->GetScratchBuffer(batch);
-            kCalculateDeltaMagnitudes(batch, _localStride, _pbDelta->_pDevData, pMagnitude);
+            kCalculateDeltaMagnitudes(batch, _localStride, GetDeltaBuffer(), pMagnitude);
             getGpu()._pNetwork->P2P_Allreduce(pMagnitude, batch);
-            kNormalizeDeltaMagnitudes(_deltaNorm, batch, _localStride, _pbDelta->_pDevData, pMagnitude);            
+            kNormalizeDeltaMagnitudes(_deltaNorm, batch, _localStride, GetDeltaBuffer(), pMagnitude);            
         }
     }
 }
@@ -1774,17 +1845,17 @@ void NNLayer::BackPropagateConvolutional(uint32_t position, uint32_t batch)
             {
                 NNFloat p       = (_sparsenessPenalty_p > (NNFloat)0.0)   ? _sparsenessPenalty_p     : getGpu()._pNetwork->_sparsenessPenalty_p;
                 NNFloat beta    = (_sparsenessPenalty_beta > (NNFloat)0.0) ? _sparsenessPenalty_beta : getGpu()._pNetwork->_sparsenessPenalty_beta;
-                kCalculateSparsenessPenalty(batch, _localStride, _pbUnit->_pDevData, _pbDelta->_pDevData, p, beta);
+                kCalculateSparsenessPenalty(batch, _localStride, GetUnitBuffer(), GetIncomingDeltaBuffer(), p, beta);
             }   
 
             // Account for dropout when calculating deltas (100% local calculation)
             NNFloat scale                           = (NNFloat)1.0 / ((NNFloat)1.0 - _pDropout);
-            kCalculateHadamardProduct(_activation, batch * _localStride, scale, _pbUnit->_pDevData, _pbDelta->_pDevData, _RELUSlope, _ELUAlpha, _SELULambda);
+            kCalculateHadamardProduct(_activation, batch * _localStride, scale, GetUnitBuffer(), GetIncomingDeltaBuffer(), _RELUSlope, _ELUAlpha, _SELULambda);
             
             // Normalize deltas if desired
             if (_deltaNorm > (NNFloat)0.0)
             {            
-                kNormalizeDeltas(_deltaNorm, batch, _localStride, _pbDelta->_pDevData);
+                kNormalizeDeltas(_deltaNorm, batch, _localStride, GetIncomingDeltaBuffer());
             }
             
             // Calculate batch normalization gradients
@@ -1805,25 +1876,19 @@ void NNLayer::BackPropagateConvolutional(uint32_t position, uint32_t batch)
                         &alpha,
                         &beta,
                         _tensorDescriptorBN,    // x desc
-                        _pbUnitBN->_pDevData,   // x
+                        GetIncomingUnitBuffer(),   // x
                         _tensorDescriptorBN,    // dy dec
-                        _pbDelta->_pDevData,    // dy
+                        GetIncomingDeltaBuffer(),    // dy
                         _tensorDescriptorBN,    // dy dec
-                        _pbDxBN->_pDevData,     // dx - output
+                        GetDeltaBuffer(),     // dx - output
                         _scaleBiasMeanVarDescBN,
                         _pbScaleBN->_pDevData,
-                        _pbScaleDiffBN->_pDevData,
-                        _pbBiasDiffBN->_pDevData,
+                        _pbScaleGradientBN->_pDevData,
+                        _pbBiasGradientBN->_pDevData,
                         CUDNN_BN_MIN_EPSILON,
                         _pbSaveMeanBN->_pDevData,
                         _pbSaveInvVarianceBN->_pDevData);
                 CUDNNERROR(cudnnStatus, "NNLayer:BackPropagateConvolutional cudnnBatchNormalizationBackward Failed");
-
-                // replace the delta X values with the pre-BN deltas just calculated
-                _pbDelta.swap(_pbDxBN);
-                _pbUnit.swap(_pbUnitBN);
-                kAddScaleBuffers(_pbScaleBN->_pDevData, _pbScaleDiffBN->_pDevData, _bnLearningRate, _strideBN);
-                kAddScaleBuffers(_pbBiasBN->_pDevData, _pbBiasDiffBN->_pDevData, _bnLearningRate, _strideBN);
             }
         }
 
@@ -1846,9 +1911,9 @@ void NNLayer::BackPropagateConvolutional(uint32_t position, uint32_t batch)
                 cudnnStatus                     = cudnnConvolutionBackwardFilter(getGpu()._cuDNNHandle,
                                                                                  &gradient_alpha,
                                                                                  pInputLayer->getTensorDescriptor(batch),
-                                                                                 pInputLayer->_pbUnit->_pDevData,
+                                                                                 pInputLayer->GetUnitBuffer(),
                                                                                  getTensorDescriptor(batch),
-                                                                                 _pbDelta->_pDevData,
+                                                                                 GetDeltaBuffer(),
                                                                                  pSrcWeight->_convDesc,
                                                                                  pSrcWeight->_convBWWeightAlgo,
                                                                                  getGpu()._pNetwork->_pbCUDNNWorkspace->_pDevData,
@@ -1863,7 +1928,7 @@ void NNLayer::BackPropagateConvolutional(uint32_t position, uint32_t batch)
                 cudnnStatus                     = cudnnConvolutionBackwardBias(getGpu()._cuDNNHandle,
                                                                            &gradient_alpha,
                                                                            getTensorDescriptor(batch),
-                                                                           _pbDelta->_pDevData,
+                                                                           GetDeltaBuffer(),
                                                                            &beta,
                                                                            pWeight->_convBiasTensor,
                                                                            pWeight->_pbBiasGradient->_pDevData);                
@@ -1883,14 +1948,14 @@ void NNLayer::BackPropagateConvolutional(uint32_t position, uint32_t batch)
                                                                                pSrcWeight->_convFilterDesc,
                                                                                pSrcWeight->_pbWeight->_pDevData,
                                                                                getTensorDescriptor(batch),
-                                                                               _pbDelta->_pDevData,
+                                                                               GetDeltaBuffer(),
                                                                                pSrcWeight->_convDesc, 
                                                                                pSrcWeight->_convBWDeltaAlgo,
                                                                                getGpu()._pNetwork->_pbCUDNNWorkspace->_pDevData,
                                                                                getGpu()._pNetwork->_CUDNNWorkspaceSize,
                                                                                &beta,
                                                                                pInputLayer->getTensorDescriptor(batch),
-                                                                               pInputLayer->_pbDelta->_pDevData);
+                                                                               pInputLayer->GetIncomingDeltaBuffer());
                 CUDNNERROR(cudnnStatus, "NNLayer::BackPropagateConvolutional: cudnnConvolutionBackwardData Failed");
 
                 // Increment update count
@@ -1903,11 +1968,11 @@ void NNLayer::BackPropagateConvolutional(uint32_t position, uint32_t batch)
         {
             if (l->_deltaUpdateCount > 0)
             {
-                kAddBuffers(l->_pbDelta->_pDevData, _pbDelta->_pDevData, batch * _localStride);
+                kAddBuffers(l->GetIncomingDeltaBuffer(), GetDeltaBuffer(), batch * _localStride);
             }
             else
             {
-                cudaMemcpy(l->_pbDelta->_pDevData, _pbDelta->_pDevData, batch * _localStride * sizeof(NNFloat), cudaMemcpyDefault);
+                cudaMemcpy(l->GetIncomingDeltaBuffer(), GetDeltaBuffer(), batch * _localStride * sizeof(NNFloat), cudaMemcpyDefault);
             }
          
             l->_deltaUpdateCount++;
@@ -1939,14 +2004,14 @@ void NNLayer::BackPropagatePooling(uint32_t position, uint32_t batch)
                                                                        _poolingDescriptor,
                                                                        &pooling_alpha,
                                                                        getTensorDescriptor(batch),
-                                                                       _pbUnit->_pDevData,
+                                                                       GetUnitBuffer(),
                                                                        getTensorDescriptor(batch),
-                                                                       _pbDelta->_pDevData,
+                                                                       GetDeltaBuffer(),
                                                                        pInputLayer->getTensorDescriptor(batch),
-                                                                       pInputLayer->_pbUnit->_pDevData,
+                                                                       pInputLayer->GetUnitBuffer(),
                                                                        &beta,
                                                                        pInputLayer->getTensorDescriptor(batch),
-                                                                       pInputLayer->_pbDelta->_pDevData);                                                                         
+                                                                       pInputLayer->GetIncomingDeltaBuffer());                                                                         
                         CUDNNERROR(cudnnStatus, "NNLayer::BackPropagatePooling: cudnnPoolingBackward Failed");
 
                         // Increment update count
@@ -1959,14 +2024,14 @@ void NNLayer::BackPropagatePooling(uint32_t position, uint32_t batch)
                                                                                 CUDNN_LRN_CROSS_CHANNEL_DIM1,
                                                                                 &pooling_alpha,
                                                                                 getTensorDescriptor(batch),
-                                                                                _pbUnit->_pDevData,
+                                                                                GetUnitBuffer(),
                                                                                 getTensorDescriptor(batch),
-                                                                                _pbDelta->_pDevData,
+                                                                                GetDeltaBuffer(),
                                                                                 pInputLayer->getTensorDescriptor(batch),
-                                                                                pInputLayer->_pbUnit->_pDevData,
+                                                                                pInputLayer->GetUnitBuffer(),
                                                                                 &beta,
                                                                                 pInputLayer->getTensorDescriptor(batch),
-                                                                                pInputLayer->_pbDelta->_pDevData);                      
+                                                                                pInputLayer->GetIncomingDeltaBuffer());                      
                         CUDNNERROR(cudnnStatus, "NNLayer::BackPropagatePooling: cudnnLRNCrossChannelBackward Failed");
 
                         // Increment update count
@@ -1974,7 +2039,7 @@ void NNLayer::BackPropagatePooling(uint32_t position, uint32_t batch)
                         break;
                         
                     case Maxout:
-                        kCalculateMaxoutDelta(_pbUnit->_pDevData, _pbDelta->_pDevData, batch * _localStride, beta, pInputLayer->_pbUnit->_pDevData, pInputLayer->_pbDelta->_pDevData);
+                        kCalculateMaxoutDelta(GetUnitBuffer(), GetDeltaBuffer(), batch * _localStride, beta, pInputLayer->GetUnitBuffer(), pInputLayer->GetIncomingDeltaBuffer());
                         // Increment update count
                         pInputLayer->_deltaUpdateCount++;                         
                         break;
@@ -1985,14 +2050,14 @@ void NNLayer::BackPropagatePooling(uint32_t position, uint32_t batch)
                             NNLayer* p0Layer    = _vIncomingLayer[0];
                             NNFloat beta0       = (p0Layer->_deltaUpdateCount == 0) ? (NNFloat)0.0 : (NNFloat)1.0;                                        
                             uint32_t offset     = i - 1;
-                            NNFloat* pDPIn      = _pbUnit->_pDevData + offset;
-                            NNFloat* pDPDeltaIn = _pbDelta->_pDevData + offset;                            
+                            NNFloat* pDPIn      = GetUnitBuffer() + offset;
+                            NNFloat* pDPDeltaIn = GetDeltaBuffer() + offset;                            
                             NNFloat* pAIn       = _pbBuffer1->_pDevData + offset;
                             NNFloat* pBIn       = _pbBuffer2->_pDevData + offset;
                             kCalculateCosineDelta(pDPDeltaIn, pDPIn, pAIn, pBIn, 
-                            p0Layer->_pbUnit->_pDevData, pInputLayer->_pbUnit->_pDevData, batch, _localStride, 
-                            p0Layer->_pbDelta->_pDevData, beta0, 
-                            pInputLayer->_pbDelta->_pDevData, beta, 
+                            p0Layer->GetUnitBuffer(), pInputLayer->GetUnitBuffer(), batch, _localStride, 
+                            p0Layer->GetIncomingDeltaBuffer(), beta0, 
+                            pInputLayer->GetIncomingDeltaBuffer(), beta, 
                             pInputLayer->_localStride);
 
                             // Increment update count
@@ -2007,10 +2072,10 @@ void NNLayer::BackPropagatePooling(uint32_t position, uint32_t batch)
                             NNLayer* p0Layer    = _vIncomingLayer[0];
                             NNFloat beta0       = (p0Layer->_deltaUpdateCount == 0) ? (NNFloat)0.0 : (NNFloat)1.0;                                                 
                             uint32_t offset     = i - 1;
-                            NNFloat* pDPDeltaIn = _pbDelta->_pDevData + offset;
-                            kCalculateDotProductDelta(pDPDeltaIn, p0Layer->_pbUnit->_pDevData, pInputLayer->_pbUnit->_pDevData, batch, _localStride, 
-                            p0Layer->_pbDelta->_pDevData, beta0, 
-                            pInputLayer->_pbDelta->_pDevData, beta, 
+                            NNFloat* pDPDeltaIn = GetDeltaBuffer() + offset;
+                            kCalculateDotProductDelta(pDPDeltaIn, p0Layer->GetUnitBuffer(), pInputLayer->GetUnitBuffer(), batch, _localStride, 
+                            p0Layer->GetIncomingDeltaBuffer(), beta0, 
+                            pInputLayer->GetIncomingDeltaBuffer(), beta, 
                             pInputLayer->_localStride);
 
                             // Increment update count
@@ -2028,11 +2093,11 @@ void NNLayer::BackPropagatePooling(uint32_t position, uint32_t batch)
         {
             if (l->_deltaUpdateCount > 0)
             {
-                kAddBuffers(l->_pbDelta->_pDevData, _pbDelta->_pDevData, batch * _localStride);
+                kAddBuffers(l->GetIncomingDeltaBuffer(), GetDeltaBuffer(), batch * _localStride);
             }
             else
             {
-                cudaMemcpy(l->_pbDelta->_pDevData, _pbDelta->_pDevData, batch * _localStride * sizeof(NNFloat), cudaMemcpyDefault);
+                cudaMemcpy(l->GetIncomingDeltaBuffer(), GetDeltaBuffer(), batch * _localStride * sizeof(NNFloat), cudaMemcpyDefault);
             }
          
             l->_deltaUpdateCount++;
@@ -2054,26 +2119,26 @@ void NNLayer::BackPropagateFullyConnected(uint32_t position, uint32_t batch)
             {
                 NNFloat p       = (_sparsenessPenalty_p > (NNFloat)0.0)   ? _sparsenessPenalty_p     : getGpu()._pNetwork->_sparsenessPenalty_p;
                 NNFloat beta    = (_sparsenessPenalty_beta > (NNFloat)0.0) ? _sparsenessPenalty_beta : getGpu()._pNetwork->_sparsenessPenalty_beta;
-                kCalculateSparsenessPenalty(batch, _localStride, _pbUnit->_pDevData, _pbDelta->_pDevData, p, beta);
+                kCalculateSparsenessPenalty(batch, _localStride, GetUnitBuffer(), GetIncomingDeltaBuffer(), p, beta);
             }   
 
             // Account for dropout when calculating deltas (100% local calculation)
             NNFloat scale                           = (NNFloat)1.0 / ((NNFloat)1.0 - _pDropout);
-            kCalculateHadamardProduct(_activation, batch * _localStride, scale, _pbUnit->_pDevData, _pbDelta->_pDevData, _RELUSlope, _ELUAlpha, _SELULambda);
+            kCalculateHadamardProduct(_activation, batch * _localStride, scale, GetUnitBuffer(), GetIncomingDeltaBuffer(), _RELUSlope, _ELUAlpha, _SELULambda);
             
             // Normalize deltas if desired (Norms must be reduced across all GPUs)
             if (_deltaNorm > (NNFloat)0.0)
             {            
-                kNormalizeDeltas(_deltaNorm, batch, _localStride, _pbDelta->_pDevData);
+                kNormalizeDeltas(_deltaNorm, batch, _localStride, GetIncomingDeltaBuffer());
             }
             
             // Calculate batch normalization gradients
             if (_bBatchNormalization)
             {
                 cudnnStatus_t cudnnStatus;
-                cudnnStatus = cudnnSetTensor4dDescriptor(_tensorDescriptorBN, CUDNN_TENSOR_NCHW, CUDNN_DATA_FLOAT, batch, _Nz, _Ny, _Nx);
+                cudnnStatus = cudnnSetTensor4dDescriptor(_tensorDescriptorBN, CUDNN_TENSOR_NCHW, CUDNN_DATA_FLOAT, batch, _Nz, _Ny, _localStride);
                 CUDNNERROR(cudnnStatus, "NNLayer::BackPropagateFullyConnected: unable to create _tensorDescriptorBN");        
-                cudnnStatus = cudnnSetTensor4dDescriptor(_scaleBiasMeanVarDescBN, CUDNN_TENSOR_NCHW, CUDNN_DATA_FLOAT, 1, _Nz, _Ny, _Nx);
+                cudnnStatus = cudnnSetTensor4dDescriptor(_scaleBiasMeanVarDescBN, CUDNN_TENSOR_NCHW, CUDNN_DATA_FLOAT, 1, _Nz, _Ny, _localStride);
                 CUDNNERROR(cudnnStatus, "NNLayer::BackPropagateFullyConnected: unable to create _scaleBiasMeanVarDescBN");        
                 float alpha = 1;
                 float beta = 0;
@@ -2085,25 +2150,19 @@ void NNLayer::BackPropagateFullyConnected(uint32_t position, uint32_t batch)
                         &alpha,
                         &beta,
                         _tensorDescriptorBN,    // x desc
-                        _pbUnitBN->_pDevData,   // x
+                        GetIncomingUnitBuffer(),   // x
                         _tensorDescriptorBN,    // dy dec
-                        _pbDelta->_pDevData,    // dy
+                        GetIncomingDeltaBuffer(),  // dy
                         _tensorDescriptorBN,    // dy dec
-                        _pbDxBN->_pDevData,     // dx - output
+                        GetDeltaBuffer(),   // dx - output
                         _scaleBiasMeanVarDescBN,
                         _pbScaleBN->_pDevData,
-                        _pbScaleDiffBN->_pDevData,
-                        _pbBiasDiffBN->_pDevData,
+                        _pbScaleGradientBN->_pDevData,
+                        _pbBiasGradientBN->_pDevData,
                         CUDNN_BN_MIN_EPSILON,
                         _pbSaveMeanBN->_pDevData,
                         _pbSaveInvVarianceBN->_pDevData);
                 CUDNNERROR(cudnnStatus, "NNLayer:BackPropagateFullyConnected cudnnBatchNormalizationBackward Failed");
-
-                // replace the delta X values with the pre-BN deltas just calculated
-                _pbDelta.swap(_pbDxBN);
-                _pbUnit.swap(_pbUnitBN);
-                kAddScaleBuffers(_pbScaleBN->_pDevData, _pbScaleDiffBN->_pDevData, _bnLearningRate, _strideBN);
-                kAddScaleBuffers(_pbBiasBN->_pDevData, _pbBiasDiffBN->_pDevData, _bnLearningRate, _strideBN);
             }
         }
 
@@ -2128,8 +2187,8 @@ void NNLayer::BackPropagateFullyConnected(uint32_t position, uint32_t batch)
             if (!pWeight->_bLocked)
             {
                 // Calculate weight gradients
-                NNFloat* pDelta                 = _pbDelta->_pDevData;
-                NNFloat* pUnit                  = pInputLayer->_pbUnit ? pInputLayer->_pbUnit->_pDevData : NULL;
+                NNFloat* pDelta                 = GetDeltaBuffer();
+                NNFloat* pUnit                  = pInputLayer->GetUnitBuffer();
                 NNFloat* pA                     = pWeight->_bTransposed ? pDelta                    : pUnit;
                 NNFloat* pB                     = pWeight->_bTransposed ? pUnit                     : pDelta;
                 int m                           = pWeight->_bTransposed ? pInputLayer->_localStride : _localStride;
@@ -2187,12 +2246,12 @@ void NNLayer::BackPropagateFullyConnected(uint32_t position, uint32_t batch)
                 int n                       = batch;  
                 
                 
-                NNFloat* pA                 = _pbDelta->_pDevData;
+                NNFloat* pA                 = GetDeltaBuffer();
                 NNFloat* pB                 = pWeight->_bShared ? 
                                               pSrcWeight->_pbWeight->_pDevData :
                                               pWeight->_pbWeight->_pDevData;
 
-                NNFloat* pC                 = pInputLayer->_pbDelta->_pDevData;
+                NNFloat* pC                 = pInputLayer->GetIncomingDeltaBuffer();
                 int k                       = _localStride;
                 int lda                     = pWeight->_bTransposed ? pInputLayer->_localStride : k;
                 int ldb                     = k;
@@ -2233,11 +2292,11 @@ void NNLayer::BackPropagateFullyConnected(uint32_t position, uint32_t batch)
         {
             if (l->_deltaUpdateCount > 0)
             {
-                kAddBuffers(l->_pbDelta->_pDevData, _pbDelta->_pDevData, batch * _localStride);
+                kAddBuffers(l->GetIncomingDeltaBuffer(), GetDeltaBuffer(), batch * _localStride);
             }
             else
             {
-                cudaMemcpy(l->_pbDelta->_pDevData, _pbDelta->_pDevData, batch * _localStride * sizeof(NNFloat), cudaMemcpyDefault);
+                cudaMemcpy(l->GetIncomingDeltaBuffer(), GetDeltaBuffer(), batch * _localStride * sizeof(NNFloat), cudaMemcpyDefault);
             }
          
             l->_deltaUpdateCount++;
@@ -2250,7 +2309,7 @@ void NNLayer::BackPropagateFullyConnected(uint32_t position, uint32_t batch)
         if (_vOutgoingLargerLayer.size() > 0)
         {
             // Gather X(L) on all GPUs to calculate contributions to all dW(L->L+1)
-            Gather(batch, _stride, _pbUnit->_pDevData, _localStride);
+            Gather(batch, _stride, GetUnitBuffer(), _localStride);
 
             // Calculate contribution to weight gradients of each outgoing layer
             for (int i = 0; i < _vOutgoingLargerLayer.size(); i++)
@@ -2260,7 +2319,7 @@ void NNLayer::BackPropagateFullyConnected(uint32_t position, uint32_t batch)
                 NNWeight* pSrcWeight            = pWeight->_bShared ? pWeight->_pSharedWeight : pWeight;
                 
                 // Calculate weight gradient contribution
-                NNFloat* pA                     = pOutputLayer->_pbDelta->_pDevData;
+                NNFloat* pA                     = pOutputLayer->GetDeltaBuffer();
                 NNFloat* pB                     = getGpu()._pNetwork->GetP2PSendBuffer();
                 NNFloat* pC                     = pSrcWeight->_pbWeightGradient->_pDevData;
                 int m                           = pOutputLayer->_localStride;
@@ -2311,7 +2370,7 @@ void NNLayer::BackPropagateFullyConnected(uint32_t position, uint32_t batch)
                 NNFloat* pA                     = _vOutgoingLargerWeight[i]->_bShared ? 
                                                   _vOutgoingLargerWeight[i]->_pSharedWeight->_pbWeight->_pDevData : 
                                                   _vOutgoingLargerWeight[i]->_pbWeight->_pDevData;
-                NNFloat* pB                     = pOutputLayer->_pbDelta->_pDevData;
+                NNFloat* pB                     = pOutputLayer->GetDeltaBuffer();
                 NNFloat* pC                     = getGpu()._pNetwork->GetP2PSendBuffer();
                 int m                           = _stride;
                 int n                           = batch;
@@ -2371,7 +2430,7 @@ void NNLayer::BackPropagateFullyConnected(uint32_t position, uint32_t batch)
             //printf("BP %s OL UD %d\n", _name.c_str(), _deltaUpdateCount);
 
             // Reduce Delta(L)
-            Reduce(batch, _stride, _pbDelta->_pDevData, _localStride, _deltaUpdateCount);
+            Reduce(batch, _stride, GetIncomingDeltaBuffer(), _localStride, _deltaUpdateCount);
             _deltaUpdateCount++;
         }
 
@@ -2384,26 +2443,53 @@ void NNLayer::BackPropagateFullyConnected(uint32_t position, uint32_t batch)
             {
                 NNFloat p       = (_sparsenessPenalty_p > (NNFloat)0.0)   ? _sparsenessPenalty_p     : getGpu()._pNetwork->_sparsenessPenalty_p;
                 NNFloat beta    = (_sparsenessPenalty_beta > (NNFloat)0.0) ? _sparsenessPenalty_beta : getGpu()._pNetwork->_sparsenessPenalty_beta;
-                kCalculateSparsenessPenalty(batch, _localStride, _pbUnit->_pDevData, _pbDelta->_pDevData, p, beta);                
+                kCalculateSparsenessPenalty(batch, _localStride, GetUnitBuffer(), GetIncomingDeltaBuffer(), p, beta);                
             }   
 
             // Account for dropout when calculating deltas (100% local calculation)
             NNFloat scale                           = (NNFloat)1.0 / ((NNFloat)1.0 - _pDropout);
-            kCalculateHadamardProduct(_activation, batch * _localStride, scale, _pbUnit->_pDevData, _pbDelta->_pDevData, _RELUSlope, _ELUAlpha, _SELULambda);
+            kCalculateHadamardProduct(_activation, batch * _localStride, scale, GetUnitBuffer(), GetIncomingDeltaBuffer(), _RELUSlope, _ELUAlpha, _SELULambda);
             
             // Normalize deltas if desired (Norms must be reduced across all GPUs)
             if (_deltaNorm > (NNFloat)0.0)
             {            
                 NNFloat* pMagnitude             = getGpu()._pNetwork->GetScratchBuffer(batch);
-                kCalculateDeltaMagnitudes(batch, _localStride, _pbDelta->_pDevData, pMagnitude);
+                kCalculateDeltaMagnitudes(batch, _localStride, GetIncomingDeltaBuffer(), pMagnitude);
                 getGpu()._pNetwork->P2P_Allreduce(pMagnitude, batch);
-                kNormalizeDeltaMagnitudes(_deltaNorm, batch, _localStride, _pbDelta->_pDevData, pMagnitude);
+                kNormalizeDeltaMagnitudes(_deltaNorm, batch, _localStride, GetIncomingDeltaBuffer(), pMagnitude);
             }
             
             // Calculate batch normalization gradients if active
             if (_bBatchNormalization)
             {
-                printf("**** doing batch norm 5\n");
+                cudnnStatus_t cudnnStatus;
+                cudnnStatus = cudnnSetTensor4dDescriptor(_tensorDescriptorBN, CUDNN_TENSOR_NCHW, CUDNN_DATA_FLOAT, batch, _Nz, _Ny, _localStride);
+                CUDNNERROR(cudnnStatus, "NNLayer::BackPropagateFullyConnected: unable to create _tensorDescriptorBN");        
+                cudnnStatus = cudnnSetTensor4dDescriptor(_scaleBiasMeanVarDescBN, CUDNN_TENSOR_NCHW, CUDNN_DATA_FLOAT, 1, _Nz, _Ny, _localStride);
+                CUDNNERROR(cudnnStatus, "NNLayer::BackPropagateFullyConnected: unable to create _scaleBiasMeanVarDescBN");        
+                float alpha = 1;
+                float beta = 0;
+                cudnnStatus = cudnnBatchNormalizationBackward(
+                        getGpu()._cuDNNHandle,
+                        CUDNN_BATCHNORM_PER_ACTIVATION,
+                        &alpha,
+                        &beta,
+                        &alpha,
+                        &beta,
+                        _tensorDescriptorBN,    // x desc
+                        GetIncomingUnitBuffer(),   // x
+                        _tensorDescriptorBN,    // dy dec
+                        GetIncomingDeltaBuffer(),  // dy
+                        _tensorDescriptorBN,    // dy dec
+                        GetDeltaBuffer(),   // dx - output
+                        _scaleBiasMeanVarDescBN,
+                        _pbScaleBN->_pDevData,
+                        _pbScaleGradientBN->_pDevData,
+                        _pbBiasGradientBN->_pDevData,
+                        CUDNN_BN_MIN_EPSILON,
+                        _pbSaveMeanBN->_pDevData,
+                        _pbSaveInvVarianceBN->_pDevData);
+                CUDNNERROR(cudnnStatus, "NNLayer:BackPropagateFullyConnected cudnnBatchNormalizationBackward Failed");
             }
         }
 
@@ -2412,11 +2498,11 @@ void NNLayer::BackPropagateFullyConnected(uint32_t position, uint32_t batch)
         {
             if (l->_deltaUpdateCount > 0)
             {
-                kAddBuffers(l->_pbDelta->_pDevData, _pbDelta->_pDevData, batch * _localStride);
+                kAddBuffers(l->GetIncomingDeltaBuffer(), GetDeltaBuffer(), batch * _localStride);
             }
             else
             {
-                cudaMemcpy(l->_pbDelta->_pDevData, _pbDelta->_pDevData, batch * _localStride * sizeof(NNFloat), cudaMemcpyDefault);
+                cudaMemcpy(l->GetIncomingDeltaBuffer(), GetDeltaBuffer(), batch * _localStride * sizeof(NNFloat), cudaMemcpyDefault);
             }
          
             l->_deltaUpdateCount++;
@@ -2425,7 +2511,7 @@ void NNLayer::BackPropagateFullyConnected(uint32_t position, uint32_t batch)
         // Gather delta(L) to contribute to delta and dW of incoming larger layers
         if (_vIncomingLargerLayer.size() > 0)
         {
-            Gather(batch, _stride, _pbDelta->_pDevData, _localStride);   
+            Gather(batch, _stride, GetDeltaBuffer(), _localStride);   
                  
             for (int i = 0; i < _vIncomingLargerLayer.size(); i++)
             {
@@ -2454,7 +2540,7 @@ void NNLayer::BackPropagateFullyConnected(uint32_t position, uint32_t batch)
                 }
                 else
                 { 
-                    NNFloat* pB                 = pInputLayer->_pbUnit->_pDevData;          
+                    NNFloat* pB                 = pInputLayer->GetUnitBuffer();          
                     cublasStatus_t cstatus      = cublasSgemm(getGpu()._cuBLASHandle, 
                                                 CUBLAS_OP_N,
                                                 CUBLAS_OP_T,
@@ -2491,7 +2577,7 @@ void NNLayer::BackPropagateFullyConnected(uint32_t position, uint32_t batch)
                     sgemm_beta                  = (pInputLayer->_deltaUpdateCount == 0) ? (NNFloat)0.0 : (NNFloat)1.0;
                     pA                          = pSrcWeight->_pbWeight->_pDevData;
                     NNFloat* pB                 = getGpu()._pNetwork->GetP2PSendBuffer();
-                    pC                          = pInputLayer->_pbDelta->_pDevData;
+                    pC                          = pInputLayer->GetIncomingDeltaBuffer();
                     m                           = pInputLayer->_localStride;
                     n                           = batch;
                     k                           = _stride;                           
@@ -2555,6 +2641,50 @@ void NNLayer::BackPropagateFullyConnected(uint32_t position, uint32_t batch)
     //getGpu().Shutdown();
     //exit(-1);
 #endif   
+}
+
+void NNLayer::UpdateWeights(TrainingMode trainingMode, uint32_t batch, NNFloat alpha, NNFloat lambda, NNFloat lambda1, NNFloat mu, NNFloat mu1, NNFloat t)
+{
+    if (_bBatchNormalization)
+    {
+        switch (trainingMode)
+        {
+            case SGD:
+                kSGDUpdateWeights(alpha, lambda, lambda1, _localStride, _pbScaleGradientBN->_pDevData, _pbScaleBN->_pDevData);
+                kSGDUpdateWeights(alpha, lambda, lambda1, _localStride, _pbBiasGradientBN->_pDevData, _pbBiasBN->_pDevData);
+                break;
+                
+            case Momentum:
+                kMomentumUpdateWeights(alpha, lambda, lambda1, mu, _localStride, _pbScaleVelocityBN->_pDevData, _pbScaleGradientBN->_pDevData, _pbScaleBN->_pDevData);
+                kMomentumUpdateWeights(alpha, lambda, lambda1, mu, _localStride, _pbBiasVelocityBN->_pDevData, _pbBiasGradientBN->_pDevData, _pbBiasBN->_pDevData);
+                break;
+                        
+            case AdaGrad:
+                kAdaGradUpdateWeights(alpha, lambda, lambda1, _localStride, _pbScaleVelocityBN->_pDevData, _pbScaleGradientBN->_pDevData, _pbScaleBN->_pDevData);
+                kAdaGradUpdateWeights(alpha, lambda, lambda1, _localStride, _pbBiasVelocityBN->_pDevData, _pbBiasGradientBN->_pDevData, _pbBiasBN->_pDevData);
+                break;
+                        
+            case Nesterov:
+                kNesterovUpdateWeights(alpha, lambda, lambda1, mu, _localStride, _pbScaleVelocityBN->_pDevData, _pbScaleGradientBN->_pDevData, _pbScaleBN->_pDevData);
+                kNesterovUpdateWeights(alpha, lambda, lambda1, mu, _localStride, _pbBiasVelocityBN->_pDevData, _pbBiasGradientBN->_pDevData, _pbBiasBN->_pDevData);
+                break;
+                        
+            case RMSProp:
+                kRMSPropUpdateWeights(alpha, lambda, lambda1, mu, _localStride, _pbScaleVelocityBN->_pDevData, _pbScaleGradientBN->_pDevData, _pbScaleBN->_pDevData);
+                kRMSPropUpdateWeights(alpha, lambda, lambda1, mu, _localStride, _pbBiasVelocityBN->_pDevData, _pbBiasGradientBN->_pDevData, _pbBiasBN->_pDevData);
+                break;
+
+            case AdaDelta:
+                kAdaDeltaUpdateWeights(lambda, lambda1, mu, _localStride, _pbScaleVelocityBN->_pDevData, _pbScaleGradientBN->_pDevData, _pbScaleGradientVelocityBN->_pDevData, _pbScaleBN->_pDevData);
+                kAdaDeltaUpdateWeights(lambda, lambda1, mu, _localStride, _pbBiasVelocityBN->_pDevData, _pbBiasGradientBN->_pDevData, _pbBiasGradientVelocityBN->_pDevData, _pbBiasBN->_pDevData);
+                break;     
+
+            case Adam:
+                kAdamUpdateWeights(alpha, lambda, lambda1, mu, mu1, t, _localStride, _pbScaleVelocityBN->_pDevData, _pbScaleGradientBN->_pDevData, _pbScaleGradientVelocityBN->_pDevData, _pbScaleBN->_pDevData);
+                kAdamUpdateWeights(alpha, lambda, lambda1, mu, mu1, t, _localStride, _pbBiasVelocityBN->_pDevData, _pbBiasGradientBN->_pDevData, _pbBiasGradientVelocityBN->_pDevData, _pbBiasBN->_pDevData);
+                break;   
+        }
+    }
 }
 
 // Reduces contributions from all GPUs to local component of X(L) or Delta(L)

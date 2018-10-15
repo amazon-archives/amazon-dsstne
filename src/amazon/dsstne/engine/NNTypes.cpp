@@ -1741,6 +1741,7 @@ template<typename T> bool NNDataSet<T>::UnShard()
     return true;
 }
 
+
 template<typename T> bool NNDataSet<T>::Shard(NNDataSetEnums::Sharding sharding)
 {
     // Skip if already sharded

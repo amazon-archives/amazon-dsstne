@@ -946,7 +946,7 @@ void NNNetwork::RefreshState()
         {
             if (l->_bDirty)
             {
-                l->RefreshState(this, _mode == Validation);
+                l->RefreshState(this, _trainingMode, _mode == Validation);
             }
         }
 
@@ -1054,7 +1054,9 @@ void NNNetwork::LoadDataSets(vector<NNDataSetBase*>& vData)
                 l->_bSparse                     = d->_attributes & NNDataSetEnums::Attributes::Sparse;
                 l->_bDirty                      = true;
                 if (getGpu()._id == 0)
+                {
                     printf("NNNetwork::LoadDataSets: Found data set %s for input layer %s\n", d->_name.c_str(), l->_name.c_str());
+                }
                 break;
             }
         }
@@ -1777,6 +1779,12 @@ void NNNetwork::UpdateWeights(NNFloat alpha, NNFloat lambda, NNFloat lambda1, NN
     }
 
     // Update batch normalization parameters
+    for (auto l: _vLayer)
+    {
+        if (l->_bBatchNormalization)
+            l->UpdateWeights(_trainingMode, batch, alpha, lambda, lambda1, mu, mu1, _batches);
+    }
+        
 }
 
 // Returns top k outputs of any layer (where k <= 128) along with their indices

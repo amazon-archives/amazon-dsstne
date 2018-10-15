@@ -82,7 +82,7 @@ private:
     uint32_t                    _maxLocalStride;            // Largest of all strides across all processes
     uint32_t                    _strideBN;                  // stride of Batch Norm Mean and Variance
     uint32_t                    _batch;                     // Mini-batch size
-    uint32_t                    _localBatch;                // Data parallel batch size
+    uint32_t                    _localBatch;                // Data parallel batch size (batch / process count)
     uint32_t                    _deltaUpdateCount;          // Counter to indicate how many delta updates have been performed during backpropagation
     uint32_t                    _unitUpdateCount;           // Counter to indicate how many unit updates have been performed during forward propagation
     uint32_t                    _dimensions;                // Input data dimensions
@@ -143,18 +143,21 @@ private:
     unique_ptr<GpuBuffer<NNFloat>> _pbDropout;              // Dropout random values if active
     unique_ptr<GpuBuffer<NNFloat>> _pbBuffer1;              // Scratch buffer 1 if active
     unique_ptr<GpuBuffer<NNFloat>> _pbBuffer2;              // Scratch buffer 2 if active
-    unique_ptr<GpuBuffer<NNFloat>> _pbDxBN;
-    unique_ptr<GpuBuffer<NNFloat>> _pbScaleDiffBN;
-    unique_ptr<GpuBuffer<NNFloat>> _pbBiasDiffBN;
+    unique_ptr<GpuBuffer<NNFloat>> _pbDeltaBN;
+    unique_ptr<GpuBuffer<NNFloat>> _pbScaleGradientBN;
+    unique_ptr<GpuBuffer<NNFloat>> _pbBiasGradientBN;
     unique_ptr<GpuBuffer<NNFloat>> _pbUnitBN;
     unique_ptr<GpuBuffer<NNFloat>> _pbScaleBN;
     unique_ptr<GpuBuffer<NNFloat>> _pbBiasBN;
+    unique_ptr<GpuBuffer<NNFloat>> _pbScaleVelocityBN;
+    unique_ptr<GpuBuffer<NNFloat>> _pbBiasVelocityBN;
+    unique_ptr<GpuBuffer<NNFloat>> _pbScaleGradientVelocityBN;
+    unique_ptr<GpuBuffer<NNFloat>> _pbBiasGradientVelocityBN;
     unique_ptr<GpuBuffer<NNFloat>> _pbRunningMeanBN;
     unique_ptr<GpuBuffer<NNFloat>> _pbRunningVarianceBN;
     unique_ptr<GpuBuffer<NNFloat>> _pbSaveMeanBN;
     unique_ptr<GpuBuffer<NNFloat>> _pbSaveInvVarianceBN;
     uint32_t                    _bnCalls;
-    NNFloat                     _bnLearningRate;
     int32_t                     _priority;                  // Mutable priority for calculating propagation ordering
     NNLayer(NNLayerDescriptor& l, uint32_t batch);
     ~NNLayer();
@@ -162,7 +165,7 @@ private:
     void Deallocate();
     void SetBatch(uint32_t batch);
     void RefreshParallelization();
-    void RefreshState(NNNetwork* pNetwork, bool validate);
+    void RefreshState(NNNetwork* pNetwork, TrainingMode trainingMode, bool validate);
     void LoadPredictionBatch(uint32_t position, uint32_t batch);
     void LoadTrainingBatch(uint32_t position, uint32_t batch);
     void LoadValidationBatch(uint32_t position, uint32_t batch);
@@ -178,13 +181,28 @@ private:
     void BackPropagateConvolutional(uint32_t position, uint32_t batch);
     void BackPropagatePooling(uint32_t position, uint32_t batch);
     void CalculateOutputDelta(uint32_t position, uint32_t batch, ErrorFunction ef);
+    void UpdateWeights(TrainingMode trainingMode, uint32_t batch, NNFloat alpha, NNFloat lambda, NNFloat lambda1, NNFloat mu, NNFloat mu1, NNFloat t);
     void GenerateDenoisingData();
     void Reduce(uint32_t batch, uint32_t stride, NNFloat* pBuffer, uint32_t localStride, uint32_t updateCount);
     void Gather(uint32_t batch, uint32_t stride, NNFloat* pBuffer, uint32_t localStride);
     void ClearUpdates();
     void Dump(string fname, NNFloat* pData);
     bool WriteNetCDF(netCDF::NcFile& nc, uint32_t index);
+    NNFloat* GetIncomingUnitBuffer() 
+    { 
+        if (_bBatchNormalization)
+            return _pbUnitBN ? _pbUnitBN->_pDevData : NULL;
+        else
+            return _pbUnit ? _pbUnit->_pDevData : NULL;
+    }
     NNFloat* GetUnitBuffer() { return _pbUnit ? _pbUnit->_pDevData : NULL; }
+    NNFloat* GetIncomingDeltaBuffer() 
+    { 
+        if (_bBatchNormalization)
+            return _pbDeltaBN ? _pbDeltaBN->_pDevData : NULL;
+        else
+            return _pbDelta ? _pbDelta->_pDevData : NULL;
+    }    
     NNFloat* GetDeltaBuffer() { return _pbDelta ? _pbDelta->_pDevData : NULL; }
     uint64_t GetBufferSize() { return _batch * _stride; }
     cudnnTensorDescriptor_t getTensorDescriptor(uint32_t batch);
