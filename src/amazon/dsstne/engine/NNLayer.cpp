@@ -273,6 +273,8 @@ NNLayer::~NNLayer()
         CUDNNERROR(cudnnStatus, "NNLayer::~NNLayer: unable to delete _tensorDescriptorBN");        
         _pbScaleBN.reset();
         _pbBiasBN.reset();
+        _pbScaleGradientBN.reset();
+        _pbBiasGradientBN.reset();
         _pbRunningMeanBN.reset();
         _pbRunningVarianceBN.reset();
         _pbSaveMeanBN.reset();
@@ -306,6 +308,10 @@ void NNLayer::Deallocate()
     _pbDropout.reset();
     _pbBuffer1.reset();
     _pbBuffer2.reset();
+    _pbScaleVelocityBN.reset();
+    _pbScaleGradientVelocityBN.reset();
+    _pbBiasVelocityBN.reset();
+    _pbBiasGradientVelocityBN.reset();
 }
 
 bool NNLayer::GetUnits(vector<NNFloat>& vUnit)
@@ -2650,28 +2656,28 @@ void NNLayer::UpdateWeights(TrainingMode trainingMode, uint32_t batch, NNFloat a
         switch (trainingMode)
         {
             case SGD:
-                kSGDUpdateWeights(alpha, lambda, lambda1, _localStride, _pbScaleGradientBN->_pDevData, _pbScaleBN->_pDevData);
-                kSGDUpdateWeights(alpha, lambda, lambda1, _localStride, _pbBiasGradientBN->_pDevData, _pbBiasBN->_pDevData);
+                kSGDUpdateWeights(-alpha, lambda, lambda1, _localStride, _pbScaleGradientBN->_pDevData, _pbScaleBN->_pDevData);
+                kSGDUpdateWeights(-alpha, lambda, lambda1, _localStride, _pbBiasGradientBN->_pDevData, _pbBiasBN->_pDevData);
                 break;
                 
             case Momentum:
-                kMomentumUpdateWeights(alpha, lambda, lambda1, mu, _localStride, _pbScaleVelocityBN->_pDevData, _pbScaleGradientBN->_pDevData, _pbScaleBN->_pDevData);
-                kMomentumUpdateWeights(alpha, lambda, lambda1, mu, _localStride, _pbBiasVelocityBN->_pDevData, _pbBiasGradientBN->_pDevData, _pbBiasBN->_pDevData);
+                kMomentumUpdateWeights(-alpha, lambda, lambda1, mu, _localStride, _pbScaleVelocityBN->_pDevData, _pbScaleGradientBN->_pDevData, _pbScaleBN->_pDevData);
+                kMomentumUpdateWeights(-alpha, lambda, lambda1, mu, _localStride, _pbBiasVelocityBN->_pDevData, _pbBiasGradientBN->_pDevData, _pbBiasBN->_pDevData);
                 break;
                         
             case AdaGrad:
-                kAdaGradUpdateWeights(alpha, lambda, lambda1, _localStride, _pbScaleVelocityBN->_pDevData, _pbScaleGradientBN->_pDevData, _pbScaleBN->_pDevData);
-                kAdaGradUpdateWeights(alpha, lambda, lambda1, _localStride, _pbBiasVelocityBN->_pDevData, _pbBiasGradientBN->_pDevData, _pbBiasBN->_pDevData);
+                kAdaGradUpdateWeights(-alpha, lambda, lambda1, _localStride, _pbScaleVelocityBN->_pDevData, _pbScaleGradientBN->_pDevData, _pbScaleBN->_pDevData);
+                kAdaGradUpdateWeights(-alpha, lambda, lambda1, _localStride, _pbBiasVelocityBN->_pDevData, _pbBiasGradientBN->_pDevData, _pbBiasBN->_pDevData);
                 break;
                         
             case Nesterov:
-                kNesterovUpdateWeights(alpha, lambda, lambda1, mu, _localStride, _pbScaleVelocityBN->_pDevData, _pbScaleGradientBN->_pDevData, _pbScaleBN->_pDevData);
-                kNesterovUpdateWeights(alpha, lambda, lambda1, mu, _localStride, _pbBiasVelocityBN->_pDevData, _pbBiasGradientBN->_pDevData, _pbBiasBN->_pDevData);
+                kNesterovUpdateWeights(-alpha, lambda, lambda1, mu, _localStride, _pbScaleVelocityBN->_pDevData, _pbScaleGradientBN->_pDevData, _pbScaleBN->_pDevData);
+                kNesterovUpdateWeights(-alpha, lambda, lambda1, mu, _localStride, _pbBiasVelocityBN->_pDevData, _pbBiasGradientBN->_pDevData, _pbBiasBN->_pDevData);
                 break;
                         
             case RMSProp:
-                kRMSPropUpdateWeights(alpha, lambda, lambda1, mu, _localStride, _pbScaleVelocityBN->_pDevData, _pbScaleGradientBN->_pDevData, _pbScaleBN->_pDevData);
-                kRMSPropUpdateWeights(alpha, lambda, lambda1, mu, _localStride, _pbBiasVelocityBN->_pDevData, _pbBiasGradientBN->_pDevData, _pbBiasBN->_pDevData);
+                kRMSPropUpdateWeights(-alpha, lambda, lambda1, mu, _localStride, _pbScaleVelocityBN->_pDevData, _pbScaleGradientBN->_pDevData, _pbScaleBN->_pDevData);
+                kRMSPropUpdateWeights(-alpha, lambda, lambda1, mu, _localStride, _pbBiasVelocityBN->_pDevData, _pbBiasGradientBN->_pDevData, _pbBiasBN->_pDevData);
                 break;
 
             case AdaDelta:
@@ -2680,8 +2686,8 @@ void NNLayer::UpdateWeights(TrainingMode trainingMode, uint32_t batch, NNFloat a
                 break;     
 
             case Adam:
-                kAdamUpdateWeights(alpha, lambda, lambda1, mu, mu1, t, _localStride, _pbScaleVelocityBN->_pDevData, _pbScaleGradientBN->_pDevData, _pbScaleGradientVelocityBN->_pDevData, _pbScaleBN->_pDevData);
-                kAdamUpdateWeights(alpha, lambda, lambda1, mu, mu1, t, _localStride, _pbBiasVelocityBN->_pDevData, _pbBiasGradientBN->_pDevData, _pbBiasGradientVelocityBN->_pDevData, _pbBiasBN->_pDevData);
+                kAdamUpdateWeights(-alpha, lambda, lambda1, mu, mu1, t, _localStride, _pbScaleVelocityBN->_pDevData, _pbScaleGradientBN->_pDevData, _pbScaleGradientVelocityBN->_pDevData, _pbScaleBN->_pDevData);
+                kAdamUpdateWeights(-alpha, lambda, lambda1, mu, mu1, t, _localStride, _pbBiasVelocityBN->_pDevData, _pbBiasGradientBN->_pDevData, _pbBiasGradientVelocityBN->_pDevData, _pbBiasBN->_pDevData);
                 break;   
         }
     }
