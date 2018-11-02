@@ -1,1 +1,1 @@
-The results file (network.nc) for movielens training is written to this directory.
+The results file (network.nc) for image recognition training is written to this directory.

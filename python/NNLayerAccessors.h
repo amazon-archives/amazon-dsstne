@@ -251,7 +251,7 @@ PyObject* NNLayerAccessors::GetDeltas(PyObject* self, PyObject* args) {
         return NULL;
     }
     pDeltas += offset;
-    return Py_BuildValue("i", pLayer->GetUnits(pDeltas));
+    return Py_BuildValue("i", pLayer->GetDeltas(pDeltas));
 }
 
 /**
