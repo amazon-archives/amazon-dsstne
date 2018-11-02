@@ -224,7 +224,7 @@ NNFloat* NNNetwork::GetPeerBackBuffer()
     return _pPeerBuffer[_sendIndex];
 }
 
-bool NNNetwork::SetLRN(uint32_t k, uint32_t n, NNFloat alpha, NNFloat beta)
+bool NNNetwork::SetLRN(NNFloat k, uint32_t n, NNFloat alpha, NNFloat beta)
 {
     _LRN_k                  = k;
     _LRN_n                  = n;
@@ -234,7 +234,7 @@ bool NNNetwork::SetLRN(uint32_t k, uint32_t n, NNFloat alpha, NNFloat beta)
 
     // Report new settings
     if (getGpu()._id == 0)
-        printf("NNNetwork::SetLRN: k set to %u, n set to %u, alpha set to %f, beta set to %f.\n", k, n, alpha, beta);
+        printf("NNNetwork::SetLRN: k set to %f, n set to %u, alpha set to %f, beta set to %f.\n", k, n, alpha, beta);
 
     return true;
 }

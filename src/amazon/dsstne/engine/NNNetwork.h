@@ -215,7 +215,7 @@ public:
 
 
     // Setters
-    bool SetLRN(uint32_t k = 2, uint32_t n = 5, NNFloat alpha = (NNFloat)0.0001, NNFloat beta = (NNFloat)0.75);
+    bool SetLRN(NNFloat k = (NNFloat)2.0, uint32_t n = 5, NNFloat alpha = (NNFloat)0.0001, NNFloat beta = (NNFloat)0.75);
     bool SetMaxout(uint32_t k = 2);
     bool SetSparsenessPenalty(NNFloat p = 0.0f, NNFloat beta = 0.0f);
     bool SetDenoising(NNFloat p = 0.0f);

@@ -1,0 +1,19 @@
+{
+    "Version" : 0.2,
+    "Network" : "config.json",
+    "Command" : "Train",
+    "RandomSeed" : 12345,
+
+    "TrainingParameters" : {
+        "Optimizer" : "Nesterov",
+        "Epochs" : 60,
+        "Alpha" : 0.025,
+        "AlphaInterval" : 20,
+        "AlphaMultiplier" : 0.8,
+        "mu": 0.5,
+        "lambda" : 0.0001,
+        "Checkpointname" : "checkpoint/check",
+        "Results" : "results/network.nc"
+    },
+    "Data" : "../../samples/cifar-10/cifar-10-batches-bin/cifar10_training.nc"
+}

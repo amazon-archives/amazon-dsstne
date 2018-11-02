@@ -61,8 +61,12 @@ void GpuContext::SetCPUValidate(bool bValidate)
 
 void GpuContext::Startup(int argc, char** argv)
 {
-    // Initialize MPI
-    MPI_Init(&argc, &argv);
+    // Initialize MPI if not already initialized.
+    int flag = 0;
+    MPI_Initialized(&flag);
+    if (!flag) {
+        MPI_Init(&argc, &argv);
+    }
     MPI_Comm_size(MPI_COMM_WORLD, &_numprocs);
     MPI_Comm_rank(MPI_COMM_WORLD, &_id); 
     

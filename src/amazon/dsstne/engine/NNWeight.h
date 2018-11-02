@@ -92,7 +92,8 @@ public:
     bool SetBiases(const vector<NNFloat>& vBias);
     bool GetWeights(vector<NNFloat>& vWeight);
     bool GetBiases(vector<NNFloat>& vBias);      
-    bool SetNorm(NNFloat norm);
+    bool GetDimensions(vector<uint64_t>& dimensions);
+    bool SetNorm(NNFloat norm) { _norm = norm; return true; }; // As indicated above, _norm is unconstrained, so no need to check the norm argument
 };
 
 

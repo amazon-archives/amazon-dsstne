@@ -288,6 +288,7 @@ ostream& operator<< (ostream& out, NNWeightDescriptor& d)
 NNWeight::NNWeight(NNLayer& inputLayer, NNLayer& outputLayer, bool bShared, bool bTransposed, bool bLocked, NNFloat norm) :
 _inputLayer(inputLayer),
 _outputLayer(outputLayer),
+_dimensionality(2),
 _width(1),
 _height(1),
 _length(1),
@@ -329,7 +330,7 @@ _pbBiasGradientVelocity()
         CUDNNERROR(cudnnStatus, "NNWeight::NNWeight: Unable to create convolution descriptor");
 
 
-        // Set filter dimensions        
+        // Set filter dimensions and the _dimensionality, which the constructor defaults to 2
         vector<int> vFilterDim(5, 1);
         switch (_outputLayer._dimensions)
         {
@@ -337,6 +338,7 @@ _pbBiasGradientVelocity()
                 vFilterDim[0]       = _outputLayer._Ny;
                 vFilterDim[1]       = _inputLayer._Ny;
                 vFilterDim[2]       = _inputLayer._kernelX;
+                _dimensionality = 3;
                 break;
                 
             case 3:
@@ -344,6 +346,7 @@ _pbBiasGradientVelocity()
                 vFilterDim[1]       = _inputLayer._Nz;
                 vFilterDim[2]       = _outputLayer._kernelY;
                 vFilterDim[3]       = _outputLayer._kernelX;
+                _dimensionality = 4;
                 break;   
                          
             case 4:
@@ -352,6 +355,7 @@ _pbBiasGradientVelocity()
                 vFilterDim[2]       = _outputLayer._kernelZ;
                 vFilterDim[3]       = _outputLayer._kernelY;
                 vFilterDim[4]       = _outputLayer._kernelX;
+                _dimensionality = 5;
                 break;  
         }
         cudnnStatus = cudnnSetFilterNdDescriptor(_convFilterDesc, CUDNN_DATA_FLOAT, CUDNN_TENSOR_NCHW, _outputLayer._dimensions + 1, vFilterDim.data());
@@ -1035,6 +1039,20 @@ bool NNWeight::GetBiases(vector<NNFloat>& vBias)
         
     }
     return bValid;
+}
+
+bool NNWeight::GetDimensions(vector<uint64_t>& dimensions)
+{
+  if (_dimensionality < 2 || _dimensionality > 5) {
+      printf("NNWeight::GetDimensions: _dimensionality = %u\n", _dimensionality);
+      return false;
+  }
+  if (_dimensionality >= 1) dimensions.push_back(_width);
+  if (_dimensionality >= 2) dimensions.push_back(_height);
+  if (_dimensionality >= 3) dimensions.push_back(_length);
+  if (_dimensionality >= 4) dimensions.push_back(_depth);
+  if (_dimensionality == 5) dimensions.push_back(_breadth);
+  return true;
 }
 
 void NNWeight::Dump(string fname, NNFloat* pBuffer)

@@ -530,6 +530,10 @@ NNLayer::Kind NNLayer::GetKind() const {
   return _kind;
 }
 
+NNLayer::Type NNLayer::GetType() const {
+  return _type;
+}
+
 uint32_t NNLayer::GetAttributes() const {
   return _attributes;
 }

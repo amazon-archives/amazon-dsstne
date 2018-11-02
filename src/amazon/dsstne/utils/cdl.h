@@ -1,6 +1,8 @@
+#ifndef __CDL_H__
+#define __CDL_H__
+
 #include "GpuTypes.h"
 #include "NNTypes.h"
-
 
 struct CDL
 {
@@ -28,4 +30,4 @@ struct CDL
     std::string     _resultsFileName;
 };
 
-
+#endif
