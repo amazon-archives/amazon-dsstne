@@ -3272,6 +3272,10 @@ __shared__ volatile uint32_t sValue[64 * 4];
                 bool flag;
                 BITONICSORT64_64();
 
+                // Set minValue to the new min in the warp register queue
+                // Registers are sorted in descending order k0 > k1 > k2 ... > k_n
+                minValue = k1;
+
                 // Shift members in shared memory to beginning
                 bufferSize         -= 32;
                 if (tgx < bufferSize)
@@ -3400,6 +3404,10 @@ __shared__ volatile uint32_t sValue[96 * 4];
                 v3                  = psValue[tgx + cData._warpSize];
                 bool flag;
                 BITONICSORT128_128();
+
+                // Set minValue to the new min in the warp register queue
+                // Registers are sorted in descending order k0 > k1 > k2 ... > k_n
+                minValue = k3;
 
                 // Shift members in shared memory to beginning
                 bufferSize         -= 64;
@@ -3565,6 +3573,10 @@ __shared__ volatile uint32_t sValue[160 * 4];
                 v7                  = psValue[tgx + 3 * cData._warpSize];
                 bool flag;
                 BITONICSORT256_256();
+
+                // Set minValue to the new min in the warp register queue
+                // Registers are sorted in descending order k0 > k1 > k2 ... > k_n
+                minValue = k7;
 
                 // Shift members in shared memory to beginning
                 bufferSize         -= 128;
@@ -3804,6 +3816,10 @@ __shared__ volatile uint32_t sValue[288 * 4];
                 v15                 = psValue[tgx + 7 * cData._warpSize];
                 bool flag;
                 BITONICSORT512_512();
+
+                // Set minValue to the new min in the warp register queue
+                // Registers are sorted in descending order k0 > k1 > k2 ... > k_n
+                minValue = k15;
 
                 // Shift members in shared memory to beginning
                 bufferSize         -= 256;
