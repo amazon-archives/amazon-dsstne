@@ -1,0 +1,1 @@
+Checkpoint files (check*.nc) for image recognition training are written to this directory.

@@ -593,6 +593,19 @@ template<typename T> void NNDataSet<T>::LoadDenseData(const void *srcData)
     }
 }
 
+template<typename T> void NNDataSet<T>::CopyDenseData(const void *srcData)
+{
+    const T* srcDataTyped = static_cast<const T*>(srcData);
+
+    if (_attributes & NNDataSetEnums::Attributes::Sparse)
+    {
+        throw std::runtime_error("Cannot set dense data on a sparse NNDataSet");
+    } else
+    {
+         copy(srcDataTyped, srcDataTyped + _vData.size(), _vData.data());
+    }
+}
+
 template<typename T> void NNDataSet<T>::LoadSparseData(const uint64_t *srcSparseStart, const uint64_t *srcSparseEnd,
                                                        const void *srcSparseData, const uint32_t *srcSparseIndex)
 {
@@ -623,6 +636,37 @@ template<typename T> void NNDataSet<T>::LoadSparseData(const uint64_t *srcSparse
         _pbSparseEnd->Upload(_vSparseEnd.data());
         _pbSparseIndex->Upload(_vSparseIndex.data());
         _pbSparseData->Upload(_vSparseData.data());
+    } else
+    {
+        throw std::runtime_error("Cannot set sparse data on a non sparse NNDataSet");
+    }
+}
+
+template<typename T> void NNDataSet<T>::CopySparseData(const uint64_t *srcSparseStart, const uint64_t *srcSparseEnd,
+                                                       const void *srcSparseData, const uint32_t *srcSparseIndex)
+{
+    const T* srcSparseDataTyped = static_cast<const T*>(srcSparseData);
+
+    if (_attributes & NNDataSetEnums::Attributes::Sparse)
+    {
+        if (srcSparseStart[0] != 0)
+        {
+            throw std::runtime_error("Sparse data should be zero indexed; srcSparseStart[0] != 0");
+        }
+
+        uint64_t dataLength = srcSparseEnd[_uniqueExamples - 1];
+        if (dataLength > _vSparseData.size() || dataLength > _vSparseIndex.size())
+        {
+            stringstream msg;
+            msg << "Not enough space to store sparse data. Allocated: " << _vSparseData.size() << " Required: "
+                << dataLength;
+            throw std::length_error(msg.str());
+        }
+
+        copy(srcSparseStart, srcSparseStart + _uniqueExamples, _vSparseStart.data());
+        copy(srcSparseEnd, srcSparseEnd + _uniqueExamples, _vSparseEnd.data());
+        copy(srcSparseDataTyped, srcSparseDataTyped + dataLength, _vSparseData.data());
+        copy(srcSparseIndex, srcSparseIndex + dataLength, _vSparseIndex.data());
     } else
     {
         throw std::runtime_error("Cannot set sparse data on a non sparse NNDataSet");
@@ -665,6 +709,43 @@ template<typename T> void NNDataSet<T>::LoadSparseData(const long *srcSparseStar
         _pbSparseEnd->Upload(_vSparseEnd.data());
         _pbSparseIndex->Upload(_vSparseIndex.data());
         _pbSparseData->Upload(_vSparseData.data());
+    } else
+    {
+        throw std::runtime_error("Cannot set sparse data on a non sparse NNDataSet");
+    }
+}
+
+template<typename T> void NNDataSet<T>::CopySparseData(const long *srcSparseStart, const long *srcSparseEnd,
+                                                       const void *srcSparseData, const long *srcSparseIndex)
+{
+    const T* srcSparseDataTyped = static_cast<const T*>(srcSparseData);
+
+    if (_attributes & NNDataSetEnums::Attributes::Sparse)
+    {
+        if (srcSparseStart[0] != 0)
+        {
+            throw std::runtime_error("Sparse data should be zero indexed; srcSparseStart[0] != 0");
+        }
+
+        uint64_t dataLength = srcSparseEnd[_uniqueExamples - 1];
+        if (dataLength > _vSparseData.size() || dataLength > _vSparseIndex.size())
+        {
+            stringstream msg;
+            msg << "Not enough space to store sparse data. Allocated: " << _vSparseData.size() << " Required: "
+                << dataLength;
+            throw std::length_error(msg.str());
+        }
+
+        for (uint32_t i = 0; i < _uniqueExamples; ++i)
+        {
+            _vSparseStart[i] = (uint64_t) srcSparseStart[i];
+            _vSparseEnd[i] = (uint64_t) srcSparseEnd[i];
+        }
+        for (uint64_t i = 0; i < dataLength; ++i)
+        {
+            _vSparseData[i] = srcSparseDataTyped[i];
+            _vSparseIndex[i] = (uint32_t) srcSparseIndex[i];
+        }
     } else
     {
         throw std::runtime_error("Cannot set sparse data on a non sparse NNDataSet");

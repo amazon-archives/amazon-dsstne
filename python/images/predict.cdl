@@ -1,0 +1,8 @@
+{
+    "Version" : 0.2,
+    "Network" : "results/network.nc",
+    "Command" : "Predict",
+    "RandomSeed" : 12345,
+
+    "Data" : "../../samples/cifar-10/cifar-10-batches-bin/cifar10_test.nc"
+}

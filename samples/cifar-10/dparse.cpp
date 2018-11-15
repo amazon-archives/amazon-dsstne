@@ -1,13 +1,17 @@
 // Parser to generate training and test data sets for CIFAR-10
 //
 // Linux steps:
+// cd amazon-dsstne/samples/cifar-10
 // wget https://www.cs.toronto.edu/~kriz/cifar-10-binary.tar.gz
 // tar xvf cifar-10-binary.tar.gz
 // cd cifar-10-batches-bin
 // mv test_batch.bin test.bin
 // cat data_batch_*.bin > training.bin
 // rm data_batch_*
+// cd ../
 // g++ dparse.cpp -o dparse -lnetcdf -lnetcdf_c++4 --std=c++0x
+// mv dparse cifar-10-batches-bin/
+// cd cifar-10-batches-bin
 // ./dparse
 // to train (modify train.cdl to suit your needs):  encoder train.cdl
 // to make predictions:  encoder predict.cdl

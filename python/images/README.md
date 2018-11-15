@@ -1,0 +1,1 @@
+Execute the images.py program via 'python images.py train.cdl' to create the results/network.nc file followed by 'python images.py predict.cdl'
