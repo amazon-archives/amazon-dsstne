@@ -420,6 +420,12 @@ static PyMethodDef dsstneMethods[] = {
     
     {"CreateSparseDataSet", NNDataSetAccessors::CreateSparseDataSet, METH_VARARGS,
      "Create an encapsulated NNDataSetBase* from a compressed sparse row (CSR) SciPy two-dimensional matrix"},
+
+    {"SetStreaming", NNDataSetAccessors::SetStreaming, METH_VARARGS,
+     "Set the streaming flag for the destination NNDataSetBase*"},
+
+    {"GetStreaming", NNDataSetAccessors::GetStreaming, METH_VARARGS,
+     "Get the streaming flag from the source NNDataSetBase*"},
     
     {NULL, NULL, 0, NULL}        /* Sentinel */
 };

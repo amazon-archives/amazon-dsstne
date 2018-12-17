@@ -1,0 +1,2 @@
+The embedding.py and inference.py programs require the "train_small.nc" and "eval.nc" files, respectively, for which the data are Amazon proprietary,
+so these programs cannot be executed and serve only as additional examples of the use of the dsstne Python-C++ extension API.

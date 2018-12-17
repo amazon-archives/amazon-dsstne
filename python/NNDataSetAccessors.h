@@ -16,6 +16,8 @@ class NNDataSetAccessors {
         static PyObject* GetDataSetName(PyObject* self, PyObject* args);
         static PyObject* CreateDenseDataSet(PyObject* self, PyObject* args);
         static PyObject* CreateSparseDataSet(PyObject* self, PyObject* args);
+        static PyObject* SetStreaming(PyObject* self, PyObject* args);
+        static PyObject* GetStreaming(PyObject* self, PyObject* args);
 };
 
 /**
@@ -164,6 +166,32 @@ PyObject* NNDataSetAccessors::CreateSparseDataSet(PyObject* self, PyObject* args
     NNDataSetBase* pDataSet = createNNDataSet(descriptor);
     pDataSet->CopySparseData(sparseStart, sparseEnd, data, sparseIndex);
     return PyCapsule_New(reinterpret_cast<void*>(pDataSet), "data set", NULL);
+}
+
+/**
+ * Set the streaming flag in the encapsulated data set.
+ * @param pDataSet - the encapsulated destination NNDataSetBase*
+ * @param streaming - the streaming integer
+ * @return a PyObject* that references a boolean to indicate success
+ * @throws exception upon failure to parse arguments or to build the return value
+ */
+PyObject* NNDataSetAccessors::SetStreaming(PyObject* self, PyObject* args) {
+    int streaming = 0;
+    NNDataSetBase* pDataSet = parsePtrAndOneValue<NNDataSetBase*, int>(args, streaming, "data set", "Oi");
+    if (pDataSet == NULL) return NULL;
+    return Py_BuildValue("i", pDataSet->SetStreaming(streaming)); // int to bool and bool to int conversions are implicit in C++
+}
+
+/**
+ * Get the streaming flag from the encapsulated data set.
+ * @param pDataSet - the encapsulated source NNDataSetBase*
+ * @return a PyObject* that references the streaming integer
+ * @throws exception upon failure to parse arguments or to build the return value
+ */
+PyObject* NNDataSetAccessors::GetStreaming(PyObject* self, PyObject* args) {
+    NNDataSetBase* pDataSet = parsePtr<NNDataSetBase*>(args, "data set");
+    if (pDataSet == NULL) return NULL;
+    return Py_BuildValue("i", pDataSet->GetStreaming()); // bool to int conversion is implicit in C++
 }
 
 #endif
