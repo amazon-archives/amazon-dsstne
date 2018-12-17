@@ -1,0 +1,1 @@
+The results file (network.nc) for embedding training is written to this directory.

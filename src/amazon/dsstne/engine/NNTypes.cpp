@@ -1456,7 +1456,15 @@ template<typename T> bool NNDataSet<T>::CalculateSparseDatapointCounts()
             uint64_t count                      = _vSparseEnd[i] - _vSparseStart[i];
             for (size_t j = _vSparseStart[i]; j < _vSparseEnd[i]; j++)
             {
-                vCount[_vSparseIndex[j]]++;
+                try
+                {
+                    vCount.at(_vSparseIndex[j])++; // Ensure that vCount access is within the address range
+                }
+                catch (std::exception& e)
+                {
+                    cout << "NNDataSet::CalculateSparseDatapointCounts: vCount address = " << _vSparseIndex[j] << " >= vCount size = " << N << endl;
+                    std::rethrow_exception(std::current_exception());
+                }
             }
 
             bool bMulti = false;

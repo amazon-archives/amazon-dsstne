@@ -1,0 +1,1 @@
+Checkpoint files (check*.nc) for embedding training are written to this directory.
