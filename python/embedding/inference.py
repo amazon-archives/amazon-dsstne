@@ -33,7 +33,7 @@ DataSetList = dn.LoadNetCDF("eval.nc")
 
 # Load trained network
 if len(sys.argv) < 2:
-    TrainedNetwork = dn.LoadNeuralNetworkNetCDF("search_network.nc", batch)
+    TrainedNetwork = dn.LoadNeuralNetworkNetCDF("results/search_network.nc", batch)
 else:
     TrainedNetwork = dn.LoadNeuralNetworkJSON(sys.argv[1], batch)
 

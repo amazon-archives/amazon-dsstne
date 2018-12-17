@@ -1,0 +1,12 @@
+{
+    "Version" : 0.8,
+    "Name" : "Search Embeddings",
+    "Kind" : "FeedForward",  
+    "ShuffleIndices" : false,
+    "Layers" : [
+        { "Name" : "Input_asin", "Kind" : "Input", "N" : "auto", "DataSet" : "asin", "Sparse" : true },        
+        { "Name" : "Hidden_asin", "Kind" : "Hidden", "Type" : "FullyConnected", "Source" : "Input_asin", "N" : 256, "Activation" : "tanh", "BatchNormalization" : false }
+    ],
+        
+    "ErrorFunction" : "L2Hinge"
+}

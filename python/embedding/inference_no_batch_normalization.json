@@ -1,0 +1,14 @@
+{
+    "Version" : 0.8,
+    "Name" : "Prediction",
+    "Kind" : "FeedForward",  
+    "ShuffleIndices" : false,
+    "Layers" : [
+         
+        { "Name" : "Input_query", "Kind" : "Input", "N" : "auto", "DataSet" : "query", "Sparse" : true },        
+        { "Name" : "Hidden_query", "Kind" : "Hidden", "Type" : "FullyConnected", "Source" : "Input_query", "N" : 256, "Activation" : "tanh", "BatchNormalization" : false },
+        { "Name" : "Output_asin", "Kind" : "Output", "N" : "auto", "source" : "Hidden_query", "DataSet" : "target", "Sparse" : true, "Activation" : "linear" } 
+    ],
+        
+    "ErrorFunction" : "L2Hinge"
+}
