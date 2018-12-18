@@ -5,7 +5,7 @@
     "ShuffleIndices" : false,
     "Layers" : [
         { "Name" : "Input_asin", "Kind" : "Input", "N" : "auto", "DataSet" : "asin", "Sparse" : true },        
-        { "Name" : "Hidden_asin", "Kind" : "Hidden", "Type" : "FullyConnected", "Source" : "Input_asin", "N" : 256, "Activation" : "tanh", "BatchNormalization" : false }
+        { "Name" : "Hidden_asin", "Kind" : "Hidden", "Type" : "FullyConnected", "Source" : "Input_asin", "N" : 256, "Activation" : "tanh", "BatchNormalization" : true }
     ],
         
     "ErrorFunction" : "L2Hinge"
