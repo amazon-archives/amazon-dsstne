@@ -1,1 +1,1 @@
-The dsstne libraries that are created by the 'make install' command are copied from the ../build/lib/ directory and placed in the lib/lib/ directory.
+The dsstne libraries that are created by the 'make install' command are copied from the ../build/lib/ directory and placed in the lib/ directory.
