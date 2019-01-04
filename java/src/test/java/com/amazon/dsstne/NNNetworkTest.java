@@ -39,6 +39,7 @@ import com.amazon.dsstne.NNDataSetEnums.DataType;
 import com.amazon.dsstne.data.DenseNNDataSet;
 import com.amazon.dsstne.data.SparseNNDataSet;
 
+@Ignore
 public class NNNetworkTest {
     private static final String DIR_SUFFIX = "src/test/java/com/amazon/dsstne/test-data/";
     private final String networkFile = DIR_SUFFIX + "movielens_20m_autoencoder.nc";
