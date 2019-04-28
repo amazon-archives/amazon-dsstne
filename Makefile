@@ -21,8 +21,8 @@ runtime:
 tests:
 	cd tst && make
 
-java: | engine runtime tests
-	cd java && make
+#java: | engine runtime tests
+#	cd java && make
 
 install: all
 	mkdir -p $(PREFIX)
@@ -38,4 +38,4 @@ clean:
 	cd src/amazon/dsstne/utils && make clean
 	cd tst && make clean
 
-.PHONY: engine runtime tests java clean 
+#.PHONY: engine runtime tests java clean 
