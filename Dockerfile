@@ -54,4 +54,4 @@ RUN cd /opt/amazon/dsstne && \
 RUN rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
 # Add DSSTNE binaries to PATH
-ENV PATH=/opt/amazon/dsstne/src/amazon/dsstne/bin/:${PATH}
+ENV PATH=/opt/amazon/dsstne/bin/:${PATH}
