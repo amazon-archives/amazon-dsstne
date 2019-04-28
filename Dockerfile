@@ -47,7 +47,7 @@ ENV PATH=/usr/local/openmpi/bin/:${PATH} \
 
 # Build latest version of DSSTNE from source
 COPY . /opt/amazon/dsstne
-RUN cd /opt/amazon/dsstne/src/amazon/dsstne && \
+RUN cd /opt/amazon/dsstne && \
     make install
 
 # Cleanup
