@@ -98,7 +98,7 @@ void GpuContext::Startup(int argc, char** argv)
     if (gpuCount == 0)
     {
         printf("GpuContext::Startup: No CUDA-capable devices found, exiting.\n");
-        cudaThreadExit();
+        cudaDeviceReset();
         Shutdown();
         exit(-1);
     }
@@ -236,7 +236,7 @@ void GpuContext::Startup(int argc, char** argv)
     {
 
         printf("GpuContext::Startup: No Kepler or later GPU located, exiting.\n");      
-        cudaThreadExit();
+        cudaDeviceReset();
         Shutdown();
         exit(-1);
     }
@@ -246,7 +246,7 @@ void GpuContext::Startup(int argc, char** argv)
     status                                          = cudaSetDevice(device); 
     RTERROR(status, "GpuContext::Startup: Error setting CUDA device");  
     _device                                         = device;
-    cudaThreadSynchronize();
+    cudaDeviceSynchronize();
 
     // Create local accumulator
     _pbAccumulator.reset(new GpuBuffer<unsigned long long int>((unsigned int)1, true));
@@ -460,7 +460,7 @@ void GpuContext::Shutdown()
     printf("GpuContext::Shutdown: CuRand shut down on GPU for process %d\n", _device);
     
     // Exit CUDA
-    cudaThreadExit();
+    cudaDeviceReset();
 
     // Shut down MPI
     MPI_Finalize();

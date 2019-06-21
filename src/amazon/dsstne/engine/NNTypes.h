@@ -286,7 +286,7 @@ struct NNDataSetBase {
     virtual bool CalculateHingeOutputDelta(Activation activation, uint32_t position, uint32_t batch, uint32_t stride, NNFloat* pUnit, NNFloat* pDelta) = 0;
 
     /**
-     * Copies data from srcData to this dataset.
+     * Copies data from srcData to this dataset and uploads to GPU.
      * The length to copy is determined by the example size and stride
      * of this dataset. Only valid for dense and dense indexed datasets.
      * If the dataset is indexed this sets the unique data
@@ -296,12 +296,25 @@ struct NNDataSetBase {
     virtual void LoadDenseData(const void *srcData) = 0;
 
     /**
-     * Copies sparse data points from the specified src to this NNDataSet.
-     * Any existing data is overwritten.
+     * Copies data from srcData to this dataset but doesn't upload to GPU.
+     */
+    virtual void CopyDenseData(const void *srcData) = 0;
+
+    /**
+     * Copies sparse data points from the specified src to this NNDataSet
+     * and uploads to GPU. Any existing data is overwritten.
      * An exception is thrown if this dataset is not sparse.
      */
     virtual void LoadSparseData(const uint64_t *srcSparseStart, const uint64_t *srcSparseEnd, const void *srcSparseData,
-                       const uint32_t *srcSparseIndex) = 0;
+                                const uint32_t *srcSparseIndex) = 0;
+
+    /**
+     * Copies sparse data points from the specified src to this NNDataSet
+     * but doesn't upload to GPU. Any existing data is overwritten.
+     * An exception is thrown if this dataset is not sparse.
+     */
+    virtual void CopySparseData(const uint64_t *srcSparseStart, const uint64_t *srcSparseEnd, const void *srcSparseData,
+                                const uint32_t *srcSparseIndex) = 0;
 
     /**
      * Same as LoadSparseData(const uint64_t*, const uint64_t*, const void*, const uint32_t*) except that
@@ -312,6 +325,17 @@ struct NNDataSetBase {
      */
     virtual void LoadSparseData(const long *srcSparseStart, const long *srcSparseEnd, const void *srcSparseData,
                                 const long *srcSparseIndex) = 0;
+
+      /**
+     * Same as CopySparseData(const uint64_t*, const uint64_t*, const void*, const uint32_t*) except that
+     * it takes long* for the sparse start, end and indexes and casts them into
+     * uint64_t and uint32_t during load. It is up to the caller to ensure that the cast is bounds safe
+     * (e.g. no negative indexes). This method is useful when writing language extensions for those languages
+     * that do not have unsigned primitive types (e.g. Java).
+     */
+    virtual void CopySparseData(const long *srcSparseStart, const long *srcSparseEnd, const void *srcSparseData,
+                                const long *srcSparseIndex) = 0;
+
     /**
      * If this dataset is indexed, then sets the actual (unique) examples.
      * An exception is thrown if this dataset is not indexed.
@@ -422,11 +446,20 @@ public:
 
     void LoadDenseData(const void *srcData) override;
 
+    void CopyDenseData(const void *srcData) override;
+
     void LoadSparseData(const uint64_t *srcSparseStart, const uint64_t *srcSparseEnd, const void *srcSparseData,
-                       const uint32_t *srcSparseIndex) override;
+                        const uint32_t *srcSparseIndex) override;
+
+    void CopySparseData(const uint64_t *srcSparseStart, const uint64_t *srcSparseEnd, const void *srcSparseData,
+                        const uint32_t *srcSparseIndex) override;
 
     void LoadSparseData(const long *srcSparseStart, const long *srcSparseEnd, const void *srcSparseData,
-                                    const long *srcSparseIndex) override;
+                        const long *srcSparseIndex) override;
+
+    void CopySparseData(const long *srcSparseStart, const long *srcSparseEnd, const void *srcSparseData,
+                        const long *srcSparseIndex) override;
+
     void LoadIndexedData(const uint32_t *srcIndexedData) override;
 
     void LoadDataWeight(const NNFloat *srcWeightData) override;

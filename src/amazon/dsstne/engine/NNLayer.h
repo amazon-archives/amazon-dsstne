@@ -224,7 +224,7 @@ public:
     const string& GetDataSetName() const;
 
     NNLayer::Kind GetKind() const;
-
+    NNLayer::Type GetType() const;
     /**
      * Returns the attributes of the layer. The attributes can be masked with NNLayer::Attributes
      * to check whether the layer has a particular type of attribute.
