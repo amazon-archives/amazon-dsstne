@@ -2705,57 +2705,186 @@ void NNLayer::Reduce(uint32_t batch, uint32_t stride, NNFloat* pBuffer, uint32_t
     if (getGpu()._numprocs > 1)
     {
         uint32_t stages                             = getGpu()._numprocs - 1;
-        uint64_t pos                                = (getGpu()._id + 1) % getGpu()._numprocs; 
-        uint32_t minX                               = (stride * pos) / getGpu()._numprocs;
-        uint32_t maxX                               = (stride * (pos + 1)) / getGpu()._numprocs;
-        uint32_t span                               = maxX - minX;
         NNFloat* pSendBuffer                        = getGpu()._pNetwork->GetP2PSendBuffer();
 
         if (getGpu()._bP2P)
         {
-            NNFloat* pReceiveBuffer                 = getGpu()._pNetwork->GetP2PReceiveBuffer();
-            NNFloat* pPeerBuffer                    = getGpu()._pNetwork->GetPeerBuffer();
 
+#if 0    
+    {
+    MPI_Barrier(MPI_COMM_WORLD);
+    vector<NNFloat> vData(batch * stride);
+    cudaMemcpy(vData.data(), getGpu()._pNetwork->GetP2PSendBuffer(), batch * stride * sizeof(NNFloat), cudaMemcpyDefault);
+    for (size_t n = 0; n < getGpu()._numprocs; n++)
+    {
+        if (n == getGpu()._id)
+        {
+            for (size_t i = 0; i < batch; i++)
+            {
+                printf("%3lu: ", i);
+                {
+                    for (size_t j = 0; j < stride; j++)
+                    {
+                        vData[i * stride + j] = getGpu()._id + 1;                        
+                        printf("%8.6f ", vData[i * stride + j]);
+                    }
+                    printf("\n");
+                }
+            }
+            printf("\n");            
+        }
+        fflush(stdout);        
+        MPI_Barrier(MPI_COMM_WORLD);
+    }
+    cudaMemcpy(getGpu()._pNetwork->GetP2PSendBuffer(), vData.data(), batch * stride * sizeof(NNFloat), cudaMemcpyDefault);    
+    MPI_Barrier(MPI_COMM_WORLD);
+    }
+#endif 
+
+            // Initialize ring structures
+            vector<NNFloat*> vpReceiveBuffer(getGpu()._vP2PRings.size());
+            vector<NNFloat*> vpPeerBuffer(getGpu()._vP2PRings.size());
+            vector<NNFloat*> vpSendBuffer(getGpu()._vP2PRings.size());
+            vector<uint32_t> vBatch(getGpu()._vP2PRings.size());
+            vector<uint32_t> vMinX(getGpu()._vP2PRings.size());
+            vector<uint32_t> vMaxX(getGpu()._vP2PRings.size());
+            vector<uint32_t> vSpan(getGpu()._vP2PRings.size());     
+            vector<uint32_t> vPos(getGpu()._vP2PRings.size());
+            
+            for (size_t i = 0; i < getGpu()._vP2PRings.size(); i++)
+            {
+                uint32_t start = batch * getGpu()._vP2PRings[i].offset / getGpu()._totalP2PRank;
+                uint32_t end = batch * (getGpu()._vP2PRings[i].offset + getGpu()._vP2PRings[i].rank) / getGpu()._totalP2PRank;
+                vBatch[i] = end - start;
+                vpReceiveBuffer[i] = getGpu()._pNetwork->GetP2PReceiveBuffer() + start * stride;
+                vpPeerBuffer[i] = getGpu()._pNetwork->GetPeerBuffer(i) + start * stride;
+                vpSendBuffer[i] = getGpu()._pNetwork->GetP2PSendBuffer() + start * stride;
+                vPos[i] = (getGpu()._vP2PRings[i].position + 1) % getGpu()._numprocs;
+                int process = getGpu()._vP2PRings[i].v[vPos[i]];
+                vMinX[i] = (stride * process) / getGpu()._numprocs;
+                vMaxX[i] = (stride * (process + 1)) / getGpu()._numprocs;
+                vSpan[i] = vMaxX[i] - vMinX[i];
+               // cout << "LR: " << getGpu()._id << " " << i << " | " << batch << " " << start << " " << end << " | " << process << " " << vMinX[i] << " " << vMaxX[i] << " " << vSpan[i] << endl; 
+            }
+            //MPI_Barrier(MPI_COMM_WORLD);
+            //getGpu().Shutdown();
+            //exit(-1);
+                    
             // Send segments around the adding local contributions from each process
             for (uint32_t i = 0; i < stages; i++)
             {
-                kCopy2D(pPeerBuffer + minX, stride, pSendBuffer + minX, stride, span, batch);
+                for (int j = 0; j < getGpu()._vP2PRings.size(); j++)
+                {
+                    kCopy2D(vpPeerBuffer[j] + vMinX[j], stride, vpSendBuffer[j] + vMinX[j], stride, vSpan[j], vBatch[j], getGpu()._vP2PRings[j].stream);
+                }
                 cudaDeviceSynchronize();       
                 MPI_Barrier(MPI_COMM_WORLD);
         
                 // Move to next position and add just arrived contribution
-                pos                                 = (pos + 1) % getGpu()._numprocs;
-                minX                                = (stride * pos) / getGpu()._numprocs;
-                maxX                                = (stride * (pos + 1)) / getGpu()._numprocs;
-                span                                = maxX - minX;
-                kAddBuffers2D(pSendBuffer + minX, stride, pReceiveBuffer + minX, stride, span, batch);
+                for (int j = 0; j < getGpu()._vP2PRings.size(); j++)
+                {
+                    vPos[j]                                 = (vPos[j] + 1) % getGpu()._numprocs;
+                    int process                             = getGpu()._vP2PRings[j].v[vPos[j]];
+                    vMinX[j]                                = (stride * process) / getGpu()._numprocs;
+                    vMaxX[j]                                = (stride * (process + 1)) / getGpu()._numprocs;
+                    vSpan[j]                                = vMaxX[j] - vMinX[j];
+                    kAddBuffers2D(vpSendBuffer[j] + vMinX[j], stride, vpReceiveBuffer[j] + vMinX[j], stride, vSpan[j], vBatch[j], getGpu()._vP2PRings[j].stream);
+                }
             }
+            cudaDeviceSynchronize();
         }
         else
         {
             // Download to system memory and use MPI to perform reduction
             NNFloat* pCPUBuffer                     = getGpu()._pNetwork->GetP2PCPUBuffer();
             cudaError_t status                      = cudaMemcpy(pCPUBuffer, pSendBuffer, batch * stride * sizeof(NNFloat), cudaMemcpyDefault);
-            RTERROR(status, "NNLayer::Reduce1: cudaMemcpy download failed " + getGpu()._id );
+            RTERROR(status, "NNLayer::Reduce: cudaMemcpy download failed " + getGpu()._id );
             MPI_Allreduce(MPI_IN_PLACE, pCPUBuffer, batch * stride, MPI_NNFLOAT, MPI_SUM, MPI_COMM_WORLD);
 
             // Upload back to GPU memory
             status = cudaMemcpy(pSendBuffer, pCPUBuffer, batch * stride * sizeof(NNFloat), cudaMemcpyDefault);
-            RTERROR(status, "NNLayer::Reduce: cudaMemcpy upload failed" + getGpu()._id );
-            minX                                    = (stride * getGpu()._id) / getGpu()._numprocs;
-            maxX                                    = (stride * (getGpu()._id + 1)) / getGpu()._numprocs;
-            span                                    = maxX - minX;            
+            RTERROR(status, "NNLayer::Reduce: cudaMemcpy upload failed" + getGpu()._id );           
         }
 
         // Copy data out to pBuffer
+        uint32_t minX                               = (stride * getGpu()._id) / getGpu()._numprocs;
+        uint32_t maxX                               = (stride * (getGpu()._id + 1)) / getGpu()._numprocs;
+        uint32_t span                               = maxX - minX;        
         if (updateCount > 0) 
         {
-            kAddBuffers2D(pBuffer, localStride, pSendBuffer + minX, stride, span, batch);
+            kAddBuffers2D(pBuffer, localStride, getGpu()._pNetwork->GetP2PSendBuffer() + minX, stride, span, batch);
         }
         else 
         {
-            kCopy2D(pBuffer, localStride, pSendBuffer + minX, stride, span, batch);
+            kCopy2D(pBuffer, localStride, getGpu()._pNetwork->GetP2PSendBuffer() + minX, stride, span, batch);
         }
+        
+#if 0        
+        {
+            MPI_Barrier(MPI_COMM_WORLD);
+            vector<NNFloat> vData(batch * localStride);
+            cudaMemcpy(vData.data(), pBuffer, batch * localStride * sizeof(NNFloat), cudaMemcpyDefault);
+            for (size_t n = 0; n < getGpu()._numprocs; n++)
+            {
+                if (n == getGpu()._id)
+                {
+                    printf("RD %d | %d %d %d\n", getGpu()._id, minX, maxX, span);
+                    for (size_t i = 0; i < batch; i++)
+                    {
+                        printf("%3lu: ", i);
+                        {
+                            for (size_t j = 0; j < localStride; j++)
+                            {
+                                printf("%8.6f ", vData[i * localStride + j]);
+                            }
+                            printf("\n");
+                        }
+                    }
+                    printf("\n");
+                }
+                fflush(stdout);            
+                MPI_Barrier(MPI_COMM_WORLD);
+            }
+            MPI_Barrier(MPI_COMM_WORLD);
+            getGpu().Shutdown();
+            exit(-1);
+        }
+#endif         
+
+
+#if 0    
+    {
+    MPI_Barrier(MPI_COMM_WORLD);
+    vector<NNFloat> vData(batch * stride);
+    cudaMemcpy(vData.data(), getGpu()._pNetwork->GetP2PSendBuffer(), batch * stride * sizeof(NNFloat), cudaMemcpyDefault);
+    for (size_t n = 0; n < getGpu()._numprocs; n++)
+    {
+        if (n == getGpu()._id)
+        {
+            for (size_t i = 0; i < batch; i++)
+            {
+                printf("%3lu: ", i);
+                {
+                    for (size_t j = 0; j < stride; j++)
+                    {                      
+                        printf("%8.6f ", vData[i * stride + j]);
+                    }
+                    printf("\n");
+                }
+            }
+            printf("\n");            
+        }
+        fflush(stdout);        
+        MPI_Barrier(MPI_COMM_WORLD);
+    } 
+    MPI_Barrier(MPI_COMM_WORLD);
+            getGpu().Shutdown();
+            exit(-1);    
+    }
+#endif 
+
+        
+        
     }
 }
 
@@ -2766,15 +2895,66 @@ void NNLayer::Gather(uint32_t batch, uint32_t stride, NNFloat* pBuffer, uint32_t
     if (getGpu()._numprocs > 1)
     {
         uint32_t stages                                 = getGpu()._numprocs - 1;
-        uint64_t pos                                    = getGpu()._id;
+        uint64_t process                                = getGpu()._id;
         NNFloat* pSendBuffer                            = getGpu()._pNetwork->GetP2PSendBuffer();
-        uint32_t minX                                   = (stride * pos) / getGpu()._numprocs;
-        uint32_t maxX                                   = (stride * (pos + 1)) / getGpu()._numprocs;
+        uint32_t minX                                   = (stride * process) / getGpu()._numprocs;
+        uint32_t maxX                                   = (stride * (process + 1)) / getGpu()._numprocs;
         uint32_t span                                   = maxX - minX;
 
+#if 0        
+        {
+            MPI_Barrier(MPI_COMM_WORLD);
+            vector<NNFloat> vData(batch * localStride);
+            cudaMemcpy(vData.data(), pBuffer, batch * localStride * sizeof(NNFloat), cudaMemcpyDefault);
+            for (size_t n = 0; n < getGpu()._numprocs; n++)
+            {
+                if (n == getGpu()._id)
+                {
+                    for (size_t i = 0; i < batch; i++)
+                    {
+                        printf("%3lu: ", i);
+                        {
+                            for (size_t j = 0; j < localStride; j++)
+                            {
+                                vData[i * localStride + j] = getGpu()._id + 1;
+                                printf("%8.6f ", vData[i * localStride + j]);
+                            }
+                            printf("\n");
+                        }
+                    }
+                    printf("\n");
+                    fflush(stdout);            
+                }
+                MPI_Barrier(MPI_COMM_WORLD);
+            }
+            cudaMemcpy(pBuffer, vData.data(), batch * localStride * sizeof(NNFloat), cudaMemcpyDefault);
+            MPI_Barrier(MPI_COMM_WORLD);
+        }
+#endif        
+        
         if (getGpu()._bP2P)
         {
-            NNFloat* pPeerBuffer                        = getGpu()._pNetwork->GetPeerBackBuffer();
+            // Initialize ring structures
+            vector<NNFloat*> vpPeerBuffer(getGpu()._vP2PRings.size());
+            vector<NNFloat*> vpSendBuffer(getGpu()._vP2PRings.size());
+            vector<uint32_t> vBatch(getGpu()._vP2PRings.size());
+            vector<uint32_t> vMinX(getGpu()._vP2PRings.size());
+            vector<uint32_t> vMaxX(getGpu()._vP2PRings.size());
+            vector<uint32_t> vSpan(getGpu()._vP2PRings.size());   
+            vector<uint32_t> vPos(getGpu()._vP2PRings.size());            
+            
+            for (size_t i = 0; i < getGpu()._vP2PRings.size(); i++)
+            {
+                uint32_t start = batch * getGpu()._vP2PRings[i].offset / getGpu()._totalP2PRank;
+                uint32_t end = batch * (getGpu()._vP2PRings[i].offset + getGpu()._vP2PRings[i].rank) / getGpu()._totalP2PRank;
+                vBatch[i] = end - start;
+                vpPeerBuffer[i] = getGpu()._pNetwork->GetPeerBackBuffer(i) + start * stride;
+                vpSendBuffer[i] = getGpu()._pNetwork->GetP2PSendBuffer() + start * stride;
+                vPos[i] = getGpu()._vP2PRings[i].position;
+                vMinX[i] = minX;
+                vMaxX[i] = maxX;
+                vSpan[i] = span;
+            }
 
             // Insure Send Buffer is idle before commencing gather
             cudaDeviceSynchronize();  
@@ -2782,18 +2962,28 @@ void NNLayer::Gather(uint32_t batch, uint32_t stride, NNFloat* pBuffer, uint32_t
 
             // Copy local segment to send buffer
             kCopy2D(pSendBuffer + minX, stride, pBuffer, localStride, span, batch); 
-
-            // Send segments around the ring, adding local contributions from each process
+                       
+            // Send segments around the adding local contributions from each process
             for (uint32_t i = 0; i < stages; i++)
-            {                    
-                kCopy2D(pPeerBuffer + minX, stride, pSendBuffer + minX, stride, span, batch);
-                cudaDeviceSynchronize();  
+            {
+                for (int j = 0; j < getGpu()._vP2PRings.size(); j++)
+                {
+                    //printf("KCopy2D %2d %2d: %4d %4d %4d %4d\n", getGpu()._id, j, vMinX[j], vMaxX[j], vSpan[j], vBatch[j]);
+                    kCopy2D(vpPeerBuffer[j] + vMinX[j], stride, vpSendBuffer[j] + vMinX[j], stride, vSpan[j], vBatch[j], getGpu()._vP2PRings[j].stream);
+                }
+                cudaDeviceSynchronize();       
                 MPI_Barrier(MPI_COMM_WORLD);
-                pos                                     = (pos + 1) % getGpu()._numprocs;
-                minX                                    = (stride * pos) / getGpu()._numprocs;
-                maxX                                    = (stride * (pos + 1)) / getGpu()._numprocs;
-                span                                    = maxX - minX;
-            }
+        
+                // Move to next position and add just arrived contribution
+                for (int j = 0; j < getGpu()._vP2PRings.size(); j++)
+                {
+                    vPos[j]                                 = (vPos[j] + 1) % getGpu()._numprocs;                    
+                    int process                             = getGpu()._vP2PRings[j].v[vPos[j]];
+                    vMinX[j]                                = (stride * process) / getGpu()._numprocs;
+                    vMaxX[j]                                = (stride * (process + 1)) / getGpu()._numprocs;
+                    vSpan[j]                                = vMaxX[j] - vMinX[j];
+                }
+            }            
         }
         else
         {
@@ -2822,6 +3012,36 @@ void NNLayer::Gather(uint32_t batch, uint32_t stride, NNFloat* pBuffer, uint32_t
             RTERROR(status, "NNLayer::Gather: cudaMemcpy upload failed");
         }
     }
+#if 0    
+    {
+    MPI_Barrier(MPI_COMM_WORLD);
+    vector<NNFloat> vData(batch * stride);
+    cudaMemcpy(vData.data(), getGpu()._pNetwork->GetP2PSendBuffer(), batch * stride * sizeof(NNFloat), cudaMemcpyDefault);
+    for (size_t n = 0; n < getGpu()._numprocs; n++)
+    {
+        if (n == getGpu()._id)
+        {
+            for (size_t i = 0; i < batch; i++)
+            {
+                printf("%3lu: ", i);
+                {
+                    for (size_t j = 0; j < stride; j++)
+                    {
+                        printf("%8.6f ", vData[i * stride + j]);
+                    }
+                    printf("\n");
+                }
+            }
+            printf("\n");
+            fflush(stdout);            
+        }
+        MPI_Barrier(MPI_COMM_WORLD);
+    }
+    MPI_Barrier(MPI_COMM_WORLD);
+    getGpu().Shutdown();
+    exit(-1);
+    }
+#endif    
 }
 
 // Dumps unit or delta data to file

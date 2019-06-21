@@ -201,27 +201,27 @@ void NNNetwork::SetCUDNNWorkspace(size_t size)
 
 NNFloat* NNNetwork::GetP2PSendBuffer()
 {
-    return _pbP2PBuffer[_sendIndex]->_pDevData;
+    return _vpbP2PBuffer[_sendIndex]->_pDevData;
 }
 
 NNFloat* NNNetwork::GetP2PReceiveBuffer()
 {
-    return _pbP2PBuffer[_receiveIndex]->_pDevData;
+    return _vpbP2PBuffer[_receiveIndex]->_pDevData;
 }
 
 NNFloat* NNNetwork::GetP2PCPUBuffer()
 {
-    return _pCPUBuffer.get();
+    return _vCPUBuffer.data();
 }
 
-NNFloat* NNNetwork::GetPeerBuffer()
+NNFloat* NNNetwork::GetPeerBuffer(uint32_t i)
 {
-    return _pPeerBuffer[_receiveIndex];
+    return _vpPeerBuffer[i][_receiveIndex];
 }
 
-NNFloat* NNNetwork::GetPeerBackBuffer()
+NNFloat* NNNetwork::GetPeerBackBuffer(uint32_t i)
 {
-    return _pPeerBuffer[_sendIndex];
+    return _vpPeerBuffer[i][_sendIndex];
 }
 
 bool NNNetwork::SetLRN(NNFloat k, uint32_t n, NNFloat alpha, NNFloat beta)
@@ -445,9 +445,6 @@ _bDirty(true),
 _maxStride(0),
 _scratchBufferSize(0),
 _pbScratchBuffer(),
-_pPeerBuffer{NULL, NULL},
-_pbP2PBuffer(),
-_pCPUBuffer(),
 _sendIndex(0),
 _receiveIndex(1),
 _CUDNNWorkspaceSize(0),
@@ -2639,27 +2636,36 @@ void NNNetwork::DeallocatePeerBuffers()
         cudaDeviceSynchronize();
         MPI_Barrier(MPI_COMM_WORLD);
 
-        // Release peer data
-        for (size_t i = 0; i < 2; i++)
+        // Release peer data if allocated
+        if (_vpPeerBuffer.size() > 0)
         {
-            if (_pPeerBuffer[i] != NULL)
+            vector<bool> vbDeallocated(getGpu()._numprocs, false);
+            for (size_t i = 0; i < getGpu()._vP2PRings.size(); i++)
             {
-                cudaError_t status          = cudaIpcCloseMemHandle(_pPeerBuffer[i]);
-                RTERROR(status, "NNNetwork::DeallocatePeerBuffers: Error closing IpcMemHandle");
+                uint32_t peerPosition = (getGpu()._vP2PRings[i].position + getGpu()._numprocs - 1) % getGpu()._numprocs;
+                uint32_t peer = getGpu()._vP2PRings[i].v[peerPosition];
+                if (!vbDeallocated[peer])
+                {
+                    for (size_t j = 0; j < _vpPeerBuffer[i].size(); j++)
+                    {
+                        if (_vpPeerBuffer[i][j] != NULL)
+                        {
+                            cudaError_t status          = cudaIpcCloseMemHandle(_vpPeerBuffer[i][j]);
+                            RTERROR(status, "NNNetwork::DeallocatePeerBuffers: Error closing IpcMemHandle");
+                        }
+                    }
+                    vbDeallocated[peer] = true;
+                }
             }
         }
         MPI_Barrier(MPI_COMM_WORLD);
 
         // Release local data
-        for (size_t i = 0; i < 2; i++)
+        for (size_t i = 0; i < _vpbP2PBuffer.size(); i++)
         {
-            _pbP2PBuffer[i].reset();
+            _vpbP2PBuffer[i].reset();
         }
-
-        // Release MPI work buffer
-        _pCPUBuffer.reset();
     }
-
 }
 
 void NNNetwork::AllocatePeerBuffers()
@@ -2683,31 +2689,61 @@ void NNNetwork::AllocatePeerBuffers()
             maxMemory                       = _examples;
         }
 
-        // Allocate local data
-        for (size_t i = 0; i < 2; i++)
+        // Allocate local data for input and output layers (which will be shared across GPUs if P2P is active)
+        _vpbP2PBuffer.resize(2);
+        for (size_t i = 0; i < 2 ; i++)
         {
-            _pbP2PBuffer[i].reset(new GpuBuffer<NNFloat>(maxMemory));
+            _vpbP2PBuffer[i].reset(new GpuBuffer<NNFloat>(maxMemory));
         }
+        
+        // Resize peer buffers
+        _vpPeerBuffer.resize(getGpu()._vP2PRings.size());
+        for (size_t i = 0; i < getGpu()._vP2PRings.size() ; i++)
+        {  
+            _vpPeerBuffer[i].resize(2);
+        }      
 
         // Gather P2P data
         if (getGpu()._bP2P)
-        {
-            cudaIpcMemHandle_t* pMemHandle      = new cudaIpcMemHandle_t[2 * getGpu()._numprocs];
+        {       
+            vector<cudaIpcMemHandle_t> vMemHandle(2 * getGpu()._numprocs);
             size_t pos                          = getGpu()._id * 2;
-            cudaError_t status                  = cudaIpcGetMemHandle(&(pMemHandle[pos]), _pbP2PBuffer[0]->_pDevData);
+            cudaError_t status                  = cudaIpcGetMemHandle(&(vMemHandle[pos]), _vpbP2PBuffer[0]->_pDevData);
             RTERROR(status, "NNNetwork::AllocatePeerBuffers: Error getting first P2P IPCMemHandle");
-            status                              = cudaIpcGetMemHandle(&(pMemHandle[pos + 1]), _pbP2PBuffer[1]->_pDevData);
+            status                              = cudaIpcGetMemHandle(&(vMemHandle[pos + 1]), _vpbP2PBuffer[1]->_pDevData);
             RTERROR(status, "NNNetwork::AllocatePeerBuffers: Error getting second P2P IPCMemHandle");
-            MPI_Allgather(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL, pMemHandle, 2 * sizeof(cudaIpcMemHandle_t), MPI_BYTE, MPI_COMM_WORLD);
-            unsigned int peer                   = 2 * ((getGpu()._id + getGpu()._numprocs - 1) % getGpu()._numprocs);
-            status = cudaIpcOpenMemHandle((void**)&(_pPeerBuffer[0]), pMemHandle[peer], cudaIpcMemLazyEnablePeerAccess);
-            RTERROR(status, "NNNetwork::AllocatePeerBuffers: Unable to open first peer IPCMemHandle");
-            status = cudaIpcOpenMemHandle((void**)&(_pPeerBuffer[1]), pMemHandle[peer + 1], cudaIpcMemLazyEnablePeerAccess);
-            RTERROR(status, "NNNetwork::AllocatePeerBuffers: Unable to open second peer IPCMemHandle");
+            MPI_Allgather(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL, vMemHandle.data(), 2 * sizeof(cudaIpcMemHandle_t), MPI_BYTE, MPI_COMM_WORLD);
+            vector<NNFloat*> vPeerPointer(2 * getGpu()._numprocs, NULL);
+            for (size_t i = 0; i < getGpu()._vP2PRings.size(); i++)
+            {
+                int peerPosition           = (getGpu()._vP2PRings[i].position + getGpu()._numprocs - 1) % getGpu()._numprocs;
+                int peer                   = 2 * (getGpu()._vP2PRings[i].v[peerPosition]);
+                MPI_Barrier(MPI_COMM_WORLD);
+                if (vPeerPointer[peer] == NULL)
+                {
+                    status = cudaIpcOpenMemHandle((void**)&(_vpPeerBuffer[i][0]), vMemHandle[peer], cudaIpcMemLazyEnablePeerAccess);
+                    RTERROR(status, "NNNetwork::AllocatePeerBuffers: Unable to open first peer IPCMemHandle");
+                    vPeerPointer[peer] = _vpPeerBuffer[i][0];
+                }
+                else
+                {
+                    _vpPeerBuffer[i][0] = vPeerPointer[peer]; 
+                }
+                if (vPeerPointer[peer + 1] == NULL)
+                {                
+                    status = cudaIpcOpenMemHandle((void**)&(_vpPeerBuffer[i][1]), vMemHandle[peer + 1], cudaIpcMemLazyEnablePeerAccess);
+                    RTERROR(status, "NNNetwork::AllocatePeerBuffers: Unable to open second peer IPCMemHandle");
+                    vPeerPointer[peer + 1] = _vpPeerBuffer[i][1];
+                }
+                else
+                {
+                    _vpPeerBuffer[i][1] = vPeerPointer[peer + 1];                     
+                }
+            }
         }
         else
         {
-            _pCPUBuffer.reset(new NNFloat[maxMemory]);
+            _vCPUBuffer.resize(maxMemory);
         }
     }
 }
@@ -4059,9 +4095,34 @@ bool NNNetwork::P2P_Bcast(void* pBuffer, size_t size)
 {
     cudaError_t status;
 
-    // Skip if in single GPU mode
-    if (getGpu()._numprocs > 1)
+#if 0  
     {
+    MPI_Barrier(MPI_COMM_WORLD);
+    vector<uint8_t> vData(size);
+    cudaMemcpy(vData.data(), pBuffer, size, cudaMemcpyDefault);
+    for (size_t n = 0; n < getGpu()._numprocs; n++)
+    {
+        if (n == getGpu()._id)
+        {
+            printf("I %3lu: ", n);
+            for (size_t i = 0; i < size; i++)
+            {                  
+                printf("%3u ", vData[i]);
+            }
+            printf("\n\n");            
+        }
+        fflush(stdout);        
+        MPI_Barrier(MPI_COMM_WORLD);
+    }
+    cudaMemcpy(pBuffer, vData.data(), size, cudaMemcpyDefault);    
+    MPI_Barrier(MPI_COMM_WORLD);
+    }
+#endif 
+    
+
+    // Skip if in single GPU mode    
+    if (getGpu()._numprocs > 1)
+    { 
         if (getGpu()._bP2P)
         {
             // Special case 2 GPUs as a single copy
@@ -4069,13 +4130,13 @@ bool NNNetwork::P2P_Bcast(void* pBuffer, size_t size)
             {
                 if (getGpu()._id == 0)
                 {
-                    status                                  = cudaMemcpy(GetPeerBackBuffer(), pBuffer, size, cudaMemcpyDefault);
+                    status                                  = cudaMemcpy(GetPeerBackBuffer(0), pBuffer, size, cudaMemcpyDefault);
                     RTERROR(status, "NNNetwork::P2P_Bcast: Failure to copy source data to P2P backbuffer");
                 }
                 cudaDeviceSynchronize();
                 MPI_Barrier(MPI_COMM_WORLD);
             }
-            else // Scatter data to all other CPUs in numprocs chunks for numprocs * 2 - 2 stages
+            else // Scatter data to all other GPUs in numprocs chunks for numprocs * 2 - 2 stages
             {
                 // Copy source data to P2P send buffer if on process 0
                 if (getGpu()._id == 0)
@@ -4084,21 +4145,50 @@ bool NNNetwork::P2P_Bcast(void* pBuffer, size_t size)
                     RTERROR(status, "NNNetwork::P2P_Bcast: Failure to copy source data to P2P backbuffer");
                 }
 
+                
+                vector<uint32_t> vFirstStage(getGpu()._vP2PRings.size());
+                vector<uint32_t> vLastStage(getGpu()._vP2PRings.size());
+                vector<uint32_t> vSize(getGpu()._vP2PRings.size());
+                vector<uint32_t> vSegment(getGpu()._vP2PRings.size(), 0);
+                vector<uint8_t*> vpPeerBuffer(getGpu()._vP2PRings.size());
+                vector<uint8_t*> vpSendBuffer(getGpu()._vP2PRings.size());                
+                for (uint32_t i = 0; i < getGpu()._vP2PRings.size(); i++)               
+                {
+                    uint32_t first = getGpu()._vP2PRings[i].position;
+                    // Don't broadcast beyond end of ring
+                    if (first == 1)
+                        first = getGpu()._numprocs * 2;
+                    else
+                        first = (getGpu()._numprocs - first) % getGpu()._numprocs;
+                    vFirstStage[i] = first;
+                    vLastStage[i] = vFirstStage[i] + getGpu()._numprocs;
+                    uint32_t start = size * getGpu()._vP2PRings[i].offset / getGpu()._totalP2PRank;
+                    uint32_t end = size * (getGpu()._vP2PRings[i].offset + getGpu()._vP2PRings[i].rank) / getGpu()._totalP2PRank;
+                    vSize[i] = end - start;
+                    vpPeerBuffer[i] = (uint8_t*)GetPeerBackBuffer(i) + start;
+                    vpSendBuffer[i] = (uint8_t*)GetP2PSendBuffer() + start;
+                }
+                
+                
+                
                 uint32_t stages                             = 2 * getGpu()._numprocs - 2;
                 uint32_t distance                           = (getGpu()._numprocs - getGpu()._id) % getGpu()._numprocs;
                 uint64_t segment                            = 0;
                 for (uint32_t i = 0; i < stages; i++)
                 {
-                    // Send chunk if active
-                    if ((getGpu()._id != 1) &&  (i >= distance) && (segment < getGpu()._numprocs))
+                    for (uint32_t j = 0; j < getGpu()._vP2PRings.size(); j++)
                     {
-                        size_t start                        = (size * segment) / getGpu()._numprocs;
-                        size_t end                          = (size * (segment + 1)) / getGpu()._numprocs;
-                        status                              = cudaMemcpy((char*)GetPeerBackBuffer() + start, (char*)GetP2PSendBuffer() + start, end - start, cudaMemcpyDefault);
-                        RTERROR(status, "NNNetwork::P2P_Bcast: Failure to copy source data to P2P backbuffer");
-                        segment++;
+                        // Send chunk if active
+                        if ((i >= vFirstStage[j]) && (i < vLastStage[j]))
+                        {
+                            size_t start                        = (vSize[j] * vSegment[j]) / getGpu()._numprocs;
+                            size_t end                          = (vSize[j] * (vSegment[j] + 1)) / getGpu()._numprocs;
+                            vSegment[j]++;
+                            status                              = cudaMemcpyAsync(vpPeerBuffer[j] + start, vpSendBuffer[j]+ start, end - start, cudaMemcpyDefault, getGpu()._vP2PRings[j].stream);
+                            RTERROR(status, "NNNetwork::P2P_Bcast: Failure to copy source data to P2P backbuffer");
+                        }
                     }
-
+                    
                     // Wait for all copies to complete
                     cudaDeviceSynchronize();
                     MPI_Barrier(MPI_COMM_WORLD);
@@ -4112,13 +4202,39 @@ bool NNNetwork::P2P_Bcast(void* pBuffer, size_t size)
                 RTERROR(status, "NNNetwork::P2P_Bcast: Failure to copy source data from P2P sendbuffer");
             }
         }
-        else
+        else         
         {
-            cudaMemcpy(_pCPUBuffer.get(), pBuffer, size, cudaMemcpyDefault);
-            MPI_Bcast(_pCPUBuffer.get(), size, MPI_BYTE, 0, MPI_COMM_WORLD);
-            cudaMemcpy(pBuffer, _pCPUBuffer.get(), size, cudaMemcpyDefault);
+            cudaMemcpy(_vCPUBuffer.data(), pBuffer, size, cudaMemcpyDefault);
+            MPI_Bcast(_vCPUBuffer.data(), size, MPI_BYTE, 0, MPI_COMM_WORLD);
+            cudaMemcpy(pBuffer, _vCPUBuffer.data(), size, cudaMemcpyDefault);
         }
     }
+
+
+#if 0  
+    {
+    MPI_Barrier(MPI_COMM_WORLD);
+    vector<uint8_t> vData(size);
+    cudaMemcpy(vData.data(), pBuffer, size, cudaMemcpyDefault);
+    for (size_t n = 0; n < getGpu()._numprocs; n++)
+    {
+        if (n == getGpu()._id)
+        {
+            printf("O %3lu: ", n);
+            for (size_t i = 0; i < size; i++)
+            {                  
+                printf("%3u ", vData[i]);
+            }
+            printf("\n\n");            
+        }
+        fflush(stdout);        
+        MPI_Barrier(MPI_COMM_WORLD);
+    }
+    MPI_Barrier(MPI_COMM_WORLD);
+    getGpu().Shutdown();
+    exit(-1);    
+    }
+#endif     
 
     return true;
 }
@@ -4128,57 +4244,119 @@ bool NNNetwork::P2P_Allreduce(NNFloat* pBuffer, size_t size)
     // Skip if in single GPU mode
     if (getGpu()._numprocs > 1)
     {
+
+#if 0  
+    {
+    MPI_Barrier(MPI_COMM_WORLD);
+    vector<NNFloat> vData(size);
+    cudaMemcpy(vData.data(), pBuffer, size * sizeof(NNFloat), cudaMemcpyDefault);
+    for (size_t n = 0; n < getGpu()._numprocs; n++)
+    {
+        if (n == getGpu()._id)
+        {
+            printf("I %3lu: ", n);
+            for (size_t i = 0; i < size; i++)
+            {                  
+                printf("%8.6f ", vData[i]);
+            }
+            printf("\n\n");            
+        }
+        fflush(stdout);        
+        MPI_Barrier(MPI_COMM_WORLD);
+    }
+    cudaMemcpy(pBuffer, vData.data(), size * sizeof(NNFloat), cudaMemcpyDefault);    
+    MPI_Barrier(MPI_COMM_WORLD);
+    }
+#endif        
+        
+        
         if (getGpu()._bP2P)
         {
             // Special case 2 GPUs
             if (getGpu()._numprocs == 2)
             {
-                cudaMemcpy(GetPeerBuffer(), pBuffer, size * sizeof(NNFloat), cudaMemcpyDefault);
+                cudaMemcpy(GetPeerBuffer(0), pBuffer, size * sizeof(NNFloat), cudaMemcpyDefault);
                 cudaDeviceSynchronize();
                 MPI_Barrier(MPI_COMM_WORLD);
                 kAddBuffers(pBuffer, GetP2PReceiveBuffer(), size);
             }
             else
             {
-                uint32_t stages                         = getGpu()._numprocs - 1;
-                uint64_t segment                        = getGpu()._id;
-                uint64_t start                          = (size * segment) / getGpu()._numprocs;
-                uint64_t end                            = (size * (segment + 1)) / getGpu()._numprocs;
+                uint32_t stages                         = getGpu()._numprocs - 1;                
+                
+                // Initialize ring structures
+                vector<NNFloat*> vpBuffer(getGpu()._vP2PRings.size());
+                vector<NNFloat*> vpPeerBuffer(getGpu()._vP2PRings.size());
+                vector<NNFloat*> vpSendBuffer(getGpu()._vP2PRings.size());
+                vector<uint32_t> vSegment(getGpu()._vP2PRings.size());
+                vector<uint32_t> vStart(getGpu()._vP2PRings.size());
+                vector<uint32_t> vEnd(getGpu()._vP2PRings.size());
+                vector<uint32_t> vPos(getGpu()._vP2PRings.size());
+                for (size_t i = 0; i < getGpu()._vP2PRings.size(); i++)
+                {
+                    uint32_t start = size * getGpu()._vP2PRings[i].offset / getGpu()._totalP2PRank;
+                    uint32_t end = size * (getGpu()._vP2PRings[i].offset + getGpu()._vP2PRings[i].rank) / getGpu()._totalP2PRank;
+                    vSegment[i] = end - start;
+                    vpBuffer[i] = pBuffer + start;
+                    vpPeerBuffer[i] = getGpu()._pNetwork->GetPeerBackBuffer(i) + start;
+                    vpSendBuffer[i] = getGpu()._pNetwork->GetP2PSendBuffer() + start;
+                    vPos[i] = getGpu()._vP2PRings[i].position;
+                    vStart[i] = getGpu()._id * vSegment[i] / getGpu()._numprocs;
+                    vEnd[i] = (getGpu()._id + 1) * vSegment[i] / getGpu()._numprocs;
+                }
 
                 // Send segments around the adding local contributions from each process
                 for (uint32_t i = 0; i < stages; i++)
                 {
-
-                    if (i == 0)
-                        cudaMemcpy(GetPeerBuffer(), pBuffer + start, (end - start) * sizeof(NNFloat), cudaMemcpyDefault);
-                    else
-                        cudaMemcpy(GetPeerBuffer(), GetP2PSendBuffer(), (end - start) * sizeof(NNFloat), cudaMemcpyDefault);
+                    for (uint32_t j = 0; j < getGpu()._vP2PRings.size(); j++)
+                    {
+                        if (i == 0)
+                            cudaMemcpyAsync(vpPeerBuffer[j] + vStart[j], vpBuffer[j] + vStart[j], (vEnd[j] - vStart[j]) * sizeof(NNFloat), cudaMemcpyDefault, getGpu()._vP2PRings[j].stream);
+                        else
+                            cudaMemcpyAsync(vpPeerBuffer[j] + vStart[j], vpSendBuffer[j] + vStart[j], (vEnd[j] - vStart[j]) * sizeof(NNFloat), cudaMemcpyDefault, getGpu()._vP2PRings[j].stream);
+                    }
 
                     // Wait for completion
                     cudaDeviceSynchronize();
                     MPI_Barrier(MPI_COMM_WORLD);
-                    SwapPeerBuffers();
-                    segment                             = (segment + 1) % getGpu()._numprocs;
-                    start                               = (size * segment) / getGpu()._numprocs;
-                    end                                 = (size * (segment + 1)) / getGpu()._numprocs;
-                    kAddBuffers(GetP2PSendBuffer(), pBuffer + start, end - start);
+                    
+                    for (uint32_t j = 0; j < getGpu()._vP2PRings.size(); j++)
+                    {
+                        vPos[j]                             = (vPos[j] + 1) % getGpu()._numprocs;
+                        int process                         = getGpu()._vP2PRings[j].v[vPos[j]];
+                        vStart[j]                           = (vSegment[j] * process) / getGpu()._numprocs;
+                        vEnd[j]                             = (vSegment[j] * (process + 1)) / getGpu()._numprocs;
+                        kAddBuffers(vpSendBuffer[j] + vStart[j], vpBuffer[j] + vStart[j], vEnd[j] - vStart[j], getGpu()._vP2PRings[j].stream);
+                    }
                 }
 
                 // Circulate segments a second time and copy out results
-                cudaMemcpy(pBuffer + start, GetP2PSendBuffer(), (end - start) * sizeof(NNFloat), cudaMemcpyDefault);
+                for (uint32_t j = 0; j < getGpu()._vP2PRings.size(); j++)
+                {                
+                    cudaMemcpyAsync(vpBuffer[j] + vStart[j], vpSendBuffer[j] + vStart[j], (vEnd[j] - vStart[j]) * sizeof(NNFloat), cudaMemcpyDefault, getGpu()._vP2PRings[j].stream);
+                }
+                
                 for (uint32_t i = 0; i < stages; i++)
                 {
-                    cudaMemcpy(GetPeerBuffer(), GetP2PSendBuffer(), (end - start) * sizeof(NNFloat), cudaMemcpyDefault);
+                    for (uint32_t j = 0; j < getGpu()._vP2PRings.size(); j++)
+                    {
+                        cudaMemcpyAsync(vpPeerBuffer[j] + vStart[j], vpSendBuffer[j] + vStart[j], (vEnd[j] - vStart[j]) * sizeof(NNFloat), cudaMemcpyDefault, getGpu()._vP2PRings[j].stream);
+                    }
 
                     // Wait for completion
                     cudaDeviceSynchronize();
                     MPI_Barrier(MPI_COMM_WORLD);
-                    SwapPeerBuffers();
-                    segment                             = (segment + 1) % getGpu()._numprocs;
-                    start                               = (size * segment) / getGpu()._numprocs;
-                    end                                 = (size * (segment + 1)) / getGpu()._numprocs;
-                    cudaMemcpy(pBuffer + start, GetP2PSendBuffer(), (end - start) * sizeof(NNFloat), cudaMemcpyDefault);
+                    
+                    for (uint32_t j = 0; j < getGpu()._vP2PRings.size(); j++)
+                    {
+                        vPos[j]                             = (vPos[j] + 1) % getGpu()._numprocs;
+                        int process                         = getGpu()._vP2PRings[j].v[vPos[j]];
+                        vStart[j]                           = (vSegment[j] * process) / getGpu()._numprocs;
+                        vEnd[j]                             = (vSegment[j] * (process + 1)) / getGpu()._numprocs;                   
+                        cudaMemcpyAsync(vpBuffer[j] + vStart[j], vpSendBuffer[j] + vStart[j], (vEnd[j] - vStart[j]) * sizeof(NNFloat), cudaMemcpyDefault, getGpu()._vP2PRings[j].stream);
+                    }
                 }
+                cudaDeviceSynchronize();
             }
         }
         else
@@ -4187,10 +4365,35 @@ bool NNNetwork::P2P_Allreduce(NNFloat* pBuffer, size_t size)
             // but instead present for those who enjoy dancing bears.  This code will let you
             // run a bajillion GPUs over MPI, not very efficiently, but you could have
             // thousands of GPUs if you so desired.
-            cudaMemcpy(_pCPUBuffer.get(), pBuffer, size * sizeof(NNFloat), cudaMemcpyDefault);
-            MPI_Allreduce(MPI_IN_PLACE, _pCPUBuffer.get(), size, MPI_NNFLOAT, MPI_SUM, MPI_COMM_WORLD);
-            cudaMemcpy(pBuffer, _pCPUBuffer.get(), size * sizeof(NNFloat), cudaMemcpyDefault);
+            cudaMemcpy(_vCPUBuffer.data(), pBuffer, size * sizeof(NNFloat), cudaMemcpyDefault);
+            MPI_Allreduce(MPI_IN_PLACE, _vCPUBuffer.data(), size, MPI_NNFLOAT, MPI_SUM, MPI_COMM_WORLD);
+            cudaMemcpy(pBuffer, _vCPUBuffer.data(), size * sizeof(NNFloat), cudaMemcpyDefault);
         }
+#if 0  
+    {
+    MPI_Barrier(MPI_COMM_WORLD);
+    vector<NNFloat> vData(size);
+    cudaMemcpy(vData.data(), pBuffer, size * sizeof(NNFloat), cudaMemcpyDefault);
+    for (size_t n = 0; n < getGpu()._numprocs; n++)
+    {
+        if (n == getGpu()._id)
+        {
+            printf("O %3lu: ", n);
+            for (size_t i = 0; i < size; i++)
+            {                  
+                printf("%8.6f ", vData[i]);
+            }
+            printf("\n\n");            
+        }
+        fflush(stdout);        
+        MPI_Barrier(MPI_COMM_WORLD);
+    }
+    MPI_Barrier(MPI_COMM_WORLD);
+    getGpu().Shutdown();
+    exit(-1);    
+    }
+#endif     
+    
     }
     return true;
 }

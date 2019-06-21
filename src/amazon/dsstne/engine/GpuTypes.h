@@ -276,6 +276,29 @@ static const bool bShadowedOutputBuffers                        = false;    // T
         exit(-1); \
     }
 
+// Contains data for device or process rings for P2P rings
+struct P2PRing
+{
+    vector<uint32_t> v;
+    int position;
+    int rank;
+    int offset;
+    cudaStream_t stream;
+    
+    P2PRing() : rank(1), position(0), offset(0) {}
+};
+
+struct nvlink
+{
+    bool bActive;
+    int rank;
+    int used;
+    int channels;
+
+    nvlink() : bActive(false), rank(-1), used(0), channels(0) {}
+};
+
+
 // Contains information that needs to be accessible for GPU kernels and most static hyperparameters
 struct GpuData {
     unsigned int            _warpSize;                  // Warp size
@@ -384,7 +407,9 @@ struct GpuContext {
 
     // Single-node multi-gpu parameters
     bool                                _bSingleNode;               // Flag to indicate MPI run is all on one node
-    bool                                _bP2P;                      // Flag to indicate P2P connectivity between all processes
+    bool                                _bP2P;                      // Flag to indicate P2P connectivity is active
+    vector<P2PRing>                     _vP2PRings;                 // List of P2P rings for copies
+    int                                 _totalP2PRank;              // Total P2P channel rank
 
     // Methods
     GpuContext();

@@ -118,10 +118,10 @@ private:
     uint32_t                    _maxStride;                 // Maximum stride of all scattered/gathered network layers
     uint32_t                    _sendIndex;                 // Current send buffer index
     uint32_t                    _receiveIndex;              // Current receiver buffer index
-    unique_ptr<GpuBuffer<NNFloat>> _pbP2PBuffer[2];         // Peer buffer for sending/calculating peer data
-    NNFloat*                    _pPeerBuffer[2];            // Peer for receiving/reducing peer data
-    unique_ptr<NNFloat[]>       _pCPUBuffer;                // System memory work buffer for MPI copies
-
+    vector<unique_ptr<GpuBuffer<NNFloat>>> _vpbP2PBuffer;   // Peer buffer for sending/calculating peer data
+    vector<vector<NNFloat*>>    _vpPeerBuffer;              // Peer for receiving/reducing peer data
+    vector<NNFloat>             _vCPUBuffer;                // System memory work buffer for MPI copies
+    
     // CUDNN parameters
     size_t                      _CUDNNWorkspaceSize;        // Current size of cuDNN workspace
     size_t                      _maxCUDNNWorkspaceSize;     // Maximum requested size of cuDNN workspace
@@ -207,9 +207,9 @@ public:
     NNFloat* GetScratchBuffer(size_t size = 0);                                         // Gets current scratch buffer, resizing if too small
     NNFloat* GetP2PSendBuffer();                                                        // Returns current local send buffer
     NNFloat* GetP2PReceiveBuffer();                                                     // Returns current local receive buffer
-    NNFloat* GetP2PCPUBuffer();                                                         // Returns system memory work buffer
-    NNFloat* GetPeerBuffer();                                                           // Returns current adjacent peer receive buffer
-    NNFloat* GetPeerBackBuffer();                                                       // Returns current adjacent peer send buffer
+    NNFloat* GetP2PCPUBuffer();                                                         // Returns system memory work buffer    
+    NNFloat* GetPeerBuffer(uint32_t ring);                                              // Returns current adjacent peer receive buffer for supplied ring
+    NNFloat* GetPeerBackBuffer(uint32_t ring);                                          // Returns current adjacent peer send buffer for supplied ring
     bool P2P_Bcast(void* pBuffer, size_t size);                                         // Broadcasts data from process 0 to all other
     bool P2P_Allreduce(NNFloat* pBuffer, size_t size);                                  // Reduces buffer across all processes
 
