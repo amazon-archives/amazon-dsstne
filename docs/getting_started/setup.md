@@ -187,10 +187,10 @@ sudo apt-get install libcppunit-dev
 #### CUB Setup
 ```bash
 # Ubuntu/Linux 64-bit
-wget https://github.com/NVlabs/cub/archive/1.5.2.zip
+wget https://github.com/NVlabs/cub/archive/1.8.0.zip
 sudo apt-get install -y unzip
-unzip 1.5.2.zip
-sudo cp -rf cub-1.5.2/cub/ /usr/local/include/
+unzip 1.8.0.zip
+sudo cp -rf cub-1.8.0/cub/ /usr/local/include/
 ```
 
 #### cuDNN
