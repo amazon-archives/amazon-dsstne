@@ -11,6 +11,7 @@
  */
 
 #include "GpuTypes.h"
+#include "NcExcptionWrap.h"
 #include "NNTypes.h"
 #include "kernels.h"
 #include "Utils.h"
@@ -3786,28 +3787,28 @@ NNNetwork* LoadNeuralNetworkNetCDF(const string& fname, const uint32_t batch)
             NcGroupAtt versionAtt               = nc.getAtt("version");
             if (versionAtt.isNull())
             {
-                throw NcException("NcException", "NNNetwork::NNetwork: No version supplied in NetCDF input file " + fname, __FILE__, __LINE__);
+                throw NC_EXCEPTION("NcException", "NNNetwork::NNetwork: No version supplied in NetCDF input file " + fname, __FILE__, __LINE__);
             }
             versionAtt.getValues(&version);
 
             NcGroupAtt nameAtt                  = nc.getAtt("name");
             if (nameAtt.isNull())
             {
-                throw NcException("NcException", "NNetwork::NNetwork: No name supplied in NetCDF input file " + fname, __FILE__, __LINE__);
+                throw NC_EXCEPTION("NcException", "NNetwork::NNetwork: No name supplied in NetCDF input file " + fname, __FILE__, __LINE__);
             }
             nameAtt.getValues(nd._name);
 
             NcGroupAtt kindAtt                  = nc.getAtt("kind");
             if (nameAtt.isNull())
             {
-                throw NcException("NcException", "NNetwork::NNetwork: No kind supplied in NetCDF input file " + fname, __FILE__, __LINE__);
+                throw NC_EXCEPTION("NcException", "NNetwork::NNetwork: No kind supplied in NetCDF input file " + fname, __FILE__, __LINE__);
             }
             kindAtt.getValues(&(nd._kind));
 
             NcGroupAtt errorFunctionAtt         = nc.getAtt("errorFunction");
             if (errorFunctionAtt.isNull())
             {
-                throw NcException("NcException", "NNetwork::NNetwork: No error function supplied in NetCDF input file " + fname, __FILE__, __LINE__);
+                throw NC_EXCEPTION("NcException", "NNetwork::NNetwork: No error function supplied in NetCDF input file " + fname, __FILE__, __LINE__);
             }
             errorFunctionAtt.getValues(&(nd._errorFunction));
 
@@ -3822,42 +3823,42 @@ NNNetwork* LoadNeuralNetworkNetCDF(const string& fname, const uint32_t batch)
             NcGroupAtt maxout_kAtt              = nc.getAtt("maxout_k");
             if (maxout_kAtt.isNull())
             {
-                throw NcException("NcException", "NNetwork::NNetwork: No maxout_k supplied in NetCDF input file " + fname, __FILE__, __LINE__);
+                throw NC_EXCEPTION("NcException", "NNetwork::NNetwork: No maxout_k supplied in NetCDF input file " + fname, __FILE__, __LINE__);
             }
             maxout_kAtt.getValues(&(nd._maxout_k));
 
             NcGroupAtt LRN_kAtt                 = nc.getAtt("LRN_k");
             if (LRN_kAtt.isNull())
             {
-                throw NcException("NcException", "NNetwork::NNetwork: No LRN_k supplied in NetCDF input file " + fname, __FILE__, __LINE__);
+                throw NC_EXCEPTION("NcException", "NNetwork::NNetwork: No LRN_k supplied in NetCDF input file " + fname, __FILE__, __LINE__);
             }
             LRN_kAtt.getValues(&(nd._LRN_k));
 
             NcGroupAtt LRN_nAtt                 = nc.getAtt("LRN_n");
             if (LRN_nAtt.isNull())
             {
-                throw NcException("NcException", "NNetwork::NNetwork: No LRN_n supplied in NetCDF input file " + fname, __FILE__, __LINE__);
+                throw NC_EXCEPTION("NcException", "NNetwork::NNetwork: No LRN_n supplied in NetCDF input file " + fname, __FILE__, __LINE__);
             }
             LRN_nAtt.getValues(&(nd._LRN_n));
 
             NcGroupAtt LRN_alphaAtt             = nc.getAtt("LRN_alpha");
             if (LRN_alphaAtt.isNull())
             {
-                throw NcException("NcException", "NNetwork::NNetwork: No LRN_alpha supplied in NetCDF input file " + fname, __FILE__, __LINE__);
+                throw NC_EXCEPTION("NcException", "NNetwork::NNetwork: No LRN_alpha supplied in NetCDF input file " + fname, __FILE__, __LINE__);
             }
             LRN_alphaAtt.getValues(&(nd._LRN_alpha));
 
             NcGroupAtt LRN_betaAtt              = nc.getAtt("LRN_beta");
             if (LRN_betaAtt.isNull())
             {
-                throw NcException("NcException", "NNetwork::NNetwork: No LRN_beta supplied in NetCDF input file " + fname, __FILE__, __LINE__);
+                throw NC_EXCEPTION("NcException", "NNetwork::NNetwork: No LRN_beta supplied in NetCDF input file " + fname, __FILE__, __LINE__);
             }
             LRN_betaAtt.getValues(&(nd._LRN_beta));
 
             NcGroupAtt bSparsenessPenaltyAtt    = nc.getAtt("bSparsenessPenalty");
             if (bSparsenessPenaltyAtt.isNull())
             {
-                throw NcException("NcException", "NNetwork::NNetwork: No bSparsenessPenalty supplied in NetCDF input file " + fname, __FILE__, __LINE__);
+                throw NC_EXCEPTION("NcException", "NNetwork::NNetwork: No bSparsenessPenalty supplied in NetCDF input file " + fname, __FILE__, __LINE__);
             }
             uint32_t bSparsenessPenalty;
             bSparsenessPenaltyAtt.getValues(&bSparsenessPenalty);
@@ -3866,21 +3867,21 @@ NNNetwork* LoadNeuralNetworkNetCDF(const string& fname, const uint32_t batch)
             NcGroupAtt sparsenessPenalty_pAtt   = nc.getAtt("sparsenessPenalty_p");
             if (sparsenessPenalty_pAtt.isNull())
             {
-                throw NcException("NcException", "NNetwork::NNetwork: No sparsenessPenalty_p supplied in NetCDF input file " + fname, __FILE__, __LINE__);
+                throw NC_EXCEPTION("NcException", "NNetwork::NNetwork: No sparsenessPenalty_p supplied in NetCDF input file " + fname, __FILE__, __LINE__);
             }
             sparsenessPenalty_pAtt.getValues(&(nd._sparsenessPenalty_p));
 
             NcGroupAtt sparsenessPenalty_betaAtt= nc.getAtt("sparsenessPenalty_beta");
             if (sparsenessPenalty_betaAtt.isNull())
             {
-                throw NcException("NcException", "NNetwork::NNetwork: No sparsenessPenalty_beta supplied in NetCDF input file " + fname, __FILE__, __LINE__);
+                throw NC_EXCEPTION("NcException", "NNetwork::NNetwork: No sparsenessPenalty_beta supplied in NetCDF input file " + fname, __FILE__, __LINE__);
             }
             sparsenessPenalty_betaAtt.getValues(&(nd._sparsenessPenalty_beta));
 
             NcGroupAtt bDenoisingAtt            = nc.getAtt("bDenoising");
             if (bDenoisingAtt.isNull())
             {
-                throw NcException("NcException", "NNetwork::NNetwork: No bDenoising supplied in NetCDF input file " + fname, __FILE__, __LINE__);
+                throw NC_EXCEPTION("NcException", "NNetwork::NNetwork: No bDenoising supplied in NetCDF input file " + fname, __FILE__, __LINE__);
             }
             uint32_t bDenoising;
             bDenoisingAtt.getValues(&bDenoising);
@@ -3889,7 +3890,7 @@ NNNetwork* LoadNeuralNetworkNetCDF(const string& fname, const uint32_t batch)
             NcGroupAtt denoising_pAtt           = nc.getAtt("denoising_p");
             if (denoising_pAtt.isNull())
             {
-                throw NcException("NcException", "NNetwork::NNetwork: No denoising_p supplied in NetCDF input file " + fname, __FILE__, __LINE__);
+                throw NC_EXCEPTION("NcException", "NNetwork::NNetwork: No denoising_p supplied in NetCDF input file " + fname, __FILE__, __LINE__);
             }
             denoising_pAtt.getValues(&(nd._denoising_p));
 
@@ -3898,14 +3899,14 @@ NNNetwork* LoadNeuralNetworkNetCDF(const string& fname, const uint32_t batch)
             NcGroupAtt deltaBoost_oneAtt        = nc.getAtt("deltaBoost_one");
             if (deltaBoost_oneAtt.isNull())
             {
-                throw NcException("NcException", "NNetwork::NNetwork: No deltaBoost_one supplied in NetCDF input file " + fname, __FILE__, __LINE__);
+                throw NC_EXCEPTION("NcException", "NNetwork::NNetwork: No deltaBoost_one supplied in NetCDF input file " + fname, __FILE__, __LINE__);
             }
             deltaBoost_oneAtt.getValues(&(nd._deltaBoost_one));
 
             NcGroupAtt deltaBoost_zeroAtt       = nc.getAtt("deltaBoost_zero");
             if (deltaBoost_zeroAtt.isNull())
             {
-                throw NcException("NcException", "NNetwork::NNetwork: No deltaBoost_zero supplied in NetCDF input file " + fname, __FILE__, __LINE__);
+                throw NC_EXCEPTION("NcException", "NNetwork::NNetwork: No deltaBoost_zero supplied in NetCDF input file " + fname, __FILE__, __LINE__);
             }
             deltaBoost_zeroAtt.getValues(&(nd._deltaBoost_zero));
 
@@ -3913,35 +3914,35 @@ NNNetwork* LoadNeuralNetworkNetCDF(const string& fname, const uint32_t batch)
             NcGroupAtt SMCE_oneScaleAtt         = nc.getAtt("SMCE_oneScale");
             if (SMCE_oneScaleAtt.isNull())
             {
-                throw NcException("NcException", "NNetwork::NNetwork: No SMCE_oneScale supplied in NetCDF input file " + fname, __FILE__, __LINE__);
+                throw NC_EXCEPTION("NcException", "NNetwork::NNetwork: No SMCE_oneScale supplied in NetCDF input file " + fname, __FILE__, __LINE__);
             }
             SMCE_oneScaleAtt.getValues(&(nd._SMCE_oneScale));
 
             NcGroupAtt SMCE_zeroScaleAtt        = nc.getAtt("SMCE_zeroScale");
             if (SMCE_zeroScaleAtt.isNull())
             {
-                throw NcException("NcException", "NNetwork::NNetwork: No SMCE_zeroScale supplied in NetCDF input file " + fname, __FILE__, __LINE__);
+                throw NC_EXCEPTION("NcException", "NNetwork::NNetwork: No SMCE_zeroScale supplied in NetCDF input file " + fname, __FILE__, __LINE__);
             }
             SMCE_zeroScaleAtt.getValues(&(nd._SMCE_zeroScale));
 
             NcGroupAtt SMCE_oneTargetAtt        = nc.getAtt("SMCE_oneTarget");
             if (SMCE_oneTargetAtt.isNull())
             {
-                throw NcException("NcException", "NNetwork::NNetwork: No SMCE_oneTarget supplied in NetCDF input file " + fname, __FILE__, __LINE__);
+                throw NC_EXCEPTION("NcException", "NNetwork::NNetwork: No SMCE_oneTarget supplied in NetCDF input file " + fname, __FILE__, __LINE__);
             }
             SMCE_oneTargetAtt.getValues(&(nd._SMCE_oneTarget));
 
             NcGroupAtt SMCE_zeroTargetAtt       = nc.getAtt("SMCE_zeroTarget");
             if (SMCE_zeroTargetAtt.isNull())
             {
-                throw NcException("NcException", "NNetwork::NNetwork: No SMCE_zeroTarget supplied in NetCDF input file " + fname, __FILE__, __LINE__);
+                throw NC_EXCEPTION("NcException", "NNetwork::NNetwork: No SMCE_zeroTarget supplied in NetCDF input file " + fname, __FILE__, __LINE__);
             }
             SMCE_zeroTargetAtt.getValues(&(nd._SMCE_zeroTarget));
 
             NcGroupAtt checkpoint_nameAtt       = nc.getAtt("checkpoint_name");
             if (checkpoint_nameAtt.isNull())
             {
-                //throw NcException("NcException", "NNetwork::NNetwork: No checkpoint_name supplied in NetCDF input file " + fname, __FILE__, __LINE__);
+                //throw NC_EXCEPTION("NcException", "NNetwork::NNetwork: No checkpoint_name supplied in NetCDF input file " + fname, __FILE__, __LINE__);
                 // Use default value from constructor
             }
             else
@@ -3950,7 +3951,7 @@ NNNetwork* LoadNeuralNetworkNetCDF(const string& fname, const uint32_t batch)
             NcGroupAtt checkpoint_intervalAtt   = nc.getAtt("checkpoint_interval");
             if (checkpoint_intervalAtt.isNull())
             {
-                //throw NcException("NcException", "NNetwork::NNetwork: No checkpoint_interval supplied in NetCDF input file " + fname, __FILE__, __LINE__);
+                //throw NC_EXCEPTION("NcException", "NNetwork::NNetwork: No checkpoint_interval supplied in NetCDF input file " + fname, __FILE__, __LINE__);
                 // Use default value from constructor
             }
             else
@@ -3959,7 +3960,7 @@ NNNetwork* LoadNeuralNetworkNetCDF(const string& fname, const uint32_t batch)
             NcGroupAtt checkpoint_epochsAtt     = nc.getAtt("checkpoint_epochs");
             if (checkpoint_epochsAtt.isNull())
             {
-                //throw NcException("NcException", "NNetwork::NNetwork: No checkpoint_epochs supplied in NetCDF input file " + fname, __FILE__, __LINE__);
+                //throw NC_EXCEPTION("NcException", "NNetwork::NNetwork: No checkpoint_epochs supplied in NetCDF input file " + fname, __FILE__, __LINE__);
                 // Use default value from constructor
             }
             else
@@ -3969,7 +3970,7 @@ NNNetwork* LoadNeuralNetworkNetCDF(const string& fname, const uint32_t batch)
             NcGroupAtt shuffleIndicesAtt        = nc.getAtt("ShuffleIndices");
             if (shuffleIndicesAtt.isNull())
             {
-                throw NcException("NcException", "NNetwork::NNetwork: No shuffleIndices supplied in NetCDF input file " + fname, __FILE__, __LINE__);
+                throw NC_EXCEPTION("NcException", "NNetwork::NNetwork: No shuffleIndices supplied in NetCDF input file " + fname, __FILE__, __LINE__);
             }
             uint32_t bShuffleIndices;
             shuffleIndicesAtt.getValues(&bShuffleIndices);
@@ -3979,7 +3980,7 @@ NNNetwork* LoadNeuralNetworkNetCDF(const string& fname, const uint32_t batch)
             NcGroupAtt layersAtt                = nc.getAtt("layers");
             if (layersAtt.isNull())
             {
-                throw NcException("NcException", "NNetwork::NNetwork: No layers supplied in NetCDF input file " + fname, __FILE__, __LINE__);
+                throw NC_EXCEPTION("NcException", "NNetwork::NNetwork: No layers supplied in NetCDF input file " + fname, __FILE__, __LINE__);
             }
             layersAtt.getValues(&layers);
 
@@ -3989,7 +3990,7 @@ NNNetwork* LoadNeuralNetworkNetCDF(const string& fname, const uint32_t batch)
                 NNLayerDescriptor ld;
                 if (!LoadNNLayerDescriptorNetCDF(fname, nc, i, ld))
                 {
-                    throw NcException("NcException", "NNetwork::NNetwork: Error reading layer data in NetCDF input file " + fname, __FILE__, __LINE__);
+                    throw NC_EXCEPTION("NcException", "NNetwork::NNetwork: Error reading layer data in NetCDF input file " + fname, __FILE__, __LINE__);
                 }
                 nd._vLayerDescriptor.push_back(ld);
             }
@@ -3998,7 +3999,7 @@ NNNetwork* LoadNeuralNetworkNetCDF(const string& fname, const uint32_t batch)
             NcGroupAtt weightsAtt               = nc.getAtt("weights");
             if (weightsAtt.isNull())
             {
-                throw NcException("NcException", "NNetwork::NNetwork: No weights supplied in NetCDF input file " + fname, __FILE__, __LINE__);
+                throw NC_EXCEPTION("NcException", "NNetwork::NNetwork: No weights supplied in NetCDF input file " + fname, __FILE__, __LINE__);
             }
             weightsAtt.getValues(&weights);
 
@@ -4008,7 +4009,7 @@ NNNetwork* LoadNeuralNetworkNetCDF(const string& fname, const uint32_t batch)
                 NNWeightDescriptor wd;
                 if (!LoadNNWeightDescriptorNetCDF(fname, nc, i, wd))
                 {
-                    throw NcException("NcException", "NNetwork::NNetwork: Error reading weight data in NetCDF input file " + fname, __FILE__, __LINE__);
+                    throw NC_EXCEPTION("NcException", "NNetwork::NNetwork: Error reading weight data in NetCDF input file " + fname, __FILE__, __LINE__);
                 }
                 nd._vWeightDescriptor.push_back(wd);
             }

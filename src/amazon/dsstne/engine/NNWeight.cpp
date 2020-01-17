@@ -11,6 +11,7 @@
  */
 
 #include "GpuTypes.h"
+#include "NcExcptionWrap.h"
 #include "NNTypes.h"
 #include "kernels.h"
 #define __STDC_FORMAT_MACROS
@@ -97,21 +98,21 @@ bool LoadNNWeightDescriptorNetCDF(const string& fname, netCDF::NcFile& nc, uint3
             NcGroupAtt inputLayerAtt            = nc.getAtt(wstring + "inputLayer");
             if (inputLayerAtt.isNull())
             {
-                throw NcException("NcException", "No input layer supplied in NetCDF input file " + fname, __FILE__, __LINE__);
+                throw NC_EXCEPTION("NcException", "No input layer supplied in NetCDF input file " + fname, __FILE__, __LINE__);
             }
             inputLayerAtt.getValues(wd._inputLayer);  
 
             NcGroupAtt outputLayerAtt           = nc.getAtt(wstring + "outputLayer");
             if (outputLayerAtt.isNull())
             {
-                throw NcException("NcException", "No output layer supplied in NetCDF input file " + fname, __FILE__, __LINE__);
+                throw NC_EXCEPTION("NcException", "No output layer supplied in NetCDF input file " + fname, __FILE__, __LINE__);
             }
             outputLayerAtt.getValues(wd._outputLayer);
 
             NcGroupAtt normAtt                  = nc.getAtt(wstring + "norm");
             if (normAtt.isNull())
             {
-                //throw NcException("NcException", "No norm supplied in NetCDF input file " + fname, __FILE__, __LINE__);
+                //throw NC_EXCEPTION("NcException", "No norm supplied in NetCDF input file " + fname, __FILE__, __LINE__);
                 wd._norm                        = (NNFloat)0.0;
             }
             else
@@ -120,7 +121,7 @@ bool LoadNNWeightDescriptorNetCDF(const string& fname, netCDF::NcFile& nc, uint3
             NcGroupAtt bSharedAtt               = nc.getAtt(wstring + "bShared");
             if (bSharedAtt.isNull())
             {
-                throw NcException("NcException", "No bShared supplied in NetCDF input file " + fname, __FILE__, __LINE__);
+                throw NC_EXCEPTION("NcException", "No bShared supplied in NetCDF input file " + fname, __FILE__, __LINE__);
             }
             uint32_t bShared;
             bSharedAtt.getValues(&bShared);
@@ -132,19 +133,19 @@ bool LoadNNWeightDescriptorNetCDF(const string& fname, netCDF::NcFile& nc, uint3
                 NcGroupAtt sourceInputLayerAtt  = nc.getAtt(wstring + "sourceInputLayer");
                 if (sourceInputLayerAtt.isNull())
                 {
-                    throw NcException("NcException", "No sourceInputLayer for shared weights supplied in NetCDF input file " + fname, __FILE__, __LINE__);
+                    throw NC_EXCEPTION("NcException", "No sourceInputLayer for shared weights supplied in NetCDF input file " + fname, __FILE__, __LINE__);
                 }
                 sourceInputLayerAtt.getValues(wd._sourceInputLayer);
                 NcGroupAtt sourceOutputLayerAtt = nc.getAtt(wstring + "sourceOutputLayer");
                 if (sourceInputLayerAtt.isNull())
                 {
-                    throw NcException("NcException", "No sourceOutputLayer for shared weights supplied in NetCDF input file " + fname, __FILE__, __LINE__);
+                    throw NC_EXCEPTION("NcException", "No sourceOutputLayer for shared weights supplied in NetCDF input file " + fname, __FILE__, __LINE__);
                 }
                 sourceOutputLayerAtt.getValues(wd._sourceOutputLayer);
                 NcGroupAtt bTransposedAtt       = nc.getAtt(wstring + "bTransposed");
                 if (bTransposedAtt.isNull())
                 {
-                    throw NcException("NcException", "No bTransposed for shared weights supplied in NetCDF input file " + fname, __FILE__, __LINE__);
+                    throw NC_EXCEPTION("NcException", "No bTransposed for shared weights supplied in NetCDF input file " + fname, __FILE__, __LINE__);
                 }
                 uint32_t bTransposed;
                 bTransposedAtt.getValues(&bTransposed);
@@ -166,35 +167,35 @@ bool LoadNNWeightDescriptorNetCDF(const string& fname, netCDF::NcFile& nc, uint3
             NcGroupAtt widthAtt                 = nc.getAtt(wstring + "width");
             if (widthAtt.isNull())
             {
-                throw NcException("NcException", "No weight width supplied in NetCDF input file " + fname, __FILE__, __LINE__);
+                throw NC_EXCEPTION("NcException", "No weight width supplied in NetCDF input file " + fname, __FILE__, __LINE__);
             }
             widthAtt.getValues(&wd._width);
 
             NcGroupAtt heightAtt                = nc.getAtt(wstring + "height");
             if (heightAtt.isNull())
             {
-                throw NcException("NcException", "No weight height supplied in NetCDF input file " + fname, __FILE__, __LINE__);
+                throw NC_EXCEPTION("NcException", "No weight height supplied in NetCDF input file " + fname, __FILE__, __LINE__);
             }
             heightAtt.getValues(&wd._height);
 
             NcGroupAtt lengthAtt                = nc.getAtt(wstring + "length");
             if (lengthAtt.isNull())
             {
-                throw NcException("NcException", "No weight length supplied in NetCDF input file " + fname, __FILE__, __LINE__);
+                throw NC_EXCEPTION("NcException", "No weight length supplied in NetCDF input file " + fname, __FILE__, __LINE__);
             }
             lengthAtt.getValues(&wd._length);
             
             NcGroupAtt depthAtt                 = nc.getAtt(wstring + "depth");
             if (depthAtt.isNull())
             {
-                throw NcException("NcException", "No weight depth supplied in NetCDF input file " + fname, __FILE__, __LINE__);
+                throw NC_EXCEPTION("NcException", "No weight depth supplied in NetCDF input file " + fname, __FILE__, __LINE__);
             }
             depthAtt.getValues(&wd._depth);
             
             NcGroupAtt breadthAtt               = nc.getAtt(wstring + "breadth");
             if (breadthAtt.isNull())
             {
-                throw NcException("NcException", "No weight breadth supplied in NetCDF input file " + fname, __FILE__, __LINE__);
+                throw NC_EXCEPTION("NcException", "No weight breadth supplied in NetCDF input file " + fname, __FILE__, __LINE__);
             }
             breadthAtt.getValues(&wd._breadth);                        
 

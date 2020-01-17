@@ -11,6 +11,7 @@
  */
 
 #include "GpuTypes.h"
+#include "NcExcptionWrap.h"
 #include "NNTypes.h"
 #include "kernels.h"
 #define __STDC_FORMAT_MACROS
@@ -3007,21 +3008,21 @@ bool LoadNNLayerDescriptorNetCDF(const string& fname, netCDF::NcFile& nc, uint32
             NcGroupAtt nameAtt                  = nc.getAtt(lstring + "name");
             if (nameAtt.isNull())
             {
-                throw NcException("NcException", "NNLayer::NNLayer: No name supplied in NetCDF input file " + fname, __FILE__, __LINE__);
+                throw NC_EXCEPTION("NcException", "NNLayer::NNLayer: No name supplied in NetCDF input file " + fname, __FILE__, __LINE__);
             }
             nameAtt.getValues(ld._name);
 
             NcGroupAtt kindAtt                  = nc.getAtt(lstring + "kind");
             if (kindAtt.isNull())
             {
-                throw NcException("NcException", "NNLayer::NNLayer: No kind supplied in NetCDF input file " + fname, __FILE__, __LINE__);
+                throw NC_EXCEPTION("NcException", "NNLayer::NNLayer: No kind supplied in NetCDF input file " + fname, __FILE__, __LINE__);
             }
             kindAtt.getValues(&ld._kind);
 
             NcGroupAtt typeAtt                  = nc.getAtt(lstring + "type");
             if (typeAtt.isNull())
             {
-                throw NcException("NcException", "NNLayer::NNLayer: No type supplied in NetCDF input file " + fname, __FILE__, __LINE__);
+                throw NC_EXCEPTION("NcException", "NNLayer::NNLayer: No type supplied in NetCDF input file " + fname, __FILE__, __LINE__);
             }
             typeAtt.getValues(&ld._type);
             
@@ -3029,7 +3030,7 @@ bool LoadNNLayerDescriptorNetCDF(const string& fname, netCDF::NcFile& nc, uint32
             if (poolingFunctionAtt.isNull())
             {
                 if (ld._type == NNLayer::Type::Pooling)
-                    throw NcException("NcException", "NNLayer::NNLayer: No pooling function supplied in NetCDF input file " + fname, __FILE__, __LINE__);
+                    throw NC_EXCEPTION("NcException", "NNLayer::NNLayer: No pooling function supplied in NetCDF input file " + fname, __FILE__, __LINE__);
                 ld._poolingFunction             = None;
             }
             else
@@ -3038,84 +3039,84 @@ bool LoadNNLayerDescriptorNetCDF(const string& fname, netCDF::NcFile& nc, uint32
             NcGroupAtt dataSetAtt               = nc.getAtt(lstring + "dataSet");
             if (dataSetAtt.isNull())
             {
-                throw NcException("NcException", "NNLayer::NNLayer: No dataSet supplied in NetCDF input file " + fname, __FILE__, __LINE__);
+                throw NC_EXCEPTION("NcException", "NNLayer::NNLayer: No dataSet supplied in NetCDF input file " + fname, __FILE__, __LINE__);
             }
             dataSetAtt.getValues(ld._dataSet);
 
             NcGroupAtt NxAtt                    = nc.getAtt(lstring + "Nx");
             if (NxAtt.isNull())
             {
-                throw NcException("NcException", "NNLayer::NNLayer: No Nx supplied in NetCDF input file " + fname, __FILE__, __LINE__);
+                throw NC_EXCEPTION("NcException", "NNLayer::NNLayer: No Nx supplied in NetCDF input file " + fname, __FILE__, __LINE__);
             }
             NxAtt.getValues(&ld._Nx);
 
             NcGroupAtt NyAtt                    = nc.getAtt(lstring + "Ny");
             if (NyAtt.isNull())
             {
-                throw NcException("NcException", "NNLayer::NNLayer: No Ny supplied in NetCDF input file " + fname, __FILE__, __LINE__);
+                throw NC_EXCEPTION("NcException", "NNLayer::NNLayer: No Ny supplied in NetCDF input file " + fname, __FILE__, __LINE__);
             }
             NyAtt.getValues(&ld._Ny);
 
             NcGroupAtt NzAtt                    = nc.getAtt(lstring + "Nz");
             if (NzAtt.isNull())
             {
-                throw NcException("NcException", "NNLayer::NNLayer: No Nz supplied in NetCDF input file " + fname, __FILE__, __LINE__);
+                throw NC_EXCEPTION("NcException", "NNLayer::NNLayer: No Nz supplied in NetCDF input file " + fname, __FILE__, __LINE__);
             }
             NzAtt.getValues(&ld._Nz);
 
             NcGroupAtt NwAtt                    = nc.getAtt(lstring + "Nw");
             if (NwAtt.isNull())
             {
-                throw NcException("NcException", "NNLayer::NNLayer: No Nw supplied in NetCDF input file " + fname, __FILE__, __LINE__);
+                throw NC_EXCEPTION("NcException", "NNLayer::NNLayer: No Nw supplied in NetCDF input file " + fname, __FILE__, __LINE__);
             }
             NwAtt.getValues(&ld._Nw);
 
             NcGroupAtt dimensionsAtt            = nc.getAtt(lstring + "dimensions");
             if (dimensionsAtt.isNull())
             {
-                throw NcException("NcException", "NNLayer::NNLayer: No dimensions supplied in NetCDF input file " + fname, __FILE__, __LINE__);
+                throw NC_EXCEPTION("NcException", "NNLayer::NNLayer: No dimensions supplied in NetCDF input file " + fname, __FILE__, __LINE__);
             }
             dimensionsAtt.getValues(&ld._dimensions);
 
             NcGroupAtt kernelXAtt               = nc.getAtt(lstring + "kernelX");
             if (kernelXAtt.isNull())
             {
-                throw NcException("NcException", "NNLayer::NNLayer: No kernelX supplied in NetCDF input file " + fname, __FILE__, __LINE__);
+                throw NC_EXCEPTION("NcException", "NNLayer::NNLayer: No kernelX supplied in NetCDF input file " + fname, __FILE__, __LINE__);
             }
             kernelXAtt.getValues(&ld._kernelX);
 
             NcGroupAtt kernelYAtt               = nc.getAtt(lstring + "kernelY");
             if (kernelYAtt.isNull())
             {
-                throw NcException("NcException", "NNLayer::NNLayer: No kernelY supplied in NetCDF input file " + fname, __FILE__, __LINE__);
+                throw NC_EXCEPTION("NcException", "NNLayer::NNLayer: No kernelY supplied in NetCDF input file " + fname, __FILE__, __LINE__);
             }
             kernelYAtt.getValues(&ld._kernelY);
 
             NcGroupAtt kernelZAtt               = nc.getAtt(lstring + "kernelZ");
             if (kernelZAtt.isNull())
             {
-                throw NcException("NcException", "NNLayer::NNLayer: No kernelZ supplied in NetCDF input file " + fname, __FILE__, __LINE__);
+                throw NC_EXCEPTION("NcException", "NNLayer::NNLayer: No kernelZ supplied in NetCDF input file " + fname, __FILE__, __LINE__);
             }
             kernelZAtt.getValues(&ld._kernelZ);
 
             NcGroupAtt kernelStrideXAtt         = nc.getAtt(lstring + "kernelStrideX");
             if (kernelStrideXAtt.isNull())
             {
-                throw NcException("NcException", "NNLayer::NNLayer: No kernelStrideX supplied in NetCDF input file " + fname, __FILE__, __LINE__);
+                throw NC_EXCEPTION("NcException", "NNLayer::NNLayer: No kernelStrideX supplied in NetCDF input file " + fname, __FILE__, __LINE__);
             }
             kernelStrideXAtt.getValues(&ld._kernelStrideX);
 
             NcGroupAtt kernelStrideYAtt         = nc.getAtt(lstring + "kernelStrideY");
             if (kernelStrideYAtt.isNull())
             {
-                throw NcException("NcException", "NNLayer::NNLayer: No kernelStrideY supplied in NetCDF input file " + fname, __FILE__, __LINE__);
+                throw NC_EXCEPTION("NcException", "NNLayer::NNLayer: No kernelStrideY supplied in NetCDF input file " + fname, __FILE__, __LINE__);
             }
             kernelStrideYAtt.getValues(&ld._kernelStrideY);
 
             NcGroupAtt kernelStrideZAtt         = nc.getAtt(lstring + "kernelStrideZ");
             if (kernelStrideZAtt.isNull())
             {
-                throw NcException("NcException", "NNLayer::NNLayer: No kernelStrideZ supplied in NetCDF input file " + fname, __FILE__, __LINE__);
+                throw NC_EXCEPTION("NcException", "NNLayer::NNLayer: No kernelStrideZ supplied in NetCDF input file " + fname, __FILE__, __LINE__);
             }
             kernelStrideZAtt.getValues(&ld._kernelStrideZ);
 
@@ -3123,35 +3124,35 @@ bool LoadNNLayerDescriptorNetCDF(const string& fname, netCDF::NcFile& nc, uint32
             NcGroupAtt kernelPaddingXAtt        = nc.getAtt(lstring + "kernelPaddingX");
             if (kernelPaddingXAtt.isNull())
             {
-                throw NcException("NcException", "NNLayer::NNLayer: No kernelPaddingX supplied in NetCDF input file " + fname, __FILE__, __LINE__);
+                throw NC_EXCEPTION("NcException", "NNLayer::NNLayer: No kernelPaddingX supplied in NetCDF input file " + fname, __FILE__, __LINE__);
             }
             kernelPaddingXAtt.getValues(&ld._kernelPaddingX);
 
             NcGroupAtt kernelPaddingYAtt        = nc.getAtt(lstring + "kernelPaddingY");
             if (kernelPaddingYAtt.isNull())
             {
-                throw NcException("NcException", "NNLayer::NNLayer: No kernelPaddingY supplied in NetCDF input file " + fname, __FILE__, __LINE__);
+                throw NC_EXCEPTION("NcException", "NNLayer::NNLayer: No kernelPaddingY supplied in NetCDF input file " + fname, __FILE__, __LINE__);
             }
             kernelPaddingYAtt.getValues(&ld._kernelPaddingY);
 
             NcGroupAtt kernelPaddingZAtt        = nc.getAtt(lstring + "kernelPaddingZ");
             if (kernelPaddingZAtt.isNull())
             {
-                throw NcException("NcException", "NNLayer::NNLayer: No kernelPaddingZ supplied in NetCDF input file " + fname, __FILE__, __LINE__);
+                throw NC_EXCEPTION("NcException", "NNLayer::NNLayer: No kernelPaddingZ supplied in NetCDF input file " + fname, __FILE__, __LINE__);
             }
             kernelPaddingZAtt.getValues(&ld._kernelPaddingZ);          
 
             NcGroupAtt kernelDimensionsAtt      = nc.getAtt(lstring + "kernelDimensions");
             if (kernelDimensionsAtt.isNull())
             {
-                throw NcException("NcException", "NNLayer::NNLayer: No kernelDimensions supplied in NetCDF input file " + fname, __FILE__, __LINE__);
+                throw NC_EXCEPTION("NcException", "NNLayer::NNLayer: No kernelDimensions supplied in NetCDF input file " + fname, __FILE__, __LINE__);
             }
             kernelDimensionsAtt.getValues(&ld._kernelDimensions);
             
             NcGroupAtt weightInitAtt            = nc.getAtt(lstring + "weightInit");
             if (weightInitAtt.isNull())
             {
-                throw NcException("NcException", "NNLayer::NNLayer: No weightInit supplied in NetCDF input file " + fname, __FILE__, __LINE__);
+                throw NC_EXCEPTION("NcException", "NNLayer::NNLayer: No weightInit supplied in NetCDF input file " + fname, __FILE__, __LINE__);
                 ld._weightInit                  = Xavier;
             }
             else
@@ -3160,7 +3161,7 @@ bool LoadNNLayerDescriptorNetCDF(const string& fname, netCDF::NcFile& nc, uint32
             NcGroupAtt weightInitScaleAtt       = nc.getAtt(lstring + "weightInitScale");
             if (weightInitScaleAtt.isNull())
             {
-                throw NcException("NcException", "NNLayer::NNLayer: No weightInitScale supplied in NetCDF input file " + fname, __FILE__, __LINE__);
+                throw NC_EXCEPTION("NcException", "NNLayer::NNLayer: No weightInitScale supplied in NetCDF input file " + fname, __FILE__, __LINE__);
                 ld._weightInitScale             = (NNFloat)1.0;
             }
             else
@@ -3169,7 +3170,7 @@ bool LoadNNLayerDescriptorNetCDF(const string& fname, netCDF::NcFile& nc, uint32
             NcGroupAtt biasInitAtt              = nc.getAtt(lstring + "biasInit");
             if (biasInitAtt.isNull())
             {
-                throw NcException("NcException", "NNLayer::NNLayer: No biasInit supplied in NetCDF input file " + fname, __FILE__, __LINE__);
+                throw NC_EXCEPTION("NcException", "NNLayer::NNLayer: No biasInit supplied in NetCDF input file " + fname, __FILE__, __LINE__);
                 ld._biasInit                    = (NNFloat)0.0;
             }
             else
@@ -3178,7 +3179,7 @@ bool LoadNNLayerDescriptorNetCDF(const string& fname, netCDF::NcFile& nc, uint32
             NcGroupAtt weightNormAtt            = nc.getAtt(lstring + "weightNorm");
             if (weightNormAtt.isNull())
             {
-                throw NcException("NcException", "NNLayer::NNLayer: No weightNorm supplied in NetCDF input file " + fname, __FILE__, __LINE__);
+                throw NC_EXCEPTION("NcException", "NNLayer::NNLayer: No weightNorm supplied in NetCDF input file " + fname, __FILE__, __LINE__);
                 ld._weightNorm                  = (NNFloat)0.0;
             }
             else
@@ -3187,7 +3188,7 @@ bool LoadNNLayerDescriptorNetCDF(const string& fname, netCDF::NcFile& nc, uint32
             NcGroupAtt deltaNormAtt             = nc.getAtt(lstring + "deltaNorm");
             if (deltaNormAtt.isNull())
             {
-                throw NcException("NcException", "NNLayer::NNLayer: No deltaNorm supplied in NetCDF input file " + fname, __FILE__, __LINE__);
+                throw NC_EXCEPTION("NcException", "NNLayer::NNLayer: No deltaNorm supplied in NetCDF input file " + fname, __FILE__, __LINE__);
                 ld._deltaNorm                   = (NNFloat)0.0;
             }
             else
@@ -3196,7 +3197,7 @@ bool LoadNNLayerDescriptorNetCDF(const string& fname, netCDF::NcFile& nc, uint32
             NcGroupAtt pDropoutAtt              = nc.getAtt(lstring + "pDropout");
             if (pDropoutAtt.isNull())
             {
-                throw NcException("NcException", "NNLayer::NNLayer: No pDropout supplied in NetCDF input file " + fname, __FILE__, __LINE__);
+                throw NC_EXCEPTION("NcException", "NNLayer::NNLayer: No pDropout supplied in NetCDF input file " + fname, __FILE__, __LINE__);
             }
             else
                 pDropoutAtt.getValues(&ld._pDropout);
@@ -3204,7 +3205,7 @@ bool LoadNNLayerDescriptorNetCDF(const string& fname, netCDF::NcFile& nc, uint32
             NcGroupAtt activationAtt            = nc.getAtt(lstring + "activation");
             if (activationAtt.isNull())
             {
-                throw NcException("NcException", "NNLayer::NNLayer: No activation supplied in NetCDF input file " + fname, __FILE__, __LINE__);
+                throw NC_EXCEPTION("NcException", "NNLayer::NNLayer: No activation supplied in NetCDF input file " + fname, __FILE__, __LINE__);
             }
             activationAtt.getValues(&ld._activation);
 
@@ -3212,7 +3213,7 @@ bool LoadNNLayerDescriptorNetCDF(const string& fname, netCDF::NcFile& nc, uint32
             NcGroupAtt RELUSlopeAtt             = nc.getAtt(lstring + "RELUSlope");
             if (RELUSlopeAtt.isNull())
             {
-                throw NcException("NcException", "NNLayer::NNLayer: No RELUSlope supplied in NetCDF input file " + fname, __FILE__, __LINE__);
+                throw NC_EXCEPTION("NcException", "NNLayer::NNLayer: No RELUSlope supplied in NetCDF input file " + fname, __FILE__, __LINE__);
             }
             RELUSlopeAtt.getValues(&(ld._RELUSlope));
 
@@ -3221,7 +3222,7 @@ bool LoadNNLayerDescriptorNetCDF(const string& fname, netCDF::NcFile& nc, uint32
             NcGroupAtt ELUAlphaAtt              = nc.getAtt(lstring + "ELUAlpha");
             if (ELUAlphaAtt.isNull())
             {
-                throw NcException("NcException", "NNLayer::NNLayer: No ELUAlpha supplied in NetCDF input file " + fname, __FILE__, __LINE__);
+                throw NC_EXCEPTION("NcException", "NNLayer::NNLayer: No ELUAlpha supplied in NetCDF input file " + fname, __FILE__, __LINE__);
             }
             ELUAlphaAtt.getValues(&(ld._ELUAlpha));
             
@@ -3229,14 +3230,14 @@ bool LoadNNLayerDescriptorNetCDF(const string& fname, netCDF::NcFile& nc, uint32
             NcGroupAtt SELULambdaAtt            = nc.getAtt(lstring + "SELULambda");
             if (SELULambdaAtt.isNull())
             {
-                throw NcException("NcException", "NNLayer::NNLayer: No SELULambda supplied in NetCDF input file " + fname, __FILE__, __LINE__);
+                throw NC_EXCEPTION("NcException", "NNLayer::NNLayer: No SELULambda supplied in NetCDF input file " + fname, __FILE__, __LINE__);
             }
             SELULambdaAtt.getValues(&(ld._SELULambda)); 
             
             NcGroupAtt sparsenessPenalty_pAtt   = nc.getAtt("sparsenessPenalty_p");   
             if (sparsenessPenalty_pAtt.isNull())
             {
-                throw NcException("NcException", "NNLayer::NNLayer: No sparsenessPenalty_p supplied in NetCDF input file " + fname, __FILE__, __LINE__);
+                throw NC_EXCEPTION("NcException", "NNLayer::NNLayer: No sparsenessPenalty_p supplied in NetCDF input file " + fname, __FILE__, __LINE__);
             }
             else
             {
@@ -3246,7 +3247,7 @@ bool LoadNNLayerDescriptorNetCDF(const string& fname, netCDF::NcFile& nc, uint32
             NcGroupAtt sparsenessPenalty_betaAtt= nc.getAtt("sparsenessPenalty_beta");
             if (sparsenessPenalty_betaAtt.isNull())
             {
-                throw NcException("NcException", "NNLayer::NNLayer: No sparsenessPenalty_beta supplied in NetCDF input file " + fname, __FILE__, __LINE__);
+                throw NC_EXCEPTION("NcException", "NNLayer::NNLayer: No sparsenessPenalty_beta supplied in NetCDF input file " + fname, __FILE__, __LINE__);
                 ld._sparsenessPenalty_p = (NNFloat)0.0;
             }
             else
@@ -3257,7 +3258,7 @@ bool LoadNNLayerDescriptorNetCDF(const string& fname, netCDF::NcFile& nc, uint32
             NcGroupAtt attributesAtt            = nc.getAtt(lstring + "attributes");
             if (attributesAtt.isNull())
             {
-                throw NcException("NcException", "NNLayer::NNLayer: No attributes supplied in NetCDF input file " + fname, __FILE__, __LINE__);
+                throw NC_EXCEPTION("NcException", "NNLayer::NNLayer: No attributes supplied in NetCDF input file " + fname, __FILE__, __LINE__);
             }
             attributesAtt.getValues(&ld._attributes);
 
@@ -3286,7 +3287,7 @@ bool LoadNNLayerDescriptorNetCDF(const string& fname, netCDF::NcFile& nc, uint32
             NcGroupAtt sourcesAtt               = nc.getAtt(lstring + "sources");
             if (sourcesAtt.isNull())
             {
-                throw NcException("NcException", "NNLayer::NNLayer: No sources supplied in NetCDF input file " + fname, __FILE__, __LINE__);
+                throw NC_EXCEPTION("NcException", "NNLayer::NNLayer: No sources supplied in NetCDF input file " + fname, __FILE__, __LINE__);
             }
             sourcesAtt.getValues(&sources);
 
@@ -3296,7 +3297,7 @@ bool LoadNNLayerDescriptorNetCDF(const string& fname, netCDF::NcFile& nc, uint32
                 NcGroupAtt sourceAtt            = nc.getAtt(lstring + "source" + nstring);
                 if (sourcesAtt.isNull())
                 {
-                    throw NcException("NcException", "NNLayer::NNLayer: No source attributes supplied in NetCDF input file " + fname, __FILE__, __LINE__);
+                    throw NC_EXCEPTION("NcException", "NNLayer::NNLayer: No source attributes supplied in NetCDF input file " + fname, __FILE__, __LINE__);
                 }
                 string source;
                 sourceAtt.getValues(source);
@@ -3308,7 +3309,7 @@ bool LoadNNLayerDescriptorNetCDF(const string& fname, netCDF::NcFile& nc, uint32
             NcGroupAtt skipsAtt                 = nc.getAtt(lstring + "skips");
             if (skipsAtt.isNull())
             {
-                throw NcException("NcException", "NNLayer::NNLayer: No skips supplied in NetCDF input file " + fname, __FILE__, __LINE__);
+                throw NC_EXCEPTION("NcException", "NNLayer::NNLayer: No skips supplied in NetCDF input file " + fname, __FILE__, __LINE__);
             }
             skipsAtt.getValues(&skips);
 
@@ -3318,7 +3319,7 @@ bool LoadNNLayerDescriptorNetCDF(const string& fname, netCDF::NcFile& nc, uint32
                 NcGroupAtt skipAtt              = nc.getAtt(lstring + "skip" + nstring);
                 if (skipAtt.isNull())
                 {
-                    throw NcException("NcException", "NNLayer::NNLayer: No skip attributes supplied in NetCDF input file " + fname, __FILE__, __LINE__);
+                    throw NC_EXCEPTION("NcException", "NNLayer::NNLayer: No skip attributes supplied in NetCDF input file " + fname, __FILE__, __LINE__);
                 }
                 string skip;
                 skipAtt.getValues(skip);
