@@ -23,7 +23,7 @@ class FeedForwardNetwork(object):
 
             # Create model: parameterized for k deep FF layers
             Hsize = [dim_x] + [hidden_units]*layers + [dim_y]
-            print "Layers: %s" % str(Hsize)
+            print ("Layers: %s" % str(Hsize))
             k = len(Hsize)-1
             Wall = [None] * k 
             ball = [None] * k
@@ -40,7 +40,7 @@ class FeedForwardNetwork(object):
 
             # Loss: numerically stable cross-entropy
             self.loss = loss = -tf.reduce_mean(y_*tf.log(y) + 
-                    (tf.sub(1.0,y_)*tf.log(tf.sub(1.000001,y))))
+                    (tf.subtract(1.0,y_)*tf.log(tf.subtract(1.000001,y))))
 
             # Optimizer
             self.lr = tf.Variable(1e-4, trainable=False)
@@ -71,7 +71,7 @@ class DataManager(object):
         """returns a list of k indices into the output vector
         corresponding to the bits for this word
         """
-        if not self.word_assignments.has_key(word):
+        if not word in self.word_assignments:
             idx = len(self.word_assignments)
             self.word_assignments[word] = idx
         return self.word_assignments[word]
@@ -186,7 +186,7 @@ def main(cmd):
             if i%cmd.eval_iters == 0:
                 spd = (i+1) / (time.time() - start_time)
                 print("Iter %d. %giter/s" % (i,spd))
-        print "Done training\n"
+        print ("Done training\n")
  
  
 
