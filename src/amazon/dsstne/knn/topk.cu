@@ -138,7 +138,7 @@ __shared__ volatile uint32_t sValue[160 * 4];
 
                 // Set minValue to the new min in the warp queue (registers sorted in descending order)
                 // last register in the last lane (31) holds the smallest value
-                minValue = __shfl(k3, 31);
+                minValue = SHFL(k3, 31);
 
                 // Shift members in shared memory to beginning
                 bufferSize         -= 128;
