@@ -14,6 +14,7 @@
 #include <sstream>
 
 #include "GpuTypes.h"
+#include "NcExcptionWrap.h"
 #include "NNTypes.h"
 #include "kernels.h"
 
@@ -1097,7 +1098,7 @@ _pbSparseData()
             NcGroupAtt nameAtt                  = nfc.getAtt(vname);
             if (nameAtt.isNull())
             {
-                throw NcException("NcException", "NNDataSet::NNDataSet: No dataset name supplied in NetCDF input file " + fname, __FILE__, __LINE__);
+                throw NC_EXCEPTION("NcException", "NNDataSet::NNDataSet: No dataset name supplied in NetCDF input file " + fname, __FILE__, __LINE__);
             }
             nameAtt.getValues(_name);
             cout << "NNDataSet<T>::NNDataSet: Name of data set: " << _name << endl;
@@ -1107,7 +1108,7 @@ _pbSparseData()
             NcGroupAtt dataTypeAtt              = nfc.getAtt(vname);
             if (dataTypeAtt.isNull())
             {
-                throw NcException("NcException", "NNDataSet::NNDataSet: No datatype supplied in NetCDF input file " + fname, __FILE__, __LINE__);
+                throw NC_EXCEPTION("NcException", "NNDataSet::NNDataSet: No datatype supplied in NetCDF input file " + fname, __FILE__, __LINE__);
             }
             int dataType;
             dataTypeAtt.getValues(&dataType);
@@ -1117,7 +1118,7 @@ _pbSparseData()
             NcGroupAtt attributesAtt            = nfc.getAtt(vname);
             if (attributesAtt.isNull())
             {
-                throw NcException("NcException", "NNDataSet::NNDataSet: No attributes supplied in NetCDF input file " + fname, __FILE__, __LINE__);
+                throw NC_EXCEPTION("NcException", "NNDataSet::NNDataSet: No attributes supplied in NetCDF input file " + fname, __FILE__, __LINE__);
             }
             attributesAtt.getValues(&_attributes);
             if (_attributes != 0)
@@ -1137,14 +1138,14 @@ _pbSparseData()
             NcDim examplesDim                   = nfc.getDim(vname);
             if (examplesDim.isNull())
             {
-                throw NcException("NcException", "NNDataSet::NNDataSet: No examples count supplied in NetCDF input file " + fname, __FILE__, __LINE__);
+                throw NC_EXCEPTION("NcException", "NNDataSet::NNDataSet: No examples count supplied in NetCDF input file " + fname, __FILE__, __LINE__);
             }
             _examples                           = examplesDim.getSize();
 
             // Check for nonzero examples count
             if (_examples == 0)
             {
-                throw NcException("NcException", "NNDataSet::NNDataSet: Zero-valued Examples count in NetCDF input file " + fname, __FILE__, __LINE__);
+                throw NC_EXCEPTION("NcException", "NNDataSet::NNDataSet: Zero-valued Examples count in NetCDF input file " + fname, __FILE__, __LINE__);
             }
 
             // Grab unique examples count if present
@@ -1163,21 +1164,21 @@ _pbSparseData()
             NcGroupAtt dimensionsAtt            = nfc.getAtt(vname);
             if (dimensionsAtt.isNull())
             {
-                throw NcException("NcException", "NNDataSet::NNDataSet: No dimension count supplied in NetCDF input file " + fname, __FILE__, __LINE__);
+                throw NC_EXCEPTION("NcException", "NNDataSet::NNDataSet: No dimension count supplied in NetCDF input file " + fname, __FILE__, __LINE__);
             }
             dimensionsAtt.getValues(&_dimensions);
 
             // Check for valid dimensions count
             if ((_dimensions < 1) || (_dimensions > 3))
             {
-                throw NcException("NcException", "NNDataSet::NNDataSet: Invalid dimension count (" + to_string(_dimensions) + ") supplied in NetCDF input file " + fname, __FILE__, __LINE__);
+                throw NC_EXCEPTION("NcException", "NNDataSet::NNDataSet: Invalid dimension count (" + to_string(_dimensions) + ") supplied in NetCDF input file " + fname, __FILE__, __LINE__);
             }
 
             vname                               = "width" + nstring;
             NcGroupAtt widthAtt                 = nfc.getAtt(vname);
             if (widthAtt.isNull())
             {
-                throw NcException("NcException", "NNDataSet::NNDataSet: No datapoint width supplied in NetCDF input file " + fname, __FILE__, __LINE__);
+                throw NC_EXCEPTION("NcException", "NNDataSet::NNDataSet: No datapoint width supplied in NetCDF input file " + fname, __FILE__, __LINE__);
             }
             widthAtt.getValues(&_width);
 
@@ -1187,7 +1188,7 @@ _pbSparseData()
                 NcGroupAtt heightAtt            = nfc.getAtt(vname);
                 if (heightAtt.isNull())
                 {
-                    throw NcException("NcException", "NNDataSet::NNDataSet: No datapoint height supplied in NetCDF input file " + fname, __FILE__, __LINE__);
+                    throw NC_EXCEPTION("NcException", "NNDataSet::NNDataSet: No datapoint height supplied in NetCDF input file " + fname, __FILE__, __LINE__);
                 }
                 heightAtt.getValues(&_height);
             }
@@ -1200,7 +1201,7 @@ _pbSparseData()
                 NcGroupAtt lengthAtt            = nfc.getAtt(vname);
                 if (lengthAtt.isNull())
                 {
-                    throw NcException("NcException", "NNDataSet::NNDataSet: No datapoint length supplied in NetCDF input file " + fname, __FILE__, __LINE__);
+                    throw NC_EXCEPTION("NcException", "NNDataSet::NNDataSet: No datapoint length supplied in NetCDF input file " + fname, __FILE__, __LINE__);
                 }
                 lengthAtt.getValues(&_length);
             }
@@ -1211,7 +1212,7 @@ _pbSparseData()
             // Make sure all dimensions are at least 1
             if ((_width == 0) || (_height == 0) || (_length == 0))
             {
-                throw NcException("NcException", "NNDataSet::NNDataSet: Invalid dataset dimensions in NetCDF input file " + fname, __FILE__, __LINE__);
+                throw NC_EXCEPTION("NcException", "NNDataSet::NNDataSet: Invalid dataset dimensions in NetCDF input file " + fname, __FILE__, __LINE__);
             }
 
             // Read sparse data (type is irrelevant here)
@@ -1223,14 +1224,14 @@ _pbSparseData()
                 NcDim sparseDataDim             = nfc.getDim(vname);
                 if (sparseDataDim.isNull())
                 {
-                    throw NcException("NcException", "NNDataSet::NNDataSet: No sparse data dimensions supplied in NetCDF input file " + fname, __FILE__, __LINE__);
+                    throw NC_EXCEPTION("NcException", "NNDataSet::NNDataSet: No sparse data dimensions supplied in NetCDF input file " + fname, __FILE__, __LINE__);
                 }
                 _sparseDataSize                 = sparseDataDim.getSize();
 
                 // Check for at least one datapoint
                 if (_sparseDataSize == 0)
                 {
-                    throw NcException("NcException", "NNDataSet::NNDataSet: Sparse data set with no actual data in NetCDF input file " + fname, __FILE__, __LINE__);
+                    throw NC_EXCEPTION("NcException", "NNDataSet::NNDataSet: Sparse data set with no actual data in NetCDF input file " + fname, __FILE__, __LINE__);
                 }
 
                 _vSparseIndex.resize(_sparseDataSize);
@@ -1239,19 +1240,19 @@ _pbSparseData()
                 NcVar sparseStartVar            = nfc.getVar(vname);
                 if (sparseStartVar.isNull())
                 {
-                    throw NcException("NcException", "NNDataSet::NNDataSet: No sparse offset start supplied in NetCDF input file " + fname, __FILE__, __LINE__);
+                    throw NC_EXCEPTION("NcException", "NNDataSet::NNDataSet: No sparse offset start supplied in NetCDF input file " + fname, __FILE__, __LINE__);
                 }
                 vname                           = "sparseEnd" + nstring;
                 NcVar sparseEndVar              = nfc.getVar(vname);
                 if (sparseEndVar.isNull())
                 {
-                    throw NcException("NcException", "NNDataSet::NNDataSet: No sparse data end supplied in NetCDF input file " + fname, __FILE__, __LINE__);
+                    throw NC_EXCEPTION("NcException", "NNDataSet::NNDataSet: No sparse data end supplied in NetCDF input file " + fname, __FILE__, __LINE__);
                 }
                 vname                           = "sparseIndex" + nstring;
                 NcVar sparseIndexVar            = nfc.getVar(vname);
                 if (sparseIndexVar.isNull())
                 {
-                    throw NcException("NcException", "NNDataSet::NNDataSet: No sparse data indices supplied in NetCDF input file " + fname, __FILE__, __LINE__);
+                    throw NC_EXCEPTION("NcException", "NNDataSet::NNDataSet: No sparse data indices supplied in NetCDF input file " + fname, __FILE__, __LINE__);
                 }
 
                 // Read data into CPU memory (account for old datasets using 32-bit indices)
@@ -1283,7 +1284,7 @@ _pbSparseData()
                     NcVar sparseDataVar         = nfc.getVar(vname);
                     if (sparseDataVar.isNull())
                     {
-                        throw NcException("NcException", "NNDataSet::NNDataSet: No sparse data located in NetCDF input file " + fname, __FILE__, __LINE__);
+                        throw NC_EXCEPTION("NcException", "NNDataSet::NNDataSet: No sparse data located in NetCDF input file " + fname, __FILE__, __LINE__);
                     }
                     _vSparseData.resize(sparseDataDim.getSize());
                     sparseDataVar.getVar(_vSparseData.data());
@@ -1297,7 +1298,7 @@ _pbSparseData()
                 NcDim dataDim                   = nfc.getDim(vname);
                 if (dataDim.isNull())
                 {
-                        throw NcException("NcException", "NNDataSet::NNDataSet: No data dimensions located in NetCDF input file " + fname, __FILE__, __LINE__);
+                        throw NC_EXCEPTION("NcException", "NNDataSet::NNDataSet: No data dimensions located in NetCDF input file " + fname, __FILE__, __LINE__);
                 }
                 vname                           = "data" + nstring;
                 NcVar dataVar                   = nfc.getVar(vname);
@@ -1328,7 +1329,7 @@ _pbSparseData()
                 NcVar DataWeightVar         = nfc.getVar(vname);
                 if (DataWeightVar.isNull())
                 {
-                    throw NcException("NcException", "NNDataSet::NNDataSet: No data weights located in NetCDF input file " + fname, __FILE__, __LINE__);
+                    throw NC_EXCEPTION("NcException", "NNDataSet::NNDataSet: No data weights located in NetCDF input file " + fname, __FILE__, __LINE__);
                 }
                 _vDataWeight.resize(_examples);
                 DataWeightVar.getVar(_vDataWeight.data());
@@ -1341,7 +1342,7 @@ _pbSparseData()
                 NcVar indexVar              = nfc.getVar(vname);
                 if (indexVar.isNull())
                 {
-                    throw NcException("NcException", "NNDataSet::NNDataSet: No indexed data located in NetCDF input file " + fname, __FILE__, __LINE__);
+                    throw NC_EXCEPTION("NcException", "NNDataSet::NNDataSet: No indexed data located in NetCDF input file " + fname, __FILE__, __LINE__);
                 }
                _vIndex.resize(_examples);
                indexVar.getVar(_vIndex.data());
@@ -2177,12 +2178,12 @@ template<typename T> bool NNDataSet<T>::SaveNetCDF(const string& fname)
             NcGroupAtt datasetsAtt          = nfc.putAtt("datasets", ncUint, 1);
             if (datasetsAtt.isNull())
             {
-                throw NcException("NcException", "SaveNetCDF: Unable to write datasets attribute to NetCDF file " + fname, __FILE__, __LINE__);
+                throw NC_EXCEPTION("NcException", "SaveNetCDF: Unable to write datasets attribute to NetCDF file " + fname, __FILE__, __LINE__);
             }
 
             bool bResult                    = WriteNetCDF(nfc, fname, 0);
             if (!bResult)
-                throw NcException("NcException", "SaveNetCDF: Unable to write dataset to NetCDF file " + fname, __FILE__, __LINE__);
+                throw NC_EXCEPTION("NcException", "SaveNetCDF: Unable to write dataset to NetCDF file " + fname, __FILE__, __LINE__);
         }
         catch (NcException& e)
         {
@@ -2225,14 +2226,14 @@ template<typename T> bool NNDataSet<T>::WriteNetCDF(NcFile& nfc, const string& f
             NcGroupAtt nameAtt              = nfc.putAtt(vname, _name);
             if (nameAtt.isNull())
             {
-                throw NcException("NcException", "NNDataSet::WriteNetCDF: Failed to write dataset name to NetCDF file " + fname, __FILE__, __LINE__);
+                throw NC_EXCEPTION("NcException", "NNDataSet::WriteNetCDF: Failed to write dataset name to NetCDF file " + fname, __FILE__, __LINE__);
             }
 
             vname                           = "attributes" + nstring;
             NcGroupAtt attributesAtt        = nfc.putAtt(vname, ncUint, _attributes);
             if (attributesAtt.isNull())
             {
-                throw NcException("NcException", "NNDataSet::WriteNetCDF: Failed to write dataset attributes to NetCDF file " + fname, __FILE__, __LINE__);
+                throw NC_EXCEPTION("NcException", "NNDataSet::WriteNetCDF: Failed to write dataset attributes to NetCDF file " + fname, __FILE__, __LINE__);
             }
 
             // Stubbed to numeric for now, will eventually be numeric, image, or audio descriptor
@@ -2240,28 +2241,28 @@ template<typename T> bool NNDataSet<T>::WriteNetCDF(NcFile& nfc, const string& f
             NcGroupAtt kindAtt              = nfc.putAtt(vname, ncUint, 0);
             if (kindAtt.isNull())
             {
-                throw NcException("NcException", "NNDataSet::WriteNetCDF: Failed to write dataset kind to NetCDF file " + fname, __FILE__, __LINE__);
+                throw NC_EXCEPTION("NcException", "NNDataSet::WriteNetCDF: Failed to write dataset kind to NetCDF file " + fname, __FILE__, __LINE__);
             }
 
             vname                           = "datatype" + nstring;
             NcGroupAtt datatypeAtt          = nfc.putAtt(vname, ncUint, _dataType);
             if (datatypeAtt.isNull())
             {
-                throw NcException("NcException", "NNDataSet::WriteNetCDF: Failed to write dataset type to NetCDF file " + fname, __FILE__, __LINE__);
+                throw NC_EXCEPTION("NcException", "NNDataSet::WriteNetCDF: Failed to write dataset type to NetCDF file " + fname, __FILE__, __LINE__);
             }
 
             vname                           = "dimensions" + nstring;
             NcGroupAtt dimensionsAtt        = nfc.putAtt(vname, ncUint, _dimensions);
             if (dimensionsAtt.isNull())
             {
-                throw NcException("NcException", "NNDataSet::WriteNetCDF: Failed to write dataset dimensions to NetCDF file " + fname, __FILE__, __LINE__);
+                throw NC_EXCEPTION("NcException", "NNDataSet::WriteNetCDF: Failed to write dataset dimensions to NetCDF file " + fname, __FILE__, __LINE__);
             }
 
             vname                           = "width" + nstring;
             NcGroupAtt widthAtt             = nfc.putAtt(vname, ncUint, _width);
             if (widthAtt.isNull())
             {
-                throw NcException("NcException", "NNDataSet::WriteNetCDF: Failed to write dataset width to NetCDF file " + fname, __FILE__, __LINE__);
+                throw NC_EXCEPTION("NcException", "NNDataSet::WriteNetCDF: Failed to write dataset width to NetCDF file " + fname, __FILE__, __LINE__);
             }
 
             if (_dimensions > 1)
@@ -2270,7 +2271,7 @@ template<typename T> bool NNDataSet<T>::WriteNetCDF(NcFile& nfc, const string& f
                 NcGroupAtt heightAtt        = nfc.putAtt(vname, ncUint, _height);
                 if (heightAtt.isNull())
                 {
-                    throw NcException("NcException", "NNDataSet::WriteNetCDF: Failed to write dataset height to NetCDF file " + fname, __FILE__, __LINE__);
+                    throw NC_EXCEPTION("NcException", "NNDataSet::WriteNetCDF: Failed to write dataset height to NetCDF file " + fname, __FILE__, __LINE__);
                 }
 
                 if (_dimensions > 2)
@@ -2279,7 +2280,7 @@ template<typename T> bool NNDataSet<T>::WriteNetCDF(NcFile& nfc, const string& f
                     NcGroupAtt lengthAtt    = nfc.putAtt(vname, ncUint, _length);
                     if (lengthAtt.isNull())
                     {
-                        throw NcException("NcException", "NNDataSet::WriteNetCDF: Failed to write dataset length to NetCDF file " + fname, __FILE__, __LINE__);
+                        throw NC_EXCEPTION("NcException", "NNDataSet::WriteNetCDF: Failed to write dataset length to NetCDF file " + fname, __FILE__, __LINE__);
                     }
                 }
             }
@@ -2288,14 +2289,14 @@ template<typename T> bool NNDataSet<T>::WriteNetCDF(NcFile& nfc, const string& f
             NcDim uniqueExamplesDim         = nfc.addDim(vname, (size_t)_uniqueExamples);
             if (uniqueExamplesDim.isNull())
             {
-                throw NcException("NcException", "NNDataSet::WriteNetCDF: Failed to write dataset unique example count to NetCDF file " + fname, __FILE__, __LINE__);
+                throw NC_EXCEPTION("NcException", "NNDataSet::WriteNetCDF: Failed to write dataset unique example count to NetCDF file " + fname, __FILE__, __LINE__);
             }
 
             vname                           = "examplesDim" + nstring;
             NcDim examplesDim               = nfc.addDim(vname, (size_t)_examples);
             if (examplesDim.isNull())
             {
-                throw NcException("NcException", "NNDataSet::WriteNetCDF: Failed to write dataset example count to NetCDF file " + fname, __FILE__, __LINE__);
+                throw NC_EXCEPTION("NcException", "NNDataSet::WriteNetCDF: Failed to write dataset example count to NetCDF file " + fname, __FILE__, __LINE__);
             }
 
 
@@ -2305,14 +2306,14 @@ template<typename T> bool NNDataSet<T>::WriteNetCDF(NcFile& nfc, const string& f
                 NcDim sparseDataDim         = nfc.addDim(vname, _vSparseIndex.size());
                 if (sparseDataDim.isNull())
                 {
-                    throw NcException("NcException", "NNDataSet::WriteNetCDF: Failed to write dataset sparse datapoint count to NetCDF file " + fname, __FILE__, __LINE__);
+                    throw NC_EXCEPTION("NcException", "NNDataSet::WriteNetCDF: Failed to write dataset sparse datapoint count to NetCDF file " + fname, __FILE__, __LINE__);
                 }
 
                 vname                       = "sparseStart" + nstring;
                 NcVar sparseStartVar        = nfc.addVar(vname, "uint", uniqueExamplesDim.getName());
                 if (sparseStartVar.isNull())
                 {
-                    throw NcException("NcException", "NNDataSet::WriteNetCDF: Failed to write dataset sparse start variable to NetCDF file " + fname, __FILE__, __LINE__);
+                    throw NC_EXCEPTION("NcException", "NNDataSet::WriteNetCDF: Failed to write dataset sparse start variable to NetCDF file " + fname, __FILE__, __LINE__);
                 }
                 sparseStartVar.putVar(_vSparseStart.data());
 
@@ -2320,7 +2321,7 @@ template<typename T> bool NNDataSet<T>::WriteNetCDF(NcFile& nfc, const string& f
                 NcVar sparseEndVar          = nfc.addVar(vname, "uint", uniqueExamplesDim.getName());
                 if (sparseEndVar.isNull())
                 {
-                    throw NcException("NcException", "NNDataSet::WriteNetCDF: Failed to write dataset sparse end variable to NetCDF file " + fname, __FILE__, __LINE__);
+                    throw NC_EXCEPTION("NcException", "NNDataSet::WriteNetCDF: Failed to write dataset sparse end variable to NetCDF file " + fname, __FILE__, __LINE__);
                 }
                 sparseEndVar.putVar(_vSparseEnd.data());
 
@@ -2328,7 +2329,7 @@ template<typename T> bool NNDataSet<T>::WriteNetCDF(NcFile& nfc, const string& f
                 NcVar sparseIndexVar        = nfc.addVar(vname, "uint64", sparseDataDim.getName());
                 if (sparseIndexVar.isNull())
                 {
-                    throw NcException("NcException", "NNDataSet::WriteNetCDF: Failed to write dataset sparse index variable to NetCDF file " + fname, __FILE__, __LINE__);
+                    throw NC_EXCEPTION("NcException", "NNDataSet::WriteNetCDF: Failed to write dataset sparse index variable to NetCDF file " + fname, __FILE__, __LINE__);
                 }
                 sparseIndexVar.putVar(_vSparseIndex.data());
 
@@ -2340,7 +2341,7 @@ template<typename T> bool NNDataSet<T>::WriteNetCDF(NcFile& nfc, const string& f
                     NcVar sparseDataVar         = nfc.addVar(vname, sparseType.getName(), sparseDataDim.getName());
                     if (sparseDataVar.isNull())
                     {
-                        throw NcException("NcException", "NNDataSet::WriteNetCDF: Failed to write dataset sparse data variable to NetCDF file " + fname, __FILE__, __LINE__);
+                        throw NC_EXCEPTION("NcException", "NNDataSet::WriteNetCDF: Failed to write dataset sparse data variable to NetCDF file " + fname, __FILE__, __LINE__);
                     }
                     sparseDataVar.putVar(_vSparseData.data());
                 }
@@ -2357,7 +2358,7 @@ template<typename T> bool NNDataSet<T>::WriteNetCDF(NcFile& nfc, const string& f
                 NcVar DataWeightVar         = nfc.addVar(vname, "float", uniqueExamplesDim.getName());
                 if (DataWeightVar.isNull())
                 {
-                    throw NcException("NcException", "NNDataSet::NNDataSet: Failed to write data weights to NetCDF file " + fname, __FILE__, __LINE__);
+                    throw NC_EXCEPTION("NcException", "NNDataSet::NNDataSet: Failed to write data weights to NetCDF file " + fname, __FILE__, __LINE__);
                 }
                 DataWeightVar.putVar(_vDataWeight.data());
             }
@@ -2369,7 +2370,7 @@ template<typename T> bool NNDataSet<T>::WriteNetCDF(NcFile& nfc, const string& f
                 NcVar indexVar              = nfc.addVar(vname, "uint32", examplesDim.getName());
                 if (indexVar.isNull())
                 {
-                    throw NcException("NcException", "NNDataSet::WriteNetCDF: Failed to create dataset index variable to NetCDF file " + fname, __FILE__, __LINE__);
+                    throw NC_EXCEPTION("NcException", "NNDataSet::WriteNetCDF: Failed to create dataset index variable to NetCDF file " + fname, __FILE__, __LINE__);
                 }
                 indexVar.putVar(_vIndex.data());
             }
@@ -2412,13 +2413,13 @@ bool SaveNetCDF(const string& fname, vector<NNDataSetBase*> vDataSet)
             NcGroupAtt datasetsAtt          = nfc.putAtt("datasets", ncUint, (unsigned int)vDataSet.size());
             if (datasetsAtt.isNull())
             {
-                throw NcException("NcException", "SaveNetCDF: Unable to write datasets attribute to NetCDF file " + fname, __FILE__, __LINE__);
+                throw NC_EXCEPTION("NcException", "SaveNetCDF: Unable to write datasets attribute to NetCDF file " + fname, __FILE__, __LINE__);
             }
             for (uint32_t i = 0; i < vDataSet.size(); i++)
             {
                 bool bResult                = vDataSet[i]->WriteNetCDF(nfc, fname, i);
                 if (!bResult)
-                    throw NcException("NcException", "SaveNetCDF: Unable to write dataset to NetCDF file " + fname, __FILE__, __LINE__);
+                    throw NC_EXCEPTION("NcException", "SaveNetCDF: Unable to write dataset to NetCDF file " + fname, __FILE__, __LINE__);
             }
         }
         catch (NcException& e)
@@ -2470,7 +2471,7 @@ vector<NNDataSetBase*> LoadNetCDF(const string& fname)
             NcGroupAtt dataSetsAtt              = rnc.getAtt("datasets");
             if (dataSetsAtt.isNull())
             {
-                throw NcException("NcException", "LoadNetCDF: No datasets count supplied in NetCDF input file " + fname, __FILE__, __LINE__);
+                throw NC_EXCEPTION("NcException", "LoadNetCDF: No datasets count supplied in NetCDF input file " + fname, __FILE__, __LINE__);
             }
             uint32_t datasets;
             dataSetsAtt.getValues(&datasets);
@@ -2482,7 +2483,7 @@ vector<NNDataSetBase*> LoadNetCDF(const string& fname)
                 NcGroupAtt dataTypeAtt          = rnc.getAtt(vname);
                 if (dataTypeAtt.isNull())
                 {
-                      throw NcException("NcException", "LoadNetCDF: No " + vname + " attribute located in NetCDF input file " + fname, __FILE__, __LINE__);
+                      throw NC_EXCEPTION("NcException", "LoadNetCDF: No " + vname + " attribute located in NetCDF input file " + fname, __FILE__, __LINE__);
                 }
                 uint32_t dataType;
                 dataTypeAtt.getValues(&dataType);
