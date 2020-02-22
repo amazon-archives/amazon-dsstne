@@ -29,6 +29,7 @@
 #include <assert.h>
 #include <mpi.h>
 #include <memory>
+#include <vector>
 
 using namespace std;
 
@@ -116,7 +117,7 @@ static const int SM_6X_THREADS_PER_BLOCK                        = 128;
 
 #if (__CUDA_ARCH__ >= 600)
 #define LAUNCH_BOUNDS() __launch_bounds__(SM_6X_THREADS_PER_BLOCK, 8)
-#define LAUNCH_BOUNDS256() __launch_bounds__(256, 5)
+#define LAUNCH_BOUNDS256() __launch_bounds__(256, 4)
 #elif (__CUDA_ARCH__ >= 500)
 #define LAUNCH_BOUNDS() __launch_bounds__(SM_5X_THREADS_PER_BLOCK, 8)
 #define LAUNCH_BOUNDS256() __launch_bounds__(256, 5)
@@ -126,14 +127,28 @@ static const int SM_6X_THREADS_PER_BLOCK                        = 128;
 #endif
 #define LAUNCH_BOUNDS512() __launch_bounds__(512, 2)
 #define LAUNCH_BOUNDS1024() __launch_bounds__(1024, 1)
+#define LAUNCH_BOUNDS128() __launch_bounds__(128, 8)
+#define LAUNCH_BOUNDS64() __launch_bounds__(64, 16)
 
 // Sparse kernel limits
 static const uint32_t SM_6X_MAXSPARSE = 4608;
 static const uint32_t SM_6X_MAXSPARSEANALOG = 2304;
+static const uint32_t SM_6X_MAXSPARSE_128 = 2304;
+static const uint32_t SM_6X_MAXSPARSEANALOG_128 = 1152;
+static const uint32_t SM_6X_MAXSPARSE_64 = 1152;
+static const uint32_t SM_6X_MAXSPARSEANALOG_64 = 576;
 static const uint32_t SM_5X_MAXSPARSE = 4608;
 static const uint32_t SM_5X_MAXSPARSEANALOG = 2304;
+static const uint32_t SM_5X_MAXSPARSE_128 = 2304;
+static const uint32_t SM_5X_MAXSPARSEANALOG_128 = 1152;
+static const uint32_t SM_5X_MAXSPARSE_64 = 1152;
+static const uint32_t SM_5X_MAXSPARSEANALOG_64 = 576;
 static const uint32_t SM_3X_MAXSPARSE = 2304;
 static const uint32_t SM_3X_MAXSPARSEANALOG = 1152;
+static const uint32_t SM_3X_MAXSPARSE_128 = 1152;
+static const uint32_t SM_3X_MAXSPARSEANALOG_128 = 576;
+static const uint32_t SM_3X_MAXSPARSE_64 = 576;
+static const uint32_t SM_3X_MAXSPARSEANALOG_64 = 288;
 
 
 static const bool bShadowedOutputBuffers                        = false;    // Turns off sysmem shadowing of really large buffers
@@ -249,7 +264,7 @@ static const bool bShadowedOutputBuffers                        = false;    // T
     if (status != cudaSuccess) { \
         printf("%s %s\n", s, cudaGetErrorString(status)); \
         assert(0); \
-        cudaThreadExit(); \
+        cudaDeviceReset(); \
         exit(-1); \
     }
 
@@ -257,9 +272,32 @@ static const bool bShadowedOutputBuffers                        = false;    // T
     if (status != CUDNN_STATUS_SUCCESS) { \
         printf("%s %s\n", s, cudnnGetErrorString(status)); \
         assert(0); \
-        cudaThreadExit(); \
+        cudaDeviceReset(); \
         exit(-1); \
     }
+
+// Contains data for device or process rings for P2P rings
+struct P2PRing
+{
+    vector<uint32_t> v;
+    int position;
+    int rank;
+    int offset;
+    cudaStream_t stream;
+    
+    P2PRing() : rank(1), position(0), offset(0) {}
+};
+
+struct nvlink
+{
+    bool bActive;
+    int rank;
+    int used;
+    int channels;
+
+    nvlink() : bActive(false), rank(-1), used(0), channels(0) {}
+};
+
 
 // Contains information that needs to be accessible for GPU kernels and most static hyperparameters
 struct GpuData {
@@ -369,7 +407,9 @@ struct GpuContext {
 
     // Single-node multi-gpu parameters
     bool                                _bSingleNode;               // Flag to indicate MPI run is all on one node
-    bool                                _bP2P;                      // Flag to indicate P2P connectivity between all processes
+    bool                                _bP2P;                      // Flag to indicate P2P connectivity is active
+    vector<P2PRing>                     _vP2PRings;                 // List of P2P rings for copies
+    int                                 _totalP2PRank;              // Total P2P channel rank
 
     // Methods
     GpuContext();

@@ -59,6 +59,296 @@ void GpuContext::SetCPUValidate(bool bValidate)
     _bCPUValidate                       = bValidate;
 }
 
+
+
+bool validate_path(vector< vector<nvlink> >& vMap, P2PRing& ring)
+{
+    // Restrict to paths starting at GPU 0
+    if (ring.v[0] != 0)
+        return false;
+        
+    vector<uint32_t>& v = ring.v;
+
+    // Reject if there is no closed path
+    int rank = (v.size() >= 2) ? vMap[v[0]][v[1]].rank : -1;
+
+    // All connections within a ring must be the same rank
+    for (size_t i = 0; i < v.size(); i++)
+    {
+        int j = (i + 1) % v.size();
+        if (!vMap[v[i]][v[j]].bActive || (vMap[v[i]][v[j]].rank != rank))
+            return false;
+    }
+    ring.rank = rank;
+
+    return true;
+}
+
+void enumerate_ring(vector< vector<nvlink> >& vMap, P2PRing &ring, size_t l, size_t r, vector<P2PRing>& vRing)
+{
+   if (l == r)
+   {
+        if (validate_path(vMap, ring))
+        {
+            vRing.push_back(ring);
+        }
+   }
+   else
+   {
+       for (size_t i = l; i <= r; i++)
+       {
+          swap(ring.v[l], ring.v[i]);
+          enumerate_ring(vMap, ring, l+1, r, vRing);
+          swap(ring.v[l], ring.v[i]); //backtrack
+       }
+   }
+}
+
+
+vector<P2PRing> getP2PRings(vector<uint32_t>& vDevice)
+{
+    vector<P2PRing> vP2PRings;
+
+    
+    vector< vector<nvlink> > vMap(vDevice.size());
+    vector<P2PRing> vRing;
+    for (size_t i = 0; i < vMap.size(); i++)
+        vMap[i].resize(vDevice.size());
+    
+    // Enumerate all connections
+    // Enumerates Device <-> Device links
+    int maxRank = -1;
+    vector<int> vRankCount(3);
+    for (int i = 0; i < vDevice.size(); i++)
+    {
+        int device1 = vDevice[i];
+        for (int j = 0; j < vDevice.size(); j++)
+        {
+            int device2 = vDevice[j];
+            if (device1 == device2)
+                continue;
+            
+            int accessSupported = 0;
+            int rank = 0;
+            cudaError_t status = cudaDeviceGetP2PAttribute(&accessSupported, cudaDevP2PAttrAccessSupported, device1, device2);
+            RTERROR(status, "cudaDeviceGetP2PAttribute");
+            status = cudaDeviceGetP2PAttribute(&rank, cudaDevP2PAttrPerformanceRank, device1, device2);
+            RTERROR(status, "cudaDeviceGetP2PAttribute");
+            if (accessSupported)
+            {
+                vMap[device1][device2].bActive = true;
+                vMap[device2][device1].bActive = true;
+                vMap[device1][device2].rank = rank;
+                vMap[device2][device1].rank = rank;
+                vMap[device1][device2].channels = rank;
+                vMap[device2][device1].channels = rank;
+                vMap[device1][device2].used = 0;
+                vMap[device1][device2].used = 0;
+                vRankCount[rank]++;
+                cout << device1 << " " << device2 << " " << rank << endl;
+                if (maxRank < rank)
+                    maxRank = rank;
+            }
+        }
+    }
+
+    for (int i = 0; i < 3; i++)
+    {
+        cout << "Total Rank: " << i << " " << vRankCount[i] << endl;
+    }
+    
+    
+    // Initialize simplest closed ring
+    P2PRing ring;
+    for (uint32_t i = 0; i < vDevice.size(); i++)
+        ring.v.push_back(vDevice[i]);
+    
+    
+    // Special case 2 GPUs
+    if (vDevice.size() == 2)
+    {
+        if (vMap[vDevice[0]][vDevice[1]].bActive)
+        {
+            ring.rank = std::max(vMap[vDevice[0]][vDevice[1]].rank, 1);
+            vP2PRings.push_back(ring);
+        }
+        return vP2PRings;
+    }
+
+    // Otherwise split high rank channels up into multiple rank 1 channels if < closed ring
+    for (int i = 2; i < 3; i++)
+    {
+        cout << "Rank: " << i << " " << vRankCount[i] << endl;
+        if ((vRankCount[i] < 2 * vDevice.size()) && (vRankCount[i] > 0))
+        {
+            cout << "Demoting rank " << i << " channels due to incomplete ring at this rank.\n";
+            for (int j = 0; j < vDevice.size(); j++)
+            {
+                int device1 = vDevice[j];
+                for (int k = 0; k < vDevice.size(); k++)
+                {
+                    int device2 = vDevice[k];
+                    if (device1 == device2)
+                        continue;
+                    if (vMap[device1][device2].rank == i)
+                    {
+                        vMap[device1][device2].rank = 1;
+                        vMap[device1][device2].channels += i;
+                        vRankCount[1] += i;
+                    }
+                    if (vMap[device2][device1].rank == i)
+                    {
+                        vMap[device2][device1].rank = 1;
+                        vMap[device2][device1].channels += i;                        
+                        vRankCount[1] += i;
+                    }
+                }
+            }
+            vRankCount[i] = 0;
+        }
+    }
+    for (int i = 0; i < 3; i++)
+    {
+        cout << "Rank: " << i << " " << vRankCount[i] << endl;
+    }
+
+    cout << "MR " << maxRank << endl;
+
+    // Check for P2P without NVLINK
+    if (maxRank <= 0)
+    {
+        ring.rank = 1;
+        vP2PRings.push_back(ring);
+    }
+    else
+    {
+        // If NVLINK is present, try all permutations and report those that create a closed ring
+        enumerate_ring(vMap, ring, (size_t)0, ring.v.size() - 1, vRing);
+    }
+    cout << vRing.size() << " feasible rings" << endl;
+
+    for (size_t i = 0; i < vRing.size(); i++)
+    {
+        printf("RE %lu: ", i);
+        for (size_t j = 0; j < vRing[i].v.size(); j++)
+            printf("%u ", vRing[i].v[j]);
+        printf("\n");
+    }
+    
+    
+    // Locate pairs of rings that use all connections
+    vector< vector<nvlink> > vMap1, vMap2;
+    for (size_t i = 0; i < vRing.size(); i++)
+    {
+        vMap1 = vMap;
+        vector<uint32_t>& vi = vRing[i].v;
+        for (size_t k = 0; k < vi.size(); k++)
+        {
+            size_t l = (k + 1) % vi.size();
+            vMap1[vi[k]][vi[l]].used += vMap1[vi[k]][vi[l]].rank;
+            if (vMap1[vi[k]][vi[l]].used == vMap1[vi[k]][vi[l]].channels)
+                vMap1[vi[k]][vi[l]].bActive = false;
+            vMap1[vi[l]][vi[k]].used += vMap1[vi[l]][vi[k]].rank;
+            if (vMap1[vi[l]][vi[k]].used == vMap1[vi[l]][vi[k]].channels)
+                vMap1[vi[l]][vi[k]].bActive = false;
+        }
+
+        for (size_t j = i + 1; j < vRing.size(); j++)
+        {
+            vMap2 = vMap1;
+            vector<uint32_t>& vj = vRing[j].v;
+            bool bSuccess = true;
+            for (size_t k = 0; k < vi.size(); k++)
+            {
+                size_t l = (k + 1) % vi.size();
+                if (!vMap2[vj[k]][vj[l]].bActive || !vMap2[vj[l]][vj[k]].bActive)
+                {
+                    bSuccess = false;
+                    break;
+                }
+                vMap2[vj[k]][vj[l]].used += vMap2[vj[k]][vj[l]].rank;
+                vMap2[vj[l]][vj[k]].used += vMap2[vj[l]][vj[k]].rank;
+                if (vMap2[vj[k]][vj[l]].used == vMap2[vj[k]][vj[l]].channels)
+                    vMap2[vj[k]][vj[l]].bActive = false;
+                if (vMap2[vj[l]][vj[k]].used == vMap2[vj[l]][vj[k]].channels)     
+                    vMap2[vj[l]][vj[k]].bActive = false;
+            }        
+
+            if (bSuccess)
+            {
+                //for (size_t k = 0; k < vi.size(); k++)
+                //    cout << vi[k] << " ";
+               // cout << endl;
+               // for (size_t k = 0; k < vj.size(); k++)
+               //     cout << vj[k] << " ";
+               // cout << endl << endl;
+                
+                vP2PRings.push_back(vRing[i]);
+                P2PRing ring = vRing[i];
+                ring.v.resize(0);
+                int pos = 0;
+                do
+                {
+                    ring.v.push_back(vRing[i].v[pos]);
+                    pos = (pos + vRing[i].v.size() - 1) % vRing[i].v.size();
+                }
+                while (pos != 0);
+                vP2PRings.push_back(ring);
+
+                vP2PRings.push_back(vRing[j]);
+                ring = vRing[j];
+                ring.v.resize(0);
+                pos = 0;
+                do
+                {
+                    ring.v.push_back(vRing[j].v[pos]);
+                    pos = (pos + vRing[j].v.size() - 1) % vRing[j].v.size();
+                }
+                while (pos != 0);
+                vP2PRings.push_back(ring);
+                goto exit;
+            }
+        }
+    }
+exit:
+    return vP2PRings;
+}
+
+bool EnableP2PAccess(int device1, int device2)
+{
+    // Don't bother if on same GPU
+    if (device1 == device2)
+        return true;
+
+    int canAccessPeer;
+    printf("Enable: Testing P2P access for devices %d and %d\n", device1, device2);
+    cudaError_t status = cudaDeviceCanAccessPeer(&canAccessPeer, device1, device2);
+    RTERROR(status, "cudaDeviceCanAccessPeer");
+    
+    // Signal failure if P2P is not possible
+    if (canAccessPeer == 0)
+    {
+        return false;
+    }
+    
+    // Turn on P2P access
+    status = cudaDeviceEnablePeerAccess(device2, 0);
+
+    // Ignore error that really isn't an error, just bad API design that
+    // treats turning P2P access on more than once as an error
+    if (status != cudaErrorPeerAccessAlreadyEnabled)
+    {
+        RTERROR(status, "cudaDeviceEnablePeerAccess");
+    }
+    else
+    {
+        cudaGetLastError();                        
+    }
+
+    // If we made it here, P2P access is on (or was already on)
+    return true;
+}
+
 void GpuContext::Startup(int argc, char** argv)
 {
     // Initialize MPI if not already initialized.
@@ -93,6 +383,8 @@ void GpuContext::Startup(int argc, char** argv)
     // to avoid issues observed when mixing OpenMP and MPI.  Exhaustive testing
     // by Intel engineers attempting to do so indicated one GPU per process is currently
     // the more efficient way of handling this.  Ironic, right? (SML 05/30/14)
+    //
+    // As of Volta, this no longer holds (SML 10/01/17)
     int device                                      = -1;
     int gpuCount                                    = 0;
     cudaError_t status;
@@ -102,7 +394,7 @@ void GpuContext::Startup(int argc, char** argv)
     if (gpuCount == 0)
     {
         printf("GpuContext::Startup: No CUDA-capable devices found, exiting.\n");
-        cudaThreadExit();
+        cudaDeviceReset();
         Shutdown();
         exit(-1);
     }
@@ -141,37 +433,42 @@ void GpuContext::Startup(int argc, char** argv)
     // Activate zero-copy
     cudaSetDeviceFlags(cudaDeviceMapHost);
 
-
     // Select a GPU:   
     // First check for duplicate processes on current node
-    int localCount                                  = 0;
-    int offset                                      = 1;
+    size_t localCount                               = 0;
+    size_t localID                                  = 0;
     for (int i = 0; i < world_size; i++)
     {
         if (!strcmp(&pName[i * (MPI_MAX_PROCESSOR_NAME + 1)], myName))
         {
+            if (i == _id)
+                localID = localCount;
             localCount++;
-            if (i < world_rank)
-                offset++;
         }
     }
-       
+    
     if (localCount > 1)
     {
-        // Choose nth gpu which is Kepler or better
-        int pos = 0;
-        while (offset > 0)
+        // Divide local processes amongst
+        vector<uint32_t> vGPU;
+        for (uint32_t i = 0; i < gpuCount; i++)
         {
-            cudaGetDeviceProperties(&deviceProp, pos);
+            cudaGetDeviceProperties(&deviceProp, i);
             if (deviceProp.canMapHostMemory && (deviceProp.major >= 3))        
             {
-                device                              = pos;
-                offset--;
-            }   
-            pos++;
-            if (pos == gpuCount)
-                pos                                 = 0;         
-        }       
+                vGPU.push_back(i);
+            }     
+        }
+        size_t gpus = vGPU.size();
+        if (localCount <= gpus)
+        {
+            device = localID;
+        }
+        else
+        {
+            device = gpus * localID / localCount;
+        }
+        
         char hostname[128];
         gethostname(hostname, 127);
         printf("GpuContext::Startup: Process %d running on device %d out of %d GPUs on %s\n", _id, device, gpuCount, hostname);
@@ -179,16 +476,16 @@ void GpuContext::Startup(int argc, char** argv)
     else
     {
         // Generate list of compatible GPUs scored by GPU revision first and total memory second
-        unique_ptr<int[]> pGPUList(new int[gpuCount]);
-        unique_ptr<unsigned int[]> pGPUScore(new unsigned int[gpuCount]);
+        vector<int> vGPUList(gpuCount);
+        vector<uint32_t> vGPUScore(gpuCount);
         int gpus                                    = 0;          
         for (int i = 0; i < gpuCount; i++)
         {
             cudaGetDeviceProperties(&deviceProp, i);
             if (deviceProp.canMapHostMemory && (deviceProp.major >= 3))
             {
-                pGPUList[gpus]                      = i;
-                pGPUScore[gpus]                     = (deviceProp.major << 24) + (deviceProp.totalGlobalMem >> 20);
+                vGPUList[gpus]                      = i;
+                vGPUScore[gpus]                     = (deviceProp.major << 24) + (deviceProp.totalGlobalMem >> 20);
                 gpus++;
             }
         }
@@ -207,15 +504,15 @@ void GpuContext::Startup(int argc, char** argv)
                 done                                = true;
                 for (int i = 0; i < gpus - 1; i++)
                 {
-                    if (pGPUScore[i] < pGPUScore[i + 1])
+                    if (vGPUScore[i] < vGPUScore[i + 1])
                     {
                         done                        = false;
-                        int gpu                     = pGPUList[i];
-                        unsigned int score          = pGPUScore[i];
-                        pGPUList[i]                 = pGPUList[i + 1];
-                        pGPUScore[i]                = pGPUScore[i + 1];
-                        pGPUList[i + 1]             = gpu;
-                        pGPUScore[i + 1]            = score;
+                        int gpu                     = vGPUList[i];
+                        unsigned int score          = vGPUScore[i];
+                        vGPUList[i]                 = vGPUList[i + 1];
+                        vGPUScore[i]                = vGPUScore[i + 1];
+                        vGPUList[i + 1]             = gpu;
+                        vGPUScore[i + 1]            = score;
                     }
                 }
             }
@@ -223,10 +520,10 @@ void GpuContext::Startup(int argc, char** argv)
         }
             
         // Let CUDA select any device from this list
-        status                                      = cudaSetValidDevices(pGPUList.get(), gpus);
+        status                                      = cudaSetValidDevices(vGPUList.data(), gpus);
         RTERROR(status, "GpuContext::Startup: Error searching for compatible GPU");
 
-        // Trick driver into creating a context on an available and valid GPU
+        // Trick driver into creating a context on an available any valid GPU
         status                                      = cudaFree(0);
         RTERROR(status, "GpuContext::Startup: Error selecting compatible GPU");
 
@@ -240,7 +537,7 @@ void GpuContext::Startup(int argc, char** argv)
     {
 
         printf("GpuContext::Startup: No Kepler or later GPU located, exiting.\n");      
-        cudaThreadExit();
+        cudaDeviceReset();
         Shutdown();
         exit(-1);
     }
@@ -250,7 +547,7 @@ void GpuContext::Startup(int argc, char** argv)
     status                                          = cudaSetDevice(device); 
     RTERROR(status, "GpuContext::Startup: Error setting CUDA device");  
     _device                                         = device;
-    cudaThreadSynchronize();
+    cudaDeviceSynchronize();
 
     // Create local accumulator
     _pbAccumulator.reset(new GpuBuffer<unsigned long long int>((unsigned int)1, true));
@@ -296,59 +593,145 @@ void GpuContext::Startup(int argc, char** argv)
     _data._maxInt64_t                               = numeric_limits<int64_t>::max();
 
     // Enumerate GPUs in use
-    if (getGpu()._id == 0)
+    if (_id == 0)
         printf("GpuContext::Startup: Enumerating GPUs in use.\n");
-    for (size_t i = 0; i < getGpu()._numprocs; i++)
+    for (size_t i = 0; i < _numprocs; i++)
     {
-        if (getGpu()._id == i)
+        if (_id == i)
             printf("Process: %lu, GPU: %s, running SM %d.%d\n", i, deviceProp.name, deviceProp.major, deviceProp.minor);
         fflush(stdout);
         MPI_Barrier(MPI_COMM_WORLD);
     }
     
     
-    // Test for single node P2P run. P2P only works within a single node for
-    // the foreseeable future (SML 9/25/15)
+    // For P2P runs, insure process i can P2P to device on process i - 1 and process i + 1
     printf("GpuContext::Startup: Single node flag on GPU for process %d is %d\n", _device, bSingleNode);
     if (bSingleNode)
-    {
+    {  
         bP2P                                        = true;
-        unique_ptr<int[]> pDevice(new int[_numprocs]);
-        pDevice[_id]                                = device;
-        MPI_Allgather(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL, pDevice.get(), sizeof(int), MPI_BYTE, MPI_COMM_WORLD);
-        unique_ptr<int[]> pUnifiedAddressing(new int[_numprocs]);
+        vector<int> vProcessDevice(_numprocs);
+        vProcessDevice[_id]                         = device;
+        MPI_Allgather(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL, vProcessDevice.data(), sizeof(int), MPI_BYTE, MPI_COMM_WORLD);
         cudaGetDeviceProperties(&deviceProp, device);
-        pUnifiedAddressing[_id]                     = deviceProp.unifiedAddressing;
-        MPI_Allgather(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL, pUnifiedAddressing.get(), sizeof(int), MPI_BYTE, MPI_COMM_WORLD);
-        for (int i = 0; i < _numprocs; i++)
-        {     
-            if (pDevice[i] != device)
-            {
-                int canAccessPeer;
-                printf("GpuContext::Startup: Testing P2P for processes %d and %d\n", device, pDevice[i]);
-                cudaError_t status                  = cudaDeviceCanAccessPeer(&canAccessPeer, device, pDevice[i]);
-                RTERROR(status, "cudaDeviceCanAccessPeer");
-                if (canAccessPeer == 0)
-                {
-                    bP2P                            = false;
-                }
-                else
-                {
-                    status                          = cudaDeviceEnablePeerAccess(pDevice[i], 0);
+        bSingleNode                                 = (deviceProp.unifiedAddressing > 0);
 
-                    // Ignore error that really isn't an error, just bad API design
-                    if (status != cudaErrorPeerAccessAlreadyEnabled)
-                    {
-                        RTERROR(status, "cudaDeviceEnablePeerAccess");
-                    }
-                    else
-                        cudaGetLastError();                        
+        // Calculate rings from active devices
+        if (_id == 0)
+        {
+            
+            // Collect unique GPUs
+            set<int> sDevice;
+            for (int i = 0; i < _numprocs; i++)
+            {
+                sDevice.insert(vProcessDevice[i]);
+            }
+            
+            vector<unsigned int> vDevice;
+            for (auto d : sDevice)
+            {
+                cout << "D " << d << endl;
+                vDevice.push_back(d);
+            }
+            
+            // Calculate rings from device list if >1 device
+            vector<P2PRing> vP2PRings;
+            if (sDevice.size() > 1)
+            {
+                vP2PRings = getP2PRings(vDevice);
+                cout << vP2PRings.size() << " rings\n";
+                for (auto r : vP2PRings)
+                {
+                    cout << r.rank << ": ";
+                    for (auto x : r.v)
+                        cout << x << " ";
+                    cout << endl;
                 }
             }
-            if (!pUnifiedAddressing[i])
-                bSingleNode                         = false;
+            else
+            {
+                // Only using one GPU
+                P2PRing p;
+                p.v.push_back(vProcessDevice[0]);
+                p.rank = 1;
+                vP2PRings.push_back(p);
+            }  
+                            
+            // Map rings over to process IDs
+            for (int i = 0; i < vP2PRings.size(); i++)
+            {
+                P2PRing p;
+                p.rank = vP2PRings[i].rank;
+                for (auto d : vP2PRings[i].v)
+                {
+                    for (uint32_t j = 0; j < _numprocs; j++)
+                    {
+                        if (vProcessDevice[j] == d)
+                            p.v.push_back(j);
+                    }                 
+                }
+                _vP2PRings.push_back(p);   
+            }
+            cout << _vP2PRings.size() << " process rings\n";
+            for (auto r : _vP2PRings)
+            {
+                cout << r.rank << ": ";
+                for (auto x : r.v)
+                    cout << x << " ";
+                cout << endl;
+            }
+        }
+        MPI_Barrier(MPI_COMM_WORLD);
+       
+        // Broadcast ring dimensions to other GPUs
+        size_t rings = _vP2PRings.size();
+        MPI_Allgather(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL, &rings, sizeof(size_t), MPI_BYTE, MPI_COMM_WORLD);
+        cout << " TOTAL " << rings << endl;
+        _vP2PRings.resize(rings);
+        
+        // Broadcast all rings and calculate offsets
+        _totalP2PRank = 0;
+        for (size_t i = 0; i < rings; i++)
+        {
+            _vP2PRings[i].v.resize(_numprocs);
+            MPI_Bcast(_vP2PRings[i].v.data(), _numprocs, MPI_UINT32_T, 0, MPI_COMM_WORLD);
+            MPI_Bcast(&_vP2PRings[i].rank, 1, MPI_UINT32_T, 0, MPI_COMM_WORLD);
+            _vP2PRings[i].offset = _totalP2PRank;
+            _totalP2PRank += _vP2PRings[i].rank;
+        }
+        MPI_Barrier(MPI_COMM_WORLD);        
+        
+        // Enable P2P access for GPUs adjacent to each other on any ring
+        if (_vP2PRings.size() > 0)
+        {
+            bool bP2PTemp = true;
+            for (int i = 0; i < _vP2PRings.size(); i++)
+            {
+                // Create stream for each ring;
+                cudaError_t status = cudaStreamCreate(&_vP2PRings[i].stream);
+                RTERROR(status, "GpuContext::Startup: failed to create cuda stream.");
+                
+                // Find position on current ring
+                for (uint32_t j = 0; j < _numprocs; j++)
+                {
+                    if (_vP2PRings[i].v[j] == _id)
+                    {
+                        // Enable P2P on the GPUs of each adjacent process on the ring
+                        uint32_t minusDevice = vProcessDevice[_vP2PRings[i].v[(j + _numprocs - 1) % _numprocs]];
+                        bP2PTemp &= EnableP2PAccess(device, minusDevice);
+                        uint32_t plusDevice = vProcessDevice[_vP2PRings[i].v[(j + 1) % _numprocs]];
+                        bP2PTemp &= EnableP2PAccess(device, plusDevice);
+                        _vP2PRings[i].position = j;
+                    }
+                }
+            }
+            bP2P = bP2PTemp;
+        }
+        else
+        {
+            bP2P = false;
         }
     }
+
     _bSingleNode                                    = bSingleNode;
     _bP2P                                           = bP2P;
     printf("GpuContext::Startup: P2P support flags on GPU for process %d are %d %d\n", _device, _bP2P, _bSingleNode);  
@@ -435,6 +818,16 @@ void GpuContext::Shutdown()
 {   
     // Delete kernel accumulator
     _pbAccumulator.reset();
+    
+    // Delete P2P Streams
+    for (size_t i = 0; i < _vP2PRings.size(); i++)
+    {
+        cudaError_t status = cudaStreamDestroy(_vP2PRings[i].stream);
+        if (status != cudaSuccess)
+        {
+            printf("GpuContext::Shutdown: Error destroying cuda stream.");
+        }
+    }
 
     // Shut down cuBLAS if active
     printf("GpuContext::Shutdown: Shutting down cuBLAS on GPU for process %d\n", _device);
@@ -464,7 +857,7 @@ void GpuContext::Shutdown()
     printf("GpuContext::Shutdown: CuRand shut down on GPU for process %d\n", _device);
     
     // Exit CUDA
-    cudaThreadExit();
+    cudaDeviceReset();
 
     // Shut down MPI
     MPI_Finalize();

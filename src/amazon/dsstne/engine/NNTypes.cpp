@@ -1356,11 +1356,11 @@ _pbSparseData()
 
             if (!bOpened)
             {
-                cout << "Exception: NNDataSet::NNDataSet: Error opening NetCDF input file " << fname << endl;
+                cout << "NNDataSet<T>::NNDataSet: Exception: NNDataSet::NNDataSet: Error opening NetCDF input file " << fname << endl;
             }
             else
             {
-                cout << "Exception: " << e.what() << endl;
+                cout << "NNDataSet<T>::NNDataSet: Exception: " << e.what() << endl;
             }
             bResult                             = false;
         }
@@ -2511,11 +2511,11 @@ vector<NNDataSetBase*> LoadNetCDF(const string& fname)
         {
             if (!bOpened)
             {
-                cout << "NcException: LoadNetCDF: Error opening NetCDF input file " << fname << endl;
+                cout << "NNDataSetBase::LoadNetCDF: NNcException: LoadNetCDF: Error opening NetCDF input file " << fname << endl;
             }
             else
             {
-                cout << "Exception: " << e.what() << endl;
+                cout << "NNDatSetBase::LoadNetCDF: Exception: " << e.what() << endl;
             }
             bResult                         = false;
         }
