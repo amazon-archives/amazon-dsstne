@@ -36,9 +36,9 @@ RUN apt-get install -y libnetcdf-c++4-dev
 
 # Installing CUBG
 RUN cd /tmp && \
-    wget https://github.com/NVlabs/cub/archive/1.5.2.zip && \
-    unzip 1.5.2.zip && \
-    cp -rf cub-1.5.2/cub/ /usr/local/include/ && \
+    wget https://github.com/NVlabs/cub/archive/1.8.0.zip && \
+    unzip 1.8.0.zip && \
+    cp -rf cub-1.8.0/cub/ /usr/local/include/ && \
     rm -rf /tmp/*
 
 # Ensure OpenMPI is available on path
